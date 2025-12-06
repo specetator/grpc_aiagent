@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstring>
 #include <iostream>
+#include <sstream>
 #include <mutex>
 #include <nlohmann/json.hpp>
 #include <string>
