@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package sparkpush.rpc.bench;
+
+message EchoRequest {
+    bytes payload = 1;
+}
+
+message EchoReply {
+    bytes payload = 1;
+}
+
+service EchoService {
+    rpc Echo(EchoRequest) returns (EchoReply);
+}
+

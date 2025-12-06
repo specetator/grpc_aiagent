@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>弹幕 - Spark Push</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📺</text></svg>">
+  <link rel="stylesheet" href="auth_style.css">
+  <style>
+    :root {
+      --primary-color: #1976d2;
+    }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: #0a0a0a;
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    header {
+      padding: 12px 24px;
+      background: #1a1a1a;
+      border-bottom: 1px solid #333;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h2 { margin: 0; font-size: 18px; color: #4fc3f7; }
+    header a { color: #888; text-decoration: none; font-size: 14px; }
+    header a:hover { color: #fff; }
+
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    #video-wrap {
+      position: relative;
+      width: 960px;
+      max-width: 100%;
+      background: #000;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    video { width: 100%; display: block; }
+    #danmaku-layer {
+      pointer-events: none;
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      overflow: hidden;
+    }
+    .danmaku-item {
+      position: absolute;
+      white-space: nowrap;
+      color: #fff;
+      font-size: 20px;
+      font-weight: bold;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+      will-change: transform;
+      animation: danmaku-move 8s linear forwards;
+    }
+    @keyframes danmaku-move {
+      from { transform: translateX(100%); }
+      to { transform: translateX(-100%); }
+    }
+
+    /* 控制区 */
+    .controls-container {
+      width: 960px;
+      max-width: 100%;
+      margin-top: 16px;
+      background: #1f1f1f;
+      padding: 16px;
+      border-radius: 6px;
+      box-sizing: border-box;
+      display: flex;
+      align-items: center;
+      min-height: 70px;
+    }
+
+    /* 登录前 */
+    #guest-panel {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* 登录后 */
+    #user-panel {
+      flex: 1;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+    #dm-input { 
+      flex: 1; 
+      background: #2b2b2b;
+      border: 1px solid #444;
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 6px;
+      outline: none;
+    }
+    #dm-input:focus { border-color: var(--primary-color); }
+    
+    .hidden { display: none !important; }
+    
+    /* 通用按钮 */
+    .btn {
+      background: var(--primary-color);
+      color: #fff;
+      border: none;
+      padding: 8px 20px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    .btn:hover { background: #1565c0; }
+    
+    /* Modal Styles */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7);
+      z-index: 1000;
+      display: flex; justify-content: center; align-items: center;
+    }
+    .modal {
+      background: #fff;
+      color: #333;
+      width: 360px;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    }
+    .modal-header {
+      padding: 0;
+      display: flex;
+      border-bottom: 1px solid #eee;
+    }
+    .modal-tab {
+      flex: 1;
+      padding: 15px;
+      text-align: center;
+      cursor: pointer;
+      background: #f5f5f5;
+      font-weight: bold;
+      color: #666;
+    }
+    .modal-tab.active {
+      background: #fff;
+      color: var(--primary-color);
+      border-top: 3px solid var(--primary-color);
+    }
+    .modal-body { padding: 25px; }
+    .form-group { margin-bottom: 15px; }
+    .form-input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+    .form-input:focus { border-color: var(--primary-color); outline: none; }
+    .btn-block { width: 100%; padding: 12px; font-size: 16px; margin-top: 10px; }
+    .close-modal {
+      position: absolute;
+      top: 20px; right: 20px;
+      color: #fff;
+      font-size: 30px;
+      cursor: pointer;
+      line-height: 1;
+    }
+  </style>
+  <script src="auth.js"></script>
+</head>
+<body>
+  <header>
+    <h2>Spark 弹幕演示</h2>
+    <a href="index.html">← 返回首页</a>
+  </header>
+
+  <div id="main">
+    <div id="video-wrap">
+      <video id="video" controls>
+        <source src="demo.mp4" type="video/mp4" />
+      </video>
+      <div id="danmaku-layer"></div>
+    </div>
+
+    <div class="controls-container">
+      <!-- 1. 登录前 -->
+      <div id="guest-panel">
+         <span style="margin-right: 15px; color: #aaa;">登录后发送弹幕</span>
+         <button class="btn" onclick="openAuthModal()">登录 / 注册</button>
+      </div>
+
+      <!-- 2. 登录后 -->
+      <div id="user-panel" class="hidden">
+         <div style="display:flex; flex-direction:column; margin-right:10px; min-width: 80px;">
+           <span style="font-size:12px; color:#888;">当前用户</span>
+           <span id="current-user-disp" style="font-size:14px; font-weight:bold; color:#4fc3f7;">-</span>
+         </div>
+         <input id="dm-input" placeholder="输入弹幕内容，回车发射..." />
+         <button class="btn" id="send-dm-btn">🚀 发送弹幕</button>
+         <button class="btn" style="background:#424242; margin-left:10px;" onclick="doLogout()">退出</button>
+      </div>
+    </div>
+    
+    <div style="width:960px; max-width:100%; margin-top:10px; color:#555; font-size:12px; line-height:1.5;">
+       💡 提示：本页面模拟了视频网站的弹幕功能。登录后会连接 WebSocket 并自动加入 room_id=1001。
+    </div>
+  </div>
+
+  <!-- Login Modal -->
+  <div id="auth-modal" class="modal-overlay hidden">
+    <div class="close-modal" onclick="closeAuthModal()">×</div>
+    <div class="modal" onclick="event.stopPropagation()">
+       <div style="padding: 25px;">
+          <div class="auth-tabs">
+            <button type="button" class="auth-tab active" data-mode="login">登录</button>
+            <button type="button" class="auth-tab" data-mode="register">注册</button>
+          </div>
+          <div class="form-group">
+             <input id="auth-account" class="form-control" placeholder="账号">
+          </div>
+          <div class="form-group hidden" id="group-nickname">
+             <input id="auth-nickname" class="form-control" placeholder="昵称">
+          </div>
+          <div class="form-group">
+             <input id="auth-password" type="password" class="form-control" placeholder="密码">
+          </div>
+          <button id="login-btn" class="btn-primary btn-block">立即登录</button>
+          <button id="register-btn" class="btn-primary btn-block hidden">注册并自动登录</button>
+          <div id="auth-msg" class="status-text"></div>
+       </div>
+    </div>
+  </div>
+
+  <script>
+    const video = document.getElementById('video');
+    const danmakuLayer = document.getElementById('danmaku-layer');
+    const dmInput = document.getElementById('dm-input');
+    const logicBase = window.location.protocol + '//' + window.location.hostname + ':9101';
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const cometWsUrl = wsProtocol + '//' + window.location.hostname + ':9000/ws';
+    
+    const videoId = 'demo_video_1';
+    const danmakuRoomId = 1001;
+
+    let ws = null;
+    let currentUserId = null;
+    let token = null;
+    const danmakus = []; 
+    // 弹幕按时间片分段加载（毫秒），类似商业视频网站做时间分片预加载
+    const DANMAKU_SLICE_MS = 60 * 1000; // 每片 60 秒
+    const danmakuLoadedRanges = [];     // 已成功加载的时间段 [{from_ms,to_ms}]
+    const danmakuLoadingKeys = new Set(); // 正在加载中的片段 key: "from-to"
+    let lastPreloadCheckTime = -1;      // 上次预加载检查时的视频时间（秒）
+
+    // Auth State
+    // let authMode = 'login'; // Removed
+
+    // --- UI ---
+    function updateUI() {
+       const guest = document.getElementById('guest-panel');
+       const user = document.getElementById('user-panel');
+       if (currentUserId) {
+          guest.classList.add('hidden');
+          user.classList.remove('hidden');
+          document.getElementById('current-user-disp').textContent = currentUserId;
+          closeAuthModal();
+       } else {
+          guest.classList.remove('hidden');
+          user.classList.add('hidden');
+       }
+    }
+
+    function openAuthModal() {
+      document.getElementById('auth-modal').classList.remove('hidden');
+      const t = document.querySelector('.auth-tab[data-mode="login"]');
+      if(t) t.click();
+      document.getElementById('auth-msg').textContent = '';
+    }
+    function closeAuthModal() {
+      document.getElementById('auth-modal').classList.add('hidden');
+    }
+
+    // Tab Logic
+    document.querySelectorAll('.auth-tab').forEach(btn => {
+       btn.onclick = () => {
+         document.querySelectorAll('.auth-tab').forEach(b => b.classList.remove('active'));
+         btn.classList.add('active');
+         const mode = btn.dataset.mode;
+         const regBtn = document.getElementById('register-btn');
+         const logBtn = document.getElementById('login-btn');
+         const nickGroup = document.getElementById('group-nickname');
+         
+         if(mode === 'login') {
+            regBtn.classList.add('hidden');
+            logBtn.classList.remove('hidden');
+            nickGroup.classList.add('hidden');
+         } else {
+            regBtn.classList.remove('hidden');
+            logBtn.classList.add('hidden');
+            nickGroup.classList.remove('hidden');
+         }
+         document.getElementById('auth-msg').textContent = '';
+       };
+    });
+
+    // --- 弹幕渲染 ---
+    function createDanmaku(text) {
+      const el = document.createElement('span');
+      el.className = 'danmaku-item';
+      el.textContent = text;
+      const layerH = danmakuLayer.clientHeight || 300;
+      const top = Math.floor(Math.random() * (layerH - 30)); 
+      el.style.top = top + 'px';
+      el.addEventListener('animationend', () => el.remove());
+      danmakuLayer.appendChild(el);
+    }
+
+    function onRecvDanmaku(timelineMs, text) {
+       const tSec = (timelineMs || 0) / 1000.0;
+       danmakus.push({ time: tSec, text, displayed: false });
+    }
+
+    // --- 弹幕时间片管理 ---
+    function isRangeLoaded(fromMs, toMs) {
+      return danmakuLoadedRanges.some(r =>
+        fromMs >= r.from_ms && toMs <= r.to_ms
+      );
+    }
+
+    function markRangeLoaded(fromMs, toMs) {
+      danmakuLoadedRanges.push({ from_ms: fromMs, to_ms: toMs });
+    }
+
+    async function loadDanmakuRange(fromMs, toMs) {
+      if (fromMs < 0) fromMs = 0;
+      if (toMs > 0 && toMs <= fromMs) return;
+      if (isRangeLoaded(fromMs, toMs)) return;
+
+      const key = fromMs + '-' + toMs;
+      if (danmakuLoadingKeys.has(key)) return;
+      danmakuLoadingKeys.add(key);
+
+      try {
+        const res = await fetch(logicBase + '/api/danmaku/list', {
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            video_id: videoId,
+            from_ms: fromMs,
+            to_ms: toMs,
+            limit: 2000
+          })
+        });
+        const d = await res.json();
+        if (d.code === 0 && d.data && Array.isArray(d.data.danmaku)) {
+          d.data.danmaku.forEach(item => {
+            onRecvDanmaku(item.timeline_ms, item.text);
+          });
+          markRangeLoaded(fromMs, toMs);
+        }
+      } catch(e) {
+        console.error('loadDanmakuRange error', e);
+      } finally {
+        danmakuLoadingKeys.delete(key);
+      }
+    }
+
+    function scheduleDanmakuPreload(curSeconds, force = false) {
+      const cur = curSeconds || 0;
+      // 默认每 5 秒做一次预加载检查，避免 timeupdate 过于频繁
+      if (!force && lastPreloadCheckTime >= 0 && Math.abs(cur - lastPreloadCheckTime) < 5) {
+        return;
+      }
+      lastPreloadCheckTime = cur;
+
+      const curMs = Math.floor(cur * 1000);
+      const baseSliceIndex = Math.floor(curMs / DANMAKU_SLICE_MS);
+      const sliceIndices = [baseSliceIndex - 1, baseSliceIndex, baseSliceIndex + 1, baseSliceIndex + 2];
+
+      sliceIndices.forEach(idx => {
+        if (idx < 0) return;
+        const fromMs = idx * DANMAKU_SLICE_MS;
+        const toMs = fromMs + DANMAKU_SLICE_MS;
+        loadDanmakuRange(fromMs, toMs);
+      });
+    }
+
+    // --- 业务逻辑 ---
+    async function doLoginOrRegister(mode) {
+       const account = document.getElementById('auth-account').value.trim();
+       const pwdRaw = document.getElementById('auth-password').value;
+       const nickname = document.getElementById('auth-nickname').value.trim();
+       const msgEl = document.getElementById('auth-msg');
+       
+       if(!account || !pwdRaw) return msgEl.textContent = '请填写完整';
+       if(mode === 'register' && !nickname) return msgEl.textContent = '注册需填写昵称';
+
+       msgEl.textContent = '处理中...';
+       
+       try {
+          const url = logicBase + (mode === 'register' ? '/api/register' : '/api/login');
+          const body = { account, password: hashPassword(pwdRaw) };
+          if(mode === 'register') body.name = nickname;
+
+          const resp = await fetch(url, {
+             method:'POST', headers:{'Content-Type':'application/json'},
+             body:JSON.stringify(body)
+          });
+          const data = await resp.json();
+          
+          if (data.code !== 0) {
+             msgEl.textContent = data.message;
+             return;
+          }
+          
+          currentUserId = data.data.user_id;
+          token = data.data.token;
+          Auth.set(currentUserId, token, nickname || ('User ' + currentUserId));
+          updateUI();
+          connectWs();
+       } catch(e) {
+          msgEl.textContent = '网络错误: ' + e;
+       }
+    }
+
+    function doLogout() {
+      Auth.clear();
+      if(ws) ws.close();
+      currentUserId = null;
+      token = null;
+      ws = null;
+      updateUI();
+    }
+    
+    function connectWs() {
+       if(ws) ws.close();
+       ws = new WebSocket(cometWsUrl + '?token=' + encodeURIComponent(token));
+       ws.onopen = () => {
+          console.log('WS Open');
+          joinRoom();
+       };
+       ws.onmessage = (ev) => {
+          try {
+             const obj = JSON.parse(ev.data);
+             console.info('obj', obj);
+             if (obj.type === 'danmaku' || obj.type === 'chatroom') {
+                let t = ev.data;
+                if (obj.content) {
+                    if (typeof obj.content === 'string') t = obj.content;
+                    else if (obj.content.text) t = obj.content.text;
+                    else if (obj.content.content) {
+                       // 嵌套兼容
+                       if (typeof obj.content.content === 'string') t = obj.content.content;
+                       else if (obj.content.content.text) t = obj.content.content.text;
+                    }
+                }
+                const tl = obj.timeline_ms || 0;
+                onRecvDanmaku(tl, t);
+             }
+          } catch(e){}
+       };
+    }
+    
+    async function joinRoom() {
+       await fetch(logicBase + '/api/chatroom/join', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({ room_id: danmakuRoomId, user_id: currentUserId })
+       });
+       if(ws && ws.readyState===1) ws.send(JSON.stringify({ type:'chatroom_join', group_id: danmakuRoomId }));
+    }
+    
+    async function sendDanmaku() {
+       const text = dmInput.value.trim();
+       if(!text) return;
+       if (!currentUserId || !token) {
+          // 未登录则提示并弹出登录框
+          alert('请先登录后再发送弹幕');
+          openAuthModal();
+          return;
+       }
+       const timelineMs = Math.floor((video.currentTime||0) * 1000);
+       try {
+          await fetch(logicBase + '/api/danmaku/send', {
+             method:'POST', headers:{'Content-Type':'application/json'},
+             body:JSON.stringify({
+               user_id: currentUserId,
+               video_id: videoId,
+               timeline_ms: timelineMs,
+               text,
+               token
+             })
+          });
+          dmInput.value = '';
+       } catch(e) { alert(e); }
+    }
+
+    // 首次进入页面时预加载从 0 开始的若干时间片
+    function initDanmakuPreload() {
+      // 这里不依赖 video.duration，直接从 0 预加载前几片，足够 使用
+      scheduleDanmakuPreload(0, true);
+    }
+
+    // --- Event Loop for Video ---
+    video.addEventListener('timeupdate', () => {
+       const cur = video.currentTime;
+       // 播放时按当前时间做时间片预加载
+       scheduleDanmakuPreload(cur);
+       for(const d of danmakus) {
+          if(!d.displayed && d.time <= cur + 0.2) {
+             d.displayed = true;
+             createDanmaku(d.text);
+          }
+       }
+    });
+    video.addEventListener('seeked', () => {
+       const cur = video.currentTime;
+       // 跳转时强制触发一次预加载，避免 seek 到尚未加载区域时弹幕缺失
+       scheduleDanmakuPreload(cur, true);
+       for(const d of danmakus) {
+          d.displayed = (d.time < cur - 0.5);
+       }
+    });
+
+    document.getElementById('send-dm-btn').onclick = sendDanmaku;
+    dmInput.onkeydown = (e) => { if(e.key==='Enter') sendDanmaku(); };
+
+    document.getElementById('login-btn').onclick = () => doLoginOrRegister('login');
+    document.getElementById('register-btn').onclick = () => doLoginOrRegister('register');
+    document.getElementById('auth-password').onkeydown = (e) => {
+       if(e.key==='Enter') {
+          const isReg = !document.getElementById('register-btn').classList.contains('hidden');
+          doLoginOrRegister(isReg ? 'register' : 'login');
+       }
+    };
+    
+    // 弹幕拉取无需登录，这里在页面加载完成后直接按时间片开始预加载
+    initDanmakuPreload();
+
+    // 自动登录
+    const savedSession = Auth.get();
+    if(savedSession) {
+      currentUserId = Number(savedSession.user_id);
+      token = savedSession.token;
+      updateUI();
+      connectWs();
+    } else {
+      updateUI();
+    }
+  </script>
+</body>
+</html>

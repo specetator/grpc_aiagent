@@ -1,0 +1,137 @@
+syntax = "proto3";
+
+package sparkpush;
+
+// 通用错误信息
+message ErrorInfo {
+  int32 code = 1;      // 0 表示成功，非 0 代表错误码
+  string message = 2;  // 具体错误原因
+}
+
+// 基础消息模型（内部存储/序列化使用）
+message ChatMessage {
+  string msg_id = 1;
+  string session_id = 2;
+  int64 msg_seq = 3;
+  int64 sender_id = 4;
+  int64 timestamp_ms = 5;
+  string msg_type = 6;   // text / system / danmaku / ...
+  string content_json = 7;
+  string client_msg_id = 8;
+}
+
+// 弹幕消息结构（用于时间轴拉取）
+message DanmakuMessage {
+  string msg_id = 1;
+  string video_id = 2;
+  int64 timeline_ms = 3;
+  int64 sender_id = 4;
+  string content_json = 5;
+  int64 timestamp_ms = 6;
+}
+
+// ========== LogicService 相关 ==========
+
+// comet -> logic：鉴权
+message VerifyTokenRequest {
+  string token = 1;
+  string comet_id = 2;
+}
+
+message VerifyTokenReply {
+  ErrorInfo error = 1;
+  int64 user_id = 2;
+}
+
+// comet -> logic：上行聊天/聊天室/弹幕消息
+message UpstreamMessageRequest {
+  int64 from_user_id = 1;
+  string client_msg_id = 2;
+  string scene = 3;          // single / group / chatroom / danmaku
+  int64 to_user_id = 4;      // 单聊
+  int64 group_id = 5;        // 群聊/聊天室
+  string video_id = 6;       // 弹幕
+  int64 timeline_ms = 7;     // 弹幕时间轴
+  string content_json = 8;
+}
+
+message UpstreamMessageReply {
+  ErrorInfo error = 1;
+  ChatMessage message = 2;
+}
+
+// comet -> logic：用户下线
+message UserOfflineRequest {
+  int64 user_id = 1;
+  string comet_id = 2;
+}
+
+message SimpleReply {
+  ErrorInfo error = 1;
+}
+
+// 房间加入/离开（聊天室/弹幕房）
+message RoomReportRequest {
+  int64 user_id = 1;
+  int64 room_id = 2;
+  string comet_id = 3;
+}
+
+// 广播请求（由 HTTP 或内部调用）
+message BroadcastRequest {
+  string scope = 1;          // all / group / tag ...
+  int64 group_id = 2;        // 可选
+  string content_json = 3;
+}
+
+message BroadcastReply {
+  ErrorInfo error = 1;
+  string task_id = 2;
+}
+
+service LogicService {
+  rpc VerifyToken(VerifyTokenRequest) returns (VerifyTokenReply);
+  rpc SendUpstreamMessage(UpstreamMessageRequest) returns (UpstreamMessageReply);
+  rpc UserOffline(UserOfflineRequest) returns (SimpleReply);
+  rpc ReportRoomJoin(RoomReportRequest) returns (SimpleReply);
+  rpc ReportRoomLeave(RoomReportRequest) returns (SimpleReply);
+  rpc Broadcast(BroadcastRequest) returns (BroadcastReply);
+}
+
+// ========== JobService / CometService 相关 ==========
+
+// logic -> job -> comet：按 comet fanout 的下行消息目标
+message FanoutTarget {
+  int64 user_id = 1;
+}
+
+message PushToCometRequest {
+  string comet_id = 1;
+  ChatMessage message = 2;
+  repeated FanoutTarget targets = 3;
+}
+
+message PushToCometReply {
+  ErrorInfo error = 1;
+}
+
+// logic -> job：广播任务
+message BroadcastTaskRequest {
+  string task_id = 1;
+  string scope = 2;
+  int64 group_id = 3;
+  string content_json = 4;
+}
+
+service JobService {
+  rpc EnqueuePushTask(PushToCometRequest) returns (SimpleReply);
+  rpc EnqueueBroadcastTask(BroadcastTaskRequest) returns (SimpleReply);
+}
+
+service CometService {
+  rpc PushToComet(PushToCometRequest) returns (PushToCometReply);
+}
+
+
+
+
