@@ -62,7 +62,7 @@ Config LoadConfig(const std::string& path) {
 
     std::ifstream fin(path);
     if (!fin) {
-        LogError("LoadConfig open file failed: " + path + ", use defaults");
+        LOG_ERROR << "LoadConfig open file failed: " << path << ", use defaults";
         return cfg;
     }
 

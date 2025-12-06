@@ -252,7 +252,7 @@ bool SessionDao::GetOrCreateSingleSession(int64_t user1, int64_t user2,
         }
         std::string err;
         if (!EnsureSingleSession(conn, session_id, user1, user2, &err)) {
-            LogError("EnsureSingleSession failed: " + err);
+            LOG_ERROR << "EnsureSingleSession failed: " << err;
         }
     }
 
@@ -277,7 +277,7 @@ bool SessionDao::GetOrCreateRoomSession(int64_t room_id, Session* session,
         }
         std::string err;
         if (!EnsureRoomSession(conn, session_id, room_id, &err)) {
-            LogError("EnsureRoomSession failed: " + err);
+            LOG_ERROR << "EnsureRoomSession failed: " << err;
         }
     }
     return GetSessionById(session_id, session, err_msg);

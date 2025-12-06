@@ -54,7 +54,7 @@ bool ParseJsonBody(const std::string& body, nlohmann::json* out) {
         *out = nlohmann::json::parse(body);
         return true;
     } catch (const nlohmann::json::exception& e) {
-        LogError("JSON parse error: " + std::string(e.what()));
+        LOG_ERROR << "JSON parse error: " << e.what();
         return false;
     } catch (...) {
         return false;
@@ -89,7 +89,7 @@ bool ParseJsonAccountPassword(const std::string& body, std::string* account,
         *password = j["password"].get<std::string>();
         return true;
     } catch (const nlohmann::json::exception& e) {
-        LogError("JSON parse error: " + std::string(e.what()));
+        LOG_ERROR << "JSON parse error: " << e.what();
         return false;
     } catch (...) {
         return false;
@@ -315,7 +315,7 @@ void HttpApiServer::handleDanmakuSend(const HttpRequest& req,
         if (!danmaku_dao_->InsertDanmaku(video_id, timeline_ms, user_id,
                                          content_json, &row_id, &err)) {
             // 中：写库失败只打日志，不中断实时推送
-            LogError("InsertDanmaku failed: " + err);
+            LOG_ERROR << "InsertDanmaku failed: " << err;
         }
     }
 
@@ -369,7 +369,7 @@ void HttpApiServer::handleDanmakuSend(const HttpRequest& req,
         if (group_member_dao_) {
             if (!group_member_dao_->ListRoomMembers(kDanmakuRoomId, &members,
                                                     &err)) {
-                LogError("ListRoomMembers(danmaku) failed: " + err);
+                LOG_ERROR << "ListRoomMembers(danmaku) failed: " << err;
             }
         }
         for (int64_t uid : members) {
@@ -406,11 +406,11 @@ void HttpApiServer::handleDanmakuSend(const HttpRequest& req,
 
         std::string payload;
         if (!req_pb.SerializeToString(&payload)) {
-            LogError("Serialize PushToCometRequest(danmaku) failed");
+            LOG_ERROR << "Serialize PushToCometRequest(danmaku) failed";
             continue;
         }
         if (!kafka_producer_->Send(comet_id, payload)) {
-            LogError("Kafka send danmaku failed for comet " + comet_id);
+            LOG_ERROR << "Kafka send danmaku failed for comet " << comet_id;
         }
     }
 
@@ -1052,7 +1052,7 @@ void HttpApiServer::handleChatroomList(const HttpRequest& req,
     for (int64_t room_id : room_ids) {
         Session s;
         if (!store_->GetOrCreateRoomSession(room_id, &s, &err)) {
-            LogError("GetOrCreateRoomSession failed: " + err);
+            LOG_ERROR << "GetOrCreateRoomSession failed: " << err;
             continue;
         }
 
@@ -1482,8 +1482,8 @@ void HttpApiServer::handleChatroomOnlineCount(const HttpRequest& req,
             count = static_cast<int64_t>(members.size());
             ok = true;
         } else {
-            LogError("ListRoomMembers failed when fallback online count: " +
-                     err);
+            LOG_ERROR << "ListRoomMembers failed when fallback online count: "
+                      << err;
         }
     }
     std::ostringstream data;

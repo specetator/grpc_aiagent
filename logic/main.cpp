@@ -73,7 +73,7 @@ namespace sparkpush {
 int RunLogic(const Config& cfg) {
     KafkaProducer producer;
     if (!producer.Init(cfg.kafka_brokers, cfg.kafka_push_topic)) {
-        LogError("Failed to initialize Kafka push producer");
+        LOG_ERROR << "Failed to initialize Kafka push producer";
         return 1;
     }
 
@@ -81,7 +81,7 @@ int RunLogic(const Config& cfg) {
     KafkaProducer broadcast_producer;
     if (!broadcast_producer.Init(cfg.kafka_brokers,
                                  cfg.kafka_broadcast_topic)) {
-        LogError("Failed to initialize Kafka broadcast producer");
+        LOG_ERROR << "Failed to initialize Kafka broadcast producer";
         return 1;
     }
 
@@ -101,7 +101,7 @@ int RunLogic(const Config& cfg) {
                            : std::max(mc.min_pool_size, mc.pool_size);
     mc.idle_timeout_ms = cfg.mysql_idle_timeout_ms;
     if (!mysql_pool.Init(mc)) {
-        LogError("Failed to init MySQL pool");
+        LOG_ERROR << "Failed to init MySQL pool";
         return 1;
     }
     UserDao user_dao(&mysql_pool);
@@ -128,7 +128,7 @@ int RunLogic(const Config& cfg) {
     rc.rw_timeout_ms = cfg.redis_rw_timeout_ms;
     rc.idle_timeout_ms = cfg.redis_idle_timeout_ms;
     if (!redis_pool.Init(rc)) {
-        LogError("Failed to init Redis pool");
+        LOG_ERROR << "Failed to init Redis pool";
         return 1;
     }
     RedisStore redis_store(&redis_pool);
@@ -146,7 +146,7 @@ int RunLogic(const Config& cfg) {
     builder.AddListeningPort(grpc_addr, grpc::InsecureServerCredentials());
     builder.RegisterService(service.get());
     std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
-    LogInfo("Logic gRPC server listening on " + grpc_addr);
+    LOG_INFO << "Logic gRPC server listening on " << grpc_addr;
 
     // 启动 HTTP 服务器（登录 / 发送消息）
     muduo::net::EventLoop loop;
@@ -156,8 +156,8 @@ int RunLogic(const Config& cfg) {
                              &group_dao, &group_member_dao, &redis_store,
                              &producer, &broadcast_producer, &danmaku_dao);
     httpServer.start();
-    LogInfo("Logic HTTP server listening on port " +
-            std::to_string(cfg.http_port));
+    LOG_INFO << "Logic HTTP server listening on port "
+             << std::to_string(cfg.http_port);
 
     // gRPC 使用单独线程阻塞 Wait，muduo EventLoop 在当前线程运行
     std::thread grpc_thread([&server]() { server->Wait(); });

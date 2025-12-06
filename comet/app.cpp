@@ -18,8 +18,7 @@ void RunComet(const Config& cfg) {
     CometServer server(&loop, cfg);
     server.SetThreadNum(cfg.comet_io_threads);
     server.Start();
-    LogInfo("Comet server listening on port " +
-            std::to_string(cfg.listen_port));
+    LOG_INFO << "Comet server listening on port " << std::to_string(cfg.listen_port);
 
     // gRPC 服务器（用于 job 推送）。
     // 端口从配置中的 comet_grpc_port 读取，而不是隐式使用 listen_port+100。
@@ -31,7 +30,7 @@ void RunComet(const Config& cfg) {
     builder.AddListeningPort(addr, grpc::InsecureServerCredentials());
     builder.RegisterService(&grpcService);
     std::unique_ptr<grpc::Server> grpcServer = builder.BuildAndStart();
-    LogInfo("Comet gRPC server listening on " + addr);
+    LOG_INFO << "Comet gRPC server listening on " << addr;
 
     // gRPC 使用单独线程阻塞 Wait，muduo EventLoop 在当前线程运行。
     // 保持两者互不干扰：网络层（WebSocket）继续在 muduo 的 Reactor 里，

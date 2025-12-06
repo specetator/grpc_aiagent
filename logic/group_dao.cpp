@@ -27,7 +27,7 @@ bool GroupDao::CreateChatroom(const std::string& name, int64_t owner_id,
     std::string sql = oss.str();
     if (mysql_query(conn, sql.c_str()) != 0) {
         if (err_msg) *err_msg = mysql_error(conn);
-        LogError("CreateChatroom failed: " + std::string(mysql_error(conn)));
+        LOG_ERROR << "CreateChatroom failed: " << std::string(mysql_error(conn));
         return false;
     }
     if (group_id) {
@@ -54,7 +54,7 @@ bool GroupDao::GetGroup(int64_t group_id, ImGroup* g, std::string* err_msg) {
     std::string sql = oss.str();
     if (mysql_query(conn, sql.c_str()) != 0) {
         if (err_msg) *err_msg = mysql_error(conn);
-        LogError("GetGroup query failed: " + std::string(mysql_error(conn)));
+        LOG_ERROR << "GetGroup query failed: " << std::string(mysql_error(conn));
         return false;
     }
     MYSQL_RES* res = mysql_store_result(conn);
@@ -103,8 +103,8 @@ bool GroupDao::ListChatrooms(int offset, int limit,
     std::string sql = oss.str();
     if (mysql_query(conn, sql.c_str()) != 0) {
         if (err_msg) *err_msg = mysql_error(conn);
-        LogError("ListChatrooms query failed: " +
-                 std::string(mysql_error(conn)));
+        LOG_ERROR << "ListChatrooms query failed: "
+                  << std::string(mysql_error(conn));
         return false;
     }
     MYSQL_RES* res = mysql_store_result(conn);
@@ -145,8 +145,8 @@ bool GroupMemberDao::AddOrUpdateMember(int64_t group_id, int64_t user_id,
     std::string sql = oss.str();
     if (mysql_query(conn, sql.c_str()) != 0) {
         if (err_msg) *err_msg = mysql_error(conn);
-        LogError("AddOrUpdateMember(insert) failed: " +
-                 std::string(mysql_error(conn)));
+        LOG_ERROR << "AddOrUpdateMember(insert) failed: "
+                  << std::string(mysql_error(conn));
         return false;
     }
     return true;
@@ -171,7 +171,7 @@ bool GroupMemberDao::RemoveMember(int64_t group_id, int64_t user_id,
     std::string sql = oss.str();
     if (mysql_query(conn, sql.c_str()) != 0) {
         if (err_msg) *err_msg = mysql_error(conn);
-        LogError("RemoveMember failed: " + std::string(mysql_error(conn)));
+        LOG_ERROR << "RemoveMember failed: " << std::string(mysql_error(conn));
         return false;
     }
     return true;
@@ -201,8 +201,8 @@ bool GroupMemberDao::ListUserChatrooms(int64_t user_id,
     std::string sql = oss.str();
     if (mysql_query(conn, sql.c_str()) != 0) {
         if (err_msg) *err_msg = mysql_error(conn);
-        LogError("ListUserChatrooms query failed: " +
-                 std::string(mysql_error(conn)));
+        LOG_ERROR << "ListUserChatrooms query failed: "
+                  << std::string(mysql_error(conn));
         return false;
     }
     MYSQL_RES* res = mysql_store_result(conn);
@@ -241,8 +241,8 @@ bool GroupMemberDao::ListRoomMembers(int64_t group_id,
     std::string sql = oss.str();
     if (mysql_query(conn, sql.c_str()) != 0) {
         if (err_msg) *err_msg = mysql_error(conn);
-        LogError("ListRoomMembers query failed: " +
-                 std::string(mysql_error(conn)));
+        LOG_ERROR << "ListRoomMembers query failed: "
+                  << std::string(mysql_error(conn));
         return false;
     }
     MYSQL_RES* res = mysql_store_result(conn);

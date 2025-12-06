@@ -46,7 +46,7 @@ bool DanmakuDao::InsertDanmaku(const std::string& video_id, int64_t timeline_ms,
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
     if (!stmt) {
         std::string e = "mysql_stmt_init failed";
-        LogError(e);
+        LOG_ERROR << e;
         if (err_msg) *err_msg = e;
         return false;
     }
@@ -54,7 +54,7 @@ bool DanmakuDao::InsertDanmaku(const std::string& video_id, int64_t timeline_ms,
     if (mysql_stmt_prepare(stmt, sql,
                            static_cast<unsigned long>(strlen(sql))) != 0) {
         std::string e = mysql_stmt_error(stmt);
-        LogError("InsertDanmaku prepare failed: " + e);
+        LOG_ERROR << "InsertDanmaku prepare failed: " << e;
         if (err_msg) *err_msg = e;
         mysql_stmt_close(stmt);
         return false;
@@ -93,7 +93,7 @@ bool DanmakuDao::InsertDanmaku(const std::string& video_id, int64_t timeline_ms,
 
     if (mysql_stmt_bind_param(stmt, bind) != 0) {
         std::string e = mysql_stmt_error(stmt);
-        LogError("InsertDanmaku bind_param failed: " + e);
+        LOG_ERROR << "InsertDanmaku bind_param failed: " << e;
         if (err_msg) *err_msg = e;
         mysql_stmt_close(stmt);
         return false;
@@ -101,7 +101,7 @@ bool DanmakuDao::InsertDanmaku(const std::string& video_id, int64_t timeline_ms,
 
     if (mysql_stmt_execute(stmt) != 0) {
         std::string e = mysql_stmt_error(stmt);
-        LogError("InsertDanmaku execute failed: " + e);
+        LOG_ERROR << "InsertDanmaku execute failed: " << e;
         if (err_msg) *err_msg = e;
         mysql_stmt_close(stmt);
         return false;
@@ -159,7 +159,7 @@ bool DanmakuDao::ListDanmaku(const std::string& video_id,
     std::string sql = oss.str();
     if (mysql_query(conn, sql.c_str()) != 0) {
         if (err_msg) *err_msg = mysql_error(conn);
-        LogError("ListDanmaku query failed: " + std::string(mysql_error(conn)));
+        LOG_ERROR << "ListDanmaku query failed: " << std::string(mysql_error(conn));
         return false;
     }
 

@@ -60,11 +60,11 @@ namespace sparkpush {
     int RunJob(const Config& cfg) {
         JobRunner runner(cfg);
         if (!runner.Init()) {
-            LogError("JobRunner init failed");
+            LOG_ERROR << "JobRunner init failed";
             return 1;
         }
         runner.Start();
-        LogInfo("Job runner started. Waiting for Kafka messages...");
+        LOG_INFO << "Job runner started. Waiting for Kafka messages...";
 
         // 简单阻塞主线程：运行过程中无需退出，保持进程常驻。
         while (true) {

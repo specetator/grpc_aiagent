@@ -20,8 +20,8 @@ CometServiceImpl::CometServiceImpl(CometServer* server)
     //    - "broadcast" 表示全服广播（仅限本 comet 内）
     // 3. PushToUsers/PushToRoom/PushToAll 均只在本机连接集合内分发，
     //    不跨节点路由，调用方需自行按 comet_id 分片。
-    LogInfo("PushToComet received for comet_id=" + request->comet_id() +
-            " msg_id=" + request->message().msg_id());
+    LOG_INFO << "PushToComet received for comet_id=" << request->comet_id()
+             << " msg_id=" << request->message().msg_id();
     if (request->targets_size() > 0) {
         std::vector<int64_t> users;
         users.reserve(request->targets_size());

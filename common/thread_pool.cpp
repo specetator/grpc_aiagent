@@ -25,8 +25,8 @@ void ThreadPool::Start() {
     for (size_t i = 0; i < thread_num_; ++i) {
         workers_.emplace_back([this, i]() { WorkerLoop(i); });
     }
-    LogInfo("ThreadPool " + name_ + " started with " + std::to_string(thread_num_) +
-            " threads");
+    LOG_INFO << "ThreadPool " << name_ << " started with "
+             << std::to_string(thread_num_) << " threads";
 }
 
 // 停止线程池，等待所有线程退出并清空任务队列。
@@ -83,11 +83,13 @@ void ThreadPool::WorkerLoop(size_t worker_id) {
         try {
             task();
         } catch (const std::exception& ex) {
-            LogError("ThreadPool " + name_ + " worker " + std::to_string(worker_id) +
-                     " caught exception: " + ex.what());
+            LOG_ERROR << "ThreadPool " << name_ << " worker "
+                      << std::to_string(worker_id)
+                      << " caught exception: " << ex.what();
         } catch (...) {
-            LogError("ThreadPool " + name_ + " worker " + std::to_string(worker_id) +
-                     " caught unknown exception");
+            LOG_ERROR << "ThreadPool " << name_ << " worker "
+                      << std::to_string(worker_id)
+                      << " caught unknown exception";
         }
     }
 }

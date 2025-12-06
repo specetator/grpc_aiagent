@@ -74,7 +74,7 @@ bool ConversationStore::AppendMessage(const Session& session, int64_t sender_id,
     if (redis_store_) {
         // 将最新 seq 写入 Redis，便于未读计算
         if (!redis_store_->SetSessionLastSeq(session.id, seq)) {
-            LogError("SetSessionLastSeq failed for session " + session.id);
+            LOG_ERROR << "SetSessionLastSeq failed for session " << session.id;
         }
     }
 
@@ -110,8 +110,8 @@ bool ConversationStore::MarkRead(int64_t user_id, const std::string& session_id,
     if (redis_store_) {
         // 写入缓存，快速读取未读
         if (!redis_store_->SetUserReadSeq(user_id, session_id, read_seq)) {
-            LogError("SetUserReadSeq failed for user " +
-                     std::to_string(user_id));
+            LOG_ERROR << "SetUserReadSeq failed for user "
+                      << std::to_string(user_id);
         }
     }
     return true;

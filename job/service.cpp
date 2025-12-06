@@ -17,7 +17,7 @@ namespace sparkpush {
     bool JobRunner::Init() {
         ParseCometTargets();
         if (cfg_.kafka_brokers.empty()) {
-            LogError("Kafka brokers not configured");
+            LOG_ERROR << "Kafka brokers not configured";
             return false;
         }
 
@@ -33,7 +33,7 @@ namespace sparkpush {
                                       std::placeholders::_1,
                                       std::placeholders::_2),
                             consumer_opts)) {
-            LogError("Kafka consumer init failed");
+            LOG_ERROR << "Kafka consumer init failed";
             return false;
         }
 
@@ -47,7 +47,7 @@ namespace sparkpush {
                           std::placeholders::_1,
                           std::placeholders::_2),
                 consumer_opts)) {
-            LogError("Kafka broadcast consumer init failed");
+            LOG_ERROR << "Kafka broadcast consumer init failed";
             return false;
         }
 
@@ -76,15 +76,16 @@ namespace sparkpush {
         }
 
         std::stringstream ss(cfg_.comet_targets);
-        std::string item;
-        while (std::getline(ss, item, ',')) {
-            auto pos = item.find('=');
-            if (pos == std::string::npos) {
-                continue;
-            }
-            std::string id = item.substr(0, pos);
-            std::string addr = item.substr(pos + 1);
-            LogInfo("Configured comet target: id=" + id + ", addr=" + addr);
+            std::string item;
+            while (std::getline(ss, item, ',')) {
+                auto pos = item.find('=');
+                if (pos == std::string::npos) {
+                    continue;
+                }
+                std::string id = item.substr(0, pos);
+                std::string addr = item.substr(pos + 1);
+                LOG_INFO << "Configured comet target: id=" << id
+                         << ", addr=" << addr;
             if (!id.empty() && !addr.empty()) {
                 comet_addrs_[id] = addr;
             }
@@ -120,7 +121,7 @@ namespace sparkpush {
         rpc_pool_.Submit([this, payload = value]() {
             PushToCometRequest req;
             if (!req.ParseFromString(payload)) {
-                LogError("Failed to parse PushToCometRequest from Kafka");
+                LOG_ERROR << "Failed to parse PushToCometRequest from Kafka";
                 return;
             }
             ProcessPushRequest(req);
@@ -132,22 +133,22 @@ namespace sparkpush {
         const std::string& comet_id = req.comet_id();
         CometService::Stub* stub = GetStub(comet_id);
         if (!stub) {
-            LogError("Unknown comet_id " + comet_id);
+            LOG_ERROR << "Unknown comet_id " << comet_id;
             return;
         }
 
         PushToCometReply reply;
         grpc::ClientContext ctx;
-        LogInfo("Processing PushToComet for comet_id=" + comet_id +
-                ", msg_id=" + req.message().msg_id());
+        LOG_INFO << "Processing PushToComet for comet_id=" << comet_id
+                 << ", msg_id=" << req.message().msg_id();
 
         auto status = stub->PushToComet(&ctx, req, &reply);
         if (!status.ok()) {
-            LogError("PushToComet RPC failed: " + status.error_message());
+            LOG_ERROR << "PushToComet RPC failed: " << status.error_message();
             return;
         }
         if (reply.error().code() != 0) {
-            LogError("Comet response error: " + reply.error().message());
+            LOG_ERROR << "Comet response error: " << reply.error().message();
         }
     }
 
@@ -157,12 +158,12 @@ namespace sparkpush {
         (void)key;
         BroadcastTaskRequest task;
         if (!task.ParseFromString(value)) {
-            LogError("Failed to parse BroadcastTaskRequest from Kafka");
+            LOG_ERROR << "Failed to parse BroadcastTaskRequest from Kafka";
             return;
         }
 
-        LogInfo("HandleBroadcastTask, task_id=" + task.task_id() +
-                " scope=" + task.scope());
+        LOG_INFO << "HandleBroadcastTask, task_id=" << task.task_id()
+                 << " scope=" << task.scope();
 
         // 简化实现：对所有已配置 comet 做“全体在线用户广播”。
         // 注意：这里没有 per-user 未读计数，仅做实时推送。
@@ -185,7 +186,7 @@ namespace sparkpush {
             const std::string& comet_id = kv.first;
             CometService::Stub* stub = GetStub(comet_id);
             if (!stub) {
-                LogError("Unknown comet_id in broadcast: " + comet_id);
+                LOG_ERROR << "Unknown comet_id in broadcast: " << comet_id;
                 continue;
             }
 
@@ -198,13 +199,13 @@ namespace sparkpush {
             grpc::ClientContext ctx;
             auto status = stub->PushToComet(&ctx, req, &reply);
             if (!status.ok()) {
-                LogError("Broadcast PushToComet RPC failed for comet " + comet_id +
-                         ": " + status.error_message());
+                LOG_ERROR << "Broadcast PushToComet RPC failed for comet "
+                          << comet_id << ": " << status.error_message();
                 continue;
             }
             if (reply.error().code() != 0) {
-                LogError("Broadcast PushToComet error from comet " + comet_id +
-                         ": " + reply.error().message());
+                LOG_ERROR << "Broadcast PushToComet error from comet "
+                          << comet_id << ": " << reply.error().message();
             }
         }
     }

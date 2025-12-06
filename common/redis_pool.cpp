@@ -37,10 +37,10 @@ redisContext* RedisConnectionPool::CreateContextUnlocked() {
         redisConnectWithTimeout(cfg_.host.c_str(), cfg_.port, tv);
     if (!ctx || ctx->err) {
         if (ctx) {
-            LogError(std::string("redisConnect failed: ") + ctx->errstr);
+            LOG_ERROR << "redisConnect failed: " << ctx->errstr;
             redisFree(ctx);
         } else {
-            LogError("redisConnect failed: null context");
+            LOG_ERROR << "redisConnect failed: null context";
         }
         return nullptr;
     }
@@ -50,7 +50,7 @@ redisContext* RedisConnectionPool::CreateContextUnlocked() {
         redisReply* reply =
             (redisReply*)redisCommand(ctx, "AUTH %s", cfg_.password.c_str());
         if (!reply || reply->type == REDIS_REPLY_ERROR) {
-            LogError("redis AUTH failed");
+            LOG_ERROR << "redis AUTH failed";
             if (reply) {
                 freeReplyObject(reply);
             }
@@ -65,7 +65,7 @@ redisContext* RedisConnectionPool::CreateContextUnlocked() {
         redisReply* reply =
             (redisReply*)redisCommand(ctx, "SELECT %d", cfg_.db);
         if (!reply || reply->type == REDIS_REPLY_ERROR) {
-            LogError("redis SELECT failed");
+            LOG_ERROR << "redis SELECT failed";
             if (reply) {
                 freeReplyObject(reply);
             }

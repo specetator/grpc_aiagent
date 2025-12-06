@@ -35,7 +35,7 @@ bool UserDao::CreateUser(const std::string& account, const std::string& name,
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
     if (!stmt) {
         std::string e = "mysql_stmt_init failed";
-        LogError(e);
+        LOG_ERROR << e;
         if (err_msg) *err_msg = e;
         return false;
     }
@@ -43,7 +43,7 @@ bool UserDao::CreateUser(const std::string& account, const std::string& name,
     if (mysql_stmt_prepare(stmt, sql,
                            static_cast<unsigned long>(strlen(sql))) != 0) {
         std::string e = mysql_stmt_error(stmt);
-        LogError("CreateUser prepare failed: " + e);
+        LOG_ERROR << "CreateUser prepare failed: " << e;
         if (err_msg) *err_msg = e;
         mysql_stmt_close(stmt);
         return false;
@@ -73,7 +73,7 @@ bool UserDao::CreateUser(const std::string& account, const std::string& name,
 
     if (mysql_stmt_bind_param(stmt, bind) != 0) {
         std::string e = mysql_stmt_error(stmt);
-        LogError("CreateUser bind_param failed: " + e);
+        LOG_ERROR << "CreateUser bind_param failed: " << e;
         if (err_msg) *err_msg = e;
         mysql_stmt_close(stmt);
         return false;
@@ -81,7 +81,7 @@ bool UserDao::CreateUser(const std::string& account, const std::string& name,
 
     if (mysql_stmt_execute(stmt) != 0) {
         std::string e = mysql_stmt_error(stmt);
-        LogError("CreateUser execute failed: " + e);
+        LOG_ERROR << "CreateUser execute failed: " << e;
         if (err_msg) *err_msg = e;
         mysql_stmt_close(stmt);
         return false;
@@ -116,7 +116,7 @@ bool UserDao::GetUserByAccount(const std::string& account, User* user,
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
     if (!stmt) {
         std::string e = "mysql_stmt_init failed";
-        LogError(e);
+        LOG_ERROR << e;
         if (err_msg) *err_msg = e;
         return false;
     }
@@ -124,7 +124,7 @@ bool UserDao::GetUserByAccount(const std::string& account, User* user,
     if (mysql_stmt_prepare(stmt, sql,
                            static_cast<unsigned long>(strlen(sql))) != 0) {
         std::string e = mysql_stmt_error(stmt);
-        LogError("GetUserByAccount prepare failed: " + e);
+        LOG_ERROR << "GetUserByAccount prepare failed: " << e;
         if (err_msg) *err_msg = e;
         mysql_stmt_close(stmt);
         return false;
@@ -140,7 +140,7 @@ bool UserDao::GetUserByAccount(const std::string& account, User* user,
 
     if (mysql_stmt_bind_param(stmt, param) != 0) {
         std::string e = mysql_stmt_error(stmt);
-        LogError("GetUserByAccount bind_param failed: " + e);
+        LOG_ERROR << "GetUserByAccount bind_param failed: " << e;
         if (err_msg) *err_msg = e;
         mysql_stmt_close(stmt);
         return false;
@@ -148,7 +148,7 @@ bool UserDao::GetUserByAccount(const std::string& account, User* user,
 
     if (mysql_stmt_execute(stmt) != 0) {
         std::string e = mysql_stmt_error(stmt);
-        LogError("GetUserByAccount execute failed: " + e);
+        LOG_ERROR << "GetUserByAccount execute failed: " << e;
         if (err_msg) *err_msg = e;
         mysql_stmt_close(stmt);
         return false;
@@ -156,7 +156,7 @@ bool UserDao::GetUserByAccount(const std::string& account, User* user,
 
     if (mysql_stmt_store_result(stmt) != 0) {
         std::string e = mysql_stmt_error(stmt);
-        LogError("GetUserByAccount store_result failed: " + e);
+        LOG_ERROR << "GetUserByAccount store_result failed: " << e;
         if (err_msg) *err_msg = e;
         mysql_stmt_close(stmt);
         return false;
@@ -201,7 +201,7 @@ bool UserDao::GetUserByAccount(const std::string& account, User* user,
 
     if (mysql_stmt_bind_result(stmt, result) != 0) {
         std::string e = mysql_stmt_error(stmt);
-        LogError("GetUserByAccount bind_result failed: " + e);
+        LOG_ERROR << "GetUserByAccount bind_result failed: " << e;
         if (err_msg) *err_msg = e;
         mysql_stmt_close(stmt);
         return false;
@@ -210,7 +210,7 @@ bool UserDao::GetUserByAccount(const std::string& account, User* user,
     int fetch_ret = mysql_stmt_fetch(stmt);
     if (fetch_ret != 0 && fetch_ret != MYSQL_DATA_TRUNCATED) {
         std::string e = mysql_stmt_error(stmt);
-        LogError("GetUserByAccount fetch failed: " + e);
+        LOG_ERROR << "GetUserByAccount fetch failed: " << e;
         if (err_msg) *err_msg = e;
         mysql_stmt_close(stmt);
         return false;
@@ -245,7 +245,7 @@ bool UserDao::GetUserById(int64_t user_id, User* user, std::string* err_msg) {
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
     if (!stmt) {
         std::string e = "mysql_stmt_init failed";
-        LogError(e);
+        LOG_ERROR << e;
         if (err_msg) *err_msg = e;
         return false;
     }
@@ -253,7 +253,7 @@ bool UserDao::GetUserById(int64_t user_id, User* user, std::string* err_msg) {
     if (mysql_stmt_prepare(stmt, sql,
                            static_cast<unsigned long>(strlen(sql))) != 0) {
         std::string e = mysql_stmt_error(stmt);
-        LogError("GetUserById prepare failed: " + e);
+        LOG_ERROR << "GetUserById prepare failed: " << e;
         if (err_msg) *err_msg = e;
         mysql_stmt_close(stmt);
         return false;
@@ -269,7 +269,7 @@ bool UserDao::GetUserById(int64_t user_id, User* user, std::string* err_msg) {
 
     if (mysql_stmt_bind_param(stmt, param) != 0) {
         std::string e = mysql_stmt_error(stmt);
-        LogError("GetUserById bind_param failed: " + e);
+        LOG_ERROR << "GetUserById bind_param failed: " << e;
         if (err_msg) *err_msg = e;
         mysql_stmt_close(stmt);
         return false;
@@ -277,7 +277,7 @@ bool UserDao::GetUserById(int64_t user_id, User* user, std::string* err_msg) {
 
     if (mysql_stmt_execute(stmt) != 0) {
         std::string e = mysql_stmt_error(stmt);
-        LogError("GetUserById execute failed: " + e);
+        LOG_ERROR << "GetUserById execute failed: " << e;
         if (err_msg) *err_msg = e;
         mysql_stmt_close(stmt);
         return false;
@@ -285,7 +285,7 @@ bool UserDao::GetUserById(int64_t user_id, User* user, std::string* err_msg) {
 
     if (mysql_stmt_store_result(stmt) != 0) {
         std::string e = mysql_stmt_error(stmt);
-        LogError("GetUserById store_result failed: " + e);
+        LOG_ERROR << "GetUserById store_result failed: " << e;
         if (err_msg) *err_msg = e;
         mysql_stmt_close(stmt);
         return false;
@@ -330,7 +330,7 @@ bool UserDao::GetUserById(int64_t user_id, User* user, std::string* err_msg) {
 
     if (mysql_stmt_bind_result(stmt, result) != 0) {
         std::string e = mysql_stmt_error(stmt);
-        LogError("GetUserById bind_result failed: " + e);
+        LOG_ERROR << "GetUserById bind_result failed: " << e;
         if (err_msg) *err_msg = e;
         mysql_stmt_close(stmt);
         return false;
@@ -339,7 +339,7 @@ bool UserDao::GetUserById(int64_t user_id, User* user, std::string* err_msg) {
     int fetch_ret = mysql_stmt_fetch(stmt);
     if (fetch_ret != 0 && fetch_ret != MYSQL_DATA_TRUNCATED) {
         std::string e = mysql_stmt_error(stmt);
-        LogError("GetUserById fetch failed: " + e);
+        LOG_ERROR << "GetUserById fetch failed: " << e;
         if (err_msg) *err_msg = e;
         mysql_stmt_close(stmt);
         return false;

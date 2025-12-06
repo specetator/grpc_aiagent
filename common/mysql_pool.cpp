@@ -58,7 +58,7 @@ MySqlConnectionPool::~MySqlConnectionPool() {
 MYSQL* MySqlConnectionPool::CreateConnectionUnlocked() {
     MYSQL* conn = mysql_init(nullptr);
     if (!conn) {
-        LogError("mysql_init failed");
+        LOG_ERROR << "mysql_init failed";
         return nullptr;
     }
 
@@ -78,8 +78,8 @@ MYSQL* MySqlConnectionPool::CreateConnectionUnlocked() {
     }
 
     // 自动重连
-    bool reconnect = 1;
-    mysql_options(conn, MYSQL_OPT_RECONNECT, &reconnect);
+    // bool reconnect = 1;
+    // mysql_options(conn, MYSQL_OPT_RECONNECT, &reconnect);
     // 字符集
     if (!cfg_.charset.empty()) {
         mysql_options(conn, MYSQL_SET_CHARSET_NAME, cfg_.charset.c_str());
@@ -93,7 +93,7 @@ MYSQL* MySqlConnectionPool::CreateConnectionUnlocked() {
                             cfg_.port,
                             nullptr,
                             0)) {
-        LogError(std::string("mysql_real_connect failed: ") + mysql_error(conn));
+        LOG_ERROR << "mysql_real_connect failed: " << mysql_error(conn);
         mysql_close(conn);
         return nullptr;
     }
@@ -143,7 +143,7 @@ bool MySqlConnectionPool::Init(const MySqlConfig& cfg) {
 MySqlConnGuard MySqlConnectionPool::Acquire(int timeout_ms) {
     std::unique_lock<std::mutex> lock(mutex_);
     if (!inited_) {
-        LogError("MySqlConnectionPool::Acquire called before Init");
+        LOG_ERROR << "MySqlConnectionPool::Acquire called before Init";
         return MySqlConnGuard(nullptr, nullptr);
     }
 
@@ -277,7 +277,7 @@ bool MySqlConnectionPool::ValidateConnection(MYSQL** conn) {
     if (mysql_ping(*conn) == 0) {
         return true;
     }
-    LogError("mysql_ping failed, dropping connection");
+    LOG_ERROR << "mysql_ping failed, dropping connection";
     mysql_close(*conn);
     *conn = nullptr;
     return false;

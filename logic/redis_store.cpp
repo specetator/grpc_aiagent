@@ -16,11 +16,11 @@ bool RedisStore::SetToken(const std::string& token, int64_t user_id,
         (redisReply*)redisCommand(ctx, "SETEX token:%s %d %lld", token.c_str(),
                                   ttl_seconds, static_cast<long long>(user_id));
     if (!reply) {
-        LogError("Redis SETEX token failed");
+        LOG_ERROR << "Redis SETEX token failed";
         return false;
     }
-    LogInfo("SetToken " + token +
-            ", reply type: " + std::to_string(reply->type));
+    LOG_INFO << "SetToken " << token
+             << ", reply type: " << std::to_string(reply->type);
     bool ok = (reply->type != REDIS_REPLY_ERROR);
     freeReplyObject(reply);
     return ok;
@@ -32,12 +32,12 @@ bool RedisStore::GetUserIdByToken(const std::string& token, int64_t* user_id) {
     auto guard = pool_->Acquire();
     redisContext* ctx = guard.get();
     if (!ctx) return false;
-    LogInfo("GetUserIdByToken " + token);
+    LOG_INFO << "GetUserIdByToken " << token;
 
     redisReply* reply =
         (redisReply*)redisCommand(ctx, "GET token:%s", token.c_str());
     if (!reply) {
-        LogError("Redis GET token failed");
+        LOG_ERROR << "Redis GET token failed";
         return false;
     }
     bool ok = false;
@@ -59,7 +59,7 @@ bool RedisStore::AddRoute(int64_t user_id, const std::string& comet_id) {
         ctx, "SADD route:user:%lld %s", static_cast<long long>(user_id),
         comet_id.c_str());
     if (!reply) {
-        LogError("Redis SADD route failed");
+        LOG_ERROR << "Redis SADD route failed";
         return false;
     }
     bool ok = (reply->type != REDIS_REPLY_ERROR);
@@ -77,7 +77,7 @@ bool RedisStore::RemoveRoute(int64_t user_id, const std::string& comet_id) {
         ctx, "SREM route:user:%lld %s", static_cast<long long>(user_id),
         comet_id.c_str());
     if (!reply) {
-        LogError("Redis SREM route failed");
+        LOG_ERROR << "Redis SREM route failed";
         return false;
     }
     bool ok = (reply->type != REDIS_REPLY_ERROR);
@@ -95,7 +95,7 @@ bool RedisStore::GetUserRoutes(int64_t user_id,
     redisReply* reply = (redisReply*)redisCommand(
         ctx, "SMEMBERS route:user:%lld", static_cast<long long>(user_id));
     if (!reply) {
-        LogError("Redis SMEMBERS route failed");
+        LOG_ERROR << "Redis SMEMBERS route failed";
         return false;
     }
     bool ok = false;
@@ -123,7 +123,7 @@ bool RedisStore::SetSessionLastSeq(const std::string& session_id,
         ctx, "SET session:last_seq:%s %lld", session_id.c_str(),
         static_cast<long long>(last_seq));
     if (!reply) {
-        LogError("Redis SET session:last_seq failed");
+        LOG_ERROR << "Redis SET session:last_seq failed";
         return false;
     }
     bool ok = (reply->type != REDIS_REPLY_ERROR);
@@ -141,7 +141,7 @@ bool RedisStore::GetSessionLastSeq(const std::string& session_id,
     redisReply* reply = (redisReply*)redisCommand(
         ctx, "GET session:last_seq:%s", session_id.c_str());
     if (!reply) {
-        LogError("Redis GET session:last_seq failed");
+        LOG_ERROR << "Redis GET session:last_seq failed";
         return false;
     }
     bool ok = false;
@@ -165,7 +165,7 @@ bool RedisStore::SetUserReadSeq(int64_t user_id, const std::string& session_id,
         static_cast<long long>(user_id), session_id.c_str(),
         static_cast<long long>(read_seq));
     if (!reply) {
-        LogError("Redis SET user_session:read_seq failed");
+        LOG_ERROR << "Redis SET user_session:read_seq failed";
         return false;
     }
     bool ok = (reply->type != REDIS_REPLY_ERROR);
@@ -184,7 +184,7 @@ bool RedisStore::GetUserReadSeq(int64_t user_id, const std::string& session_id,
         ctx, "GET user_session:read_seq:%lld:%s",
         static_cast<long long>(user_id), session_id.c_str());
     if (!reply) {
-        LogError("Redis GET user_session:read_seq failed");
+        LOG_ERROR << "Redis GET user_session:read_seq failed";
         return false;
     }
     bool ok = false;
@@ -206,7 +206,7 @@ bool RedisStore::AddRoomComet(int64_t room_id, const std::string& comet_id) {
         ctx, "SADD room:comets:%lld %s", static_cast<long long>(room_id),
         comet_id.c_str());
     if (!reply) {
-        LogError("Redis SADD room:comets failed");
+        LOG_ERROR << "Redis SADD room:comets failed";
         return false;
     }
     bool ok = (reply->type != REDIS_REPLY_ERROR);
@@ -224,7 +224,7 @@ bool RedisStore::RemoveRoomComet(int64_t room_id, const std::string& comet_id) {
         ctx, "SREM room:comets:%lld %s", static_cast<long long>(room_id),
         comet_id.c_str());
     if (!reply) {
-        LogError("Redis SREM room:comets failed");
+        LOG_ERROR << "Redis SREM room:comets failed";
         return false;
     }
     bool ok = (reply->type != REDIS_REPLY_ERROR);
@@ -242,7 +242,7 @@ bool RedisStore::GetRoomComets(int64_t room_id,
     redisReply* reply = (redisReply*)redisCommand(
         ctx, "SMEMBERS room:comets:%lld", static_cast<long long>(room_id));
     if (!reply) {
-        LogError("Redis SMEMBERS room:comets failed");
+        LOG_ERROR << "Redis SMEMBERS room:comets failed";
         return false;
     }
     bool ok = false;
@@ -269,7 +269,7 @@ bool RedisStore::SetRoomOnlineCount(int64_t room_id, int64_t count) {
         ctx, "SET room:online_count:%lld %lld", static_cast<long long>(room_id),
         static_cast<long long>(count));
     if (!reply) {
-        LogError("Redis SET room:online_count failed");
+        LOG_ERROR << "Redis SET room:online_count failed";
         return false;
     }
     bool ok = (reply->type != REDIS_REPLY_ERROR);
@@ -286,7 +286,7 @@ bool RedisStore::GetRoomOnlineCount(int64_t room_id, int64_t* count) {
     redisReply* reply = (redisReply*)redisCommand(
         ctx, "GET room:online_count:%lld", static_cast<long long>(room_id));
     if (!reply) {
-        LogError("Redis GET room:online_count failed");
+        LOG_ERROR << "Redis GET room:online_count failed";
         return false;
     }
     bool ok = false;
@@ -309,7 +309,7 @@ bool RedisStore::IncrRoomOnlineCount(int64_t room_id, int64_t delta,
         ctx, "INCRBY room:online_count:%lld %lld",
         static_cast<long long>(room_id), static_cast<long long>(delta));
     if (!reply) {
-        LogError("Redis INCRBY room:online_count failed");
+        LOG_ERROR << "Redis INCRBY room:online_count failed";
         return false;
     }
     bool ok = false;
@@ -336,7 +336,7 @@ bool RedisStore::IncrRoomCometCount(int64_t room_id,
     redisReply* reply = (redisReply*)redisCommand(
         ctx, "INCRBY %s %lld", key.c_str(), static_cast<long long>(delta));
     if (!reply) {
-        LogError("Redis INCRBY room:comet_count failed");
+        LOG_ERROR << "Redis INCRBY room:comet_count failed";
         return false;
     }
     bool ok = false;

@@ -45,7 +45,7 @@ bool KafkaConsumer::Init(const std::string& brokers,
     consumer_.reset(RdKafka::KafkaConsumer::create(conf, errstr));
     delete conf;
     if (!consumer_) {
-        LogError("KafkaConsumer create failed: " + errstr);
+        LOG_ERROR << "KafkaConsumer create failed: " << errstr;
         return false;
     }
 
@@ -53,7 +53,7 @@ bool KafkaConsumer::Init(const std::string& brokers,
     std::vector<std::string> topics = {topic_};
     RdKafka::ErrorCode err = consumer_->subscribe(topics);
     if (err != RdKafka::ERR_NO_ERROR) {
-        LogError("KafkaConsumer subscribe failed: " + RdKafka::err2str(err));
+        LOG_ERROR << "KafkaConsumer subscribe failed: " << RdKafka::err2str(err);
         return false;
     }
     return true;
@@ -118,7 +118,7 @@ void KafkaConsumer::HandleMessage(RdKafka::Message* message) {
             // 正常超时，无需日志
             break;
         default:
-            LogError("Kafka consume error: " + message->errstr());
+            LOG_ERROR << "Kafka consume error: " << message->errstr();
             break;
     }
 }

@@ -269,7 +269,7 @@ void CometServer::OnConnection(const TcpConnectionPtr& conn) {
         ctx.state = ConnContext::kHandshake;
         conn->setContext(ctx);
         // 首次建立 TCP 连接，先进入握手状态等待 HTTP 升级请求
-        LogInfo("New TCP connection from " + conn->peerAddress().toIpPort());
+        LOG_INFO << "New TCP connection from " << conn->peerAddress().toIpPort();
     } else {
         // 断开连接，清理 user->conn 映射
         int64_t offline_uid = 0;
@@ -294,7 +294,7 @@ void CometServer::OnConnection(const TcpConnectionPtr& conn) {
         if (need_offline && offline_uid > 0) {
             NotifyUserOffline(offline_uid);
         }
-        LogInfo("Connection closed");
+        LOG_INFO << "Connection closed";
     }
 }
 
@@ -335,14 +335,14 @@ void CometServer::HandleHandshake(const TcpConnectionPtr& conn, Buffer* buf) {
 
     std::string token = ParseTokenFromHandshake(req);
     if (token.empty()) {
-        LogError("No token in WebSocket handshake");
+        LOG_ERROR << "No token in WebSocket handshake";
         conn->shutdown();
         return;
     }
 
     // 调用 logic 的 VerifyToken 做鉴权
     if (!logic_stub_) {
-        LogError("Logic stub not initialized");
+        LOG_ERROR << "Logic stub not initialized";
         conn->shutdown();
         return;
     }
@@ -351,14 +351,14 @@ void CometServer::HandleHandshake(const TcpConnectionPtr& conn, Buffer* buf) {
     vreq.set_comet_id(comet_id_);
     VerifyTokenReply vrep;
     grpc::ClientContext ctx_rpc;
-    LogInfo("Verifying token: " + token);
+    LOG_INFO << "Verifying token: " << token;
     auto status = logic_stub_->VerifyToken(&ctx_rpc, vreq, &vrep);
-    LogInfo("VerifyToken reply received " + vrep.user_id());
+    LOG_INFO << "VerifyToken reply received " << vrep.user_id();
     if (!status.ok() || vrep.error().code() != 0) {
         // 鉴权失败直接断开，避免继续占用连接
         std::string msg = status.ok() ? vrep.error().message()
                                                                     : status.error_message();
-        LogError("VerifyToken failed: " + msg);
+        LOG_ERROR << "VerifyToken failed: " << msg;
         conn->shutdown();
         return;
     }
@@ -368,7 +368,7 @@ void CometServer::HandleHandshake(const TcpConnectionPtr& conn, Buffer* buf) {
     std::string ws_key;
     if (!ExtractHeader(req, "Sec-WebSocket-Key", &ws_key) ||
             ws_key.empty()) {
-        LogError("No Sec-WebSocket-Key in WebSocket handshake");
+        LOG_ERROR << "No Sec-WebSocket-Key in WebSocket handshake";
         conn->shutdown();
         return;
     }
@@ -393,7 +393,7 @@ void CometServer::HandleHandshake(const TcpConnectionPtr& conn, Buffer* buf) {
         user_conns_[user_id].insert(conn);
     }
     // 握手成功：记录用户连接并等待后续 WebSocket 帧
-    LogInfo("WebSocket handshake done, user_id=" + std::to_string(user_id));
+    LOG_INFO << "WebSocket handshake done, user_id=" << user_id;
 }
 
 // WebSocket 帧处理：
@@ -503,8 +503,7 @@ void CometServer::RemoveUserFromRoom(int64_t room_id, int64_t user_id) {
 void CometServer::OnTextMessage(const TcpConnectionPtr& conn,
                                                                 ConnContext& ctx,
                                                                 const std::string& payload) {
-    LogInfo("Recv text from user " + std::to_string(ctx.user_id) +
-                    ": " + payload);
+    LOG_INFO << "Recv text from user " << ctx.user_id << ": " << payload;
 
     // 解析上行 JSON，提取路由信息，兼顾单聊/群聊/控制命令
     UpstreamMessageMeta meta;
@@ -589,7 +588,7 @@ void CometServer::OnTextMessage(const TcpConnectionPtr& conn,
     if (!status.ok() || rep.error().code() != 0) {
         std::string msg = status.ok() ? rep.error().message()
                                                                     : status.error_message();
-        LogError("SendUpstreamMessage failed: " + msg);
+        LOG_ERROR << "SendUpstreamMessage failed: " << msg;
         std::string frame = BuildWebSocketTextFrame(
                 "{\"type\":\"error\",\"message\":\"send failed\"}");
         conn->send(frame);
@@ -608,8 +607,7 @@ void CometServer::OnMessage(const TcpConnectionPtr& conn,
                                                         Buffer* buf,
                                                         muduo::Timestamp ts) {
     (void)ts;
-    LogInfo("OnMessage called, bytes=" +
-                    std::to_string(buf->readableBytes()));
+    LOG_INFO << "OnMessage called, bytes=" << buf->readableBytes();
     ConnContext ctx = std::any_cast<ConnContext>(conn->getContext());
     if (ctx.state == ConnContext::kHandshake) {
         // 首次阶段处理 HTTP 升级握手
@@ -635,18 +633,15 @@ void CometServer::NotifyUserOffline(int64_t user_id) {
         grpc::ClientContext ctx;
         auto status = stub->UserOffline(&ctx, req, &rep);
         if (!status.ok()) {
-            LogError("UserOffline RPC failed for user " +
-                              std::to_string(user_id) + ": " +
-                              status.error_message());
+            LOG_ERROR << "UserOffline RPC failed for user " << user_id
+                      << ": " << status.error_message();
             return;
         }
         if (rep.error().code() != 0) {
-            LogError("UserOffline logic error for user " +
-                              std::to_string(user_id) + ": " +
-                              rep.error().message());
+            LOG_ERROR << "UserOffline logic error for user " << user_id
+                      << ": " << rep.error().message();
         } else {
-            LogInfo("UserOffline reported for user " +
-                            std::to_string(user_id));
+            LOG_INFO << "UserOffline reported for user " << user_id;
         }
     }).detach();
 }
@@ -665,18 +660,15 @@ void CometServer::NotifyRoomJoin(int64_t room_id, int64_t user_id) {
         grpc::ClientContext ctx;
         auto status = stub->ReportRoomJoin(&ctx, req, &rep);
         if (!status.ok()) {
-            LogError("ReportRoomJoin RPC failed for room " +
-                              std::to_string(room_id) + ": " +
-                              status.error_message());
+            LOG_ERROR << "ReportRoomJoin RPC failed for room " << room_id
+                      << ": " << status.error_message();
             return;
         }
         if (rep.error().code() != 0) {
-            LogError("ReportRoomJoin logic error for room " +
-                              std::to_string(room_id) + ": " +
-                              rep.error().message());
+            LOG_ERROR << "ReportRoomJoin logic error for room " << room_id
+                      << ": " << rep.error().message();
         } else {
-            LogInfo("ReportRoomJoin ok for room " +
-                            std::to_string(room_id));
+            LOG_INFO << "ReportRoomJoin ok for room " << room_id;
         }
     }).detach();
 }
@@ -695,18 +687,15 @@ void CometServer::NotifyRoomLeave(int64_t room_id, int64_t user_id) {
         grpc::ClientContext ctx;
         auto status = stub->ReportRoomLeave(&ctx, req, &rep);
         if (!status.ok()) {
-            LogError("ReportRoomLeave RPC failed for room " +
-                              std::to_string(room_id) + ": " +
-                              status.error_message());
+            LOG_ERROR << "ReportRoomLeave RPC failed for room " << room_id
+                      << ": " << status.error_message();
             return;
         }
         if (rep.error().code() != 0) {
-            LogError("ReportRoomLeave logic error for room " +
-                              std::to_string(room_id) + ": " +
-                              rep.error().message());
+            LOG_ERROR << "ReportRoomLeave logic error for room " << room_id
+                      << ": " << rep.error().message();
         } else {
-            LogInfo("ReportRoomLeave ok for room " +
-                            std::to_string(room_id));
+            LOG_INFO << "ReportRoomLeave ok for room " << room_id;
         }
     }).detach();
 }

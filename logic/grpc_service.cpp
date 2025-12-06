@@ -23,8 +23,8 @@ LogicServiceImpl::LogicServiceImpl(ConversationStore* store,
 // 工具：填充错误码与信息
 void LogicServiceImpl::SetError(ErrorInfo* e, int code,
                                 const std::string& msg) {
-    LogInfo("SetError called with code: " + std::to_string(code) +
-            ", message: " + msg);
+    LOG_INFO << "SetError called with code: " << std::to_string(code)
+             << ", message: " << msg;
     e->set_code(code);
     e->set_message(msg);
 }
@@ -33,8 +33,8 @@ void LogicServiceImpl::SetError(ErrorInfo* e, int code,
 ::grpc::Status LogicServiceImpl::VerifyToken(
     ::grpc::ServerContext*, const ::sparkpush::VerifyTokenRequest* request,
     ::sparkpush::VerifyTokenReply* response) {
-    LogInfo("VerifyToken called with token: " + request->token() +
-            ", comet_id: " + request->comet_id());
+    LOG_INFO << "VerifyToken called with token: " << request->token()
+             << ", comet_id: " << request->comet_id();
     const std::string& token = request->token();
     if (!redis_store_) {
         SetError(response->mutable_error(), 500, "redis store not initialized");
@@ -89,8 +89,8 @@ void LogicServiceImpl::SetError(ErrorInfo* e, int code,
         // 单聊：只路由给目标用户
         std::vector<std::string> comets;
         if (!redis_store_ || !redis_store_->GetUserRoutes(to_user, &comets)) {
-            LogError("GetUserRoutes from redis failed for user " +
-                     std::to_string(to_user));
+            LOG_ERROR << "GetUserRoutes from redis failed for user "
+                      << std::to_string(to_user);
         } else {
             for (const auto& cid : comets) {
                 comet_to_users[cid].push_back(to_user);
@@ -129,15 +129,15 @@ void LogicServiceImpl::SetError(ErrorInfo* e, int code,
             // 退回到按成员全展开：room_id -> 所有 user_id，再按照
             // user_id->comet_ids 聚合
             std::vector<int64_t> members;
-            if (group_member_dao_) {
-                if (!group_member_dao_->ListRoomMembers(room_id, &members,
+                if (group_member_dao_) {
+                    if (!group_member_dao_->ListRoomMembers(room_id, &members,
                                                         &err)) {
-                    LogError("ListRoomMembers failed: " + err);
+                    LOG_ERROR << "ListRoomMembers failed: " << err;
                 }
             } else {
-                LogError(
-                    "group_member_dao_ not initialized, cannot list room "
-                    "members");
+                LOG_ERROR
+                    << "group_member_dao_ not initialized, cannot list room "
+                    "members";
             }
             for (int64_t uid : members) {
                 std::vector<std::string> comets;
@@ -268,12 +268,12 @@ void LogicServiceImpl::SetError(ErrorInfo* e, int code,
     SetError(response->mutable_error(), 0, "ok");
 
     if (!producer_) {
-        LogError("Kafka producer not ready");
+        LOG_ERROR << "Kafka producer not ready";
         return ::grpc::Status::OK;
     }
 
     if (comet_to_users.empty()) {
-        LogInfo("no online targets, skip push");
+        LOG_INFO << "no online targets, skip push";
         return ::grpc::Status::OK;
     }
 
@@ -294,11 +294,11 @@ void LogicServiceImpl::SetError(ErrorInfo* e, int code,
 
         std::string payload;
         if (!req.SerializeToString(&payload)) {
-            LogError("Serialize PushToCometRequest failed");
+            LOG_ERROR << "Serialize PushToCometRequest failed";
             continue;
         }
         if (!producer_->Send(comet_id, payload)) {
-            LogError("Kafka send failed for comet " + comet_id);
+            LOG_ERROR << "Kafka send failed for comet " << comet_id;
         }
     }
 
