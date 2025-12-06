@@ -297,6 +297,8 @@ void LogicServiceImpl::SetError(ErrorInfo* e, int code,
             LOG_ERROR << "Serialize PushToCometRequest failed";
             continue;
         }
+        LOG_INFO << "Sending push to comet " << comet_id
+                 << " for " << users.size() << " users, payload: " << payload;
         if (!producer_->Send(comet_id, payload)) {
             LOG_ERROR << "Kafka send failed for comet " << comet_id;
         }
@@ -434,7 +436,8 @@ void LogicServiceImpl::SetError(ErrorInfo* e, int code,
         response->set_task_id("");
         return ::grpc::Status::OK;
     }
-
+    LOG_INFO << "Sending broadcast task " << task_id
+             << ", payload: " << payload;
     if (!broadcast_producer_->Send(task_id, payload)) {
         SetError(response->mutable_error(), 500,
                  "send broadcast task to kafka failed");

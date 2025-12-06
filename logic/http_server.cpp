@@ -409,6 +409,8 @@ void HttpApiServer::handleDanmakuSend(const HttpRequest& req,
             LOG_ERROR << "Serialize PushToCometRequest(danmaku) failed";
             continue;
         }
+        LOG_INFO << "Sending danmaku to comet " << comet_id
+                 << " for " << users.size() << " users, payload: " << payload;
         if (!kafka_producer_->Send(comet_id, payload)) {
             LOG_ERROR << "Kafka send danmaku failed for comet " << comet_id;
         }
@@ -1425,6 +1427,8 @@ void HttpApiServer::handleAdminBroadcast(const HttpRequest& req,
         WriteJson(resp, 500, "serialize BroadcastTaskRequest failed");
         return;
     }
+    LOG_INFO << "Admin broadcast task created: task_id=" << task_id
+             << ", scope=" << real_scope << ", group_id=" << group_id;
     if (!broadcast_producer_->Send(task_id, payload)) {
         WriteJson(resp, 500, "send broadcast task to kafka failed");
         return;
