@@ -1,3 +1,8 @@
+// ============================================================================
+// 用户 DAO 实现
+// 
+// 使用 MySQL C API 的预编译语句（Prepared Statement）执行数据库操作
+// ============================================================================
 #include "user_dao.h"
 
 #include <mysql/mysql.h>
@@ -6,22 +11,19 @@
 
 namespace sparkpush {
 
-// 预期表结构（示意）:
-// CREATE TABLE user (
-//   id BIGINT PRIMARY KEY AUTO_INCREMENT,
-//   account VARCHAR(64) UNIQUE NOT NULL,
-//   password_hash VARCHAR(128) NOT NULL,
-//   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-// );
-
-// 创建用户记录
+// ============================================================================
+// CreateUser: 创建新用户记录
+// ============================================================================
 bool UserDao::CreateUser(const std::string& account, const std::string& name,
                          const std::string& password, int64_t* user_id,
                          std::string* err_msg) {
+    // 1. 检查连接池是否已初始化
     if (!pool_) {
         if (err_msg) *err_msg = "mysql pool not initialized";
         return false;
     }
+    
+    // 2. 从连接池获取数据库连接（RAII 自动管理生命周期）
     auto guard = pool_->Acquire();
     MYSQL* conn = guard.get();
     if (!conn) {
@@ -29,9 +31,11 @@ bool UserDao::CreateUser(const std::string& account, const std::string& name,
         return false;
     }
 
+    // 3. 准备 SQL 语句（使用占位符 ? 防止 SQL 注入）
     const char* sql =
         "INSERT INTO user(account, name, password_hash) VALUES(?, ?, ?)";
 
+    // 4. 初始化预编译语句对象
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
     if (!stmt) {
         std::string e = "mysql_stmt_init failed";
@@ -40,6 +44,7 @@ bool UserDao::CreateUser(const std::string& account, const std::string& name,
         return false;
     }
 
+    // 5. 编译 SQL 语句
     if (mysql_stmt_prepare(stmt, sql,
                            static_cast<unsigned long>(strlen(sql))) != 0) {
         std::string e = mysql_stmt_error(stmt);
@@ -49,6 +54,7 @@ bool UserDao::CreateUser(const std::string& account, const std::string& name,
         return false;
     }
 
+    // 6. 绑定参数：设置 ? 占位符对应的实际值
     MYSQL_BIND bind[3];
     memset(bind, 0, sizeof(bind));
 
@@ -56,21 +62,25 @@ bool UserDao::CreateUser(const std::string& account, const std::string& name,
     unsigned long name_len = static_cast<unsigned long>(name.size());
     unsigned long pwd_len = static_cast<unsigned long>(password.size());
 
+    // 绑定第 1 个参数：account
     bind[0].buffer_type = MYSQL_TYPE_STRING;
     bind[0].buffer = const_cast<char*>(account.data());
     bind[0].buffer_length = account_len;
     bind[0].length = &account_len;
 
+    // 绑定第 2 个参数：name
     bind[1].buffer_type = MYSQL_TYPE_STRING;
     bind[1].buffer = const_cast<char*>(name.data());
     bind[1].buffer_length = name_len;
     bind[1].length = &name_len;
 
+    // 绑定第 3 个参数：password_hash
     bind[2].buffer_type = MYSQL_TYPE_STRING;
     bind[2].buffer = const_cast<char*>(password.data());
     bind[2].buffer_length = pwd_len;
     bind[2].length = &pwd_len;
 
+    // 7. 应用参数绑定
     if (mysql_stmt_bind_param(stmt, bind) != 0) {
         std::string e = mysql_stmt_error(stmt);
         LOG_ERROR << "CreateUser bind_param failed: " << e;
@@ -79,6 +89,7 @@ bool UserDao::CreateUser(const std::string& account, const std::string& name,
         return false;
     }
 
+    // 8. 执行 INSERT 语句
     if (mysql_stmt_execute(stmt) != 0) {
         std::string e = mysql_stmt_error(stmt);
         LOG_ERROR << "CreateUser execute failed: " << e;
@@ -87,13 +98,19 @@ bool UserDao::CreateUser(const std::string& account, const std::string& name,
         return false;
     }
 
+    // 9. 获取自增主键 ID（AUTO_INCREMENT）
     if (user_id) {
         *user_id = static_cast<int64_t>(mysql_insert_id(conn));
     }
 
+    // 10. 清理资源并返回成功
     mysql_stmt_close(stmt);
     return true;
 }
+
+// ============================================================================
+// GetUserByAccount: 按账号查询用户
+// ============================================================================
 
 // 按账号查询用户
 bool UserDao::GetUserByAccount(const std::string& account, User* user,
