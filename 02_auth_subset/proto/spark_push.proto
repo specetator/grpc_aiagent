@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package sparkpush;
+
+// 通用错误信息
+message ErrorInfo {
+  int32 code = 1;      // 0 表示成功，非 0 代表错误码
+  string message = 2;  // 具体错误原因
+}
+
+// ========== LogicService 相关 ==========
+
+// comet -> logic：鉴权
+message VerifyTokenRequest {
+  string token = 1;
+  string comet_id = 2;
+}
+
+message VerifyTokenReply {
+  ErrorInfo error = 1;
+  int64 user_id = 2;
+}
+
+service LogicService {
+  rpc VerifyToken(VerifyTokenRequest) returns (VerifyTokenReply);
+}
