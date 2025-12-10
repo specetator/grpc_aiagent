@@ -37,7 +37,7 @@ class HttpApiServer {
    private:
     // HTTP 请求路由分发器：根据请求路径调用对应的处理函数
     void onRequest(const muduo::net::HttpRequest& req,
-                   muduo::net::HttpResponse& resp);
+                   muduo::net::HttpResponse *resp);
 
     // 处理登录请求：验证账号密码，生成 token
     void handleLogin(const muduo::net::HttpRequest& req,

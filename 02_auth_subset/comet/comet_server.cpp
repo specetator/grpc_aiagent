@@ -323,6 +323,8 @@ void CometServer::HandleHandshake(const TcpConnectionPtr& conn, Buffer* buf) {
     if (!end) {
         return;  // 还没收到完整的 HTTP 头部，继续等待
     }
+
+    LOG_INFO << "data: " << std::string(data, end + 4 - data);
     
     // 2. 提取完整的 HTTP 请求头
     size_t headerLen = end - data + 4;
