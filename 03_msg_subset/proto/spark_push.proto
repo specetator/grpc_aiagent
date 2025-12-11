@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package sparkpush;
+
+// 通用错误信息
+message ErrorInfo {
+  int32 code = 1;      // 0 表示成功，非 0 代表错误码
+  string message = 2;  // 具体错误原因
+}
+
+// 基础消息模型（内部存储/序列化使用）
+message ChatMessage {
+  string msg_id = 1;          // 服务端生成的唯一ID，格式: msgid:1:2-123，其中123是严格递增序号
+  string session_id = 2;       // 会话ID
+  int64 msg_seq = 3;           // 从msg_id提取的序号，用于排序和未读计数（服务端填充）
+  int64 sender_id = 4;         // 发送方用户ID
+  int64 timestamp_ms = 5;      // 消息时间戳（毫秒）
+  string msg_type = 6;         // 消息类型: text / image / system ...
+  string content_json = 7;     // 消息内容JSON
+  string client_msg_id = 8;    // 客户端生成的ID，用于ACK匹配（可选）
+}
+
+// 消息确认（ACK）请求
+message AckMessageRequest {
+  int64 user_id = 1;       // 确认方用户ID
+  int64 msg_seq = 2;       // 确认的消息序号（从msg_id提取的seq）
+  string session_id = 3;   // 会话ID
+}
+
+message AckMessageReply {
+  ErrorInfo error = 1;
+}
+
+// ========== LogicService 相关 ==========
+
+// comet -> logic：鉴权
+message VerifyTokenRequest {
+  string token = 1;
+  string comet_id = 2;
+}
+
+message VerifyTokenReply {
+  ErrorInfo error = 1;
+  int64 user_id = 2;
+}
+
+// comet -> logic：上行单聊消息
+message UpstreamMessageRequest {
+  int64 from_user_id = 1;
+  string client_msg_id = 2;    // 客户端消息ID（可选，用于ACK匹配）
+  string scene = 3;            // single=单聊
+  int64 to_user_id = 4;        // 单聊接收方用户ID
+  string content_json = 5;     // 消息内容JSON
+}
+
+message UpstreamMessageReply {
+  ErrorInfo error = 1;
+  ChatMessage message = 2;
+}
+
+// comet -> logic：用户下线
+message UserOfflineRequest {
+  int64 user_id = 1;
+  string comet_id = 2;
+}
+
+message SimpleReply {
+  ErrorInfo error = 1;
+}
+
+service LogicService {
+  rpc VerifyToken(VerifyTokenRequest) returns (VerifyTokenReply);
+  rpc SendUpstreamMessage(UpstreamMessageRequest) returns (UpstreamMessageReply);
+  rpc AckMessage(AckMessageRequest) returns (AckMessageReply);
+  rpc UserOffline(UserOfflineRequest) returns (SimpleReply);
+}
+
+// ========== JobService / CometService 相关 ==========
+
+// logic -> job -> comet：按 comet fanout 的下行消息目标
+message FanoutTarget {
+  int64 user_id = 1;
+}
+
+message PushToCometRequest {
+  string comet_id = 1;
+  ChatMessage message = 2;
+  repeated FanoutTarget targets = 3;
+}
+
+message PushToCometReply {
+  ErrorInfo error = 1;
+}
+
+service JobService {
+  rpc EnqueuePushTask(PushToCometRequest) returns (SimpleReply);
+}
+
+service CometService {
+  rpc PushToComet(PushToCometRequest) returns (PushToCometReply);
+}
