@@ -4,6 +4,7 @@
 #include "websocket_utils.h"
 
 #include <cctype>
+#include "logging.h"
 
 namespace sparkpush {
 
@@ -132,7 +133,14 @@ bool ParseUpstreamMessage(const std::string& json, UpstreamMessageMeta* meta) {
         findNumberField("room_id", &m.group_id);
     }
 
+    // Debug log
+    LOG_INFO << "ParseUpstreamMessage: type=" << m.type 
+             << ", to_user_id=" << m.to_user_id 
+             << ", group_id=" << m.group_id 
+             << ", client_msg_id=" << m.client_msg_id;
+
     if (m.type.empty() && m.to_user_id <= 0 && m.group_id <= 0) {
+        LOG_ERROR << "ParseUpstreamMessage FAILED: empty type AND no user/group";
         return false;
     }
     *meta = m;
