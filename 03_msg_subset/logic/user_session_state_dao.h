@@ -10,7 +10,7 @@ namespace sparkpush {
 // 用于未读计数：unread = session.last_msg_seq - user_read_seq
 class UserSessionStateDao {
    public:
-    explicit UserSessionStateDao(MySQLConnectionPool* pool) : pool_(pool) {}
+    explicit UserSessionStateDao(MySqlConnectionPool* pool) : pool_(pool) {}
 
     // 更新或插入用户已读位置（只有当新的 read_seq 更大时才更新）
     bool UpsertReadSeq(int64_t user_id, const std::string& session_id,
@@ -21,7 +21,7 @@ class UserSessionStateDao {
                     int64_t* read_seq, std::string* err_msg);
 
    private:
-    MySQLConnectionPool* pool_;
+    MySqlConnectionPool* pool_;
 };
 
 }  // namespace sparkpush
