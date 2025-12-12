@@ -1,11 +1,13 @@
 // ============================================================================
 // 用户 DAO 实现
-// 
+//
 // 使用 MySQL C API 的预编译语句（Prepared Statement）执行数据库操作
 // ============================================================================
 #include "user_dao.h"
 
-#include <mutex>
+#include <mysql/mysql.h>
+
+#include "logging.h"
 
 namespace sparkpush {
 
@@ -15,20 +17,94 @@ namespace sparkpush {
 bool UserDao::CreateUser(const std::string& account, const std::string& name,
                          const std::string& password, int64_t* user_id,
                          std::string* err_msg) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    if (account_to_id_.count(account)) {
-        if (err_msg) *err_msg = "account already exists";
+    // 1. 检查连接池是否已初始化
+    if (!pool_) {
+        if (err_msg) *err_msg = "mysql pool not initialized";
         return false;
     }
-    int64_t id = next_id_++;
-    User u;
-    u.id = id;
-    u.account = account;
-    u.name = name;
-    u.password_hash = password;
-    users_[id] = u;
-    account_to_id_[account] = id;
-    if (user_id) *user_id = id;
+
+    // 2. 从连接池获取数据库连接（RAII 自动管理生命周期）
+    auto guard = pool_->Acquire();
+    MYSQL* conn = guard.get();
+    if (!conn) {
+        if (err_msg) *err_msg = "no mysql connection";
+        return false;
+    }
+
+    // 3. 准备 SQL 语句（使用占位符 ? 防止 SQL 注入）
+    const char* sql =
+        "INSERT INTO user(account, name, password_hash) VALUES(?, ?, ?)";
+
+    // 4. 初始化预编译语句对象
+    MYSQL_STMT* stmt = mysql_stmt_init(conn);
+    if (!stmt) {
+        std::string e = "mysql_stmt_init failed";
+        LOG_ERROR << e;
+        if (err_msg) *err_msg = e;
+        return false;
+    }
+
+    // 5. 编译 SQL 语句
+    if (mysql_stmt_prepare(stmt, sql,
+                           static_cast<unsigned long>(strlen(sql))) != 0) {
+        std::string e = mysql_stmt_error(stmt);
+        LOG_ERROR << "CreateUser prepare failed: " << e;
+        if (err_msg) *err_msg = e;
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    // 6. 绑定参数：设置 ? 占位符对应的实际值
+    MYSQL_BIND bind[3];
+    memset(bind, 0, sizeof(bind));
+
+    unsigned long account_len = static_cast<unsigned long>(account.size());
+    unsigned long name_len = static_cast<unsigned long>(name.size());
+    unsigned long pwd_len = static_cast<unsigned long>(password.size());
+
+    // 绑定第 1 个参数：account
+    bind[0].buffer_type = MYSQL_TYPE_STRING;
+    bind[0].buffer = const_cast<char*>(account.data());
+    bind[0].buffer_length = account_len;
+    bind[0].length = &account_len;
+
+    // 绑定第 2 个参数：name
+    bind[1].buffer_type = MYSQL_TYPE_STRING;
+    bind[1].buffer = const_cast<char*>(name.data());
+    bind[1].buffer_length = name_len;
+    bind[1].length = &name_len;
+
+    // 绑定第 3 个参数：password_hash
+    bind[2].buffer_type = MYSQL_TYPE_STRING;
+    bind[2].buffer = const_cast<char*>(password.data());
+    bind[2].buffer_length = pwd_len;
+    bind[2].length = &pwd_len;
+
+    // 7. 应用参数绑定
+    if (mysql_stmt_bind_param(stmt, bind) != 0) {
+        std::string e = mysql_stmt_error(stmt);
+        LOG_ERROR << "CreateUser bind_param failed: " << e;
+        if (err_msg) *err_msg = e;
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    // 8. 执行 INSERT 语句
+    if (mysql_stmt_execute(stmt) != 0) {
+        std::string e = mysql_stmt_error(stmt);
+        LOG_ERROR << "CreateUser execute failed: " << e;
+        if (err_msg) *err_msg = e;
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    // 9. 获取自增主键 ID（AUTO_INCREMENT）
+    if (user_id) {
+        *user_id = static_cast<int64_t>(mysql_insert_id(conn));
+    }
+
+    // 10. 清理资源并返回成功
+    mysql_stmt_close(stmt);
     return true;
 }
 
@@ -39,25 +115,259 @@ bool UserDao::CreateUser(const std::string& account, const std::string& name,
 // 按账号查询用户
 bool UserDao::GetUserByAccount(const std::string& account, User* user,
                                std::string* err_msg) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = account_to_id_.find(account);
-    if (it == account_to_id_.end()) {
-        if (err_msg) *err_msg = "user not found";
+    if (!pool_) {
+        if (err_msg) *err_msg = "mysql pool not initialized";
         return false;
     }
-    if (user) *user = users_[it->second];
+    auto guard = pool_->Acquire();
+    MYSQL* conn = guard.get();
+    if (!conn) {
+        if (err_msg) *err_msg = "no mysql connection";
+        return false;
+    }
+
+    const char* sql =
+        "SELECT id, account, name, password_hash FROM user "
+        "WHERE account = ? LIMIT 1";
+
+    MYSQL_STMT* stmt = mysql_stmt_init(conn);
+    if (!stmt) {
+        std::string e = "mysql_stmt_init failed";
+        LOG_ERROR << e;
+        if (err_msg) *err_msg = e;
+        return false;
+    }
+
+    if (mysql_stmt_prepare(stmt, sql,
+                           static_cast<unsigned long>(strlen(sql))) != 0) {
+        std::string e = mysql_stmt_error(stmt);
+        LOG_ERROR << "GetUserByAccount prepare failed: " << e;
+        if (err_msg) *err_msg = e;
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    MYSQL_BIND param[1];
+    memset(param, 0, sizeof(param));
+    unsigned long account_len = static_cast<unsigned long>(account.size());
+    param[0].buffer_type = MYSQL_TYPE_STRING;
+    param[0].buffer = const_cast<char*>(account.data());
+    param[0].buffer_length = account_len;
+    param[0].length = &account_len;
+
+    if (mysql_stmt_bind_param(stmt, param) != 0) {
+        std::string e = mysql_stmt_error(stmt);
+        LOG_ERROR << "GetUserByAccount bind_param failed: " << e;
+        if (err_msg) *err_msg = e;
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    if (mysql_stmt_execute(stmt) != 0) {
+        std::string e = mysql_stmt_error(stmt);
+        LOG_ERROR << "GetUserByAccount execute failed: " << e;
+        if (err_msg) *err_msg = e;
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    if (mysql_stmt_store_result(stmt) != 0) {
+        std::string e = mysql_stmt_error(stmt);
+        LOG_ERROR << "GetUserByAccount store_result failed: " << e;
+        if (err_msg) *err_msg = e;
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    my_ulonglong row_count = mysql_stmt_num_rows(stmt);
+    if (row_count == 0) {
+        if (err_msg) *err_msg = "user not found";
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    MYSQL_BIND result[4];
+    memset(result, 0, sizeof(result));
+
+    long long id_buf = 0;
+    char account_buf[128] = {0};
+    char name_buf[128] = {0};
+    char pwd_buf[256] = {0};
+    unsigned long account_out_len = 0;
+    unsigned long name_out_len = 0;
+    unsigned long pwd_out_len = 0;
+
+    result[0].buffer_type = MYSQL_TYPE_LONGLONG;
+    result[0].buffer = &id_buf;
+    result[0].is_unsigned = 0;
+
+    result[1].buffer_type = MYSQL_TYPE_STRING;
+    result[1].buffer = account_buf;
+    result[1].buffer_length = sizeof(account_buf);
+    result[1].length = &account_out_len;
+
+    result[2].buffer_type = MYSQL_TYPE_STRING;
+    result[2].buffer = name_buf;
+    result[2].buffer_length = sizeof(name_buf);
+    result[2].length = &name_out_len;
+
+    result[3].buffer_type = MYSQL_TYPE_STRING;
+    result[3].buffer = pwd_buf;
+    result[3].buffer_length = sizeof(pwd_buf);
+    result[3].length = &pwd_out_len;
+
+    if (mysql_stmt_bind_result(stmt, result) != 0) {
+        std::string e = mysql_stmt_error(stmt);
+        LOG_ERROR << "GetUserByAccount bind_result failed: " << e;
+        if (err_msg) *err_msg = e;
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    int fetch_ret = mysql_stmt_fetch(stmt);
+    if (fetch_ret != 0 && fetch_ret != MYSQL_DATA_TRUNCATED) {
+        std::string e = mysql_stmt_error(stmt);
+        LOG_ERROR << "GetUserByAccount fetch failed: " << e;
+        if (err_msg) *err_msg = e;
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    user->id = id_buf;
+    user->account.assign(account_buf, account_out_len);
+    user->name.assign(name_buf, name_out_len);
+    user->password_hash.assign(pwd_buf, pwd_out_len);
+
+    mysql_stmt_close(stmt);
     return true;
 }
 
 // 按 id 查询用户
 bool UserDao::GetUserById(int64_t user_id, User* user, std::string* err_msg) {
-    std::lock_guard<std::mutex> lock(mutex_);
-    auto it = users_.find(user_id);
-    if (it == users_.end()) {
-        if (err_msg) *err_msg = "user not found";
+    if (!pool_) {
+        if (err_msg) *err_msg = "mysql pool not initialized";
         return false;
     }
-    if (user) *user = it->second;
+    auto guard = pool_->Acquire();
+    MYSQL* conn = guard.get();
+    if (!conn) {
+        if (err_msg) *err_msg = "no mysql connection";
+        return false;
+    }
+
+    const char* sql =
+        "SELECT id, account, name, password_hash FROM user "
+        "WHERE id = ? LIMIT 1";
+
+    MYSQL_STMT* stmt = mysql_stmt_init(conn);
+    if (!stmt) {
+        std::string e = "mysql_stmt_init failed";
+        LOG_ERROR << e;
+        if (err_msg) *err_msg = e;
+        return false;
+    }
+
+    if (mysql_stmt_prepare(stmt, sql,
+                           static_cast<unsigned long>(strlen(sql))) != 0) {
+        std::string e = mysql_stmt_error(stmt);
+        LOG_ERROR << "GetUserById prepare failed: " << e;
+        if (err_msg) *err_msg = e;
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    MYSQL_BIND param[1];
+    memset(param, 0, sizeof(param));
+
+    long long id_param = user_id;
+    param[0].buffer_type = MYSQL_TYPE_LONGLONG;
+    param[0].buffer = &id_param;
+    param[0].is_unsigned = 0;
+
+    if (mysql_stmt_bind_param(stmt, param) != 0) {
+        std::string e = mysql_stmt_error(stmt);
+        LOG_ERROR << "GetUserById bind_param failed: " << e;
+        if (err_msg) *err_msg = e;
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    if (mysql_stmt_execute(stmt) != 0) {
+        std::string e = mysql_stmt_error(stmt);
+        LOG_ERROR << "GetUserById execute failed: " << e;
+        if (err_msg) *err_msg = e;
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    if (mysql_stmt_store_result(stmt) != 0) {
+        std::string e = mysql_stmt_error(stmt);
+        LOG_ERROR << "GetUserById store_result failed: " << e;
+        if (err_msg) *err_msg = e;
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    my_ulonglong row_count = mysql_stmt_num_rows(stmt);
+    if (row_count == 0) {
+        if (err_msg) *err_msg = "user not found";
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    MYSQL_BIND result[4];
+    memset(result, 0, sizeof(result));
+
+    long long id_buf = 0;
+    char account_buf[128] = {0};
+    char name_buf[128] = {0};
+    char pwd_buf[256] = {0};
+    unsigned long account_out_len = 0;
+    unsigned long name_out_len = 0;
+    unsigned long pwd_out_len = 0;
+
+    result[0].buffer_type = MYSQL_TYPE_LONGLONG;
+    result[0].buffer = &id_buf;
+    result[0].is_unsigned = 0;
+
+    result[1].buffer_type = MYSQL_TYPE_STRING;
+    result[1].buffer = account_buf;
+    result[1].buffer_length = sizeof(account_buf);
+    result[1].length = &account_out_len;
+
+    result[2].buffer_type = MYSQL_TYPE_STRING;
+    result[2].buffer = name_buf;
+    result[2].buffer_length = sizeof(name_buf);
+    result[2].length = &name_out_len;
+
+    result[3].buffer_type = MYSQL_TYPE_STRING;
+    result[3].buffer = pwd_buf;
+    result[3].buffer_length = sizeof(pwd_buf);
+    result[3].length = &pwd_out_len;
+
+    if (mysql_stmt_bind_result(stmt, result) != 0) {
+        std::string e = mysql_stmt_error(stmt);
+        LOG_ERROR << "GetUserById bind_result failed: " << e;
+        if (err_msg) *err_msg = e;
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    int fetch_ret = mysql_stmt_fetch(stmt);
+    if (fetch_ret != 0 && fetch_ret != MYSQL_DATA_TRUNCATED) {
+        std::string e = mysql_stmt_error(stmt);
+        LOG_ERROR << "GetUserById fetch failed: " << e;
+        if (err_msg) *err_msg = e;
+        mysql_stmt_close(stmt);
+        return false;
+    }
+
+    user->id = id_buf;
+    user->account.assign(account_buf, account_out_len);
+    user->name.assign(name_buf, name_out_len);
+    user->password_hash.assign(pwd_buf, pwd_out_len);
+
+    mysql_stmt_close(stmt);
     return true;
 }
 

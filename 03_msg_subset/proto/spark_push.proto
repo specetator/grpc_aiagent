@@ -37,6 +37,7 @@ message AckMessageReply {
 message VerifyTokenRequest {
   string token = 1;
   string comet_id = 2;
+  string conn_id = 3;   // 新增：连接唯一标识，便于绑定与审计
 }
 
 message VerifyTokenReply {
@@ -48,9 +49,13 @@ message VerifyTokenReply {
 message UpstreamMessageRequest {
   int64 from_user_id = 1;
   string client_msg_id = 2;    // 客户端消息ID（可选，用于ACK匹配）
-  string scene = 3;            // single=单聊
-  int64 to_user_id = 4;        // 单聊接收方用户ID
-  string content_json = 5;     // 消息内容JSON
+  string content_json = 3;     // 消息内容JSON
+  string comet_id = 4;         // 来源 comet 节点
+  string conn_id = 5;          // 来源连接 ID
+  int64 received_time_ms = 6;  // Comet 收到时间（毫秒）
+  string msg_type = 7;         // 客户端上报的消息类型
+  string target_type = 8;      // single_chat / room 等
+  int64 target_id = 9;         // 目标 ID（单聊为对端 uid，群聊为 room_id）
 }
 
 message UpstreamMessageReply {
@@ -62,6 +67,7 @@ message UpstreamMessageReply {
 message UserOfflineRequest {
   int64 user_id = 1;
   string comet_id = 2;
+  string conn_id = 3;   // 连接 ID，便于精确清理路由
 }
 
 message SimpleReply {
@@ -71,7 +77,6 @@ message SimpleReply {
 service LogicService {
   rpc VerifyToken(VerifyTokenRequest) returns (VerifyTokenReply);
   rpc SendUpstreamMessage(UpstreamMessageRequest) returns (UpstreamMessageReply);
-  rpc AckMessage(AckMessageRequest) returns (AckMessageReply);
   rpc UserOffline(UserOfflineRequest) returns (SimpleReply);
 }
 

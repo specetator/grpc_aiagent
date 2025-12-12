@@ -14,6 +14,15 @@ project(spark_push_auth_subset CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# 设置为 Debug 模式
+set(CMAKE_BUILD_TYPE "Debug")
+
+# C++ 调试编译选项
+set(CMAKE_CXX_FLAGS_DEBUG "$ENV{CXXFLAGS} -O0 -Wall -g -ggdb")
+
+# C 调试编译选项（如有需要）
+set(CMAKE_C_FLAGS_DEBUG "$ENV{CFLAGS} -O0 -Wall -g -ggdb")
+
 # 添加第三方库和当前目录到头文件搜索路径
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/third_party)
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})

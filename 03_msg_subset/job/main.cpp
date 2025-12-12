@@ -1,12 +1,11 @@
-#include "config.h"
-#include "logging.h"
-
-#include "service.h"
-
-#include <cstdio>
 #include <chrono>
+#include <cstdio>
 #include <string>
 #include <thread>
+
+#include "config.h"
+#include "logging.h"
+#include "service.h"
 
 namespace {
 
@@ -19,7 +18,8 @@ void PrintUsage(const char* prog) {
                  prog);
 }
 
-ArgParseResult ParseConfigPath(int argc, char** argv, std::string* config_path) {
+ArgParseResult ParseConfigPath(int argc, char** argv,
+                               std::string* config_path) {
     const std::string default_path = "conf/job.conf";
     *config_path = default_path;
     bool positional_used = false;
@@ -87,5 +87,3 @@ int main(int argc, char** argv) {
     sparkpush::ShutdownLogging();
     return ret;
 }
-
-

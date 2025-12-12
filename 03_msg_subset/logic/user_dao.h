@@ -1,8 +1,8 @@
 // ============================================================================
 // 用户数据访问对象（DAO）
-// 
+//
 // 封装用户表的 CRUD 操作，当前实现为单库单表模式
-// 
+//
 // 数据库表结构：
 //   CREATE TABLE user (
 //     id BIGINT PRIMARY KEY AUTO_INCREMENT,
@@ -11,7 +11,7 @@
 //     password_hash VARCHAR(128) NOT NULL,
 //     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 //   );
-// 
+//
 // 设计考虑：
 // - 使用 MySQL 预编译语句（Prepared Statement）防止 SQL 注入
 // - 密码存储为 hash 值，不存储明文
@@ -19,18 +19,22 @@
 // ============================================================================
 #pragma once
 
-#include <mutex>
 #include <string>
-#include <unordered_map>
 
-#include "model.h"
-
+#include "mysql_pool.h"
 namespace sparkpush {
 
+struct User {
+    int64_t id{0};
+    std::string account;
+    std::string name;
+    std::string password_hash;
+};
 // 用户 DAO：负责用户数据的持久化操作
 class UserDao {
    public:
-    UserDao() = default;
+    // 构造函数：注入 MySQL 连接池
+    explicit UserDao(MySqlConnectionPool* pool) : pool_(pool) {}
 
     // 创建新用户
     // @param account: 账号，必须唯一
@@ -59,10 +63,7 @@ class UserDao {
     bool GetUserById(int64_t user_id, User* user, std::string* err_msg);
 
    private:
-    std::mutex mutex_;
-    std::unordered_map<int64_t, User> users_;
-    std::unordered_map<std::string, int64_t> account_to_id_;
-    int64_t next_id_{1};
+    MySqlConnectionPool* pool_;  // MySQL 连接池
 };
 
 }  // namespace sparkpush

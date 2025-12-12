@@ -6,6 +6,7 @@
 #include <unordered_map>
 
 #include "logging.h"
+#include "spark_push.grpc.pb.h"
 #include "spark_push.pb.h"
 
 namespace sparkpush {
@@ -14,6 +15,14 @@ using namespace muduo;
 using namespace muduo::net;
 
 namespace {
+
+// 兼容性 unused 标记：用于“保留但当前未被引用”的本地辅助函数，避免
+// -Wunused-function 警告。
+#if defined(__GNUC__) || defined(__clang__)
+#define SPARKPUSH_UNUSED __attribute__((unused))
+#else
+#define SPARKPUSH_UNUSED
+#endif
 
 // 简单的预设管理员账号配置（Demo 级别，仅用于本地/内网环境）
 // 前端会对明文密码做 MD5，后端仅对 MD5 结果做字符串匹配。
@@ -29,7 +38,7 @@ const std::string kAdminPasswordHash = "0192023a7bbd73250516f069df18b500";
 const int64_t kAdminUserId = 900000000000LL;
 
 // 解析 x-www-form-urlencoded（旧实现，保留以兼容可能的其他调用）
-std::unordered_map<std::string, std::string> ParseForm(
+SPARKPUSH_UNUSED std::unordered_map<std::string, std::string> ParseForm(
     const std::string& body) {
     std::unordered_map<std::string, std::string> result;
     std::stringstream ss(body);
@@ -71,8 +80,9 @@ void AddCORSHeaders(HttpResponse* resp) {
 }
 
 // 使用 nlohmann/json 解析 account/password
-bool ParseJsonAccountPassword(const std::string& body, std::string* account,
-                              std::string* password) {
+SPARKPUSH_UNUSED bool ParseJsonAccountPassword(const std::string& body,
+                                               std::string* account,
+                                               std::string* password) {
     if (!account || !password) return false;
     *account = "";
     *password = "";
@@ -145,10 +155,10 @@ void WriteJson(HttpResponse* resp, int code, const std::string& message,
 // 构造 HTTP API 服务器，注入业务依赖并注册回调
 HttpApiServer::HttpApiServer(EventLoop* loop, const InetAddress& listenAddr,
                              UserDao* user_dao, RedisStore* redis_store,
-                             ConversationStore* store)
+                             KafkaProducer* push_producer)
     : user_dao_(user_dao),
       redis_store_(redis_store),
-      store_(store),
+      push_producer_(push_producer),
       server_(loop, listenAddr, "logic_http_server") {
     // 适配新的 HttpServer 回调签名：bool (const TcpConnectionPtr&,
     // HttpRequest&, HttpResponse*)
@@ -161,6 +171,28 @@ HttpApiServer::HttpApiServer(EventLoop* loop, const InetAddress& listenAddr,
 
 // 启动 HTTP 服务器
 void HttpApiServer::start() { server_.start(); }
+
+bool HttpApiServer::GetUserIdFromRequest(const HttpRequest& req, int64_t* uid) {
+    if (!uid || !redis_store_) return false;
+    std::string token;
+    auto it = req.headers().find("Authorization");
+    if (it != req.headers().end()) {
+        const std::string& auth = it->second;
+        const std::string prefix = "Bearer ";
+        if (auth.size() > prefix.size() &&
+            auth.compare(0, prefix.size(), prefix) == 0) {
+            token = auth.substr(prefix.size());
+        }
+    }
+    if (token.empty()) {
+        auto th = req.headers().find("Token");
+        if (th != req.headers().end()) {
+            token = th->second;
+        }
+    }
+    if (token.empty()) return false;
+    return redis_store_->GetUserIdByToken(token, uid);
+}
 
 // 统一入口：处理 OPTIONS/CORS 并分发业务路由
 void HttpApiServer::onRequest(const HttpRequest& req, HttpResponse* resp) {
@@ -182,6 +214,7 @@ void HttpApiServer::onRequest(const HttpRequest& req, HttpResponse* resp) {
         {"/api/message/send", &HttpApiServer::handleSendMessage},
         {"/api/session/list_single", &HttpApiServer::handleSessionList},
         {"/api/session/unread", &HttpApiServer::handleUnread},
+        {"/api/session/mark_read", &HttpApiServer::handleMarkRead},
     };
 
     const std::string& path = req.path();
@@ -194,12 +227,102 @@ void HttpApiServer::onRequest(const HttpRequest& req, HttpResponse* resp) {
     Handler handler = it->second;
     (this->*handler)(req, resp);
 }
- 
 
-// 用户登录：当前精简版本仅提示未实现，保留路由占位
-void HttpApiServer::handleLogin(const HttpRequest& /*req*/,
-                               HttpResponse* resp) {
-    WriteJson(resp, 501, "login not implemented");
+// 用户登录
+void HttpApiServer::handleLogin(const HttpRequest& req, HttpResponse* resp) {
+    std::string account;
+    std::string password;
+
+    // 1. 验证请求方法
+    if (req.method() != HttpRequest::kPost) {
+        WriteJson(resp, 405, "only POST allowed", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+
+    // 2. 验证请求体非空
+    if (req.body().empty()) {
+        WriteJson(resp, 400, "empty body", "{}", HttpResponse::k400BadRequest);
+        return;
+    }
+
+    // 3. 解析 JSON 请求体
+    if (!ParseJsonAccountPassword(req.body(), &account, &password)) {
+        WriteJson(resp, 400,
+                  "invalid json body, expect "
+                  "{\"account\":\"...\",\"password\":\"...\"}",
+                  "{}", HttpResponse::k400BadRequest);
+        return;
+    }
+
+    // 4. 特殊处理：管理员账号（硬编码用于演示和运维）
+    if (account == kAdminAccount) {
+        // 验证密码
+        if (password != kAdminPasswordHash) {
+            WriteJson(resp, 401, "invalid password");
+            return;
+        }
+
+        // 生成 token：格式为 tk-<user_id>-<timestamp>
+        std::string token = "tk-" + std::to_string(kAdminUserId) + "-" +
+                            std::to_string(::time(nullptr));
+
+        // 将 token 存入 Redis，有效期 24 小时
+        if (!redis_store_ ||
+            !redis_store_->SetToken(token, kAdminUserId, 24 * 3600)) {
+            WriteJson(resp, 500, "save token to redis failed");
+            return;
+        }
+
+        // 返回成功响应
+        std::ostringstream data;
+        data << "{\"user_id\":" << kAdminUserId << ",\"token\":\"" << token
+             << "\"}";
+        WriteJson(resp, 0, "ok", data.str());
+        return;
+    }
+
+    // 5. 验证账号非空
+    if (account.empty()) {
+        WriteJson(resp, 400, "account is required", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+
+    // 6. 检查数据库访问对象是否已初始化
+    if (!user_dao_) {
+        WriteJson(resp, 500, "user dao not initialized");
+        return;
+    }
+
+    // 7. 从数据库查询用户信息
+    User user;
+    std::string err;
+    if (!user_dao_->GetUserByAccount(account, &user, &err)) {
+        WriteJson(resp, 404, "user not found, please register first", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+
+    // 8. 验证密码（这里存储的是密码 hash，客户端需先做 hash 再传输）
+    if (user.password_hash != password) {
+        WriteJson(resp, 401, "invalid password");
+        return;
+    }
+
+    // 9. 生成 token 并存入 Redis
+    std::string token =
+        "tk-" + std::to_string(user.id) + "-" + std::to_string(::time(nullptr));
+    if (!redis_store_ || !redis_store_->SetToken(token, user.id, 24 * 3600)) {
+        WriteJson(resp, 500, "save token to redis failed");
+        return;
+    }
+
+    // 10. 返回登录成功响应，包含用户 ID、token 和昵称
+    std::ostringstream data;
+    data << "{\"user_id\":" << user.id << ",\"token\":\"" << token << "\""
+         << ",\"name\":\"" << user.name << "\"}";
+    WriteJson(resp, 0, "ok", data.str());
 }
 
 // 用户注册：创建账号并发放 token
@@ -294,69 +417,72 @@ void HttpApiServer::handleSendMessage(const HttpRequest& req,
         return;
     }
 
+    int64_t from_user = 0;
+    if (!GetUserIdFromRequest(req, &from_user)) {
+        WriteJson(resp, 401, "unauthorized");
+        return;
+    }
+
     nlohmann::json j;
     if (!ParseJsonBody(req.body(), &j)) {
         WriteJson(
             resp, 400,
             "invalid json body, expect "
-            "{\"from_user_id\":...,\"to_user_id\":...,\"content\":\"...\"}",
+            "{\"msg_type\":\"text\",\"target_type\":\"single_chat\",\"target_"
+            "id\":2,\"content\":\"...\",\"client_msg_id\":\"...\"}",
             "{}", HttpResponse::k400BadRequest);
         return;
     }
 
-    int64_t from_user = 0;
-    int64_t to_user = 0;
+    std::string msg_type = "text";
+    std::string target_type;
+    int64_t target_id = 0;
     std::string content;
+    std::string client_msg_id;
+    int64_t client_ts_ms = 0;
     try {
-        if (!j.contains("from_user_id") || !j.contains("to_user_id") ||
+        if (!j.contains("target_type") || !j.contains("target_id") ||
             !j.contains("content")) {
-            WriteJson(resp, 400, "from_user_id/to_user_id/content required",
-                      "{}", HttpResponse::k400BadRequest);
+            WriteJson(resp, 400, "target_type/target_id/content required", "{}",
+                      HttpResponse::k400BadRequest);
             return;
         }
-        from_user = j.at("from_user_id").get<int64_t>();
-        to_user = j.at("to_user_id").get<int64_t>();
+        target_type = j.at("target_type").get<std::string>();
+        target_id = j.at("target_id").get<int64_t>();
         content = j.at("content").get<std::string>();
-    } catch (const nlohmann::json::exception& e) {
-        WriteJson(resp, 400, "invalid json fields in message send", "{}",
+        if (j.contains("msg_type"))
+            msg_type = j.at("msg_type").get<std::string>();
+        if (j.contains("client_msg_id"))
+            client_msg_id = j.at("client_msg_id").get<std::string>();
+        if (j.contains("timestamp"))
+            client_ts_ms = j.at("timestamp").get<int64_t>();
+        if (j.contains("client_timestamp_ms"))
+            client_ts_ms = j.at("client_timestamp_ms").get<int64_t>();
+    } catch (const nlohmann::json::exception&) {
+        WriteJson(resp, 400, "invalid json fields in send message", "{}",
                   HttpResponse::k400BadRequest);
         return;
     }
 
-    if (from_user <= 0 || to_user <= 0 || content.empty()) {
-        WriteJson(resp, 400, "from_user_id/to_user_id/content required", "{}",
-                  HttpResponse::k400BadRequest);
+    if (target_type != "single_chat" || target_id <= 0 || content.empty()) {
+        WriteJson(resp, 400,
+                  "only single_chat supported and target_id must be positive",
+                  "{}", HttpResponse::k400BadRequest);
         return;
     }
 
-    // 客户端自定义的 msg_seq（可选）
-    int64_t client_msg_seq = 0;
-    bool has_client_msg_seq = false;
-    if (j.contains("msg_seq")) {
-        try {
-            client_msg_seq = j.at("msg_seq").get<int64_t>();
-            has_client_msg_seq = true;
-        } catch (const nlohmann::json::exception&) {
-        }
-    }
+    int64_t small_uid = std::min(from_user, target_id);
+    int64_t large_uid = std::max(from_user, target_id);
+    std::string session_id =
+        "s_" + std::to_string(small_uid) + ":" + std::to_string(large_uid);
 
-    // 构造单聊会话 id（s_<small>_<large>）
-    int64_t small_uid = std::min(from_user, to_user);
-    int64_t large_uid = std::max(from_user, to_user);
-    Session session;
-    session.type = SessionType::kSingle;
-    session.user1_id = small_uid;
-    session.user2_id = large_uid;
-    session.id = "s_" + std::to_string(small_uid) + "_" +
-                 std::to_string(large_uid);
-
-    // 服务端生成 msg_id
+    // 生成 msg_id/msg_seq
     std::string msg_id;
-    int64_t msgid_seq = 0;
+    int64_t msg_seq = 0;
     if (redis_store_ &&
-        redis_store_->NextSingleMsgId(small_uid, large_uid, &msgid_seq)) {
+        redis_store_->NextSingleMsgId(small_uid, large_uid, &msg_seq)) {
         msg_id = "msgid:" + std::to_string(small_uid) + ":" +
-                 std::to_string(large_uid) + "-" + std::to_string(msgid_seq);
+                 std::to_string(large_uid) + "-" + std::to_string(msg_seq);
     } else {
         WriteJson(resp, 500, "generate msg_id failed");
         return;
@@ -365,820 +491,153 @@ void HttpApiServer::handleSendMessage(const HttpRequest& req,
     int64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                          std::chrono::system_clock::now().time_since_epoch())
                          .count();
-    // 组装返回的消息（此处不落持久化，仅按规则回包）
-    Message msg;
-    msg.session_id = session.id;
-    msg.msg_id = msg_id;
-    msg.msg_seq = has_client_msg_seq ? client_msg_seq : 0;
-    msg.sender_id = from_user;
-    msg.msg_type = "text";
-    msg.timestamp_ms = now_ms;
-    msg.content_json = content;
-    msg.client_msg_id = "";  // HTTP 暂不透传
 
-    std::ostringstream data;
-    data << "{\"session_id\":\"" << msg.session_id << "\",\"msg_id\":\""
-         << msg.msg_id << "\",\"msg_seq\":" << msg.msg_seq << "}";
-    WriteJson(resp, 0, "ok", data.str());
-}
+    // 规范化 content_json：去重同义字段，补充服务端字段
+    nlohmann::json norm;
+    norm["msg_id"] = msg_id;
+    norm["msg_seq"] = msg_seq;
+    norm["create_time"] = now_ms;
+    norm["from_user_id"] = from_user;
+    norm["target_type"] = "single_chat";
+    norm["target_id"] = target_id;
+    norm["msg_type"] = msg_type;
+    norm["content"] = content;
+    if (!client_msg_id.empty()) norm["client_msg_id"] = client_msg_id;
+    if (client_ts_ms > 0) norm["client_timestamp_ms"] = client_ts_ms;
 
-#if 0  // legacy chatroom/history APIs (disabled)
-// 拉取会话历史消息
-void HttpApiServer::handleHistory(const HttpRequest& req, HttpResponse* resp) {
-    if (req.method() != HttpRequest::kPost) {
-        WriteJson(resp, 405, "only POST allowed", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
+    std::string final_json = norm.dump();
 
-    nlohmann::json j;
-    if (!ParseJsonBody(req.body(), &j)) {
-        WriteJson(resp, 400,
-                  "invalid json body, expect "
-                  "{\"session_id\":\"...\",\"anchor_seq\":0,\"limit\":20}",
-                  "{}", HttpResponse::k400BadRequest);
-        return;
-    }
+    // 构造 ChatMessage
+    ChatMessage cm;
+    cm.set_msg_id(msg_id);
+    cm.set_session_id(session_id);
+    cm.set_msg_seq(msg_seq);
+    cm.set_sender_id(from_user);
+    cm.set_timestamp_ms(now_ms);
+    cm.set_msg_type(msg_type);
+    cm.set_content_json(final_json);
+    cm.set_client_msg_id(client_msg_id);
 
-    std::string session_id;
-    int64_t anchor_seq = 0;
-    int limit = 20;
-    try {
-        if (!j.contains("session_id")) {
-            WriteJson(resp, 400, "session_id required", "{}",
-                      HttpResponse::k400BadRequest);
-            return;
-        }
-        session_id = j.at("session_id").get<std::string>();
-        if (j.contains("anchor_seq")) {
-            anchor_seq = j.at("anchor_seq").get<int64_t>();
-        }
-        if (j.contains("limit")) {
-            limit = j.at("limit").get<int>();
-        }
-    } catch (const nlohmann::json::exception& e) {
-        WriteJson(resp, 400, "invalid json fields in history", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    if (session_id.empty()) {
-        WriteJson(resp, 400, "session_id required", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    if (!store_) {
-        WriteJson(resp, 500, "conversation store not initialized");
-        return;
-    }
-    std::vector<Message> msgs;
-    std::string err;
-    if (!store_->GetHistory(session_id, anchor_seq, limit, &msgs, &err)) {
-        WriteJson(resp, 500, "query history failed: " + err);
-        return;
-    }
-    std::ostringstream data;
-    data << "{\"messages\":[";
-    bool first = true;
-    for (const auto& m : msgs) {
-        if (!first) data << ",";
-        first = false;
-        data << "{" << "\"msg_id\":\"" << m.msg_id << "\","
-             << "\"client_msg_id\":\"" << m.client_msg_id << "\","
-             << "\"msg_seq\":" << m.msg_seq << ","
-             << "\"sender_id\":" << m.sender_id << ","
-             << "\"timestamp_ms\":" << m.timestamp_ms << ","
-             << "\"msg_type\":\"" << m.msg_type << "\"," << "\"content\":"
-             << (m.content_json.empty() ? "\"\"" : m.content_json) << "}";
-    }
-    data << "]}";
-    WriteJson(resp, 0, "ok", data.str());
-}
-
-// 标记会话已读
-void HttpApiServer::handleMarkRead(const HttpRequest& req, HttpResponse* resp) {
-    if (req.method() != HttpRequest::kPost) {
-        WriteJson(resp, 405, "only POST allowed", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-
-    nlohmann::json j;
-    if (!ParseJsonBody(req.body(), &j)) {
-        WriteJson(resp, 400,
-                  "invalid json body, expect "
-                  "{\"user_id\":...,\"session_id\":\"...\",\"read_seq\":...}",
-                  "{}", HttpResponse::k400BadRequest);
-        return;
-    }
-
-    int64_t user_id = 0;
-    std::string session_id;
-    int64_t read_seq = 0;
-    try {
-        if (!j.contains("user_id") || !j.contains("session_id") ||
-            !j.contains("read_seq")) {
-            WriteJson(resp, 400, "user_id/session_id/read_seq required", "{}",
-                      HttpResponse::k400BadRequest);
-            return;
-        }
-        user_id = j.at("user_id").get<int64_t>();
-        session_id = j.at("session_id").get<std::string>();
-        read_seq = j.at("read_seq").get<int64_t>();
-    } catch (const nlohmann::json::exception& e) {
-        WriteJson(resp, 400, "invalid json fields in mark_read", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    if (user_id <= 0 || session_id.empty() || read_seq <= 0) {
-        WriteJson(resp, 400, "user_id/session_id/read_seq required", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    if (!store_) {
-        WriteJson(resp, 500, "conversation store not initialized");
-        return;
-    }
-    std::string err;
-    if (!store_->MarkRead(user_id, session_id, read_seq, &err)) {
-        WriteJson(resp, 500, "mark read failed: " + err);
-        return;
-    }
-    WriteJson(resp, 0, "ok");
-}
-
-// 查询未读数
-void HttpApiServer::handleUnread(const HttpRequest& req, HttpResponse* resp) {
-    if (req.method() != HttpRequest::kPost) {
-        WriteJson(resp, 405, "only POST allowed", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-
-    nlohmann::json j;
-    if (!ParseJsonBody(req.body(), &j)) {
-        WriteJson(resp, 400,
-                  "invalid json body, expect "
-                  "{\"user_id\":...,\"session_id\":\"...\"}",
-                  "{}", HttpResponse::k400BadRequest);
-        return;
-    }
-
-    int64_t user_id = 0;
-    std::string session_id;
-    try {
-        if (!j.contains("user_id") || !j.contains("session_id")) {
-            WriteJson(resp, 400, "user_id/session_id required", "{}",
-                      HttpResponse::k400BadRequest);
-            return;
-        }
-        user_id = j.at("user_id").get<int64_t>();
-        session_id = j.at("session_id").get<std::string>();
-    } catch (const nlohmann::json::exception& e) {
-        WriteJson(resp, 400, "invalid json fields in unread", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    if (user_id <= 0 || session_id.empty()) {
-        WriteJson(resp, 400, "user_id/session_id required", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    if (!store_) {
-        WriteJson(resp, 500, "conversation store not initialized");
-        return;
-    }
-    int64_t unread = 0;
-    std::string err;
-    if (!store_->GetUnread(user_id, session_id, &unread, &err)) {
-        WriteJson(resp, 500, "get unread failed: " + err);
-        return;
-    }
-    std::ostringstream data;
-    data << "{\"unread\":" << unread << "}";
-    WriteJson(resp, 0, "ok", data.str());
-}
-
-// 列出单聊会话列表
-void HttpApiServer::handleSingleSessionList(const HttpRequest& req,
-                                            HttpResponse* resp) {
-    if (req.method() != HttpRequest::kPost) {
-        WriteJson(resp, 405, "only POST allowed", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-
-    nlohmann::json j;
-    if (!ParseJsonBody(req.body(), &j)) {
-        WriteJson(resp, 400, "invalid json body, expect {\"user_id\":...}",
-                  "{}", HttpResponse::k400BadRequest);
-        return;
-    }
-
-    int64_t user_id = 0;
-    try {
-        if (!j.contains("user_id")) {
-            WriteJson(resp, 400, "user_id required", "{}",
-                      HttpResponse::k400BadRequest);
-            return;
-        }
-        user_id = j.at("user_id").get<int64_t>();
-    } catch (const nlohmann::json::exception& e) {
-        WriteJson(resp, 400, "invalid json fields in list_single", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    if (user_id <= 0) {
-        WriteJson(resp, 400, "user_id required", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    if (!store_) {
-        WriteJson(resp, 500, "conversation store not initialized");
-        return;
-    }
-    std::vector<Session> sessions;
-    std::string err;
-    if (!store_->ListUserSingleSessions(user_id, &sessions, &err)) {
-        WriteJson(resp, 500, "list sessions failed: " + err);
-        return;
-    }
-    std::ostringstream data;
-    data << "{\"sessions\":[";
-    bool first = true;
-    for (const auto& s : sessions) {
-        int64_t peer_id = (s.user1_id == user_id) ? s.user2_id : s.user1_id;
-        if (peer_id <= 0) continue;
-        if (!first) data << ",";
-        first = false;
-        data << "{" << "\"session_id\":\"" << s.id << "\","
-             << "\"peer_user_id\":" << peer_id << ","
-             << "\"last_msg_seq\":" << s.last_msg_seq << "}";
-    }
-    data << "]}";
-    WriteJson(resp, 0, "ok", data.str());
-}
-
-// 列出用户订阅的聊天室
-void HttpApiServer::handleChatroomList(const HttpRequest& req,
-                                       HttpResponse* resp) {
-    if (req.method() != HttpRequest::kPost) {
-        WriteJson(resp, 405, "only POST allowed", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-
-    nlohmann::json j;
-    if (!ParseJsonBody(req.body(), &j)) {
-        WriteJson(resp, 400, "invalid json body, expect {\"user_id\":...}",
-                  "{}", HttpResponse::k400BadRequest);
-        return;
-    }
-
-    int64_t user_id = 0;
-    try {
-        if (!j.contains("user_id")) {
-            WriteJson(resp, 400, "user_id required", "{}",
-                      HttpResponse::k400BadRequest);
-            return;
-        }
-        user_id = j.at("user_id").get<int64_t>();
-    } catch (const nlohmann::json::exception& e) {
-        WriteJson(resp, 400, "invalid json fields in chatroom list", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    if (user_id <= 0) {
-        WriteJson(resp, 400, "user_id required", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    if (!group_member_dao_) {
-        WriteJson(resp, 500, "group member dao not initialized");
-        return;
-    }
-    if (!group_dao_) {
-        WriteJson(resp, 500, "group dao not initialized");
-        return;
-    }
-    std::vector<int64_t> room_ids;
-    std::string err;
-    if (!group_member_dao_->ListUserChatrooms(user_id, &room_ids, &err)) {
-        WriteJson(resp, 500, "list user chatrooms failed: " + err);
-        return;
-    }
-    if (!store_) {
-        WriteJson(resp, 500, "conversation store not initialized");
-        return;
-    }
-    std::ostringstream data;
-    data << "{\"rooms\":[";
-    bool first = true;
-    for (int64_t room_id : room_ids) {
-        Session s;
-        if (!store_->GetOrCreateRoomSession(room_id, &s, &err)) {
-            LOG_ERROR << "GetOrCreateRoomSession failed: " << err;
-            continue;
-        }
-
-        ImGroup g;
-        std::string g_err;
-        std::string name = "Unknown";
-        if (group_dao_->GetGroup(room_id, &g, &g_err)) {
-            name = g.name;
-        }
-
-        if (!first) data << ",";
-        first = false;
-        data << "{" << "\"session_id\":\"" << s.id << "\","
-             << "\"room_id\":" << s.group_id << "," << "\"name\":\"" << name
-             << "\"," << "\"last_msg_seq\":" << s.last_msg_seq << "}";
-    }
-    data << "]}";
-    WriteJson(resp, 0, "ok", data.str());
-}
-
-// 加入聊天室（订阅关系）
-void HttpApiServer::handleChatroomJoin(const HttpRequest& req,
-                                       HttpResponse* resp) {
-    if (req.method() != HttpRequest::kPost) {
-        WriteJson(resp, 405, "only POST allowed", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-
-    nlohmann::json j;
-    if (!ParseJsonBody(req.body(), &j)) {
-        WriteJson(resp, 400,
-                  "invalid json body, expect {\"room_id\":...,\"user_id\":...}",
-                  "{}", HttpResponse::k400BadRequest);
-        return;
-    }
-
-    int64_t room_id = 0;
-    int64_t user_id = 0;
-    try {
-        if (!j.contains("room_id") || !j.contains("user_id")) {
-            WriteJson(resp, 400, "room_id/user_id required", "{}",
-                      HttpResponse::k400BadRequest);
-            return;
-        }
-        room_id = j.at("room_id").get<int64_t>();
-        user_id = j.at("user_id").get<int64_t>();
-    } catch (const nlohmann::json::exception& e) {
-        WriteJson(resp, 400, "invalid json fields in chatroom join", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    if (room_id <= 0 || user_id <= 0) {
-        WriteJson(resp, 400, "room_id/user_id required", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    if (!group_dao_ || !group_member_dao_) {
-        WriteJson(resp, 500, "group dao not initialized");
-        return;
-    }
-    // 确认聊天室存在且类型正确
-    ImGroup g;
-    std::string err;
-    if (!group_dao_->GetGroup(room_id, &g, &err)) {
-        WriteJson(resp, 404, "chatroom not found: " + err);
-        return;
-    }
-    if (g.group_type != 1) {
-        WriteJson(resp, 400, "group is not chatroom", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    if (!group_member_dao_->AddOrUpdateMember(room_id, user_id, 0, &err)) {
-        WriteJson(resp, 500, "add member failed: " + err);
-        return;
-    }
-
-    WriteJson(resp, 0, "ok");
-}
-
-// 离开聊天室（在线层）
-void HttpApiServer::handleChatroomLeave(const HttpRequest& req,
-                                        HttpResponse* resp) {
-    if (req.method() != HttpRequest::kPost) {
-        WriteJson(resp, 405, "only POST allowed", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-
-    nlohmann::json j;
-    if (!ParseJsonBody(req.body(), &j)) {
-        WriteJson(resp, 400,
-                  "invalid json body, expect {\"room_id\":...,\"user_id\":...}",
-                  "{}", HttpResponse::k400BadRequest);
-        return;
-    }
-
-    int64_t room_id = 0;
-    int64_t user_id = 0;
-    try {
-        if (!j.contains("room_id") || !j.contains("user_id")) {
-            WriteJson(resp, 400, "room_id/user_id required", "{}",
-                      HttpResponse::k400BadRequest);
-            return;
-        }
-        room_id = j.at("room_id").get<int64_t>();
-        user_id = j.at("user_id").get<int64_t>();
-    } catch (const nlohmann::json::exception& e) {
-        WriteJson(resp, 400, "invalid json fields in chatroom leave", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    if (room_id <= 0 || user_id <= 0) {
-        WriteJson(resp, 400, "room_id/user_id required", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    // 这里的 leave 仅表示“当前不再接收该房间的实时消息”，
-    // 实际的在线状态由 WebSocket + comet/Redis 驱动。
-    // 订阅关系交由 /api/chatroom/unsubscribe
-    // 维护，这里不修改内存模型中的订阅集合。
-    WriteJson(resp, 0, "ok");
-}
-
-// 取消订阅聊天室（从成员表移除）
-void HttpApiServer::handleChatroomUnsubscribe(const HttpRequest& req,
-                                              HttpResponse* resp) {
-    if (req.method() != HttpRequest::kPost) {
-        WriteJson(resp, 405, "only POST allowed", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-
-    nlohmann::json j;
-    if (!ParseJsonBody(req.body(), &j)) {
-        WriteJson(resp, 400,
-                  "invalid json body, expect {\"room_id\":...,\"user_id\":...}",
-                  "{}", HttpResponse::k400BadRequest);
-        return;
-    }
-
-    int64_t room_id = 0;
-    int64_t user_id = 0;
-    try {
-        if (!j.contains("room_id") || !j.contains("user_id")) {
-            WriteJson(resp, 400, "room_id/user_id required", "{}",
-                      HttpResponse::k400BadRequest);
-            return;
-        }
-        room_id = j.at("room_id").get<int64_t>();
-        user_id = j.at("user_id").get<int64_t>();
-    } catch (const nlohmann::json::exception& e) {
-        WriteJson(resp, 400, "invalid json fields in chatroom unsubscribe",
-                  "{}", HttpResponse::k400BadRequest);
-        return;
-    }
-    if (room_id <= 0 || user_id <= 0) {
-        WriteJson(resp, 400, "room_id/user_id required", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    if (!group_member_dao_) {
-        WriteJson(resp, 500, "group member dao not initialized");
-        return;
-    }
-    std::string err;
-    if (!group_member_dao_->RemoveMember(room_id, user_id, &err)) {
-        WriteJson(resp, 500, "remove member failed: " + err);
-        return;
-    }
-    WriteJson(resp, 0, "ok");
-}
-
-// 管理员创建聊天室
-void HttpApiServer::handleAdminCreateChatroom(const HttpRequest& req,
-                                              HttpResponse* resp) {
-    if (req.method() != HttpRequest::kPost) {
-        WriteJson(resp, 405, "only POST allowed", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-
-    nlohmann::json j;
-    if (!ParseJsonBody(req.body(), &j)) {
-        WriteJson(
-            resp, 400,
-            "invalid json body, expect {\"name\":\"...\",\"owner_id\":...}",
-            "{}", HttpResponse::k400BadRequest);
-        return;
-    }
-
-    std::string name;
-    int64_t owner_id = 0;
-    try {
-        if (!j.contains("name") || !j.contains("owner_id")) {
-            WriteJson(resp, 400, "name/owner_id required", "{}",
-                      HttpResponse::k400BadRequest);
-            return;
-        }
-        name = j.at("name").get<std::string>();
-        owner_id = j.at("owner_id").get<int64_t>();
-    } catch (const nlohmann::json::exception& e) {
-        WriteJson(resp, 400, "invalid json fields in admin create chatroom",
-                  "{}", HttpResponse::k400BadRequest);
-        return;
-    }
-    if (name.empty() || owner_id <= 0) {
-        WriteJson(resp, 400, "name/owner_id required", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    if (!group_dao_) {
-        WriteJson(resp, 500, "group dao not initialized");
-        return;
-    }
-    int64_t group_id = 0;
-    std::string err;
-    if (!group_dao_->CreateChatroom(name, owner_id, &group_id, &err)) {
-        WriteJson(resp, 500, "create chatroom failed: " + err);
-        return;
-    }
-    std::ostringstream data;
-    data << "{\"room_id\":" << group_id << ",\"name\":\"" << name << "\"}";
-    WriteJson(resp, 0, "ok", data.str());
-}
-
-// 管理员列出聊天室
-void HttpApiServer::handleAdminListChatroom(const HttpRequest& req,
-                                            HttpResponse* resp) {
-    if (req.method() != HttpRequest::kPost) {
-        WriteJson(resp, 405, "only POST allowed", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-
-    nlohmann::json j;
-    if (!ParseJsonBody(req.body(), &j)) {
-        WriteJson(resp, 400,
-                  "invalid json body, expect {\"offset\":0,\"limit\":20}", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-
-    int offset = 0;
-    int limit = 20;
-    try {
-        if (j.contains("offset")) {
-            offset = j.at("offset").get<int>();
-        }
-        if (j.contains("limit")) {
-            limit = j.at("limit").get<int>();
-        }
-    } catch (const nlohmann::json::exception& e) {
-        WriteJson(resp, 400, "invalid json fields in admin list chatroom", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    if (!group_dao_) {
-        WriteJson(resp, 500, "group dao not initialized");
-        return;
-    }
-    std::vector<ImGroup> groups;
-    std::string err;
-    if (!group_dao_->ListChatrooms(offset, limit, &groups, &err)) {
-        WriteJson(resp, 500, "list chatrooms failed: " + err);
-        return;
-    }
-    std::ostringstream data;
-    data << "{\"rooms\":[";
-    bool first = true;
-    for (const auto& g : groups) {
-        if (!first) data << ",";
-        first = false;
-        data << "{" << "\"room_id\":" << g.id << "," << "\"name\":\"" << g.name
-             << "\"," << "\"owner_id\":" << g.owner_id << "}";
-    }
-    data << "]}";
-    WriteJson(resp, 0, "ok", data.str());
-}
-
-// 管理员广播
-void HttpApiServer::handleAdminBroadcast(const HttpRequest& req,
-                                         HttpResponse* resp) {
-    if (req.method() != HttpRequest::kPost) {
-        WriteJson(resp, 405, "only POST allowed", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-
-    nlohmann::json j;
-    if (!ParseJsonBody(req.body(), &j)) {
-        WriteJson(resp, 400,
-                  "invalid json body, expect "
-                  "{\"scope\":\"all|chatroom\",\"room_id\":0,\"text\":\"...\"}",
-                  "{}", HttpResponse::k400BadRequest);
-        return;
-    }
-
-    std::string scope = "all";
-    int64_t room_id = 0;
-    std::string text;
-    try {
-        if (j.contains("scope")) {
-            scope = j.at("scope").get<std::string>();
-        }
-        if (j.contains("room_id")) {
-            room_id = j.at("room_id").get<int64_t>();
-        }
-        if (!j.contains("text")) {
-            WriteJson(resp, 400, "text is required", "{}",
-                      HttpResponse::k400BadRequest);
-            return;
-        }
-        text = j.at("text").get<std::string>();
-    } catch (const nlohmann::json::exception& e) {
-        WriteJson(resp, 400, "invalid json fields in admin broadcast", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    if (text.empty()) {
-        WriteJson(resp, 400, "text is required", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    if (scope != "all" && scope != "chatroom") {
-        WriteJson(resp, 400, "scope must be all or chatroom", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    if (scope == "chatroom" && room_id <= 0) {
-        WriteJson(resp, 400, "room_id required when scope=chatroom", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    if (!broadcast_producer_) {
-        WriteJson(resp, 500, "broadcast producer not initialized");
-        return;
-    }
-
-    // 构造广播任务内容，与 LogicServiceImpl::Broadcast 使用的
-    // BroadcastTaskRequest 保持一致
-    int64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-                         std::chrono::system_clock::now().time_since_epoch())
-                         .count();
-    std::string task_id =
-        "bcast-" + std::to_string(now_ms) + "-" + std::to_string(rand());
-
-    std::string real_scope = (scope == "all") ? "all" : "group";
-    int64_t group_id = (scope == "chatroom") ? room_id : 0;
-
-    // 构造 JSON 内容：一个简单的系统广播文本
-    std::ostringstream content_oss;
-    content_oss << "{\"type\":\"system_broadcast\"" << ",\"scope\":\""
-                << real_scope << "\"";
-    if (group_id > 0) {
-        content_oss << ",\"group_id\":" << group_id;
-    }
-    content_oss << ",\"content\":{\"text\":\"" << text << "\"}}";
-    std::string content_json = content_oss.str();
-
-    BroadcastTaskRequest task;
-    task.set_task_id(task_id);
-    task.set_scope(real_scope);
-    task.set_group_id(group_id);
-    task.set_content_json(content_json);
-
-    std::string payload;
-    if (!task.SerializeToString(&payload)) {
-        WriteJson(resp, 500, "serialize BroadcastTaskRequest failed");
-        return;
-    }
-    LOG_INFO << "Admin broadcast task created: task_id=" << task_id
-             << ", scope=" << real_scope << ", group_id=" << group_id;
-    if (!broadcast_producer_->Send(task_id, payload)) {
-        WriteJson(resp, 500, "send broadcast task to kafka failed");
-        return;
-    }
-
-    std::ostringstream data;
-    data << "{\"task_id\":\"" << task_id << "\"" << ",\"scope\":\""
-         << real_scope << "\"" << ",\"group_id\":" << group_id << "}";
-    WriteJson(resp, 0, "ok", data.str());
-}
-
-// 查询聊天室在线人数
-void HttpApiServer::handleChatroomOnlineCount(const HttpRequest& req,
-                                              HttpResponse* resp) {
-    if (req.method() != HttpRequest::kPost) {
-        WriteJson(resp, 405, "only POST allowed", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-
-    nlohmann::json j;
-    if (!ParseJsonBody(req.body(), &j)) {
-        WriteJson(resp, 400, "invalid json body, expect {\"room_id\":...}",
-                  "{}", HttpResponse::k400BadRequest);
-        return;
-    }
-
-    int64_t room_id = 0;
-    try {
-        if (!j.contains("room_id")) {
-            WriteJson(resp, 400, "room_id required", "{}",
-                      HttpResponse::k400BadRequest);
-            return;
-        }
-        room_id = j.at("room_id").get<int64_t>();
-    } catch (const nlohmann::json::exception& e) {
-        WriteJson(resp, 400, "invalid json fields in chatroom online_count",
-                  "{}", HttpResponse::k400BadRequest);
-        return;
-    }
-    if (room_id <= 0) {
-        WriteJson(resp, 400, "room_id required", "{}",
-                  HttpResponse::k400BadRequest);
-        return;
-    }
-    int64_t count = 0;
-    bool ok = false;
+    // 更新 Redis 会话/未读/last_msg
     if (redis_store_) {
-        ok = redis_store_->GetRoomOnlineCount(room_id, &count);
+        redis_store_->AddUserSession(from_user, session_id);
+        redis_store_->AddUserSession(target_id, session_id);
+        redis_store_->SetSessionLastSeq(session_id, msg_seq);
+        redis_store_->IncrUnreadCount(target_id, session_id, 1);
+        redis_store_->SetUserSessionMeta(
+            from_user, session_id, msg_id, msg_seq, msg_type, now_ms,
+            content.size() > 50 ? content.substr(0, 50) : content);
+        redis_store_->SetUserSessionMeta(
+            target_id, session_id, msg_id, msg_seq, msg_type, now_ms,
+            content.size() > 50 ? content.substr(0, 50) : content);
     }
-    if (!ok && group_member_dao_) {
-        std::vector<int64_t> members;
-        std::string err;
-        if (group_member_dao_->ListRoomMembers(room_id, &members, &err)) {
-            count = static_cast<int64_t>(members.size());
-            ok = true;
+
+    // 推 Kafka（在线推送）
+    if (push_producer_) {
+        std::vector<std::string> comets;
+        if (redis_store_ &&
+            redis_store_->GetUserConnectionComets(target_id, &comets) &&
+            !comets.empty()) {
+            for (const auto& cid : comets) {
+                PushToCometRequest preq;
+                preq.set_comet_id(cid);
+                *preq.mutable_message() = cm;
+                auto* t = preq.add_targets();
+                t->set_user_id(target_id);
+                std::string payload;
+                if (preq.SerializeToString(&payload)) {
+                    push_producer_->Send(cid, payload);
+                }
+            }
         } else {
-            LOG_ERROR << "ListRoomMembers failed when fallback online count: "
-                      << err;
+            // 离线占位
+            PushToCometRequest preq;
+            preq.set_comet_id("");
+            *preq.mutable_message() = cm;
+            // 仍然填充 targets，便于下游（job）在 comet_id 缺失时进行广播兜底，
+            // 由各 comet 根据本机连接集合决定是否真正下发。
+            auto* t = preq.add_targets();
+            t->set_user_id(target_id);
+            std::string payload;
+            if (preq.SerializeToString(&payload)) {
+                push_producer_->Send("", payload);
+            }
         }
     }
+
     std::ostringstream data;
-    data << "{\"room_id\":" << room_id << ",\"online_count\":" << count << "}";
+    data << "{"
+         << "\"msg_id\":\"" << msg_id << "\","
+         << "\"msg_seq\":" << msg_seq << ","
+         << "\"session_id\":\"" << session_id << "\""
+         << "}";
     WriteJson(resp, 0, "ok", data.str());
 }
-
-// end of disabled handlers
-#endif
 
 // 查询用户单聊会话列表
 void HttpApiServer::handleSessionList(const HttpRequest& req,
-                                       HttpResponse* resp) {
+                                      HttpResponse* resp) {
     if (req.method() != HttpRequest::kPost) {
         WriteJson(resp, 405, "only POST allowed", "{}",
                   HttpResponse::k400BadRequest);
         return;
     }
 
-    nlohmann::json j;
-    if (!ParseJsonBody(req.body(), &j)) {
-        WriteJson(resp, 400,
-                  "invalid json body, expect {\"user_id\":...}",
-                  "{}", HttpResponse::k400BadRequest);
-        return;
-    }
-
     int64_t user_id = 0;
-    try {
-        if (!j.contains("user_id")) {
-            WriteJson(resp, 400, "user_id required", "{}",
-                      HttpResponse::k400BadRequest);
-            return;
-        }
-        user_id = j.at("user_id").get<int64_t>();
-    } catch (const nlohmann::json::exception&) {
-        WriteJson(resp, 400, "invalid json fields", "{}",
-                  HttpResponse::k400BadRequest);
+    if (!GetUserIdFromRequest(req, &user_id)) {
+        WriteJson(resp, 401, "unauthorized");
         return;
     }
 
-    if (user_id <= 0) {
-        WriteJson(resp, 400, "user_id must be positive", "{}",
-                  HttpResponse::k400BadRequest);
+    if (!redis_store_) {
+        WriteJson(resp, 500, "redis store not initialized");
         return;
     }
 
-    if (!store_) {
-        WriteJson(resp, 500, "conversation store not initialized");
-        return;
-    }
-
-    std::vector<Session> sessions;
-    std::string err;
-    if (!store_->ListUserSingleSessions(user_id, &sessions, &err)) {
-        WriteJson(resp, 500, "list sessions failed: " + err);
+    std::vector<std::string> session_ids;
+    if (!redis_store_->ListUserSessions(user_id, &session_ids)) {
+        WriteJson(resp, 500, "list sessions failed");
         return;
     }
 
     std::ostringstream data;
     data << "{\"sessions\":[";
     bool first = true;
-    for (const auto& s : sessions) {
+    for (const auto& sid : session_ids) {
+        // 解析 peer_id
+        int64_t user1 = 0, user2 = 0;
+        if (sid.rfind("s_", 0) == 0) {
+            auto pos = sid.find(':');
+            if (pos != std::string::npos) {
+                try {
+                    user1 = std::stoll(sid.substr(2, pos - 2));
+                    user2 = std::stoll(sid.substr(pos + 1));
+                } catch (...) {
+                }
+            }
+        }
+        int64_t peer =
+            (user1 == user_id) ? user2 : (user2 == user_id ? user1 : 0);
+        int64_t last_seq = 0;
+        redis_store_->GetSessionLastSeq(sid, &last_seq);
+
+        std::string last_msg_id, last_msg_type, last_preview;
+        int64_t last_msg_seq = 0;
+        int64_t last_time_ms = 0;
+        redis_store_->GetUserSessionMeta(user_id, sid, &last_msg_id,
+                                         &last_msg_seq, &last_msg_type,
+                                         &last_time_ms, &last_preview);
+
         if (!first) data << ",";
         first = false;
-        data << "{" << "\"session_id\":\"" << s.id << "\","
-             << "\"user1_id\":" << s.user1_id << ","
-             << "\"user2_id\":" << s.user2_id << ","
-             << "\"last_msg_seq\":" << s.last_msg_seq << "}";
+        data << "{"
+             << "\"session_id\":\"" << sid << "\","
+             << "\"peer_user_id\":" << peer << ","
+             << "\"last_msg_seq\":" << last_seq << ","
+             << "\"last_msg_id\":\"" << last_msg_id << "\","
+             << "\"last_msg_type\":\"" << last_msg_type << "\","
+             << "\"last_time_ms\":" << last_time_ms << ","
+             << "\"last_preview\":\"" << last_preview << "\"}";
     }
     data << "]}";
     WriteJson(resp, 0, "ok", data.str());
@@ -1192,24 +651,26 @@ void HttpApiServer::handleUnread(const HttpRequest& req, HttpResponse* resp) {
         return;
     }
 
+    int64_t user_id = 0;
+    if (!GetUserIdFromRequest(req, &user_id)) {
+        WriteJson(resp, 401, "unauthorized");
+        return;
+    }
     nlohmann::json j;
     if (!ParseJsonBody(req.body(), &j)) {
         WriteJson(resp, 400,
                   "invalid json body, expect "
-                  "{\"user_id\":...,\"session_id\":\"...\"}",
+                  "{\"session_id\":\"...\"}",
                   "{}", HttpResponse::k400BadRequest);
         return;
     }
-
-    int64_t user_id = 0;
     std::string session_id;
     try {
-        if (!j.contains("user_id") || !j.contains("session_id")) {
-            WriteJson(resp, 400, "user_id/session_id required", "{}",
+        if (!j.contains("session_id")) {
+            WriteJson(resp, 400, "session_id required", "{}",
                       HttpResponse::k400BadRequest);
             return;
         }
-        user_id = j.at("user_id").get<int64_t>();
         session_id = j.at("session_id").get<std::string>();
     } catch (const nlohmann::json::exception&) {
         WriteJson(resp, 400, "invalid json fields", "{}",
@@ -1223,21 +684,83 @@ void HttpApiServer::handleUnread(const HttpRequest& req, HttpResponse* resp) {
         return;
     }
 
-    if (!store_) {
-        WriteJson(resp, 500, "conversation store not initialized");
+    if (!redis_store_) {
+        WriteJson(resp, 500, "redis store not initialized");
         return;
     }
 
     int64_t unread = 0;
-    std::string err;
-    if (!store_->GetUnread(user_id, session_id, &unread, &err)) {
-        WriteJson(resp, 500, "get unread failed: " + err);
+    if (!redis_store_->GetUnreadCount(user_id, session_id, &unread)) {
+        WriteJson(resp, 500, "get unread failed");
         return;
     }
 
     std::ostringstream data;
     data << "{\"session_id\":\"" << session_id << "\","
          << "\"unread_count\":" << unread << "}";
+    WriteJson(resp, 0, "ok", data.str());
+}
+
+// 标记会话已读：清零 Redis 未读计数，并可选记录 read_seq
+void HttpApiServer::handleMarkRead(const HttpRequest& req, HttpResponse* resp) {
+    if (req.method() != HttpRequest::kPost) {
+        WriteJson(resp, 405, "only POST allowed", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    int64_t user_id = 0;
+    if (!GetUserIdFromRequest(req, &user_id)) {
+        WriteJson(resp, 401, "unauthorized");
+        return;
+    }
+    if (!redis_store_) {
+        WriteJson(resp, 500, "redis store not initialized");
+        return;
+    }
+
+    nlohmann::json j;
+    if (!ParseJsonBody(req.body(), &j)) {
+        WriteJson(resp, 400,
+                  "invalid json body, expect "
+                  "{\"session_id\":\"...\",\"read_seq\":0}",
+                  "{}", HttpResponse::k400BadRequest);
+        return;
+    }
+    std::string session_id;
+    int64_t read_seq = 0;
+    try {
+        if (!j.contains("session_id")) {
+            WriteJson(resp, 400, "session_id required", "{}",
+                      HttpResponse::k400BadRequest);
+            return;
+        }
+        session_id = j.at("session_id").get<std::string>();
+        if (j.contains("read_seq")) {
+            read_seq = j.at("read_seq").get<int64_t>();
+        }
+    } catch (const nlohmann::json::exception&) {
+        WriteJson(resp, 400, "invalid json fields", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    if (user_id <= 0 || session_id.empty()) {
+        WriteJson(resp, 400, "user_id/session_id required", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+
+    if (read_seq > 0) {
+        // 记录已读位置（可选）
+        redis_store_->SetUserReadSeq(user_id, session_id, read_seq);
+    }
+    if (!redis_store_->ClearUnreadCount(user_id, session_id)) {
+        WriteJson(resp, 500, "clear unread failed");
+        return;
+    }
+
+    std::ostringstream data;
+    data << "{\"session_id\":\"" << session_id << "\","
+         << "\"cleared\":true}";
     WriteJson(resp, 0, "ok", data.str());
 }
 

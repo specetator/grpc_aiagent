@@ -12,11 +12,11 @@ cmake_minimum_required(VERSION 3.14)
 # 定义可执行文件及其源文件
 # 仅列出 comet 特有的源文件，公共模块通过链接库引入
 add_executable(comet_server
-    main.cpp
-    app.cpp
-    comet_server.cpp
+    main.cpp              # 程序入口
+    app.cpp               # 服务主逻辑
+    comet_server.cpp      # WebSocket 服务器核心
     comet_grpc_service.cpp
-    websocket_utils.cpp
+    websocket_utils.cpp   # 帧构造工具
 )
 
 # 链接依赖库

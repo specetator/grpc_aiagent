@@ -1,10 +1,10 @@
 #include "config.h"
 
-#include "logging.h"
-
 #include <fstream>
 #include <iostream>
 #include <sstream>
+
+#include "logging.h"
 
 namespace sparkpush {
 
@@ -58,11 +58,15 @@ Config LoadConfig(const std::string& path) {
     cfg.comet_io_threads = 4;
     // comet: 默认 gRPC 端口为 WebSocket 端口 + 100
     cfg.comet_grpc_port = cfg.listen_port + 100;
+    cfg.comet_idle_timeout_ms = 60000;
+    cfg.comet_redis_ttl_ms = 60000;
     cfg.job_rpc_worker_threads = 8;
+    cfg.connection_ttl_ms = 60000;
 
     std::ifstream fin(path);
     if (!fin) {
-        LOG_ERROR << "LoadConfig open file failed: " << path << ", use defaults";
+        LOG_ERROR << "LoadConfig open file failed: " << path
+                  << ", use defaults";
         return cfg;
     }
 
@@ -87,7 +91,8 @@ Config LoadConfig(const std::string& path) {
             cfg.listen_addr = value;
         } else if (key == "listen_port") {
             cfg.listen_port = std::stoi(value);
-            // 若尚未显式配置 http_port / comet_grpc_port，则根据新的 listen_port 重新推导默认值
+            // 若尚未显式配置 http_port / comet_grpc_port，则根据新的
+            // listen_port 重新推导默认值
             if (cfg.http_port == 0) {
                 cfg.http_port = cfg.listen_port + 1;
             }
@@ -150,8 +155,14 @@ Config LoadConfig(const std::string& path) {
             cfg.comet_io_threads = std::stoi(value);
         } else if (key == "comet_grpc_port") {
             cfg.comet_grpc_port = std::stoi(value);
+        } else if (key == "comet_idle_timeout_ms") {
+            cfg.comet_idle_timeout_ms = std::stoi(value);
+        } else if (key == "comet_redis_ttl_ms") {
+            cfg.comet_redis_ttl_ms = std::stoi(value);
         } else if (key == "job_rpc_worker_threads") {
             cfg.job_rpc_worker_threads = std::stoi(value);
+        } else if (key == "connection_ttl_ms") {
+            cfg.connection_ttl_ms = std::stoi(value);
         }
     }
 
@@ -159,5 +170,3 @@ Config LoadConfig(const std::string& path) {
 }
 
 }  // namespace sparkpush
-
-
