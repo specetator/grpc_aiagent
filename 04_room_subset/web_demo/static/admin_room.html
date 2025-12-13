@@ -70,10 +70,6 @@
               <input id="roomName" class="form-control" placeholder="房间名称，例如：技术交流" />
             </div>
             <div style="display:flex; align-items:center; gap:8px;">
-              <label class="muted" style="display:flex; align-items:center; gap:6px;">
-                <input id="autoJoinAll" type="checkbox" checked />
-                自动加入全部用户
-              </label>
               <button id="createBtn" class="btn-primary" style="width:auto;">创建</button>
             </div>
           </div>
@@ -165,14 +161,13 @@
 
     async function createRoom() {
       const name = document.getElementById('roomName').value.trim();
-      const autoJoinAll = document.getElementById('autoJoinAll').checked;
       if (!name) return;
       document.getElementById('createRes').textContent = '创建中...';
       try {
         const resp = await fetch(logicBase + '/api/room/create', {
           method: 'POST',
           headers: Object.assign({ 'Content-Type': 'application/json' }, authHeader()),
-          body: JSON.stringify({ name, auto_join_all: autoJoinAll }),
+          body: JSON.stringify({ name }),
         });
         const data = await resp.json();
         if (data.code !== 0) {
@@ -212,15 +207,36 @@
             <td>${r.member_count ?? '-'}</td>
             <td>
               <button class="btn-mini" data-rid="${rid}">成员</button>
+              <button class="btn-mini" data-share="${rid}">分享</button>
               <a class="btn-mini" href="room_chat.html" style="text-decoration:none; display:inline-block;">进入</a>
             </td>
           `;
           tb.appendChild(tr);
           tr.querySelector('button').onclick = () => { document.getElementById('roomId').value = String(rid); loadUsers(); };
+          tr.querySelector('button[data-share]').onclick = () => shareJoinLink(rid);
         });
       } catch (e) {
         tb.innerHTML = '<tr><td colspan="5" style="color:#ef5350;">加载失败: ' + e + '</td></tr>';
       }
+    }
+
+    function buildJoinLink(roomId) {
+      const rid = Number(roomId || 0);
+      // 统一走 room_chat.html，由该页面识别 join=1 并自动调用 /api/room/join
+      return window.location.origin + '/room_chat.html?room_id=' + encodeURIComponent(String(rid)) + '&join=1';
+    }
+
+    async function shareJoinLink(roomId) {
+      const link = buildJoinLink(roomId);
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(link);
+          document.getElementById('createRes').textContent = '已复制分享链接：' + link;
+          return;
+        }
+      } catch (_) {}
+      // 兼容老浏览器：用 prompt 让用户手动复制
+      window.prompt('复制该链接分享给其他用户（访问后将自动加入房间）:', link);
     }
 
     async function loadUsers() {

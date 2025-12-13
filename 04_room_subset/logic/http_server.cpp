@@ -35,7 +35,7 @@ const std::string kAdminAccount = "admin";
 const std::string kAdminPasswordHash = "0192023a7bbd73250516f069df18b500";
 // 管理员在当前 中使用一个固定 user_id，仅用于 token 与 owner_id 标识。
 // 不依赖于数据库中是否真实存在该用户记录。
-const int64_t kAdminUserId = 900000000000LL;
+const int64_t kAdminUserId = 9000LL;
 
 // 解析 x-www-form-urlencoded（旧实现，保留以兼容可能的其他调用）
 SPARKPUSH_UNUSED std::unordered_map<std::string, std::string> ParseForm(
@@ -140,6 +140,7 @@ bool ParseJsonRegister(const std::string& body, std::string* account,
     }
 }
 
+// 统一输出 JSON 响应（包含业务 code/message/data，并附带 CORS 头）
 void WriteJson(HttpResponse* resp, int code, const std::string& message,
                const std::string& data_json = "{}",
                HttpResponse::HttpStatusCode http_code = HttpResponse::k200Ok) {
@@ -177,6 +178,7 @@ HttpApiServer::HttpApiServer(EventLoop* loop, const InetAddress& listenAddr,
 // 启动 HTTP 服务器
 void HttpApiServer::start() { server_.start(); }
 
+// 从请求头提取 token 并在 Redis 中解析出 user_id（用于鉴权）
 bool HttpApiServer::GetUserIdFromRequest(const HttpRequest& req, int64_t* uid) {
     if (!uid || !redis_store_) return false;
     std::string token;
@@ -233,7 +235,10 @@ void HttpApiServer::onRequest(const HttpRequest& req, HttpResponse* resp) {
         {"/api/message/send", &HttpApiServer::handleSendMessage},
         {"/api/session/list_single", &HttpApiServer::handleSessionList},
         {"/api/session/unread", &HttpApiServer::handleUnread},
+        {"/api/session/unread_batch", &HttpApiServer::handleUnreadBatch},
         {"/api/session/mark_read", &HttpApiServer::handleMarkRead},
+        // 用户信息
+        {"/api/user/batch", &HttpApiServer::handleUserBatch},
 
         // 话题(房间)/聊天室
         {"/api/room/create", &HttpApiServer::handleRoomCreate},
@@ -255,15 +260,11 @@ void HttpApiServer::onRequest(const HttpRequest& req, HttpResponse* resp) {
     (this->*handler)(req, resp);
 }
 
+// 登录/注册成功后的用户初始化：仅写入 users:all（不做任何“自动加入房间”）
 void HttpApiServer::PostAuthInitUser(int64_t user_id) {
-    // 这里不把失败当作致命错误：即便 Redis 写入失败，登录/注册仍然成功，
-    // 只是房间自动加入能力可能缺失（便于 demo 环境排障）。
+    // 这里不把失败当作致命错误：即便 Redis 写入失败，登录/注册仍然成功。
     if (!redis_store_ || user_id <= 0) return;
     redis_store_->TrackUser(user_id);
-    // 成员关系落 MySQL；Redis 仅作成员缓存
-    if (room_store_) {
-        room_store_->AutoJoinAllRoomsForUser(user_id, nullptr);
-    }
 }
 
 // 用户登录
@@ -311,7 +312,7 @@ void HttpApiServer::handleLogin(const HttpRequest& req, HttpResponse* resp) {
             WriteJson(resp, 500, "save token to redis failed");
             return;
         }
-        // 管理员也纳入 users:all，并自动加入当前已存在话题（便于管理/观测）。
+        // 管理员也纳入 users:all（不做任何自动加入房间）。
         PostAuthInitUser(kAdminUserId);
 
         // 返回成功响应
@@ -357,7 +358,7 @@ void HttpApiServer::handleLogin(const HttpRequest& req, HttpResponse* resp) {
         WriteJson(resp, 500, "save token to redis failed");
         return;
     }
-    // 登录成功后：记录用户，并自动加入所有已存在话题（满足“自动加入新话题”的一部分语义）。
+    // 登录成功后：记录用户（不做任何自动加入房间）。
     PostAuthInitUser(user.id);
 
     // 10. 返回登录成功响应，包含用户 ID、token 和昵称
@@ -443,7 +444,7 @@ void HttpApiServer::handleRegister(const HttpRequest& req, HttpResponse* resp) {
         WriteJson(resp, 500, "save token to redis failed");
         return;
     }
-    // 注册成功后：同样记录用户并自动加入所有已存在话题。
+    // 注册成功后：同样记录用户（不做任何自动加入房间）。
     PostAuthInitUser(user.id);
 
     std::ostringstream data;
@@ -471,13 +472,11 @@ void HttpApiServer::handleRoomCreate(const HttpRequest& req,
     nlohmann::json j;
     if (!ParseJsonBody(req.body(), &j)) {
         WriteJson(resp, 400,
-                  "invalid json body, expect {\"name\":\"group-name\","
-                  "\"auto_join_all\":true}",
-                  "{}", HttpResponse::k400BadRequest);
+                  "invalid json body, expect {\"name\":\"group-name\"}", "{}",
+                  HttpResponse::k400BadRequest);
         return;
     }
     std::string name;
-    bool auto_join_all = true;
     try {
         if (!j.contains("name") || !j["name"].is_string()) {
             WriteJson(resp, 400, "name is required", "{}",
@@ -485,9 +484,6 @@ void HttpApiServer::handleRoomCreate(const HttpRequest& req,
             return;
         }
         name = j["name"].get<std::string>();
-        if (j.contains("auto_join_all")) {
-            auto_join_all = j["auto_join_all"].get<bool>();
-        }
     } catch (...) {
         WriteJson(resp, 400, "invalid fields", "{}",
                   HttpResponse::k400BadRequest);
@@ -499,13 +495,16 @@ void HttpApiServer::handleRoomCreate(const HttpRequest& req,
     }
     int64_t room_id = 0;
     std::string err;
-    if (!room_store_->CreateRoom(name, uid, auto_join_all, &room_id, &err)) {
+    // 需求：创建房间只负责创建；不自动让任何用户加入（包括“全员自动加入”）。
+    if (!room_store_->CreateRoom(name, uid, /*auto_join_all=*/false, &room_id,
+                                 &err)) {
         WriteJson(resp, 500, "create room failed: " + err);
         return;
     }
     std::ostringstream data;
+    // 为兼容旧前端字段，这里仍返回 auto_join_all，但固定为 false。
     data << "{\"room_id\":" << room_id << ",\"name\":\"" << name << "\""
-         << ",\"auto_join_all\":" << (auto_join_all ? "true" : "false") << "}";
+         << ",\"auto_join_all\":false}";
     WriteJson(resp, 0, "ok", data.str());
 }
 
@@ -671,8 +670,26 @@ void HttpApiServer::handleRoomUsers(const HttpRequest& req,
     }
     std::vector<int64_t> users;
     room_store_->ListRoomMembers(room_id, &users, nullptr);
+    // 直接返回 [{user_id,name}]，便于前端成员列表展示与调试。
+    // 不做兼容旧格式（users:[id...]）。
     nlohmann::json out = nlohmann::json::array();
-    for (int64_t u : users) out.push_back(u);
+    for (int64_t u : users) {
+        nlohmann::json item;
+        item["user_id"] = u;
+        item["name"] = "";
+        if (user_dao_) {
+            User user;
+            std::string err;
+            if (user_dao_->GetUserById(u, &user, &err)) {
+                item["name"] = user.name;
+            } else {
+                // 查询失败不视为致命错误：返回空 name，前端可用 user_id
+                // 兜底展示。
+                LOG_WARN << "GetUserById failed, uid=" << u << " err=" << err;
+            }
+        }
+        out.push_back(item);
+    }
     nlohmann::json data;
     data["room_id"] = room_id;
     data["users"] = out;
@@ -1172,6 +1189,64 @@ void HttpApiServer::handleUnread(const HttpRequest& req, HttpResponse* resp) {
     WriteJson(resp, 0, "ok", data.str());
 }
 
+// 批量查询会话未读数：减少前端 N 次 /unread 请求风暴
+// 请求：{"session_ids":["s_1:2","r_10",...]}
+// 响应：{"unreads":[{"session_id":"...","unread_count":1},...]}
+void HttpApiServer::handleUnreadBatch(const HttpRequest& req,
+                                      HttpResponse* resp) {
+    if (req.method() != HttpRequest::kPost) {
+        WriteJson(resp, 405, "only POST allowed", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+
+    int64_t user_id = 0;
+    if (!GetUserIdFromRequest(req, &user_id)) {
+        WriteJson(resp, 401, "unauthorized");
+        return;
+    }
+
+    if (!redis_store_) {
+        WriteJson(resp, 500, "redis store not initialized");
+        return;
+    }
+
+    nlohmann::json j;
+    if (!ParseJsonBody(req.body(), &j)) {
+        WriteJson(resp, 400,
+                  "invalid json body, expect {\"session_ids\":[\"...\"]}", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    if (!j.contains("session_ids") || !j["session_ids"].is_array()) {
+        WriteJson(resp, 400, "session_ids required", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+
+    nlohmann::json unreads = nlohmann::json::array();
+    for (const auto& e : j["session_ids"]) {
+        if (!e.is_string()) continue;
+        std::string sid = e.get<std::string>();
+        if (sid.empty()) continue;
+        int64_t unread = 0;
+        if (!redis_store_->GetUnreadCount(user_id, sid, &unread)) {
+            // 单条失败不影响整体：返回 0，便于前端容错；并记录日志排查
+            LOG_WARN << "GetUnreadCount failed in batch. user_id=" << user_id
+                     << " session_id=" << sid;
+            unread = 0;
+        }
+        nlohmann::json item;
+        item["session_id"] = sid;
+        item["unread_count"] = unread;
+        unreads.push_back(item);
+    }
+
+    nlohmann::json data;
+    data["unreads"] = unreads;
+    WriteJson(resp, 0, "ok", data.dump());
+}
+
 // 标记会话已读：清零 Redis 未读计数，并可选记录 read_seq
 void HttpApiServer::handleMarkRead(const HttpRequest& req, HttpResponse* resp) {
     if (req.method() != HttpRequest::kPost) {
@@ -1233,6 +1308,73 @@ void HttpApiServer::handleMarkRead(const HttpRequest& req, HttpResponse* resp) {
     data << "{\"session_id\":\"" << session_id << "\","
          << "\"cleared\":true}";
     WriteJson(resp, 0, "ok", data.str());
+}
+
+// 批量查询用户昵称：前端用于把 user_id 显示为真实 name
+// - 需要登录鉴权（防止被当成“枚举用户信息”的公开接口）
+// - 对不存在/查询失败的用户返回空 name，前端可回退到 user_id 展示
+void HttpApiServer::handleUserBatch(const HttpRequest& req,
+                                    HttpResponse* resp) {
+    if (req.method() != HttpRequest::kPost) {
+        WriteJson(resp, 405, "only POST allowed", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    int64_t user_id = 0;
+    if (!GetUserIdFromRequest(req, &user_id)) {
+        WriteJson(resp, 401, "unauthorized");
+        return;
+    }
+    (void)user_id;
+
+    nlohmann::json j;
+    if (!ParseJsonBody(req.body(), &j)) {
+        WriteJson(resp, 400, "invalid json body, expect {\"user_ids\":[1,2]}",
+                  "{}", HttpResponse::k400BadRequest);
+        return;
+    }
+    if (!j.contains("user_ids") || !j["user_ids"].is_array()) {
+        WriteJson(resp, 400, "user_ids is required", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+
+    // 去重 + 限制请求规模（demo 环境也避免一次查太多）
+    std::unordered_set<int64_t> uniq;
+    std::vector<int64_t> ids;
+    ids.reserve(j["user_ids"].size());
+    for (const auto& x : j["user_ids"]) {
+        if (!x.is_number_integer()) continue;
+        int64_t id = x.get<int64_t>();
+        if (id <= 0) continue;
+        if (uniq.insert(id).second) ids.push_back(id);
+        if (ids.size() >= 200) break;
+    }
+
+    nlohmann::json out = nlohmann::json::array();
+    for (int64_t id : ids) {
+        nlohmann::json item;
+        item["user_id"] = id;
+        item["name"] = "";
+        // admin 账号是 demo 特例：不依赖数据库记录
+        if (id == kAdminUserId) {
+            item["name"] = "admin";
+            out.push_back(item);
+            continue;
+        }
+        if (user_dao_) {
+            User u;
+            std::string err;
+            if (user_dao_->GetUserById(id, &u, &err)) {
+                item["name"] = u.name;
+            }
+        }
+        out.push_back(item);
+    }
+
+    nlohmann::json data;
+    data["users"] = out;
+    WriteJson(resp, 0, "ok", data.dump());
 }
 
 }  // namespace sparkpush

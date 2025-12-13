@@ -64,6 +64,8 @@ void LogicServiceImpl::SetError(ErrorInfo* e, int code,
     return ::grpc::Status::OK;
 }
 
+// SendUpstreamMessage RPC 实现：处理客户端上行消息（单聊/群聊/房间等）
+// - 负责分配 msg_seq/msg_id、维护会话与未读、并投递 Kafka 给 comet/persist
 ::grpc::Status LogicServiceImpl::SendUpstreamMessage(
     ::grpc::ServerContext*, const ::sparkpush::UpstreamMessageRequest* request,
     ::sparkpush::UpstreamMessageReply* response) {
@@ -167,11 +169,38 @@ void LogicServiceImpl::SetError(ErrorInfo* e, int code,
         redis_store_->AddUserSession(from_user, session_id);
         redis_store_->AddUserSession(to_user, session_id);
         redis_store_->SetSessionLastSeq(session_id, msg_seq);
-        redis_store_->IncrUnreadCount(to_user, session_id, 1);
+        int64_t new_unread = 0;
+        redis_store_->IncrUnreadCount(to_user, session_id, 1, &new_unread);
         redis_store_->SetUserSessionMeta(from_user, session_id, msg_id, msg_seq,
                                          msg_type, now_ms, preview);
         redis_store_->SetUserSessionMeta(to_user, session_id, msg_id, msg_seq,
                                          msg_type, now_ms, preview);
+
+        // 额外推送会话更新（session_update）：用于前端减少 /unread 轮询
+        // 仅推给接收方：包含 unread_count、last_preview、last_time_ms 等。
+        ChatMessage session_update;
+        session_update.set_msg_id("sessupd:" + session_id + ":" +
+                                  std::to_string(msg_seq));
+        session_update.set_session_id(session_id);
+        session_update.set_msg_seq(msg_seq);
+        session_update.set_sender_id(0);
+        session_update.set_timestamp_ms(now_ms);
+        session_update.set_msg_type("session_update");
+        try {
+            nlohmann::json j;
+            j["type"] = "session_update";
+            j["session_id"] = session_id;
+            j["peer_user_id"] = to_user == from_user ? 0 : from_user;
+            j["unread_count"] = new_unread;
+            j["last_preview"] = preview;
+            j["last_time_ms"] = now_ms;
+            j["last_msg_seq"] = msg_seq;
+            session_update.set_content_json(j.dump());
+        } catch (...) {
+            session_update.set_content_json(
+                "{\"type\":\"session_update\",\"session_id\":\"" + session_id +
+                "\",\"unread_count\":" + std::to_string(new_unread) + "}");
+        }
 
         std::unordered_map<std::string, std::vector<int64_t>> comet_to_users;
         std::vector<std::string> comets;
@@ -191,6 +220,16 @@ void LogicServiceImpl::SetError(ErrorInfo* e, int code,
             std::string payload;
             if (req.SerializeToString(&payload)) {
                 push_producer_->Send("", payload);
+            }
+            // 同样写入离线占位，让 job 广播兜底（targets 带 to_user）
+            PushToCometRequest req_u;
+            req_u.set_comet_id("");
+            *req_u.mutable_message() = session_update;
+            auto* tu = req_u.add_targets();
+            tu->set_user_id(to_user);
+            std::string payload_u;
+            if (req_u.SerializeToString(&payload_u)) {
+                push_producer_->Send("", payload_u);
             }
             return ::grpc::Status::OK;
         }
@@ -214,6 +253,24 @@ void LogicServiceImpl::SetError(ErrorInfo* e, int code,
             }
             if (!push_producer_->Send(comet_id, payload)) {
                 LOG_ERROR << "Kafka send failed for comet " << comet_id;
+            }
+
+            // 发送 session_update（同一 comet_id，同一 targets）
+            PushToCometRequest req2;
+            req2.set_comet_id(comet_id);
+            *req2.mutable_message() = session_update;
+            for (int64_t uid : users) {
+                auto* target = req2.add_targets();
+                target->set_user_id(uid);
+            }
+            std::string payload2;
+            if (!req2.SerializeToString(&payload2)) {
+                LOG_ERROR << "Serialize session_update PushToCometRequest failed";
+                continue;
+            }
+            if (!push_producer_->Send(comet_id, payload2)) {
+                LOG_ERROR << "Kafka send failed for comet " << comet_id
+                          << " (session_update)";
             }
         }
         return ::grpc::Status::OK;
@@ -376,6 +433,7 @@ void LogicServiceImpl::SetError(ErrorInfo* e, int code,
     return ::grpc::Status::OK;
 }
 
+// UserOffline RPC 实现：用户连接断开时的清理/通知入口
 ::grpc::Status LogicServiceImpl::UserOffline(
     ::grpc::ServerContext*, const ::sparkpush::UserOfflineRequest* request,
     ::sparkpush::SimpleReply* response) {

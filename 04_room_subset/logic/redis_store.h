@@ -126,17 +126,34 @@ class RedisStore {
                             std::string* last_msg_id, int64_t* last_msg_seq,
                             std::string* last_msg_type, int64_t* last_time_ms,
                             std::string* last_preview);
-    // 更新会话最新消息序号
-    bool SetSessionLastSeq(const std::string& session_id,
-                           int64_t last_seq);  // 查询会话最新消息序号
+    // 更新会话最新消息序号（用于生成未读/定位“最后一条消息”）
+    // @param session_id: 会话标识
+    // @param last_seq: 最新消息序号
+    // @return: 成功返回 true
+    bool SetSessionLastSeq(const std::string& session_id, int64_t last_seq);
     // 查询会话最新消息序号
+    // @param session_id: 会话标识
+    // @param last_seq: 输出参数，最新消息序号
+    // @return: 成功返回 true
     bool GetSessionLastSeq(const std::string& session_id, int64_t* last_seq);
     // 更新用户会话阅读序号
+    // @param user_id: 用户 ID
+    // @param session_id: 会话标识
+    // @param read_seq: 已读到的消息序号
+    // @return: 成功返回 true
     bool SetUserReadSeq(int64_t user_id, const std::string& session_id,
                         int64_t read_seq);
     // 查询用户会话阅读序号
+    // @param user_id: 用户 ID
+    // @param session_id: 会话标识
+    // @param read_seq: 输出参数，已读序号
+    // @return: 成功返回 true
     bool GetUserReadSeq(int64_t user_id, const std::string& session_id,
                         int64_t* read_seq);
+    // 记录房间所在的 comet 节点（用于房间广播时定位订阅节点）
+    // @param room_id: 房间 ID
+    // @param comet_id: comet 节点标识
+    // @return: 成功返回 true
     bool AddRoomComet(int64_t room_id, const std::string& comet_id);
     // 移除房间 comet
     // @param room_id: 房间 ID
@@ -160,9 +177,20 @@ class RedisStore {
     // @return: 成功返回 true
     bool GetRoomOnlineCount(int64_t room_id, int64_t* count);
 
+    // 房间在线人数增量（可用于 join/leave 时维护在线数）
+    // @param room_id: 房间 ID
+    // @param delta: 增量（可为负）
+    // @param new_value: 输出参数，新的在线人数（可选）
+    // @return: 成功返回 true
     bool IncrRoomOnlineCount(int64_t room_id, int64_t delta,
                              int64_t* new_value = nullptr);
 
+    // 房间在单个 comet 上的在线人数增量（用于统计各 comet 分布）
+    // @param room_id: 房间 ID
+    // @param comet_id: comet 节点标识
+    // @param delta: 增量（可为负）
+    // @param new_value: 输出参数，新的计数（可选）
+    // @return: 成功返回 true
     bool IncrRoomCometCount(int64_t room_id, const std::string& comet_id,
                             int64_t delta, int64_t* new_value = nullptr);
 
@@ -192,20 +220,28 @@ class RedisStore {
 
     // 记录“见过的用户”（通常在 register/login 成功后调用）。
     bool TrackUser(int64_t user_id);
+    // 列出系统已见过的所有用户（users:all）
     bool ListAllUsers(std::vector<int64_t>* user_ids);
 
     // 创建房间：分配 room_id 并写入元信息与 rooms:all。
     bool CreateRoom(const std::string& name, int64_t owner_id,
                     int64_t* room_id);
+    // 列出所有房间 ID（rooms:all）
     bool ListRoomIds(std::vector<int64_t>* room_ids);
+    // 查询房间元信息（room:meta:<room_id>）
     bool GetRoomMeta(int64_t room_id, std::string* name, int64_t* owner_id,
                      int64_t* created_at_ms);
 
     // 房间成员管理
+    // 用户加入房间：同时写 room:members 与 user:rooms
     bool JoinRoom(int64_t user_id, int64_t room_id);
+    // 用户退出房间：同时删 room:members 与 user:rooms
     bool LeaveRoom(int64_t user_id, int64_t room_id);
+    // 判断用户是否在房间内（SISMEMBER）
     bool IsUserInRoom(int64_t user_id, int64_t room_id, bool* is_in);
+    // 列出房间成员（SMEMBERS）
     bool ListRoomMembers(int64_t room_id, std::vector<int64_t>* user_ids);
+    // 获取房间成员数（SCARD）
     bool GetRoomMemberCount(int64_t room_id, int64_t* count);
 
     // 自动加入策略：
@@ -216,13 +252,18 @@ class RedisStore {
 
     // ========= 房间元信息缓存（用于 MySQL 持久化 + Redis 加速读取） =========
     // room:meta:<room_id> hash 字段：name/owner_id/created_at_ms/group_type
+    // 判断元信息缓存是否存在（用于 read-through）
     bool RoomMetaCacheExists(int64_t room_id, bool* exists);
+    // 读取元信息缓存
     bool GetRoomMetaCache(int64_t room_id, std::string* name, int64_t* owner_id,
                           int64_t* created_at_ms, int* group_type);
+    // 写入元信息缓存并设置 TTL
     bool SetRoomMetaCache(int64_t room_id, const std::string& name,
                           int64_t owner_id, int64_t created_at_ms,
                           int group_type, int ttl_seconds);
+    // 删除元信息缓存
     bool DeleteRoomMetaCache(int64_t room_id);
+    // 刷新元信息缓存 TTL
     bool ExpireRoomMetaCache(int64_t room_id, int ttl_seconds);
 
     // ========= 房间成员列表缓存（用于 MySQL 持久化 + Redis 加速读取）
@@ -238,6 +279,7 @@ class RedisStore {
     bool ExpireRoomMembersCache(int64_t room_id, int ttl_seconds);
 
    private:
+    // Redis 连接池（RedisStore 不持有长连接）
     RedisConnectionPool* pool_;
 };
 

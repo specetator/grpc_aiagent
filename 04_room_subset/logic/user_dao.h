@@ -24,10 +24,15 @@
 #include "mysql_pool.h"
 namespace sparkpush {
 
+// User：用户基础信息（对应 user 表）
 struct User {
+    // 用户 ID
     int64_t id{0};
+    // 登录账号（唯一）
     std::string account;
+    // 昵称/展示名
     std::string name;
+    // 密码 hash（不存明文）
     std::string password_hash;
 };
 // 用户 DAO：负责用户数据的持久化操作

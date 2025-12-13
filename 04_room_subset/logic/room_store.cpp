@@ -55,6 +55,8 @@ bool RoomStore::WarmRoomMembersCacheFromDb(int64_t room_id,
 bool RoomStore::CreateRoom(const std::string& name, int64_t owner_id,
                            bool auto_join_all, int64_t* room_id,
                            std::string* err_msg) {
+    // 需求：房间创建仅负责创建；不自动让任何用户加入（包括“全员自动加入”）。
+    (void)auto_join_all;
     if (!dao_) {
         if (err_msg) *err_msg = "room dao not initialized";
         return false;
@@ -74,18 +76,10 @@ bool RoomStore::CreateRoom(const std::string& name, int64_t owner_id,
         WarmRoomMetaCache(info);
     }
 
-    if (auto_join_all) {
-        // 批量落库：把 user 表里所有用户加入
-        dao_->AutoJoinRoomForAllUsers(rid, nullptr);
-        // 为避免缓存不完整，直接删除成员缓存（下次读取回源并回填）。
-        if (redis_store_) redis_store_->DeleteRoomMembersCache(rid);
-    } else {
-        // 如果不自动加入全员，则可以直接把 owner 写入缓存（写穿）
-        if (redis_store_) {
-            redis_store_->JoinRoom(owner_id, rid);
-            redis_store_->ExpireRoomMembersCache(rid,
-                                                 members_cache_ttl_seconds_);
-        }
+    // 只把 owner 写入缓存（写穿）
+    if (redis_store_) {
+        redis_store_->JoinRoom(owner_id, rid);
+        redis_store_->ExpireRoomMembersCache(rid, members_cache_ttl_seconds_);
     }
 
     if (room_id) *room_id = rid;

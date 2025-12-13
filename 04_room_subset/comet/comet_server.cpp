@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <cstring>
 #include <functional>
+#include <nlohmann/json.hpp>
 #include <sstream>
 #include <vector>
 
@@ -602,6 +603,28 @@ void CometServer::OnTextMessage(const TcpConnectionPtr &conn, ConnContext &ctx,
     LOG_INFO << "Recv text from user " << ctx.user_id << ": " << payload;
     conn->setContext(ctx);
 
+    // 应用层心跳：浏览器无法发送 WebSocket 协议层 ping，因此约定 JSON:
+    // {"type":"ping","ts":...} -> 立即回 {"type":"pong","ts":...}，并不转发到
+    // logic。 注意：必须在 ParseUpstreamMessage
+    // 之前处理，否则会被当成格式错误。
+    try {
+        auto j = nlohmann::json::parse(payload, nullptr, false);
+        if (j.is_object() && j.contains("type") && j["type"].is_string() &&
+            j["type"].get<std::string>() == "ping") {
+            nlohmann::json out;
+            out["type"] = "pong";
+            if (j.contains("ts") && j["ts"].is_number_integer()) {
+                out["ts"] = j["ts"].get<int64_t>();
+            } else {
+                out["ts"] = ctx.last_active_ms;
+            }
+            conn->send(BuildWebSocketTextFrame(out.dump()));
+            return;
+        }
+    } catch (...) {
+        // ignore parse errors; fall through to normal message handling
+    }
+
     UpstreamMessageMeta meta;
     if (!ParseUpstreamMessage(payload, &meta)) {
         // 客户端消息格式错误：返回 error frame，不断开（便于客户端纠错）
@@ -616,7 +639,8 @@ void CometServer::OnTextMessage(const TcpConnectionPtr &conn, ConnContext &ctx,
         meta.target_id <= 0) {
         // 当前 comet 支持：
         // - single_chat：单聊
-        // - room：聊天室/话题（room_id 透传到 logic，由 logic 做成员校验与 fanout）
+        // - room：聊天室/话题（room_id 透传到 logic，由 logic 做成员校验与
+        // fanout）
         std::string frame = BuildWebSocketTextFrame(
             "{\"type\":\"error\",\"code\":400,\"message\":"
             "\"unsupported target_type or target_id\"}");
