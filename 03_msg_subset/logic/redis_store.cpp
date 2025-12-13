@@ -566,7 +566,7 @@ bool RedisStore::NextSingleMsgId(int64_t user1, int64_t user2, int64_t* seq) {
     if (!ctx) return false;
 
     std::string key =
-        "msgid:" + std::to_string(user1) + ":" + std::to_string(user2);
+        "msgid:" + std::to_string(user1) + ":" + std::to_string(user2); //范例： msgid:1:2
     redisReply* reply = (redisReply*)redisCommand(ctx, "INCR %s", key.c_str());
     if (!reply) {
         LOG_ERROR << "Redis INCR single msg_id failed, key: " << key;

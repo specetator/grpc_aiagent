@@ -268,7 +268,7 @@ void CometServer::PushToUsers(const ChatMessage &msg,
     std::vector<TcpConnectionPtr> conns;
     std::vector<std::pair<int64_t, TcpConnectionPtr>> stale;
     {
-        std::lock_guard<std::mutex> lock(conns_mu_);
+        std::lock_guard<std::mutex> lock(conns_mu_);   // 找到要发送的连接
         for (int64_t uid : user_ids) {
             auto it = user_conns_.find(uid);
             if (it == user_conns_.end()) continue;
@@ -292,7 +292,7 @@ void CometServer::PushToUsers(const ChatMessage &msg,
     // 发送在锁外执行：避免持锁进行 I/O，降低锁竞争和回调重入风险。
     for (const auto &c : conns) {
         if (c->connected()) {
-            c->send(frame);
+            c->send(frame);     // 真正发给web客户端
         }
     }
 }
@@ -602,7 +602,7 @@ void CometServer::OnTextMessage(const TcpConnectionPtr &conn, ConnContext &ctx,
     LOG_INFO << "Recv text from user " << ctx.user_id << ": " << payload;
     conn->setContext(ctx);
 
-    UpstreamMessageMeta meta;
+    UpstreamMessageMeta meta; //解析json
     if (!ParseUpstreamMessage(payload, &meta)) {
         // 客户端消息格式错误：返回 error frame，不断开（便于客户端纠错）
         std::string frame = BuildWebSocketTextFrame(
@@ -611,7 +611,7 @@ void CometServer::OnTextMessage(const TcpConnectionPtr &conn, ConnContext &ctx,
         conn->send(frame);
         return;
     }
-
+    // 简单校验目标类型和 ID 
     if (meta.target_type != "single_chat" || meta.target_id <= 0) {
         // 当前 comet 只支持单聊上行（room/广播等可按需要扩展）
         std::string frame = BuildWebSocketTextFrame(

@@ -21,7 +21,7 @@ CometServiceImpl::CometServiceImpl(CometServer *server) : server_(server) {}
     LOG_INFO << "PushToComet received for comet_id=" << request->comet_id()
              << " msg_id=" << request->message().msg_id();
     if (request->targets_size() > 0) {
-        std::vector<int64_t> users;
+        std::vector<int64_t> users;   //推给哪些用户
         users.reserve(request->targets_size());
         for (const auto &t : request->targets()) {
             LOG_INFO << "PushToComet target user_id=" << t.user_id();
