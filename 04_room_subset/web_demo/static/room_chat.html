@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>04_room_subset - 房间聊天室</title>
+  <link rel="stylesheet" href="auth_style.css">
+  <script src="auth.js"></script>
+  <style>
+    :root {
+      --primary: #1976d2;
+      --bg: #f5f7fa;
+      --border: #e0e0e0;
+      --me: #e3f2fd;
+      --other: #fff;
+    }
+    body { margin:0; height:100vh; display:flex; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; background:var(--bg); color:#333; overflow:hidden; }
+    #sidebar { width: 320px; background:#fff; border-right:1px solid var(--border); display:flex; flex-direction:column; }
+    .sb-header { padding: 18px; border-bottom:1px solid var(--border); }
+    .sb-header h2 { margin:0; color:var(--primary); font-size:18px; }
+    .sb-header .hint { margin-top:6px; font-size:12px; color:#777; line-height:1.4; }
+
+    #auth-panel { padding: 18px; overflow:auto; }
+    #nav-panel { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+    .bar { padding: 10px 12px; border-bottom:1px solid #eee; display:flex; gap:8px; align-items:center; }
+    .bar .btn-primary { padding: 8px 10px; }
+    .room-list { flex:1; overflow:auto; padding: 10px 12px; }
+    .room-item { border:1px solid transparent; border-radius:10px; padding:10px; background:#fff; cursor:pointer; margin-bottom:10px; }
+    .room-item:hover { background:#f0f7ff; }
+    .room-item.active { border-color:#bbdefb; background:#e3f2fd; }
+    .room-item .name { font-weight:700; margin-bottom:2px; }
+    .room-item .meta { font-size:12px; color:#777; display:flex; justify-content:space-between; gap:8px; }
+
+    .profile { padding: 12px; border-top:1px solid #eee; display:flex; justify-content:space-between; align-items:center; }
+    .profile .me { font-size:12px; color:#666; }
+    .profile .logout { color:#ef5350; background:none; border:none; cursor:pointer; font-size:12px; }
+
+    #main { flex:1; display:flex; flex-direction:column; background:#fff; }
+    .top { height:60px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding: 0 18px; }
+    .top .title { font-weight:700; }
+    .top .sub { font-size:12px; color:#777; }
+    #msgs { flex:1; overflow:auto; background:var(--bg); padding: 16px; display:flex; flex-direction:column; gap:10px; }
+    .sys { align-self:center; background:rgba(0,0,0,0.08); color:#666; font-size:12px; padding:4px 10px; border-radius:999px; }
+    .row { max-width:70%; display:flex; flex-direction:column; gap:4px; }
+    .row.me { align-self:flex-end; }
+    .row.other { align-self:flex-start; }
+    .name { font-size:12px; color:#999; }
+    .bubble { padding: 10px 12px; border-radius:10px; box-shadow:0 1px 2px rgba(0,0,0,0.05); font-size:14px; line-height:1.5; word-wrap:break-word; }
+    .row.me .bubble { background:var(--me); color:#0d47a1; border-top-right-radius:2px; }
+    .row.other .bubble { background:var(--other); border:1px solid #e6e6e6; border-top-left-radius:2px; }
+
+    #input { padding: 12px; border-top:1px solid var(--border); display:flex; gap:10px; }
+    #msgText { flex:1; }
+    #sendBtn { padding: 0 18px; font-weight:700; }
+
+    .small { font-size:12px; color:#777; }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <div class="sb-header">
+      <h2>房间聊天室</h2>
+      <div class="hint">
+        连接：<b>logic</b> HTTP <span class="small">9101</span>，<b>comet</b> WS <span class="small">9000</span><br/>
+        消息格式：<code>{"msg_type":"text","target_type":"room","room_id":1,"content":"..."}</code>
+      </div>
+    </div>
+
+    <div id="auth-panel">
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" data-mode="login">登录</button>
+        <button type="button" class="auth-tab" data-mode="register">注册</button>
+      </div>
+      <div class="form-group">
+        <input id="account" class="form-control" placeholder="账号" />
+      </div>
+      <div class="form-group hidden" id="nickname-group">
+        <input id="nickname" class="form-control" placeholder="昵称 (注册可选)" />
+      </div>
+      <div class="form-group">
+        <input id="password" type="password" class="form-control" placeholder="密码" />
+      </div>
+      <button id="login-btn" class="btn-primary btn-block">立即登录</button>
+      <button id="register-btn" class="btn-primary btn-block hidden">注册并自动登录</button>
+      <div id="status" class="status-text"></div>
+      <div class="small" style="margin-top:10px;">
+        提示：管理员账号 <code>admin</code>，密码 <code>admin123</code>（前端会做 MD5）。
+      </div>
+    </div>
+
+    <div id="nav-panel" class="hidden">
+      <div class="bar">
+        <button id="refreshRoomsBtn" class="btn-primary" style="width:auto;">刷新房间</button>
+        <button id="loadUsersBtn" class="btn-primary" style="width:auto; background:#455a64;">成员</button>
+      </div>
+      <div class="bar">
+        <input id="joinRoomId" class="form-control" placeholder="room_id" style="margin:0;" />
+        <button id="joinBtn" class="btn-primary" style="width:auto;">加入</button>
+      </div>
+      <div class="bar">
+        <button id="leaveBtn" class="btn-primary" style="width:auto; background:#ef5350;">退出当前房间</button>
+        <button id="httpSendBtn" class="btn-primary" style="width:auto; background:#6d4c41;">HTTP发送</button>
+      </div>
+      <div class="room-list" id="roomList"></div>
+      <div class="profile">
+        <div class="me" id="meInfo">未登录</div>
+        <button class="logout" id="logoutBtn">退出</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="main">
+    <div class="top">
+      <div>
+        <div class="title" id="roomTitle">未选择房间</div>
+        <div class="sub" id="roomSub">请先登录并在左侧选择一个房间</div>
+      </div>
+      <div class="small" id="wsState">WS: 未连接</div>
+    </div>
+    <div id="msgs">
+      <div class="sys">欢迎：请先登录</div>
+    </div>
+    <div id="input">
+      <input id="msgText" class="form-control" placeholder="输入消息... (Enter 发送)" />
+      <button id="sendBtn" class="btn-primary">发送</button>
+    </div>
+  </div>
+
+  <script>
+    const logicBase = window.location.protocol + '//' + window.location.hostname + ':9101';
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const cometWsUrl = wsProtocol + '//' + window.location.hostname + ':9000/ws';
+
+    let uid = null;
+    let token = null;
+    let name = null;
+
+    let ws = null;
+    let currentRoomId = 0;
+    let currentRoomName = '';
+
+    function authHeader() {
+      return token ? { 'Authorization': 'Bearer ' + token } : {};
+    }
+
+    function setStatus(text) {
+      document.getElementById('status').textContent = text || '';
+    }
+
+    function sysMsg(text) {
+      const div = document.createElement('div');
+      div.className = 'sys';
+      div.textContent = text;
+      const msgs = document.getElementById('msgs');
+      msgs.appendChild(div);
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    function appendMsg(text, isMe, senderName) {
+      const row = document.createElement('div');
+      row.className = 'row ' + (isMe ? 'me' : 'other');
+      const n = document.createElement('div');
+      n.className = 'name';
+      n.textContent = senderName || (isMe ? (name || ('User ' + uid)) : '对方');
+      const b = document.createElement('div');
+      b.className = 'bubble';
+      b.textContent = text;
+      row.appendChild(n);
+      row.appendChild(b);
+      const msgs = document.getElementById('msgs');
+      msgs.appendChild(row);
+      msgs.scrollTop = msgs.scrollHeight;
+    }
+
+    function updateUI() {
+      const authed = !!uid;
+      document.getElementById('auth-panel').classList.toggle('hidden', authed);
+      document.getElementById('nav-panel').classList.toggle('hidden', !authed);
+      document.getElementById('logoutBtn').style.display = authed ? 'inline' : 'none';
+      document.getElementById('meInfo').textContent = authed ? (`ID: ${uid}` + (name ? ` (${name})` : '')) : '未登录';
+    }
+
+    async function doLoginOrRegister(mode) {
+      const account = document.getElementById('account').value.trim();
+      const pwdRaw = document.getElementById('password').value;
+      const nickname = document.getElementById('nickname').value.trim();
+      if (!account || !pwdRaw) return setStatus('请输入账号和密码');
+      if (pwdRaw.length < 6) return setStatus('密码至少 6 位');
+
+      setStatus('请求中...');
+      const url = logicBase + (mode === 'register' ? '/api/register' : '/api/login');
+      const body = { account, password: hashPassword(pwdRaw) };
+      if (mode === 'register' && nickname) body.name = nickname;
+
+      try {
+        const resp = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        const data = await resp.json();
+        if (data.code !== 0) return setStatus(data.message || '登录失败');
+        uid = Number(data.data.user_id);
+        token = data.data.token;
+        name = data.data.name || nickname || ('User ' + uid);
+        Auth.set(uid, token, name);
+        setStatus('');
+        updateUI();
+        sysMsg('登录成功');
+        connectWs();
+        await loadRooms();
+      } catch(e) {
+        setStatus('网络异常: ' + e);
+      }
+    }
+
+    function connectWs() {
+      if (!token) return;
+      if (ws) try { ws.close(); } catch(_) {}
+      document.getElementById('wsState').textContent = 'WS: 连接中...';
+      ws = new WebSocket(cometWsUrl + '?token=' + encodeURIComponent(token));
+      ws.onopen = () => document.getElementById('wsState').textContent = 'WS: 已连接';
+      ws.onclose = () => document.getElementById('wsState').textContent = 'WS: 已断开';
+      ws.onmessage = (ev) => {
+        // comet 下行直接透传 logic 生成的 content_json（JSON 文本）
+        try {
+          const obj = JSON.parse(ev.data);
+          if (obj.type === 'ack') return;
+          // 只处理房间消息：target_type=room 且 room_id 匹配当前选中
+          const t = obj.target_type || '';
+          const rid = Number(obj.room_id || obj.target_id || 0);
+          if (t !== 'room' || !rid) return;
+          if (currentRoomId && rid !== currentRoomId) return;
+          const text = (typeof obj.content === 'string') ? obj.content : (obj.content && obj.content.text) ? obj.content.text : JSON.stringify(obj.content || obj);
+          const senderId = obj.from_user_id || obj.sender_id || 0;
+          const senderName = senderId ? ('User ' + senderId) : '未知';
+          appendMsg(text, senderId === uid, senderName);
+        } catch(e) {
+          // ignore
+        }
+      };
+    }
+
+    async function loadRooms() {
+      const listEl = document.getElementById('roomList');
+      listEl.innerHTML = '<div class="small" style="color:#999;">加载中...</div>';
+      try {
+        const resp = await fetch(logicBase + '/api/room/list', { method:'GET' });
+        const data = await resp.json();
+        if (data.code !== 0) {
+          listEl.innerHTML = '<div class="small" style="color:#ef5350;">加载失败: ' + (data.message||'') + '</div>';
+          return;
+        }
+        const rooms = data.data || [];
+        if (!Array.isArray(rooms) || rooms.length === 0) {
+          listEl.innerHTML = '<div class="small" style="color:#999;">暂无房间，请让管理员先创建。</div>';
+          return;
+        }
+        listEl.innerHTML = '';
+        rooms.forEach(r => {
+          const rid = Number(r.room_id);
+          const item = document.createElement('div');
+          item.className = 'room-item' + (rid === currentRoomId ? ' active' : '');
+          const nm = r.name || ('room-' + rid);
+          item.innerHTML = `
+            <div class="name">${nm}</div>
+            <div class="meta">
+              <span>room_id: ${rid}</span>
+              <span>成员: ${r.member_count ?? '-'}</span>
+            </div>
+          `;
+          item.onclick = () => selectRoom(rid, nm);
+          listEl.appendChild(item);
+        });
+      } catch(e) {
+        listEl.innerHTML = '<div class="small" style="color:#ef5350;">加载失败: ' + e + '</div>';
+      }
+    }
+
+    function selectRoom(rid, nm) {
+      currentRoomId = rid;
+      currentRoomName = nm || ('room-' + rid);
+      document.getElementById('roomTitle').textContent = currentRoomName + ` (#${rid})`;
+      document.getElementById('roomSub').textContent = '提示：发送前需已加入该房间，否则后端会返回 403';
+      document.getElementById('msgs').innerHTML = '';
+      sysMsg('已选择房间: ' + currentRoomName);
+      // refresh active state
+      document.querySelectorAll('.room-item').forEach(x => {
+        x.classList.toggle('active', x.textContent.includes('room_id: ' + rid));
+      });
+    }
+
+    async function joinRoom() {
+      const rid = Number(document.getElementById('joinRoomId').value.trim());
+      if (!rid) return sysMsg('请输入 room_id');
+      if (!token) return sysMsg('请先登录');
+      try {
+        const resp = await fetch(logicBase + '/api/room/join', {
+          method:'POST',
+          headers: Object.assign({'Content-Type':'application/json'}, authHeader()),
+          body: JSON.stringify({ room_id: rid })
+        });
+        const data = await resp.json();
+        if (data.code !== 0) return sysMsg('加入失败: ' + data.message);
+        sysMsg('加入成功: room_id=' + rid);
+        await loadRooms();
+        selectRoom(rid, 'room-' + rid);
+      } catch(e) {
+        sysMsg('加入失败: ' + e);
+      }
+    }
+
+    async function leaveRoom() {
+      if (!currentRoomId) return sysMsg('请先选择房间');
+      try {
+        const resp = await fetch(logicBase + '/api/room/leave', {
+          method:'POST',
+          headers: Object.assign({'Content-Type':'application/json'}, authHeader()),
+          body: JSON.stringify({ room_id: currentRoomId })
+        });
+        const data = await resp.json();
+        if (data.code !== 0) return sysMsg('退出失败: ' + data.message);
+        sysMsg('已退出 room_id=' + currentRoomId);
+      } catch(e) {
+        sysMsg('退出失败: ' + e);
+      }
+    }
+
+    async function loadRoomUsers() {
+      if (!currentRoomId) return sysMsg('请先选择房间');
+      try {
+        const resp = await fetch(logicBase + '/api/room/users', {
+          method:'POST',
+          headers: Object.assign({'Content-Type':'application/json'}, authHeader()),
+          body: JSON.stringify({ room_id: currentRoomId })
+        });
+        const data = await resp.json();
+        if (data.code !== 0) return sysMsg('查询成员失败: ' + data.message);
+        const users = (data.data && data.data.users) ? data.data.users : [];
+        sysMsg('成员(' + users.length + '): ' + users.join(', '));
+      } catch(e) {
+        sysMsg('查询成员失败: ' + e);
+      }
+    }
+
+    function sendWsMsg() {
+      const text = document.getElementById('msgText').value.trim();
+      if (!text) return;
+      if (!currentRoomId) return sysMsg('请先选择房间');
+      if (!ws || ws.readyState !== WebSocket.OPEN) return sysMsg('WS 未连接');
+      const payload = {
+        msg_type: 'text',
+        target_type: 'room',
+        room_id: currentRoomId,
+        content: text,
+        client_msg_id: Date.now().toString(),
+      };
+      ws.send(JSON.stringify(payload));
+      document.getElementById('msgText').value = '';
+    }
+
+    async function sendHttpMsg() {
+      const text = document.getElementById('msgText').value.trim();
+      if (!text) return;
+      if (!currentRoomId) return sysMsg('请先选择房间');
+      try {
+        const resp = await fetch(logicBase + '/api/room/message/send', {
+          method:'POST',
+          headers: Object.assign({'Content-Type':'application/json'}, authHeader()),
+          body: JSON.stringify({ room_id: currentRoomId, msg_type:'text', content:text, client_msg_id: Date.now().toString() })
+        });
+        const data = await resp.json();
+        if (data.code !== 0) return sysMsg('HTTP发送失败: ' + data.message);
+        sysMsg('HTTP发送成功: msg_id=' + (data.data && data.data.msg_id ? data.data.msg_id : ''));
+        document.getElementById('msgText').value = '';
+      } catch(e) {
+        sysMsg('HTTP发送失败: ' + e);
+      }
+    }
+
+    function logout() {
+      Auth.clear();
+      uid = null; token = null; name = null;
+      currentRoomId = 0; currentRoomName = '';
+      try { if (ws) ws.close(); } catch(_) {}
+      ws = null;
+      document.getElementById('msgs').innerHTML = '';
+      sysMsg('已退出');
+      updateUI();
+    }
+
+    // tab switch
+    document.querySelectorAll('.auth-tab').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.auth-tab').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const mode = btn.dataset.mode;
+        const regBtn = document.getElementById('register-btn');
+        const logBtn = document.getElementById('login-btn');
+        const nickGroup = document.getElementById('nickname-group');
+        if (mode === 'login') {
+          regBtn.classList.add('hidden');
+          logBtn.classList.remove('hidden');
+          nickGroup.classList.add('hidden');
+        } else {
+          regBtn.classList.remove('hidden');
+          logBtn.classList.add('hidden');
+          nickGroup.classList.remove('hidden');
+        }
+      };
+    });
+
+    document.getElementById('login-btn').onclick = () => doLoginOrRegister('login');
+    document.getElementById('register-btn').onclick = () => doLoginOrRegister('register');
+    document.getElementById('password').onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        const isReg = !document.getElementById('register-btn').classList.contains('hidden');
+        doLoginOrRegister(isReg ? 'register' : 'login');
+      }
+    };
+
+    document.getElementById('refreshRoomsBtn').onclick = loadRooms;
+    document.getElementById('joinBtn').onclick = joinRoom;
+    document.getElementById('leaveBtn').onclick = leaveRoom;
+    document.getElementById('loadUsersBtn').onclick = loadRoomUsers;
+    document.getElementById('sendBtn').onclick = sendWsMsg;
+    document.getElementById('msgText').onkeydown = (e) => { if (e.key === 'Enter') sendWsMsg(); };
+    document.getElementById('httpSendBtn').onclick = sendHttpMsg;
+    document.getElementById('logoutBtn').onclick = logout;
+
+    // auto login
+    (function() {
+      const s = Auth.get();
+      if (s) {
+        uid = Number(s.user_id);
+        token = s.token;
+        name = s.name || ('User ' + uid);
+        updateUI();
+        sysMsg('自动登录成功');
+        connectWs();
+        loadRooms();
+      } else {
+        updateUI();
+      }
+    })();
+  </script>
+</body>
+</html>
+
+
