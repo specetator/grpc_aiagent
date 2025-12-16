@@ -1,0 +1,6 @@
+20251213 08:56:55.916218Z 87384 INFO  KafkaProducer initialized topic=push_to_comet - kafka_producer.cpp:100
+20251213 08:56:55.917478Z 87384 INFO  Logic gRPC server listening on 0.0.0.0:9100 - main.cpp:168
+20251213 08:56:55.917563Z 87384 FATAL Address already in use (errno=98) sockets::bindOrDie - SocketsOps.cc:102
+20251213 08:57:07.395586Z 87503 INFO  KafkaProducer initialized topic=push_to_comet - kafka_producer.cpp:100
+20251213 08:57:07.396935Z 87503 INFO  Logic gRPC server listening on 0.0.0.0:9100 - main.cpp:168
+20251213 08:57:07.397019Z 87503 FATAL Address already in use (errno=98) sockets::bindOrDie - SocketsOps.cc:102
