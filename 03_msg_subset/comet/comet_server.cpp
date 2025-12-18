@@ -401,10 +401,10 @@ void CometServer::PushToUsers(const ChatMessage &msg,
             if (!uniq_uids.insert(uid).second) continue;
 
             // 查找该用户的所有连接
-            auto it = user_conns_.find(uid);
+            auto it = user_conns_.find(uid);  //比如找到用户userid=1的set
             if (it == user_conns_.end()) continue;  // 用户不在线，跳过
 
-            // 遍历该用户的所有连接（多端登录）
+            // 遍历该用户的所有连接（多端登录,一个端也可以多个连接）
             for (const auto &c : it->second) {
                 // 检查连接是否仍然有效
                 if (c && c->connected()) {
@@ -886,7 +886,7 @@ void CometServer::HandleHandshake(const TcpConnectionPtr &conn, Buffer *buf) {
     ConnContext ctx = std::any_cast<ConnContext>(conn->getContext());
 
     // 更新状态：从握手阶段切换到已建立阶段
-    ctx.state = ConnContext::kOpen;
+    ctx.state = ConnContext::kOpen;  //握手成功，后续可以收发消息
 
     // 绑定用户 ID 和连接 ID
     ctx.user_id = user_id;
