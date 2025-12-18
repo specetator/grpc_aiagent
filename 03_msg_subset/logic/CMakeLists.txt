@@ -16,6 +16,7 @@ add_executable(logic_server
   grpc_service.cpp
   http_server.cpp
   user_dao.cpp
+  message_helper.cpp
   redis_store.cpp
  )
 

@@ -85,12 +85,14 @@ service LogicService {
 // logic -> job -> comet：按 comet fanout 的下行消息目标
 message FanoutTarget {
   int64 user_id = 1;
+  string comet_id = 2;  // 可选：精确到连接所在 comet
 }
 
 message PushToCometRequest {
-  string comet_id = 1;
+  repeated string comet_ids = 1;  // 需要推送的 comet 列表；为空时 job 侧可广播兜底
   ChatMessage message = 2;
-  repeated FanoutTarget targets = 3;
+  int64 room_id = 3;                  // 房间广播使用；单聊可为 0
+  repeated FanoutTarget targets = 4;  // 单聊/定向推送使用；房间可为空
 }
 
 message PushToCometReply {
