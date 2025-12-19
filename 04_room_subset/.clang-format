@@ -1,3 +1,16 @@
 BasedOnStyle: Google
 IndentWidth: 4
 UseTab: Never
+ColumnLimit: 100  # 放宽到 100 或 120，现代屏幕足够宽
+
+# 关键：让初始化尽量保持在一行
+AllowAllParametersOfDeclarationOnNextLine: true
+# 或者更相关的是：
+PenaltyBreakBeforeFirstCallParameter: 10000
+PenaltyBreakAssignment: 10000  # 让 = 尽量不换行
+
+# 对引用/指针声明风格
+PointerAlignment: Left  # or Left, Right
+
+# 注释不触发不必要的换行
+ReflowComments: false

@@ -560,6 +560,27 @@
             return h;
         }
 
+        function rand4() {
+            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+            let out = '';
+            // 优先用更可靠的随机源
+            if (window.crypto && window.crypto.getRandomValues) {
+                const buf = new Uint8Array(4);
+                window.crypto.getRandomValues(buf);
+                for (let i = 0; i < 4; i++) out += chars[buf[i] % chars.length];
+                return out;
+            }
+            for (let i = 0; i < 4; i++) out += chars[Math.floor(Math.random() * chars.length)];
+            return out;
+        }
+
+        // client_msg_id 统一格式：c-{userid}-{timestamp}-{4位随机字符}
+        function makeClientMsgId(userId) {
+            const uid2 = Number(userId || 0);
+            const ts = Date.now();
+            return `c-${uid2}-${ts}-${rand4()}`;
+        }
+
         function showToast(msg) {
             const container = document.getElementById('toast-container');
             const div = document.createElement('div');
@@ -698,7 +719,7 @@
             pingTimer = setInterval(() => {
                 if (!ws || ws.readyState !== WebSocket.OPEN) return;
                 ws.send(JSON.stringify({ type: 'ping', ts: Date.now() }));
-            }, 10000);
+            }, 30000);
         }
 
         function scheduleReconnect() {
@@ -722,7 +743,8 @@
                 setWsState('WS: 已连接');
                 reconnectDelayMs = 800;
                 startHeartbeat();
-                loadSingleSessionList();
+                // 本版本不依赖“会话列表/会话未读”相关后端能力；
+                // 只保证：对方在线时能互发互收，收到消息可自动打开一个“临时会话”窗口展示。
             };
 
             ws.onclose = () => {
@@ -732,8 +754,16 @@
             };
 
             ws.onmessage = (ev) => {
+                // 调试：打印服务端下发的原始消息，便于分析协议/字段
+                // 如需关闭，注释掉下面两行即可
+                try { console.log('[WS recv raw]', ev.data); } catch (_) { }
                 let obj = null;
-                try { obj = JSON.parse(ev.data); } catch (_) { return; }
+                try { obj = JSON.parse(ev.data); } catch (e) {
+                    try { console.warn('[WS recv] JSON parse failed', e, ev.data); } catch (_) { }
+                    return;
+                }
+                // 调试：打印解析后的对象（结构化）
+                try { console.log('[WS recv obj]', obj); } catch (_) { }
                 if (!obj) return;
                 if (obj.type === 'ack' || obj.type === 'pong') return;
                 if (obj.type === 'session_update') {
@@ -745,7 +775,7 @@
                     if (obj.last_time_ms) info.last_time_ms = Number(obj.last_time_ms);
                     if (obj.unread_count !== undefined) info.unread = Number(obj.unread_count || 0);
                     sessionMap.set(sid, info);
-                    // 若当前打开会话，刷新右上角未读显示（不自动清零，仍按 read_seq 推进）
+                    // 若当前打开会话，刷新右上角未读显示（本版本不调用 mark_read/unread_batch，仅本地维护）
                     if (currentSessionId && currentSessionId === sid) {
                         document.getElementById('unread-count').textContent = String(info.unread || 0);
                     }
@@ -761,9 +791,11 @@
                 if (tt !== 'single_chat') return;
 
                 const fromId = Number(obj.from_user_id || obj.sender_id || 0);
-                const toId = Number(obj.target_id || obj.to_user_id || 0);
+                // 最终协议：只认 target_id（单聊 target_id=接收方 user_id）
+                const toId = Number(obj.target_id || 0);
                 const peerId = (fromId === Number(currentUserId)) ? toId : fromId;
                 const sid = buildSingleSessionId(fromId, toId);
+                if (!sid) return;
                 const msgText = getMsgText(obj);
                 const seq = Number(obj.msg_seq || 0);
                 const ts = Number(obj.create_time || obj.timestamp_ms || Date.now());
@@ -794,18 +826,35 @@
                 info.last_time_ms = ts;
                 sessionMap.set(sid, info);
 
-                // 当前会话：直接展示，并尝试推进已读
+                // 如果当前没有打开任何会话：自动打开“临时会话”窗口，直接让用户看见对方消息
+                if (!currentSessionId) {
+                    // 若消息尚未写入缓存（deduped=false 时已写入），这里确保缓存存在
+                    if (!deduped) {
+                        // pushMsgToCache 已在上面 deduped=false 分支执行，这里只是防御性兜底
+                        // （不重复写入，避免双倍消息）
+                    }
+                    // 在 UI 上直接进入该会话（相当于“临时会话”）
+                    showChatWindow(peerId, sid);
+                    // showChatWindow 会 renderCachedMessages，因此不需要这里再 append 一次
+                    return;
+                }
+
+                // 当前会话：直接展示（本版本只做本地已读清零，不调用后端）
                 if (currentSessionId && sid === currentSessionId) {
                     // 如果刚才命中去重，则不重复展示（已本地回显）
                     if (!deduped) {
                         const senderLabel = getDisplayNameById(fromId);
                         appendMsgRow(msgText, fromId === Number(currentUserId), senderLabel, timeStr, seq);
                     }
-                    maybeAutoMarkRead();
+                    // 当前会话收到消息：视为已读（由滚动到底部/按钮触发清零，这里只刷新 UI）
+                    document.getElementById('unread-count').textContent = '0';
+                    const cur = sessionMap.get(currentSessionId);
+                    if (cur) { cur.unread = 0; sessionMap.set(currentSessionId, cur); }
+                    renderSessionList(Array.from(sessionMap.values()));
                     return;
                 }
 
-                // 非当前会话：未读 +1（后续可用 HTTP 校准）
+                // 非当前会话：未读 +1（本版本不做 HTTP 校准）
                 info.unread = (info.unread || 0) + 1;
                 sessionMap.set(sid, info);
                 renderSessionList(Array.from(sessionMap.values()));
@@ -813,7 +862,7 @@
         }
 
         function maybeAutoMarkRead() {
-            // 简化商业策略：窗口在前台 + 贴近底部时推进 read_seq
+            // 简化商业策略：窗口在前台 + 贴近底部时清零本地未读
             if (!currentSessionId) return;
             if (document.hidden) return;
             const el = document.getElementById('messages');
@@ -822,78 +871,13 @@
             markReadCurrent();
         }
 
-        async function markReadCurrent() {
+        function markReadCurrent() {
             if (!currentSessionId) return;
-            const readSeq = currentMaxSeq || 0;
-            try {
-                const resp = await fetch(logicBase + '/api/session/mark_read', {
-                    method: 'POST',
-                    headers: authHeaders(),
-                    body: JSON.stringify({ session_id: currentSessionId, read_seq: readSeq })
-                });
-                const data = await resp.json();
-                if (data.code !== 0) return;
-                document.getElementById('unread-count').textContent = '0';
-                const info = sessionMap.get(currentSessionId);
-                if (info) {
-                    info.unread = 0;
-                    sessionMap.set(currentSessionId, info);
-                    renderSessionList(Array.from(sessionMap.values()));
-                }
-            } catch (_) { }
-        }
-
-        async function fetchUnreadBatch(sessionIds) {
-            const ids = Array.isArray(sessionIds) ? sessionIds.filter(Boolean) : [];
-            if (ids.length === 0) return new Map();
-            try {
-                const resp = await fetch(logicBase + '/api/session/unread_batch', {
-                    method: 'POST',
-                    headers: authHeaders(),
-                    body: JSON.stringify({ session_ids: ids })
-                });
-                const data = await resp.json();
-                if (data.code !== 0) return new Map();
-                const arr = (data.data && Array.isArray(data.data.unreads)) ? data.data.unreads : [];
-                const m = new Map();
-                arr.forEach(x => {
-                    if (!x || !x.session_id) return;
-                    m.set(String(x.session_id), Number(x.unread_count || 0));
-                });
-                return m;
-            } catch (_) {
-                return new Map();
-            }
-        }
-
-        async function refreshUnreadAll() {
-            const ids = Array.from(sessionMap.keys());
-            const m = await fetchUnreadBatch(ids);
-            if (m.size === 0) return;
-            for (const [sid, n] of m.entries()) {
-                const info = sessionMap.get(sid);
-                if (!info) continue;
-                info.unread = n;
-                sessionMap.set(sid, info);
-            }
-            if (currentSessionId) {
-                const n = Number(m.get(currentSessionId) || sessionMap.get(currentSessionId)?.unread || 0);
-                document.getElementById('unread-count').textContent = String(n);
-            }
-            renderSessionList(Array.from(sessionMap.values()));
-        }
-
-        async function refreshUnreadForSession(sessionId) {
-            // 批量接口是主路径；单个刷新就走“批量里只放一个”，减少接口面
-            const m = await fetchUnreadBatch([sessionId]);
-            const n = Number(m.get(sessionId) || 0);
-            const info = sessionMap.get(sessionId);
+            document.getElementById('unread-count').textContent = '0';
+            const info = sessionMap.get(currentSessionId);
             if (info) {
-                info.unread = n;
-                sessionMap.set(sessionId, info);
-            }
-            if (currentSessionId === sessionId) {
-                document.getElementById('unread-count').textContent = String(n);
+                info.unread = 0;
+                sessionMap.set(currentSessionId, info);
             }
             renderSessionList(Array.from(sessionMap.values()));
         }
@@ -911,7 +895,9 @@
                 const list = (data.data && data.data.sessions) ? data.data.sessions : [];
                 sessionMap.clear();
                 list.forEach(s => {
-                    sessionMap.set(s.session_id, Object.assign({ unread: 0 }, s));
+                    // 兼容后端可能返回 unread/unread_count；本版本不再调用 unread_batch 做校准
+                    const unread = Number(s.unread ?? s.unread_count ?? 0);
+                    sessionMap.set(s.session_id, Object.assign({ unread }, s));
                 });
                 // 批量拉取会话列表中的对方昵称（显示真实 name）
                 const peerIds = list.map(s => Number(s.peer_user_id || 0)).filter(x => x > 0);
@@ -919,8 +905,6 @@
                     renderSessionList(Array.from(sessionMap.values()));
                 });
                 renderSessionList(Array.from(sessionMap.values()));
-                // 拉取未读（批量）
-                refreshUnreadAll();
             } catch (e) {
                 console.error('List session error', e);
             }
@@ -977,8 +961,13 @@
             // 切换会话：从缓存恢复消息，而不是直接清空导致“消息丢了”
             renderCachedMessages(sessionId);
 
-            // 进入会话先刷新未读；已读推进由滚动到底部/按钮触发
-            refreshUnreadForSession(sessionId);
+            // 进入会话：本地清零未读（本版本不调用 unread_batch/mark_read）
+            const info = sessionMap.get(sessionId);
+            if (info) {
+                info.unread = 0;
+                sessionMap.set(sessionId, info);
+            }
+            document.getElementById('unread-count').textContent = '0';
             renderSessionList(Array.from(sessionMap.values()));
             appendSystemMsg('已进入会话');
         }
@@ -1084,7 +1073,7 @@
             // 说明：这里不增加 currentMaxSeq（seq=0），read_seq 仍以服务端下发的 msg_seq 为准。
             const now = Date.now();
             const timeStr = new Date(now).toLocaleTimeString();
-            const clientMsgId = now.toString();
+            const clientMsgId = makeClientMsgId(currentUserId);
             pendingClientMsgIds.add(clientMsgId);
             const senderLabel = currentUserName || ('User ' + currentUserId);
             appendMsgRow(text, true, senderLabel, timeStr, 0);
@@ -1092,9 +1081,8 @@
             const payload = {
                 msg_type: 'text',
                 target_type: 'single_chat',
-                to_user_id: Number(currentPeerId),
+                target_id: Number(currentPeerId),
                 client_msg_id: clientMsgId,
-                timestamp: now,
                 content: text,
             };
             // 同步更新会话列表的预览与时间（体验更像商业 IM）

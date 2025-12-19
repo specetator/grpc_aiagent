@@ -32,7 +32,7 @@ public:
     {
     }
     ~HttpResponse() {
-        LOG_INFO << "HttpResponse::~HttpResponse()";
+        LOG_DEBUG << "HttpResponse::~HttpResponse()";
     }
 
     void setStatusCode(HttpStatusCode code) { statusCode_ = code; }

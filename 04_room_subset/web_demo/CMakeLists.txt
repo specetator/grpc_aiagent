@@ -7,11 +7,11 @@ add_custom_target(web_demo_04_room_subset ALL
           ${CMAKE_CURRENT_BINARY_DIR}/static
 )
 
-add_executable(web_demo_server_04_room_subset
+add_executable(web_demo_server
   web_server.cpp
 )
 
-target_link_libraries(web_demo_server_04_room_subset
+target_link_libraries(web_demo_server
   PRIVATE
     muduo_net
     muduo_http

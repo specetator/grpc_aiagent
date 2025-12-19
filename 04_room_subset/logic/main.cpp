@@ -29,7 +29,6 @@
 #include "redis_pool.h"
 #include "redis_store.h"
 #include "room_dao.h"
-#include "room_store.h"
 #include "user_dao.h"
 
 namespace {
@@ -114,8 +113,9 @@ int RunLogic(const Config& cfg) {
     }
 
     // 创建用户 DAO，操作 user 表
-    // 初始化 DAO
-    UserDao user_dao(&mysql_pool);  // 内存版
+    UserDao user_dao(&mysql_pool);
+
+    // 创建房间 DAO，操作 im_group 和 group_member 表
     RoomDao room_dao(&mysql_pool);
 
     KafkaProducer push_producer;
@@ -148,17 +148,14 @@ int RunLogic(const Config& cfg) {
 
     // 创建 Redis 存储封装，管理 token 和路由
     RedisStore redis_store(&redis_pool);
-    RoomStore room_store(&room_dao, &redis_store, 300, 600,
-                         (cfg.room_list_prefer_redis != 0));
 
     // ========== 3. 启动 gRPC 服务（token 验证接口）==========
     std::string grpc_addr =
         cfg.listen_addr + ":" + std::to_string(cfg.listen_port);
     grpc::ServerBuilder builder;
     // 创建 gRPC 服务实现
-    auto service = std::make_unique<LogicServiceImpl>(&user_dao, &push_producer,
-                                                      &redis_store, &room_store,
-                                                      cfg.connection_ttl_ms);
+    auto service = std::make_unique<LogicServiceImpl>(
+        &user_dao, &room_dao, &push_producer, &redis_store, cfg.connection_ttl_ms);
     // 配置监听地址和端口（不使用 TLS，内网通信）
     builder.AddListeningPort(grpc_addr, grpc::InsecureServerCredentials());
     builder.RegisterService(service.get());
@@ -167,11 +164,11 @@ int RunLogic(const Config& cfg) {
     std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
     LOG_INFO << "Logic gRPC server listening on " << grpc_addr;
 
-    // ========== 4. 启动 HTTP 服务（注册/登录接口）==========
+    // ========== 4. 启动 HTTP 服务（注册/登录/房间接口）==========
     muduo::net::EventLoop loop;
     muduo::net::InetAddress httpAddr(cfg.http_port);
-    HttpApiServer httpServer(&loop, httpAddr, &user_dao, &redis_store,
-                             &room_store, &push_producer);
+    HttpApiServer httpServer(&loop, httpAddr, &user_dao, &room_dao,
+                             &redis_store, &push_producer);
     httpServer.start();
     LOG_INFO << "Logic HTTP server listening on port "
              << std::to_string(cfg.http_port);

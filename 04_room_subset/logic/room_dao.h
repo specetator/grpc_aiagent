@@ -1,6 +1,19 @@
+// ============================================================================
+// 房间数据访问对象（Room DAO）
+//
+// 封装房间（im_group）和成员（group_member）表的 CRUD 操作
+//
+// 数据库表结构：
+//   im_group: 房间基本信息（id, name, owner_id, group_type, created_at）
+//   group_member: 房间成员关系（id, group_id, user_id, role, join_at）
+//
+// 设计考虑：
+// - 使用 MySQL 预编译语句防止 SQL 注入
+// - 支持事务操作（创建房间时自动加入创建者）
+// - 预留分库分表扩展能力
+// ============================================================================
 #pragma once
 
-#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -8,62 +21,86 @@
 
 namespace sparkpush {
 
-// RoomInfo：话题(房间)/群组的基础元信息（对应 im_group 表）
-struct RoomInfo {
-    // 房间/群组 ID
-    int64_t id{0};
-    // 房间名称
-    std::string name;
-    // 创建者/群主用户 ID
-    int64_t owner_id{0};
-    // 创建时间（毫秒时间戳）
-    int64_t created_at_ms{0};
-    // 群组类型：0=normal_group,1=chatroom,2=danmaku_room（对应 im_group.group_type）
-    int group_type{1};  // 0=normal_group,1=chatroom,2=danmaku_room（这里用于 im_group 表）
+// 房间信息结构体
+struct Room {
+    int64_t id{0};        // 房间 ID
+    std::string name;     // 房间名称
+    int64_t owner_id{0};  // 创建者用户 ID
+    int group_type{1};    // 房间类型：1=聊天室
 };
 
-// Room/Group DAO：负责 im_group / group_member 的持久化访问
+// 房间成员信息结构体
+struct RoomMember {
+    int64_t id{0};        // 记录 ID
+    int64_t group_id{0};  // 房间 ID
+    int64_t user_id{0};   // 用户 ID
+    std::string role;     // 角色：owner/admin/member
+};
+
+// 房间 DAO：负责房间和成员数据的持久化操作
 class RoomDao {
    public:
     // 构造函数：注入 MySQL 连接池
     explicit RoomDao(MySqlConnectionPool* pool) : pool_(pool) {}
 
-    // 创建房间/群组（写 im_group），返回 room_id
+    // 创建房间（带事务：创建房间 + 自动加入创建者为 owner）
+    // @param name: 房间名称
+    // @param owner_id: 创建者用户 ID
+    // @param group_type: 房间类型（默认 1=聊天室）
+    // @param room_id: 输出参数，返回新创建的房间 ID
+    // @param err_msg: 输出参数，错误消息
+    // @return: 成功返回 true，失败返回 false
     bool CreateRoom(const std::string& name, int64_t owner_id, int group_type,
                     int64_t* room_id, std::string* err_msg);
-    // 查询所有房间 ID（用于列表/自动加入等）
-    bool ListRoomIds(std::vector<int64_t>* room_ids, std::string* err_msg);
-    // 查询房间列表（返回完整元信息）
-    bool ListRooms(std::vector<RoomInfo>* rooms, std::string* err_msg);
-    // 按 room_id 查询房间元信息
-    bool GetRoomById(int64_t room_id, RoomInfo* room, std::string* err_msg);
 
-    // 添加成员（写 group_member）
-    // @param role: 成员角色（由业务定义，如 0=member/1=admin 等）
-    bool AddMember(int64_t room_id, int64_t user_id, int role,
-                   std::string* err_msg);
-    // 移除成员（删 group_member）
-    bool RemoveMember(int64_t room_id, int64_t user_id, std::string* err_msg);
-    // 判断用户是否为房间成员
-    bool IsMember(int64_t room_id, int64_t user_id, bool* is_member,
+    // 查询房间信息
+    // @param room_id: 房间 ID
+    // @param room: 输出参数，返回房间信息
+    // @param err_msg: 输出参数，错误消息
+    // @return: 找到返回 true，未找到或出错返回 false
+    bool GetRoom(int64_t room_id, Room* room, std::string* err_msg);
+
+    // 用户加入房间
+    // @param group_id: 房间 ID
+    // @param user_id: 用户 ID
+    // @param role: 角色（默认 "member"）
+    // @param err_msg: 输出参数，错误消息
+    // @return: 成功返回 true，失败（例如重复加入）返回 false
+    bool JoinRoom(int64_t group_id, int64_t user_id, const std::string& role,
                   std::string* err_msg);
-    // 列出房间成员 user_id 列表
-    bool ListMembers(int64_t room_id, std::vector<int64_t>* user_ids,
-                     std::string* err_msg);
-    // 统计房间成员数
-    bool CountMembers(int64_t room_id, int64_t* count, std::string* err_msg);
 
-    // 自动加入策略（与旧 demo 的 Redis users:all/rooms:all 语义对应）
-    // - 新用户：加入所有已存在房间
-    // - 新房间：把所有用户加入该房间
-    bool AutoJoinAllRoomsForUser(int64_t user_id, std::string* err_msg);
-    bool AutoJoinRoomForAllUsers(int64_t room_id, std::string* err_msg);
+    // 用户离开房间
+    // @param group_id: 房间 ID
+    // @param user_id: 用户 ID
+    // @param err_msg: 输出参数，错误消息
+    // @return: 成功返回 true，失败返回 false
+    bool LeaveRoom(int64_t group_id, int64_t user_id, std::string* err_msg);
+
+    // 查询房间所有成员的用户 ID 列表
+    // @param group_id: 房间 ID
+    // @param user_ids: 输出参数，返回成员用户 ID 列表
+    // @param err_msg: 输出参数，错误消息
+    // @return: 成功返回 true（即使列表为空），失败返回 false
+    bool GetRoomMembers(int64_t group_id, std::vector<int64_t>* user_ids,
+                        std::string* err_msg);
+
+    // 检查用户是否是房间成员
+    // @param group_id: 房间 ID
+    // @param user_id: 用户 ID
+    // @param err_msg: 输出参数，错误消息
+    // @return: 是成员返回 true，不是或出错返回 false
+    bool IsMember(int64_t group_id, int64_t user_id, std::string* err_msg);
+
+    // 查询用户已加入的房间列表
+    // @param user_id: 用户 ID
+    // @param rooms: 输出参数，返回房间列表
+    // @param err_msg: 输出参数，错误消息
+    // @return: 成功返回 true（即使列表为空），失败返回 false
+    bool GetUserRooms(int64_t user_id, std::vector<Room>* rooms,
+                      std::string* err_msg);
 
    private:
-    // MySQL 连接池（DAO 不持有长连接）
-    MySqlConnectionPool* pool_{nullptr};
+    MySqlConnectionPool* pool_;  // MySQL 连接池
 };
 
 }  // namespace sparkpush
-
-

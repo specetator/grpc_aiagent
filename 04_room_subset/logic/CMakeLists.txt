@@ -17,7 +17,7 @@ add_executable(logic_server
   http_server.cpp
   user_dao.cpp
   room_dao.cpp
-  room_store.cpp
+  message_helper.cpp
   redis_store.cpp
  )
 

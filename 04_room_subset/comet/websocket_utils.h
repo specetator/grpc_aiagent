@@ -39,15 +39,6 @@ struct UpstreamMessageMeta {
 // 用途：服务端主动推送消息给客户端（如聊天消息、通知等）
 std::string BuildWebSocketTextFrame(const std::string& payload);
 
-// 解析单聊 JSON（轻量字符串扫描版，非严格 JSON 解析）：
-// 尝试从 json 中提取 to_user_id 字段。
-// @return: 成功返回 true，并写入 to_user_id；否则 false
-bool ParseSingleChatJson(const std::string& json, int64_t* to_user_id);
-
-// 解析群聊/房间 JSON（轻量字符串扫描版）：
-// 尝试提取 group_id 或 room_id 字段，任一成功则返回 true。
-bool ParseChatroomJson(const std::string& json, int64_t* room_id);
-
 // 解析客户端上行消息，抽取 msg_type/target_type/target_id 等元信息。
 // 注意：该函数使用 nlohmann::json 做“宽松解析”，字段缺失或类型不符会返回
 // false。

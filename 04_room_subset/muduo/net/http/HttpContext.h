@@ -40,7 +40,7 @@ class HttpContext : public muduo::copyable
 
   ~HttpContext()
   {
-    LOG_INFO << "HttpContext destroyed";
+    // LOG_INFO << "HttpContext destroyed";
     if(customContext_)
       customContext_.reset();
   }

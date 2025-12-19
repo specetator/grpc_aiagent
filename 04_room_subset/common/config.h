@@ -52,8 +52,7 @@ struct Config {
     int comet_grpc_port{0};
 
     // comet 保活/路由相关参数（毫秒）
-    // - comet_idle_timeout_ms：WebSocket
-    // 连接空闲超时（用于剔除长时间无心跳/无业务的连接）
+    // - comet_idle_timeout_ms：WebSocket 连接空闲超时（用于剔除长时间无心跳/无业务的连接）
     // - comet_redis_ttl_ms：Comet 写入 Redis 的 user_connections:{uid} 键 TTL
     int comet_idle_timeout_ms{60000};
     int comet_redis_ttl_ms{60000};
@@ -63,14 +62,11 @@ struct Config {
 
     // 连接相关 TTL（毫秒）
     int connection_ttl_ms{60000};
-
-    // ========= room list 优化开关 =========
-    // 0=默认（room list 走 MySQL），1=优先走 Redis room meta 组装（缺失回源
-    // MySQL）
-    int room_list_prefer_redis{0};
 };
 
 // 简单 key=value 文本配置加载，读取失败则返回内置默认值。
 Config LoadConfig(const std::string& path);
 
 }  // namespace sparkpush
+
+

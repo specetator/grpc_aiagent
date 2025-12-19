@@ -38,10 +38,8 @@ add_subdirectory(common)
 # 3. 协议定义：编译 .proto 生成 C++ 代码
 add_subdirectory(proto)
 
-# 4. 业务模块：logic / comet / job
+# 4. 业务模块：logic / comet / job / web_demo
 add_subdirectory(logic)
 add_subdirectory(comet)
 add_subdirectory(job)
-
-# 5. Web Demo：静态页面 + 简单静态文件服务器（用于本地联调）
 add_subdirectory(web_demo)

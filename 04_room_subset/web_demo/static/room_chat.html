@@ -1,451 +1,773 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
-  <meta charset="UTF-8" />
-  <title>04_room_subset - 房间聊天室</title>
-  <link rel="stylesheet" href="auth_style.css">
-  <script src="auth.js"></script>
-  <style>
-    :root {
-      --primary: #1976d2;
-      --bg: #f5f7fa;
-      --border: #e0e0e0;
-      --me: #e3f2fd;
-      --other: #fff;
-    }
-    body { margin:0; height:100vh; display:flex; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; background:var(--bg); color:#333; overflow:hidden; }
-    #sidebar { width: 320px; background:#fff; border-right:1px solid var(--border); display:flex; flex-direction:column; }
-    .sb-header { padding: 18px; border-bottom:1px solid var(--border); }
-    .sb-header h2 { margin:0; color:var(--primary); font-size:18px; }
-    .sb-header .hint { margin-top:6px; font-size:12px; color:#777; line-height:1.4; }
-    /* 提示里的 code 可能很长：允许换行，避免被侧边栏宽度“截断” */
-    .sb-header .hint code { display:block; white-space: pre-wrap; word-break: break-all; }
+    <meta charset="UTF-8" />
+    <title>04_room_subset - 房间聊天室</title>
+    <link rel="stylesheet" href="auth_style.css">
+    <script src="auth.js"></script>
+    <style>
+        :root {
+            --primary: #1976d2;
+            --bg: #f5f7fa;
+            --border: #e0e0e0;
+            --me: #e3f2fd;
+            --other: #fff;
+        }
 
-    #auth-panel { padding: 18px; overflow:auto; }
-    #nav-panel { flex:1; display:flex; flex-direction:column; overflow:hidden; }
-    .bar { padding: 10px 12px; border-bottom:1px solid #eee; display:flex; gap:8px; align-items:center; }
-    .bar .btn-primary { padding: 8px 10px; }
-    .room-list { flex:1; overflow:auto; padding: 10px 12px; }
-    .room-item { border:1px solid transparent; border-radius:10px; padding:10px; background:#fff; cursor:pointer; margin-bottom:10px; }
-    .room-item:hover { background:#f0f7ff; }
-    .room-item.active { border-color:#bbdefb; background:#e3f2fd; }
-    .room-item .name { font-weight:700; margin-bottom:2px; }
-    .room-item .meta { font-size:12px; color:#777; display:flex; justify-content:space-between; gap:8px; }
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background: var(--bg);
+            color: #333;
+            overflow: hidden;
+        }
 
-    .profile { padding: 12px; border-top:1px solid #eee; display:flex; justify-content:space-between; align-items:center; }
-    .profile .me { font-size:12px; color:#666; }
-    .profile .logout { color:#ef5350; background:none; border:none; cursor:pointer; font-size:12px; }
+        #sidebar {
+            width: 320px;
+            background: #fff;
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
 
-    #main { flex:1; display:flex; flex-direction:column; background:#fff; }
-    .top { height:60px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; padding: 0 18px; }
-    .top .title { font-weight:700; }
-    .top .sub { font-size:12px; color:#777; }
-    #content { flex:1; display:flex; min-height: 0; }
-    #msgs { flex:1; overflow:auto; background:var(--bg); padding: 16px; display:flex; flex-direction:column; gap:10px; min-height:0; }
-    #members {
-      width: 260px;
-      border-left: 1px solid var(--border);
-      background: #fff;
-      display:flex;
-      flex-direction:column;
-      min-height: 0;
-    }
-    #members .mh {
-      padding: 12px;
-      border-bottom: 1px solid #eee;
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap:8px;
-    }
-    #members .ml {
-      flex: 1;
-      overflow:auto;
-      padding: 10px 12px;
-    }
-    .member-item {
-      padding: 8px 10px;
-      border: 1px solid transparent;
-      border-radius: 10px;
-      background: #fff;
-      cursor: pointer;
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-      align-items:center;
-    }
-    .member-item:hover { background:#f0f7ff; border-color:#bbdefb; }
-    .member-name { font-weight: 700; font-size: 13px; color:#333; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-    .member-id { font-size: 12px; color:#999; flex-shrink:0; }
-    .badge {
-      min-width: 18px;
-      height: 18px;
-      padding: 0 6px;
-      border-radius: 999px;
-      background: #ef5350;
-      color: #fff;
-      font-size: 11px;
-      line-height: 18px;
-      text-align: center;
-      display: inline-block;
-    }
-    .badge.zero { display:none; }
-    .sys { align-self:center; background:rgba(0,0,0,0.08); color:#666; font-size:12px; padding:4px 10px; border-radius:999px; }
-    .row { max-width:70%; display:flex; flex-direction:column; gap:4px; }
-    .row.me { align-self:flex-end; }
-    .row.other { align-self:flex-start; }
-    .name { font-size:12px; color:#999; }
-    .bubble { padding: 10px 12px; border-radius:10px; box-shadow:0 1px 2px rgba(0,0,0,0.05); font-size:14px; line-height:1.5; word-wrap:break-word; }
-    .row.me .bubble { background:var(--me); color:#0d47a1; border-top-right-radius:2px; }
-    .row.other .bubble { background:var(--other); border:1px solid #e6e6e6; border-top-left-radius:2px; }
+        .sb-header {
+            padding: 18px;
+            border-bottom: 1px solid var(--border);
+        }
 
-    #input { padding: 12px; border-top:1px solid var(--border); display:flex; gap:10px; }
-    #msgText { flex:1; }
-    #sendBtn { padding: 0 18px; font-weight:700; }
+        .sb-header h2 {
+            margin: 0;
+            color: var(--primary);
+            font-size: 18px;
+        }
 
-    .small { font-size:12px; color:#777; }
-  </style>
+        .sb-header .hint {
+            margin-top: 6px;
+            font-size: 12px;
+            color: #777;
+            line-height: 1.4;
+        }
+
+        /* 提示里的 code 可能很长：允许换行，避免被侧边栏宽度“截断” */
+        .sb-header .hint code {
+            display: block;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        #auth-panel {
+            padding: 18px;
+            overflow: auto;
+        }
+
+        #nav-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .bar {
+            padding: 10px 12px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .bar .btn-primary {
+            padding: 8px 10px;
+        }
+
+        .room-list {
+            flex: 1;
+            overflow: auto;
+            padding: 10px 12px;
+        }
+
+        .room-item {
+            border: 1px solid transparent;
+            border-radius: 10px;
+            padding: 10px;
+            background: #fff;
+            cursor: pointer;
+            margin-bottom: 10px;
+        }
+
+        .room-item:hover {
+            background: #f0f7ff;
+        }
+
+        .room-item.active {
+            border-color: #bbdefb;
+            background: #e3f2fd;
+        }
+
+        .room-item .name {
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .room-item .meta {
+            font-size: 12px;
+            color: #777;
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .profile {
+            padding: 12px;
+            border-top: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .profile .me {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .profile .logout {
+            color: #ef5350;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        #main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+        }
+
+        .top {
+            height: 60px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 18px;
+        }
+
+        .top .title {
+            font-weight: 700;
+        }
+
+        .top .sub {
+            font-size: 12px;
+            color: #777;
+        }
+
+        #content {
+            flex: 1;
+            display: flex;
+            min-height: 0;
+        }
+
+        #msgs {
+            flex: 1;
+            overflow: auto;
+            background: var(--bg);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            min-height: 0;
+        }
+
+        #members {
+            width: 260px;
+            border-left: 1px solid var(--border);
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        #members .mh {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        #members .ml {
+            flex: 1;
+            overflow: auto;
+            padding: 10px 12px;
+        }
+
+        .member-item {
+            padding: 8px 10px;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            background: #fff;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .member-item:hover {
+            background: #f0f7ff;
+            border-color: #bbdefb;
+        }
+
+        .member-name {
+            font-weight: 700;
+            font-size: 13px;
+            color: #333;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .member-id {
+            font-size: 12px;
+            color: #999;
+            flex-shrink: 0;
+        }
+
+        .badge {
+            min-width: 18px;
+            height: 18px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: #ef5350;
+            color: #fff;
+            font-size: 11px;
+            line-height: 18px;
+            text-align: center;
+            display: inline-block;
+        }
+
+        .badge.zero {
+            display: none;
+        }
+
+        .sys {
+            align-self: center;
+            background: rgba(0, 0, 0, 0.08);
+            color: #666;
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 999px;
+        }
+
+        .row {
+            max-width: 70%;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .row.me {
+            align-self: flex-end;
+        }
+
+        .row.other {
+            align-self: flex-start;
+        }
+
+        .name {
+            font-size: 12px;
+            color: #999;
+        }
+
+        .bubble {
+            padding: 10px 12px;
+            border-radius: 10px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .row.me .bubble {
+            background: var(--me);
+            color: #0d47a1;
+            border-top-right-radius: 2px;
+        }
+
+        .row.other .bubble {
+            background: var(--other);
+            border: 1px solid #e6e6e6;
+            border-top-left-radius: 2px;
+        }
+
+        #input {
+            padding: 12px;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 10px;
+        }
+
+        #msgText {
+            flex: 1;
+        }
+
+        #sendBtn {
+            padding: 0 18px;
+            font-weight: 700;
+        }
+
+        .small {
+            font-size: 12px;
+            color: #777;
+        }
+    </style>
 </head>
+
 <body>
-  <div id="sidebar">
-    <div class="sb-header">
-      <h2>房间聊天室</h2>
-      <div class="hint">
-        连接：<b>logic</b> HTTP <span class="small">9101</span>，<b>comet</b> WS <span class="small">9000</span><br/>
-        消息格式：<code>{"msg_type":"text","target_type":"room","room_id":1,"content":"..."}</code>
-      </div>
-    </div>
-
-    <div id="auth-panel">
-      <div class="auth-tabs">
-        <button type="button" class="auth-tab active" data-mode="login">登录</button>
-        <button type="button" class="auth-tab" data-mode="register">注册</button>
-      </div>
-      <div class="form-group">
-        <input id="account" class="form-control" placeholder="账号" />
-      </div>
-      <div class="form-group hidden" id="nickname-group">
-        <input id="nickname" class="form-control" placeholder="昵称 (注册可选)" />
-      </div>
-      <div class="form-group">
-        <input id="password" type="password" class="form-control" placeholder="密码" />
-      </div>
-      <button id="login-btn" class="btn-primary btn-block">立即登录</button>
-      <button id="register-btn" class="btn-primary btn-block hidden">注册并自动登录</button>
-      <div id="status" class="status-text"></div>
-      <div class="small" style="margin-top:10px;">
-        提示：管理员账号 <code>admin</code>，密码 <code>admin123</code>（前端会做 MD5）。
-      </div>
-    </div>
-
-    <div id="nav-panel" class="hidden">
-      <div class="bar">
-        <button id="refreshRoomsBtn" class="btn-primary" style="width:auto;">刷新房间</button>
-        <button id="loadUsersBtn" class="btn-primary" style="width:auto; background:#455a64;">成员</button>
-      </div>
-      <div class="bar">
-        <input id="joinRoomId" class="form-control" placeholder="room_id" style="margin:0;" />
-        <button id="joinBtn" class="btn-primary" style="width:auto;">加入</button>
-      </div>
-      <div class="bar">
-        <button id="leaveBtn" class="btn-primary" style="width:auto; background:#ef5350;">退出当前房间</button>
-        <button id="httpSendBtn" class="btn-primary" style="width:auto; background:#6d4c41;">HTTP发送</button>
-      </div>
-      <div class="room-list" id="roomList"></div>
-      <div class="profile">
-        <div class="me" id="meInfo">未登录</div>
-        <button class="logout" id="logoutBtn">退出</button>
-      </div>
-    </div>
-  </div>
-
-  <div id="main">
-    <div class="top">
-      <div>
-        <div class="title" id="roomTitle">未选择房间</div>
-        <div class="sub" id="roomSub">请先登录并在左侧选择一个房间</div>
-      </div>
-      <div class="small" style="display:flex; gap:10px; align-items:center;">
-        <span>未读: <b id="roomUnread">0</b></span>
-        <button id="markReadBtn" class="btn-primary" style="width:auto; padding:6px 10px; background:#fff; color:#666; border:1px solid #ddd;">标记已读</button>
-        <span id="wsState">WS: 未连接</span>
-      </div>
-    </div>
-    <div id="content">
-      <div id="msgs">
-        <div class="sys">欢迎：请先登录</div>
-      </div>
-      <div id="members" class="hidden">
-        <div class="mh">
-          <div style="font-weight:700;">成员</div>
-          <div class="small" id="memberCount">0</div>
+    <div id="sidebar">
+        <div class="sb-header">
+            <h2>房间聊天室</h2>
+            <div class="hint">
+                连接：<b>logic</b> HTTP <span class="small">9101</span>，<b>comet</b> WS <span
+                    class="small">9000</span><br />
+                消息格式：<code>{"msg_type":"text","target_type":"room","target_id":1,"content":"...","client_msg_id":"c-{uid}-{ts}-{rand4}"}</code>
+            </div>
         </div>
-        <div class="ml" id="memberList"></div>
-      </div>
+
+        <div id="auth-panel">
+            <div class="auth-tabs">
+                <button type="button" class="auth-tab active" data-mode="login">登录</button>
+                <button type="button" class="auth-tab" data-mode="register">注册</button>
+            </div>
+            <div class="form-group">
+                <input id="account" class="form-control" placeholder="账号" />
+            </div>
+            <div class="form-group hidden" id="nickname-group">
+                <input id="nickname" class="form-control" placeholder="昵称 (注册可选)" />
+            </div>
+            <div class="form-group">
+                <input id="password" type="password" class="form-control" placeholder="密码" />
+            </div>
+            <button id="login-btn" class="btn-primary btn-block">立即登录</button>
+            <button id="register-btn" class="btn-primary btn-block hidden">注册并自动登录</button>
+            <div id="status" class="status-text"></div>
+            <div class="small" style="margin-top:10px;">
+                提示：管理员账号 <code>admin</code>，密码 <code>admin123</code>（前端会做 MD5）。
+            </div>
+        </div>
+
+        <div id="nav-panel" class="hidden">
+            <div class="bar">
+                <button id="refreshRoomsBtn" class="btn-primary" style="width:auto;">刷新房间</button>
+                <button id="loadUsersBtn" class="btn-primary" style="width:auto; background:#455a64;">成员</button>
+            </div>
+            <div class="bar">
+                <input id="joinRoomId" class="form-control" placeholder="room_id" style="margin:0;" />
+                <button id="joinBtn" class="btn-primary" style="width:auto;">加入</button>
+            </div>
+            <div class="bar">
+                <button id="leaveBtn" class="btn-primary" style="width:auto; background:#ef5350;">退出当前房间</button>
+                <button id="httpSendBtn" class="btn-primary" style="width:auto; background:#6d4c41;">HTTP发送</button>
+            </div>
+            <div class="room-list" id="roomList"></div>
+            <div class="profile">
+                <div class="me" id="meInfo">未登录</div>
+                <button class="logout" id="logoutBtn">退出</button>
+            </div>
+        </div>
     </div>
-    <div id="input">
-      <input id="msgText" class="form-control" placeholder="输入消息... (Enter 发送)" />
-      <button id="sendBtn" class="btn-primary">发送</button>
+
+    <div id="main">
+        <div class="top">
+            <div>
+                <div class="title" id="roomTitle">未选择房间</div>
+                <div class="sub" id="roomSub">请先登录并在左侧选择一个房间</div>
+            </div>
+            <div class="small" style="display:flex; gap:10px; align-items:center;">
+                <span>未读: <b id="roomUnread">0</b></span>
+                <button id="markReadBtn" class="btn-primary"
+                    style="width:auto; padding:6px 10px; background:#fff; color:#666; border:1px solid #ddd;">标记已读</button>
+                <button id="toggleDebugBtn" class="btn-primary"
+                    style="width:auto; padding:6px 10px; background:#fff; color:#666; border:1px solid #ddd;">调试</button>
+                <span id="wsState">WS: 未连接</span>
+            </div>
+        </div>
+        <div id="content">
+            <div id="msgs">
+                <div class="sys">欢迎：请先登录</div>
+            </div>
+            <div id="members" class="hidden">
+                <div class="mh">
+                    <div style="font-weight:700;">成员</div>
+                    <div class="small" id="memberCount">0</div>
+                </div>
+                <div class="ml" id="memberList"></div>
+            </div>
+        </div>
+        <div id="input">
+            <input id="msgText" class="form-control" placeholder="输入消息... (Enter 发送)" />
+            <button id="sendBtn" class="btn-primary">发送</button>
+        </div>
     </div>
-  </div>
 
-  <script>
-    const logicBase = window.location.protocol + '//' + window.location.hostname + ':9101';
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const cometWsUrl = wsProtocol + '//' + window.location.hostname + ':9000/ws';
+    <!-- 调试区：默认隐藏，不影响聊天 -->
+    <div id="debugBox" class="hidden"
+        style="position:fixed; right:12px; bottom:12px; width:520px; max-width:calc(100vw - 24px); height:220px; background:#111; color:#ddd; border-radius:10px; box-shadow:0 6px 18px rgba(0,0,0,.25); overflow:hidden; z-index:9999;">
+        <div
+            style="display:flex; justify-content:space-between; align-items:center; padding:8px 10px; border-bottom:1px solid rgba(255,255,255,.12); font-size:12px;">
+            <div style="font-weight:700;">WS 调试日志（本地）</div>
+            <div style="display:flex; gap:8px; align-items:center;">
+                <button id="clearDebugBtn"
+                    style="background:#222; color:#ddd; border:1px solid rgba(255,255,255,.18); border-radius:8px; padding:4px 8px; cursor:pointer;">清空</button>
+                <button id="closeDebugBtn"
+                    style="background:#222; color:#ddd; border:1px solid rgba(255,255,255,.18); border-radius:8px; padding:4px 8px; cursor:pointer;">关闭</button>
+            </div>
+        </div>
+        <pre id="debugLog"
+            style="margin:0; padding:10px; height:calc(220px - 42px); overflow:auto; font-size:11px; line-height:1.35;"></pre>
+    </div>
 
-    let uid = null;
-    let token = null;
-    let name = null;
+    <script>
+        const logicBase = window.location.protocol + '//' + window.location.hostname + ':9101';
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const cometWsUrl = wsProtocol + '//' + window.location.hostname + ':9000/ws';
 
-    let ws = null;
-    let currentRoomId = 0;
-    let currentRoomName = '';
-    let currentSessionId = '';
-    let currentMaxSeq = 0; // 当前房间已展示的最大 msg_seq（用于 read_seq）
-    const roomUnreadMap = new Map(); // room_id -> unread
-    // 用户昵称缓存：user_id -> name（用于显示真实昵称）
-    const userNameCache = new Map();
-    // 房间消息缓存：room_id -> 消息数组（用于切换房间不丢消息）
-    // 每个元素：{ text, senderId, isMe, senderName, seq, timeStr, clientMsgId }
-    const roomMsgCache = new Map();
-    // 发送去重：避免“本地回显 + 服务端回推”导致重复展示
-    const pendingClientMsgIds = new Set();
-    let pingTimer = null;
-    let reconnectTimer = null;
-    let reconnectDelayMs = 800;
+        let uid = null;
+        let token = null;
+        let name = null;
 
-    // 分享链接参数：room_chat.html?room_id=123&join=1
-    const shareParams = (function() {
-      try {
-        const sp = new URLSearchParams(window.location.search || '');
-        const rid = Number(sp.get('room_id') || 0);
-        const join = (sp.get('join') || '') === '1';
-        return { roomId: rid, join };
-      } catch (_) {
-        return { roomId: 0, join: false };
-      }
-    })();
-    let shareJoinTried = false;
+        let ws = null;
+        let currentRoomId = 0;
+        let currentRoomName = '';
+        let currentSessionId = '';
+        let currentMaxSeq = 0; // 当前房间已展示的最大 msg_seq（用于 read_seq）
+        const roomUnreadMap = new Map(); // room_id -> unread
+        // 用户昵称缓存：user_id -> name（用于显示真实昵称）
+        const userNameCache = new Map();
+        // 房间消息缓存：room_id -> 消息数组（用于切换房间不丢消息）
+        // 每个元素：{ text, senderId, isMe, senderName, seq, timeStr, clientMsgId }
+        const roomMsgCache = new Map();
+        // 发送去重：避免“本地回显 + 服务端回推”导致重复展示
+        const pendingClientMsgIds = new Set();
+        let pingTimer = null;
+        let reconnectTimer = null;
+        let reconnectDelayMs = 800;
+        // 调试：打印 WS 下行消息（默认开启：便于排查房间/未读逻辑）
+        const DEBUG_WS_LOG = true;
+        let debugLogEl = null;
 
-    function authHeader() {
-      return token ? { 'Authorization': 'Bearer ' + token } : {};
-    }
+        // 分享链接参数：room_chat.html?room_id=123&join=1
+        const shareParams = (function () {
+            try {
+                const sp = new URLSearchParams(window.location.search || '');
+                const rid = Number(sp.get('room_id') || 0);
+                const join = (sp.get('join') || '') === '1';
+                return { roomId: rid, join };
+            } catch (_) {
+                return { roomId: 0, join: false };
+            }
+        })();
+        let shareJoinTried = false;
 
-    function setStatus(text) {
-      document.getElementById('status').textContent = text || '';
-    }
-
-    function sysMsg(text) {
-      const div = document.createElement('div');
-      div.className = 'sys';
-      div.textContent = text;
-      const msgs = document.getElementById('msgs');
-      msgs.appendChild(div);
-      msgs.scrollTop = msgs.scrollHeight;
-    }
-
-    function getDisplayNameById(id) {
-      const uid2 = Number(id || 0);
-      if (uid2 > 0 && userNameCache.has(uid2)) return userNameCache.get(uid2);
-      if (uid2 === Number(uid) && name) return name;
-      return uid2 > 0 ? ('User ' + uid2) : '未知';
-    }
-
-    function pushRoomMsgToCache(rid, msg) {
-      const roomId = Number(rid || 0);
-      if (!roomId) return;
-      const arr = roomMsgCache.get(roomId) || [];
-      arr.push(msg);
-      if (arr.length > 500) arr.splice(0, arr.length - 500);
-      roomMsgCache.set(roomId, arr);
-    }
-
-    function renderRoomMessages(rid) {
-      const roomId = Number(rid || 0);
-      const msgs = document.getElementById('msgs');
-      msgs.innerHTML = '';
-      const arr = roomMsgCache.get(roomId) || [];
-      if (arr.length === 0) {
-        sysMsg('已选择房间: ' + (currentRoomName || ('room-' + roomId)));
-        return;
-      }
-      arr.forEach(m => {
-        appendMsg(m.text, m.isMe, m.senderName, m.seq, m.timeStr);
-      });
-    }
-
-    function appendMsg(text, isMe, senderName, seq, timeStr) {
-      const row = document.createElement('div');
-      row.className = 'row ' + (isMe ? 'me' : 'other');
-      const n = document.createElement('div');
-      n.className = 'name';
-      const nm = senderName || (isMe ? (name || ('User ' + uid)) : '对方');
-      const t = timeStr || new Date().toLocaleTimeString();
-      n.textContent = nm + '  ' + t;
-      const b = document.createElement('div');
-      b.className = 'bubble';
-      b.textContent = text;
-      row.appendChild(n);
-      row.appendChild(b);
-      const msgs = document.getElementById('msgs');
-      msgs.appendChild(row);
-      msgs.scrollTop = msgs.scrollHeight;
-      if (typeof seq === 'number' && seq > 0) {
-        currentMaxSeq = Math.max(currentMaxSeq, seq);
-      }
-    }
-
-    function updateUI() {
-      const authed = !!uid;
-      document.getElementById('auth-panel').classList.toggle('hidden', authed);
-      document.getElementById('nav-panel').classList.toggle('hidden', !authed);
-      document.getElementById('logoutBtn').style.display = authed ? 'inline' : 'none';
-      document.getElementById('meInfo').textContent = authed ? (`ID: ${uid}` + (name ? ` (${name})` : '')) : '未登录';
-    }
-
-    async function doLoginOrRegister(mode) {
-      const account = document.getElementById('account').value.trim();
-      const pwdRaw = document.getElementById('password').value;
-      const nickname = document.getElementById('nickname').value.trim();
-      if (!account || !pwdRaw) return setStatus('请输入账号和密码');
-      if (pwdRaw.length < 6) return setStatus('密码至少 6 位');
-
-      setStatus('请求中...');
-      const url = logicBase + (mode === 'register' ? '/api/register' : '/api/login');
-      const body = { account, password: hashPassword(pwdRaw) };
-      if (mode === 'register' && nickname) body.name = nickname;
-
-      try {
-        const resp = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-        const data = await resp.json();
-        if (data.code !== 0) return setStatus(data.message || '登录失败');
-        uid = Number(data.data.user_id);
-        token = data.data.token;
-        name = data.data.name || nickname || ('User ' + uid);
-        Auth.set(uid, token, name);
-        setStatus('');
-        updateUI();
-        sysMsg('登录成功');
-        connectWs();
-        await loadRooms();
-        // 如果是分享链接进来：登录成功后自动加入指定房间
-        maybeAutoJoinFromShareLink(mode).catch(() => {});
-      } catch(e) {
-        setStatus('网络异常: ' + e);
-      }
-    }
-
-    function connectWs() {
-      if (!token) return;
-      if (ws) try { ws.close(); } catch(_) {}
-      document.getElementById('wsState').textContent = 'WS: 连接中...';
-      ws = new WebSocket(cometWsUrl + '?token=' + encodeURIComponent(token));
-      ws.onopen = () => {
-        document.getElementById('wsState').textContent = 'WS: 已连接';
-        reconnectDelayMs = 800;
-        startHeartbeat();
-        refreshRoomsUnread();
-      };
-      ws.onclose = () => {
-        document.getElementById('wsState').textContent = 'WS: 已断开';
-        stopHeartbeat();
-        scheduleReconnect();
-      };
-      ws.onmessage = (ev) => {
-        // comet 下行直接透传 logic 生成的 content_json（JSON 文本）
-        try {
-          const obj = JSON.parse(ev.data);
-          if (obj.type === 'ack') return;
-          if (obj.type === 'pong') return;
-          // 只处理房间消息：target_type=room 且 room_id 匹配当前选中
-          const t = obj.target_type || '';
-          const rid = Number(obj.room_id || obj.target_id || 0);
-          if (t !== 'room' || !rid) return;
-          const text = (typeof obj.content === 'string') ? obj.content : (obj.content && obj.content.text) ? obj.content.text : JSON.stringify(obj.content || obj);
-          const senderId = Number(obj.from_user_id || obj.sender_id || 0);
-          const seq = Number(obj.msg_seq || 0);
-          const ts = Number(obj.create_time || obj.timestamp_ms || Date.now());
-          const timeStr = new Date(ts).toLocaleTimeString();
-          const clientMsgId = String(obj.client_msg_id || '');
-
-          // 去重：如果服务端回推了我刚刚发送的 client_msg_id，则不重复写入缓存/展示
-          const deduped = (clientMsgId && senderId === Number(uid) && pendingClientMsgIds.has(clientMsgId));
-          if (deduped) {
-            pendingClientMsgIds.delete(clientMsgId);
-          }
-
-          const senderName = getDisplayNameById(senderId);
-          if (!deduped) {
-            pushRoomMsgToCache(rid, { text, senderId, isMe: senderId === Number(uid), senderName, seq, timeStr, clientMsgId });
-          }
-
-          // 非当前房间：本地未读 +1（后续可用 HTTP 校准）
-          if (currentRoomId && rid !== currentRoomId) {
-            const prev = Number(roomUnreadMap.get(rid) || 0);
-            roomUnreadMap.set(rid, prev + 1);
-            updateRoomBadge(rid);
-            return;
-          }
-
-          if (!deduped) {
-            appendMsg(text, senderId === uid, senderName, seq, timeStr);
-          }
-          // 当前房间：如果用户正在观看（滚动接近底部且页面可见），自动推进已读并清零未读
-          maybeAutoMarkRead(true);
-        } catch(e) {
-          // ignore
+        function authHeader() {
+            return token ? { 'Authorization': 'Bearer ' + token } : {};
         }
-      };
-    }
 
-    function stopHeartbeat() {
-      if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
-    }
-
-    function startHeartbeat() {
-      stopHeartbeat();
-      pingTimer = setInterval(() => {
-        if (!ws || ws.readyState !== WebSocket.OPEN) return;
-        ws.send(JSON.stringify({ type: 'ping', ts: Date.now() }));
-      }, 10000);
-    }
-
-    function scheduleReconnect() {
-      if (reconnectTimer) return;
-      if (!token) return;
-      const delay = Math.min(reconnectDelayMs, 8000);
-      reconnectTimer = setTimeout(() => {
-        reconnectTimer = null;
-        connectWs();
-        reconnectDelayMs = Math.min(reconnectDelayMs * 1.6, 8000);
-      }, delay);
-    }
-
-    async function loadRooms() {
-      const listEl = document.getElementById('roomList');
-      listEl.innerHTML = '<div class="small" style="color:#999;">加载中...</div>';
-      try {
-        const resp = await fetch(logicBase + '/api/room/list', { method:'GET' });
-        const data = await resp.json();
-        if (data.code !== 0) {
-          listEl.innerHTML = '<div class="small" style="color:#ef5350;">加载失败: ' + (data.message||'') + '</div>';
-          return;
+        function setStatus(text) {
+            document.getElementById('status').textContent = text || '';
         }
-        const rooms = data.data || [];
-        if (!Array.isArray(rooms) || rooms.length === 0) {
-          listEl.innerHTML = '<div class="small" style="color:#999;">暂无房间，请让管理员先创建。</div>';
-          return;
+
+        function sysMsg(text) {
+            const div = document.createElement('div');
+            div.className = 'sys';
+            div.textContent = text;
+            const msgs = document.getElementById('msgs');
+            msgs.appendChild(div);
+            msgs.scrollTop = msgs.scrollHeight;
         }
-        listEl.innerHTML = '';
-        rooms.forEach(r => {
-          const rid = Number(r.room_id);
-          const item = document.createElement('div');
-          item.className = 'room-item' + (rid === currentRoomId ? ' active' : '');
-          const nm = r.name || ('room-' + rid);
-          const unread = Number(roomUnreadMap.get(rid) || 0);
-          const badgeCls = unread > 0 ? 'badge' : 'badge zero';
-          item.innerHTML = `
+
+        function debugLog(line) {
+            if (!DEBUG_WS_LOG) return;
+            try {
+                // 控制台日志：最直观
+                console.log(line);
+            } catch (_) { }
+            // 可选：页面调试区（不影响聊天流；默认隐藏，按需打开）
+            if (!debugLogEl) debugLogEl = document.getElementById('debugLog');
+            if (!debugLogEl) return;
+            const s = String(line || '');
+            debugLogEl.textContent += (s + '\n');
+            // 限制长度，避免页面卡顿
+            if (debugLogEl.textContent.length > 8000) {
+                debugLogEl.textContent = debugLogEl.textContent.slice(-6000);
+            }
+            debugLogEl.scrollTop = debugLogEl.scrollHeight;
+        }
+
+        function rand4() {
+            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+            let out = '';
+            if (window.crypto && window.crypto.getRandomValues) {
+                const buf = new Uint8Array(4);
+                window.crypto.getRandomValues(buf);
+                for (let i = 0; i < 4; i++) out += chars[buf[i] % chars.length];
+                return out;
+            }
+            for (let i = 0; i < 4; i++) out += chars[Math.floor(Math.random() * chars.length)];
+            return out;
+        }
+
+        // client_msg_id 统一格式：c-{userid}-{timestamp}-{4位随机字符}
+        function makeClientMsgId(userId) {
+            const uid2 = Number(userId || 0);
+            const ts = Date.now();
+            return `c-${uid2}-${ts}-${rand4()}`;
+        }
+
+        function getDisplayNameById(id) {
+            const uid2 = Number(id || 0);
+            if (uid2 > 0 && userNameCache.has(uid2)) return userNameCache.get(uid2);
+            if (uid2 === Number(uid) && name) return name;
+            return uid2 > 0 ? ('User ' + uid2) : '未知';
+        }
+
+        function pushRoomMsgToCache(rid, msg) {
+            const roomId = Number(rid || 0);
+            if (!roomId) return;
+            const arr = roomMsgCache.get(roomId) || [];
+            arr.push(msg);
+            if (arr.length > 500) arr.splice(0, arr.length - 500);
+            roomMsgCache.set(roomId, arr);
+        }
+
+        function renderRoomMessages(rid) {
+            const roomId = Number(rid || 0);
+            const msgs = document.getElementById('msgs');
+            msgs.innerHTML = '';
+            const arr = roomMsgCache.get(roomId) || [];
+            if (arr.length === 0) {
+                sysMsg('已选择房间: ' + (currentRoomName || ('room-' + roomId)));
+                return;
+            }
+            arr.forEach(m => {
+                appendMsg(m.text, m.isMe, m.senderName, m.seq, m.timeStr);
+            });
+        }
+
+        function appendMsg(text, isMe, senderName, seq, timeStr) {
+            const row = document.createElement('div');
+            row.className = 'row ' + (isMe ? 'me' : 'other');
+            const n = document.createElement('div');
+            n.className = 'name';
+            const nm = senderName || (isMe ? (name || ('User ' + uid)) : '对方');
+            const t = timeStr || new Date().toLocaleTimeString();
+            n.textContent = nm + '  ' + t;
+            const b = document.createElement('div');
+            b.className = 'bubble';
+            b.textContent = text;
+            row.appendChild(n);
+            row.appendChild(b);
+            const msgs = document.getElementById('msgs');
+            msgs.appendChild(row);
+            msgs.scrollTop = msgs.scrollHeight;
+            if (typeof seq === 'number' && seq > 0) {
+                currentMaxSeq = Math.max(currentMaxSeq, seq);
+            }
+        }
+
+        function isMsgsNearBottom() {
+            const el = document.getElementById('msgs');
+            if (!el) return true;
+            return (el.scrollHeight - el.scrollTop - el.clientHeight) < 80;
+        }
+
+        function updateCurrentRoomUnreadUI() {
+            const rid = Number(currentRoomId || 0);
+            const unread = rid ? Number(roomUnreadMap.get(rid) || 0) : 0;
+            document.getElementById('roomUnread').textContent = String(unread);
+        }
+
+        function updateUI() {
+            const authed = !!uid;
+            document.getElementById('auth-panel').classList.toggle('hidden', authed);
+            document.getElementById('nav-panel').classList.toggle('hidden', !authed);
+            document.getElementById('logoutBtn').style.display = authed ? 'inline' : 'none';
+            document.getElementById('meInfo').textContent = authed ? (`ID: ${uid}` + (name ? ` (${name})` : '')) : '未登录';
+        }
+
+        async function doLoginOrRegister(mode) {
+            const account = document.getElementById('account').value.trim();
+            const pwdRaw = document.getElementById('password').value;
+            const nickname = document.getElementById('nickname').value.trim();
+            if (!account || !pwdRaw) return setStatus('请输入账号和密码');
+            if (pwdRaw.length < 6) return setStatus('密码至少 6 位');
+
+            setStatus('请求中...');
+            const url = logicBase + (mode === 'register' ? '/api/register' : '/api/login');
+            const body = { account, password: hashPassword(pwdRaw) };
+            if (mode === 'register' && nickname) body.name = nickname;
+
+            try {
+                const resp = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const data = await resp.json();
+                if (data.code !== 0) return setStatus(data.message || '登录失败');
+                uid = Number(data.data.user_id);
+                token = data.data.token;
+                name = data.data.name || nickname || ('User ' + uid);
+                Auth.set(uid, token, name);
+                setStatus('');
+                updateUI();
+                sysMsg('登录成功');
+                connectWs();
+                await loadRooms();
+                // 如果是分享链接进来：登录成功后自动加入指定房间
+                maybeAutoJoinFromShareLink(mode).catch(() => { });
+            } catch (e) {
+                setStatus('网络异常: ' + e);
+            }
+        }
+
+        function connectWs() {
+            if (!token) return;
+            if (ws) try { ws.close(); } catch (_) { }
+            document.getElementById('wsState').textContent = 'WS: 连接中...';
+            ws = new WebSocket(cometWsUrl + '?token=' + encodeURIComponent(token));
+            ws.onopen = () => {
+                document.getElementById('wsState').textContent = 'WS: 已连接';
+                reconnectDelayMs = 800;
+                startHeartbeat();
+                // 本版本不调用 session/unread_batch；未读仅本地维护
+            };
+            ws.onclose = () => {
+                document.getElementById('wsState').textContent = 'WS: 已断开';
+                stopHeartbeat();
+                scheduleReconnect();
+            };
+            ws.onmessage = (ev) => {
+                // comet 下行直接透传 logic 生成的 content_json（JSON 文本）
+                try {
+                    if (DEBUG_WS_LOG) debugLog('[WS] raw: ' + String(ev.data || ''));
+                    const obj = JSON.parse(ev.data);
+                    if (obj.type === 'ack') return;
+                    if (obj.type === 'pong') return;
+                    // 只处理房间消息：target_type=room 且 target_id(房间号) 匹配当前选中
+                    const t = obj.target_type || '';
+                    const rid = Number(obj.target_id || 0); // 最终协议：target_id 即房间号
+                    if (t !== 'room' || !rid) return;
+                    const text = (typeof obj.content === 'string') ? obj.content : (obj.content && obj.content.text) ? obj.content.text : JSON.stringify(obj.content || obj);
+                    const senderId = Number(obj.from_user_id || obj.sender_id || 0);
+                    const seq = Number(obj.msg_seq || 0);
+                    const ts = Number(obj.create_time || obj.timestamp_ms || Date.now());
+                    const timeStr = new Date(ts).toLocaleTimeString();
+                    const clientMsgId = String(obj.client_msg_id || '');
+
+                    // 去重：如果服务端回推了我刚刚发送的 client_msg_id，则不重复写入缓存/展示
+                    const deduped = (clientMsgId && senderId === Number(uid) && pendingClientMsgIds.has(clientMsgId));
+                    if (deduped) {
+                        pendingClientMsgIds.delete(clientMsgId);
+                    }
+
+                    const senderName = getDisplayNameById(senderId);
+                    if (!deduped) {
+                        pushRoomMsgToCache(rid, { text, senderId, isMe: senderId === Number(uid), senderName, seq, timeStr, clientMsgId });
+                    }
+
+                    // 关键：即使当前选中的是 room 2，room 1 收到消息也必须：
+                    // 1) 写入 room 1 的消息缓存（上面已做）
+                    // 2) 未读 +1 并更新 room 1 列表徽标
+                    // 当前房间：如果用户不在底部/页面不可见，也要累计“当前房间未读”
+                    const isCurrent = (Number(currentRoomId || 0) === rid);
+                    const canAutoRead = isCurrent && !document.hidden && isMsgsNearBottom();
+
+                    debugLog('[WS] parsed: rid=' + rid + ', sender=' + senderId + ', seq=' + seq + ', currentRoom=' + Number(currentRoomId || 0) + ', canAutoRead=' + (canAutoRead ? '1' : '0'));
+
+                    if (!isCurrent) {
+                        const prev = Number(roomUnreadMap.get(rid) || 0);
+                        roomUnreadMap.set(rid, prev + 1);
+                        updateRoomBadge(rid);
+                        return;
+                    }
+
+                    // 当前房间：展示消息
+                    if (!deduped) appendMsg(text, senderId === uid, senderName, seq, timeStr);
+
+                    if (canAutoRead) {
+                        // 观看到底部：自动清零当前房间未读
+                        markReadCurrentRoom();
+                    } else {
+                        // 没在底部（或页面不可见）：累计当前房间未读
+                        const prev = Number(roomUnreadMap.get(rid) || 0);
+                        roomUnreadMap.set(rid, prev + 1);
+                        updateRoomBadge(rid);
+                        updateCurrentRoomUnreadUI();
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            };
+        }
+
+        function stopHeartbeat() {
+            if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
+        }
+
+        function startHeartbeat() {
+            stopHeartbeat();
+            pingTimer = setInterval(() => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) return;
+                ws.send(JSON.stringify({ type: 'ping', ts: Date.now() }));
+            }, 30000);
+        }
+
+        function scheduleReconnect() {
+            if (reconnectTimer) return;
+            if (!token) return;
+            const delay = Math.min(reconnectDelayMs, 8000);
+            reconnectTimer = setTimeout(() => {
+                reconnectTimer = null;
+                connectWs();
+                reconnectDelayMs = Math.min(reconnectDelayMs * 1.6, 8000);
+            }, delay);
+        }
+
+        async function loadRooms() {
+            const listEl = document.getElementById('roomList');
+            listEl.innerHTML = '<div class="small" style="color:#999;">加载中...</div>';
+            try {
+                const resp = await fetch(logicBase + '/api/room/list', {
+                    method: 'GET',
+                    headers: authHeader(),
+                });
+                const data = await resp.json();
+                if (data.code !== 0) {
+                    listEl.innerHTML = '<div class="small" style="color:#ef5350;">加载失败: ' + (data.message || '') + '</div>';
+                    return;
+                }
+                // 契约：GET /api/room/list 返回 data = { rooms: [...] }
+                if (!data.data || !Array.isArray(data.data.rooms)) {
+                    listEl.innerHTML = '<div class="small" style="color:#ef5350;">返回结构错误：期望 data.rooms 为数组</div>';
+                    return;
+                }
+                const rooms = data.data.rooms;
+                if (rooms.length === 0) {
+                    listEl.innerHTML = '<div class="small" style="color:#999;">暂无房间，请让管理员先创建。</div>';
+                    return;
+                }
+                listEl.innerHTML = '';
+                rooms.forEach(r => {
+                    const rid = Number(r.room_id);
+                    const item = document.createElement('div');
+                    item.className = 'room-item' + (rid === currentRoomId ? ' active' : '');
+                    item.dataset.roomId = String(rid);
+                    const nm = r.name || ('room-' + rid);
+                    const unread = Number(roomUnreadMap.get(rid) || 0);
+                    const badgeCls = unread > 0 ? 'badge' : 'badge zero';
+                    item.innerHTML = `
             <div class="name" style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
               <span>${nm}</span>
               <span class="${badgeCls}">${unread}</span>
@@ -455,380 +777,336 @@
               <span>成员: ${r.member_count ?? '-'}</span>
             </div>
           `;
-          item.onclick = () => selectRoom(rid, nm);
-          listEl.appendChild(item);
-        });
-        // 房间列表渲染完成后，做一次未读校准（避免 ws 先连上但列表还没出来）
-        if (token) {
-          refreshRoomsUnread();
+                    item.onclick = () => selectRoom(rid, nm);
+                    listEl.appendChild(item);
+                });
+                // 本版本不调用 session/unread_batch；不做服务端未读校准
+            } catch (e) {
+                listEl.innerHTML = '<div class="small" style="color:#ef5350;">加载失败: ' + e + '</div>';
+            }
         }
-      } catch(e) {
-        listEl.innerHTML = '<div class="small" style="color:#ef5350;">加载失败: ' + e + '</div>';
-      }
-    }
 
-    async function selectRoom(rid, nm) {
-      currentRoomId = rid;
-      currentRoomName = nm || ('room-' + rid);
-      currentSessionId = 'r_' + String(rid);
-      currentMaxSeq = 0;
-      document.getElementById('roomTitle').textContent = currentRoomName + ` (#${rid})`;
-      document.getElementById('roomSub').textContent = '提示：已读按 read_seq 推进（更贴近商业 IM 逻辑）';
-      // 切换房间：优先从本地缓存恢复消息，避免“切换后消息丢了”
-      renderRoomMessages(rid);
-      document.getElementById('members').classList.remove('hidden');
-      loadRoomUsers();
-      // 商业 IM 的常见体验：进入会话即视为“已读”，无需手动点“标记已读”
-      // 这里先刷新一次服务端未读，然后立即清零 UI，并异步通知后端清零未读计数。
-      await refreshUnreadCurrentRoom();
-      const n = Number(roomUnreadMap.get(currentRoomId) || 0);
-      if (n > 0) {
-        roomUnreadMap.set(currentRoomId, 0);
-        document.getElementById('roomUnread').textContent = '0';
-        updateRoomBadge(currentRoomId);
-        // 后端清零：失败则再拉一次服务端未读进行校准
-        markReadCurrentRoom().catch(() => refreshUnreadCurrentRoom());
-      }
-      // refresh active state
-      document.querySelectorAll('.room-item').forEach(x => {
-        x.classList.toggle('active', x.textContent.includes('room_id: ' + rid));
-      });
-    }
+        async function selectRoom(rid, nm) {
+            currentRoomId = rid;
+            currentRoomName = nm || ('room-' + rid);
+            currentSessionId = 'r_' + String(rid);
+            currentMaxSeq = 0;
+            document.getElementById('roomTitle').textContent = currentRoomName + ` (#${rid})`;
+            document.getElementById('roomSub').textContent = '提示：已读按 read_seq 推进（更贴近商业 IM 逻辑）';
+            // 切换房间：优先从本地缓存恢复消息，避免“切换后消息丢了”
+            renderRoomMessages(rid);
+            document.getElementById('members').classList.remove('hidden');
+            loadRoomUsers();
+            // 本版本不调用 mark_read/unread_batch：进入房间即本地清零未读
+            roomUnreadMap.set(currentRoomId, 0);
+            updateCurrentRoomUnreadUI();
+            updateRoomBadge(currentRoomId);
+            // refresh active state
+            document.querySelectorAll('.room-item').forEach(x => {
+                const id2 = Number(x.dataset.roomId || 0);
+                x.classList.toggle('active', id2 === rid);
+            });
+        }
 
-    async function joinRoom(ridOpt) {
-      const rid = Number(ridOpt || document.getElementById('joinRoomId').value.trim());
-      if (!rid) return sysMsg('请输入 room_id');
-      if (!token) return sysMsg('请先登录');
-      try {
-        const resp = await fetch(logicBase + '/api/room/join', {
-          method:'POST',
-          headers: Object.assign({'Content-Type':'application/json'}, authHeader()),
-          body: JSON.stringify({ room_id: rid })
+        async function joinRoom(ridOpt) {
+            // 兼容：按钮 onclick 可能会把 MouseEvent 作为第一个参数传入
+            let rid = 0;
+            if (typeof ridOpt === 'number' || typeof ridOpt === 'string') {
+                rid = Number(ridOpt);
+            } else {
+                rid = Number((document.getElementById('joinRoomId').value || '').trim());
+            }
+            if (!Number.isFinite(rid) || rid <= 0) return sysMsg('请输入 room_id');
+            if (!token) return sysMsg('请先登录');
+            try {
+                const resp = await fetch(logicBase + '/api/room/join', {
+                    method: 'POST',
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, authHeader()),
+                    body: JSON.stringify({ room_id: rid })
+                });
+                const data = await resp.json();
+                if (data.code !== 0) return sysMsg('加入失败: ' + data.message);
+                sysMsg('加入成功: room_id=' + rid);
+                await loadRooms();
+                selectRoom(rid, 'room-' + rid);
+            } catch (e) {
+                sysMsg('加入失败: ' + e);
+            }
+        }
+
+        async function maybeAutoJoinFromShareLink(trigger) {
+            if (shareJoinTried) return;
+            if (!shareParams || !shareParams.join) return;
+            if (!shareParams.roomId) return;
+            // 只有在已登录拿到 token 后才执行
+            if (!token) return;
+            shareJoinTried = true;
+            // 预填输入框，方便用户看见/手动重试
+            document.getElementById('joinRoomId').value = String(shareParams.roomId);
+            sysMsg('检测到分享链接（' + (trigger || '-') + '），自动加入房间: ' + shareParams.roomId);
+            await joinRoom(shareParams.roomId);
+        }
+
+        async function leaveRoom() {
+            if (!currentRoomId) return sysMsg('请先选择房间');
+            try {
+                const resp = await fetch(logicBase + '/api/room/leave', {
+                    method: 'POST',
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, authHeader()),
+                    body: JSON.stringify({ room_id: currentRoomId })
+                });
+                const data = await resp.json();
+                if (data.code !== 0) return sysMsg('退出失败: ' + data.message);
+                sysMsg('已退出 room_id=' + currentRoomId);
+            } catch (e) {
+                sysMsg('退出失败: ' + e);
+            }
+        }
+
+        async function loadRoomUsers() {
+            if (!currentRoomId) return sysMsg('请先选择房间');
+            try {
+                const resp = await fetch(logicBase + '/api/room/users', {
+                    method: 'POST',
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, authHeader()),
+                    body: JSON.stringify({ room_id: currentRoomId })
+                });
+                const data = await resp.json();
+                if (data.code !== 0) return sysMsg('查询成员失败: ' + data.message);
+                const users = (data.data && data.data.users) ? data.data.users : [];
+                // 兼容后端返回 ["1001", "1002"] 或 [{user_id:1001,name:"..."}] 两种格式
+                const normalized = users.map(u => {
+                    if (typeof u === 'number' || typeof u === 'string') {
+                        return { user_id: Number(u), name: '' };
+                    }
+                    return {
+                        user_id: Number(u.user_id || 0),
+                        name: (u.name || '').trim(),
+                    };
+                }).filter(x => x.user_id > 0);
+                renderMemberList(normalized);
+            } catch (e) {
+                sysMsg('查询成员失败: ' + e);
+            }
+        }
+
+        function renderMemberList(users) {
+            const list = document.getElementById('memberList');
+            list.innerHTML = '';
+            const arr = Array.isArray(users) ? users : [];
+            document.getElementById('memberCount').textContent = String(arr.length);
+            if (arr.length === 0) {
+                list.innerHTML = '<div class="small" style="color:#999; padding:6px 2px;">暂无成员</div>';
+                return;
+            }
+            // 缓存房间成员昵称，后续消息展示用真实 name
+            arr.forEach(u => {
+                const uid2 = Number(u.user_id || 0);
+                const nm2 = (u.name || '').trim();
+                if (uid2 > 0 && nm2) userNameCache.set(uid2, nm2);
+            });
+            arr.forEach(u => {
+                const uid2 = Number(u.user_id || 0);
+                const nm = (u.name || '').trim() || ('User ' + uid2);
+                const div = document.createElement('div');
+                div.className = 'member-item';
+                div.innerHTML = `<span class="member-name">${nm}</span><span class="member-id">${uid2}</span>`;
+                div.onclick = () => {
+                    try {
+                        navigator.clipboard && navigator.clipboard.writeText(String(uid2));
+                        // 静默复制：不再刷系统提示（避免干扰聊天流）
+                    } catch (_) {
+                        sysMsg('user_id: ' + uid2);
+                    }
+                };
+                list.appendChild(div);
+            });
+        }
+
+        function sendWsMsg() {
+            const text = document.getElementById('msgText').value.trim();
+            if (!text) return;
+            if (!currentRoomId) return sysMsg('请先选择房间');
+            if (!ws || ws.readyState !== WebSocket.OPEN) return sysMsg('WS 未连接');
+            // 发送方本地回显 + 缓存：避免服务端不回推给发送方时“看不到自己发的消息”
+            const now = Date.now();
+            const clientMsgId = makeClientMsgId(uid);
+            pendingClientMsgIds.add(clientMsgId);
+            const timeStr = new Date(now).toLocaleTimeString();
+            const senderName = name || ('User ' + uid);
+            pushRoomMsgToCache(currentRoomId, { text, senderId: Number(uid), isMe: true, senderName, seq: 0, timeStr, clientMsgId });
+            if (currentRoomId) appendMsg(text, true, senderName, 0, timeStr);
+            const payload = {
+                msg_type: 'text',
+                target_type: 'room',
+                target_id: currentRoomId, // target_type=room 时 target_id 即房间号
+                content: text,
+                client_msg_id: clientMsgId,
+            };
+            ws.send(JSON.stringify(payload));
+            document.getElementById('msgText').value = '';
+        }
+
+        async function sendHttpMsg() {
+            const text = document.getElementById('msgText').value.trim();
+            if (!text) return;
+            if (!currentRoomId) return sysMsg('请先选择房间');
+            try {
+                const resp = await fetch(logicBase + '/api/room/message/send', {
+                    method: 'POST',
+                    headers: Object.assign({ 'Content-Type': 'application/json' }, authHeader()),
+                    body: JSON.stringify({
+                        target_type: 'room',
+                        target_id: currentRoomId,
+                        msg_type: 'text',
+                        content: text,
+                        client_msg_id: makeClientMsgId(uid),
+                    })
+                });
+                const data = await resp.json();
+                if (data.code !== 0) return sysMsg('HTTP发送失败: ' + data.message);
+                sysMsg('HTTP发送成功: msg_id=' + (data.data && data.data.msg_id ? data.data.msg_id : ''));
+                document.getElementById('msgText').value = '';
+            } catch (e) {
+                sysMsg('HTTP发送失败: ' + e);
+            }
+        }
+
+        function logout() {
+            Auth.clear();
+            uid = null; token = null; name = null;
+            currentRoomId = 0; currentRoomName = '';
+            currentSessionId = '';
+            currentMaxSeq = 0;
+            roomUnreadMap.clear();
+            userNameCache.clear();
+            roomMsgCache.clear();
+            pendingClientMsgIds.clear();
+            stopHeartbeat();
+            try { if (ws) ws.close(); } catch (_) { }
+            ws = null;
+            document.getElementById('msgs').innerHTML = '';
+            sysMsg('已退出');
+            updateUI();
+        }
+
+        // tab switch
+        document.querySelectorAll('.auth-tab').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.auth-tab').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const mode = btn.dataset.mode;
+                const regBtn = document.getElementById('register-btn');
+                const logBtn = document.getElementById('login-btn');
+                const nickGroup = document.getElementById('nickname-group');
+                if (mode === 'login') {
+                    regBtn.classList.add('hidden');
+                    logBtn.classList.remove('hidden');
+                    nickGroup.classList.add('hidden');
+                } else {
+                    regBtn.classList.remove('hidden');
+                    logBtn.classList.add('hidden');
+                    nickGroup.classList.remove('hidden');
+                }
+            };
         });
-        const data = await resp.json();
-        if (data.code !== 0) return sysMsg('加入失败: ' + data.message);
-        sysMsg('加入成功: room_id=' + rid);
-        await loadRooms();
-        selectRoom(rid, 'room-' + rid);
-      } catch(e) {
-        sysMsg('加入失败: ' + e);
-      }
-    }
 
-    async function maybeAutoJoinFromShareLink(trigger) {
-      if (shareJoinTried) return;
-      if (!shareParams || !shareParams.join) return;
-      if (!shareParams.roomId) return;
-      // 只有在已登录拿到 token 后才执行
-      if (!token) return;
-      shareJoinTried = true;
-      // 预填输入框，方便用户看见/手动重试
-      document.getElementById('joinRoomId').value = String(shareParams.roomId);
-      sysMsg('检测到分享链接（' + (trigger || '-') + '），自动加入房间: ' + shareParams.roomId);
-      await joinRoom(shareParams.roomId);
-    }
-
-    async function leaveRoom() {
-      if (!currentRoomId) return sysMsg('请先选择房间');
-      try {
-        const resp = await fetch(logicBase + '/api/room/leave', {
-          method:'POST',
-          headers: Object.assign({'Content-Type':'application/json'}, authHeader()),
-          body: JSON.stringify({ room_id: currentRoomId })
-        });
-        const data = await resp.json();
-        if (data.code !== 0) return sysMsg('退出失败: ' + data.message);
-        sysMsg('已退出 room_id=' + currentRoomId);
-      } catch(e) {
-        sysMsg('退出失败: ' + e);
-      }
-    }
-
-    async function loadRoomUsers() {
-      if (!currentRoomId) return sysMsg('请先选择房间');
-      try {
-        const resp = await fetch(logicBase + '/api/room/users', {
-          method:'POST',
-          headers: Object.assign({'Content-Type':'application/json'}, authHeader()),
-          body: JSON.stringify({ room_id: currentRoomId })
-        });
-        const data = await resp.json();
-        if (data.code !== 0) return sysMsg('查询成员失败: ' + data.message);
-        const users = (data.data && data.data.users) ? data.data.users : [];
-        renderMemberList(users);
-      } catch(e) {
-        sysMsg('查询成员失败: ' + e);
-      }
-    }
-
-    function renderMemberList(users) {
-      const list = document.getElementById('memberList');
-      list.innerHTML = '';
-      const arr = Array.isArray(users) ? users : [];
-      document.getElementById('memberCount').textContent = String(arr.length);
-      if (arr.length === 0) {
-        list.innerHTML = '<div class="small" style="color:#999; padding:6px 2px;">暂无成员</div>';
-        return;
-      }
-      // 缓存房间成员昵称，后续消息展示用真实 name
-      arr.forEach(u => {
-        const uid2 = Number(u.user_id || 0);
-        const nm2 = (u.name || '').trim();
-        if (uid2 > 0 && nm2) userNameCache.set(uid2, nm2);
-      });
-      arr.forEach(u => {
-        const uid2 = Number(u.user_id || 0);
-        const nm = (u.name || '').trim() || ('User ' + uid2);
-        const div = document.createElement('div');
-        div.className = 'member-item';
-        div.innerHTML = `<span class="member-name">${nm}</span><span class="member-id">${uid2}</span>`;
-        div.onclick = () => {
-          try {
-            navigator.clipboard && navigator.clipboard.writeText(String(uid2));
-            // 静默复制：不再刷系统提示（避免干扰聊天流）
-          } catch (_) {
-            sysMsg('user_id: ' + uid2);
-          }
+        document.getElementById('login-btn').onclick = () => doLoginOrRegister('login');
+        document.getElementById('register-btn').onclick = () => doLoginOrRegister('register');
+        document.getElementById('password').onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                const isReg = !document.getElementById('register-btn').classList.contains('hidden');
+                doLoginOrRegister(isReg ? 'register' : 'login');
+            }
         };
-        list.appendChild(div);
-      });
-    }
 
-    function sendWsMsg() {
-      const text = document.getElementById('msgText').value.trim();
-      if (!text) return;
-      if (!currentRoomId) return sysMsg('请先选择房间');
-      if (!ws || ws.readyState !== WebSocket.OPEN) return sysMsg('WS 未连接');
-      // 发送方本地回显 + 缓存：避免服务端不回推给发送方时“看不到自己发的消息”
-      const now = Date.now();
-      const clientMsgId = now.toString();
-      pendingClientMsgIds.add(clientMsgId);
-      const timeStr = new Date(now).toLocaleTimeString();
-      const senderName = name || ('User ' + uid);
-      pushRoomMsgToCache(currentRoomId, { text, senderId: Number(uid), isMe: true, senderName, seq: 0, timeStr, clientMsgId });
-      if (currentRoomId) appendMsg(text, true, senderName, 0, timeStr);
-      const payload = {
-        msg_type: 'text',
-        target_type: 'room',
-        room_id: currentRoomId,
-        content: text,
-        client_msg_id: clientMsgId,
-        timestamp: now,
-      };
-      ws.send(JSON.stringify(payload));
-      document.getElementById('msgText').value = '';
-    }
+        document.getElementById('refreshRoomsBtn').onclick = loadRooms;
+        // 注意：直接赋值 joinRoom 会收到 MouseEvent 参数，导致 rid 解析失败
+        document.getElementById('joinBtn').onclick = () => joinRoom();
+        document.getElementById('leaveBtn').onclick = leaveRoom;
+        document.getElementById('loadUsersBtn').onclick = loadRoomUsers;
+        document.getElementById('sendBtn').onclick = sendWsMsg;
+        document.getElementById('msgText').onkeydown = (e) => { if (e.key === 'Enter') sendWsMsg(); };
+        document.getElementById('httpSendBtn').onclick = sendHttpMsg;
+        document.getElementById('logoutBtn').onclick = logout;
+        document.getElementById('markReadBtn').onclick = markReadCurrentRoom;
+        document.getElementById('toggleDebugBtn').onclick = () => {
+            const box = document.getElementById('debugBox');
+            box.classList.toggle('hidden');
+        };
+        document.getElementById('closeDebugBtn').onclick = () => {
+            document.getElementById('debugBox').classList.add('hidden');
+        };
+        document.getElementById('clearDebugBtn').onclick = () => {
+            const el = document.getElementById('debugLog');
+            if (el) el.textContent = '';
+        };
 
-    async function sendHttpMsg() {
-      const text = document.getElementById('msgText').value.trim();
-      if (!text) return;
-      if (!currentRoomId) return sysMsg('请先选择房间');
-      try {
-        const resp = await fetch(logicBase + '/api/room/message/send', {
-          method:'POST',
-          headers: Object.assign({'Content-Type':'application/json'}, authHeader()),
-          body: JSON.stringify({ room_id: currentRoomId, msg_type:'text', content:text, client_msg_id: Date.now().toString() })
+        document.getElementById('msgs').addEventListener('scroll', function () {
+            maybeAutoMarkRead();
         });
-        const data = await resp.json();
-        if (data.code !== 0) return sysMsg('HTTP发送失败: ' + data.message);
-        sysMsg('HTTP发送成功: msg_id=' + (data.data && data.data.msg_id ? data.data.msg_id : ''));
-        document.getElementById('msgText').value = '';
-      } catch(e) {
-        sysMsg('HTTP发送失败: ' + e);
-      }
-    }
+        document.addEventListener('visibilitychange', function () {
+            maybeAutoMarkRead();
+        });
 
-    function logout() {
-      Auth.clear();
-      uid = null; token = null; name = null;
-      currentRoomId = 0; currentRoomName = '';
-      currentSessionId = '';
-      currentMaxSeq = 0;
-      roomUnreadMap.clear();
-      userNameCache.clear();
-      roomMsgCache.clear();
-      pendingClientMsgIds.clear();
-      stopHeartbeat();
-      try { if (ws) ws.close(); } catch(_) {}
-      ws = null;
-      document.getElementById('msgs').innerHTML = '';
-      sysMsg('已退出');
-      updateUI();
-    }
+        // auto login
+        (function () {
+            const s = Auth.get();
+            if (s) {
+                uid = Number(s.user_id);
+                token = s.token;
+                name = s.name || ('User ' + uid);
+                updateUI();
+                sysMsg('自动登录成功');
+                connectWs();
+                loadRooms();
+                // 如果是分享链接进来，自动加入对应房间
+                maybeAutoJoinFromShareLink('auto_login').catch(() => { });
+            } else {
+                updateUI();
+                if (shareParams && shareParams.join && shareParams.roomId) {
+                    sysMsg('检测到分享链接：请先登录，登录后将自动加入房间 ' + shareParams.roomId);
+                    document.getElementById('joinRoomId').value = String(shareParams.roomId);
+                }
+            }
+        })();
 
-    // tab switch
-    document.querySelectorAll('.auth-tab').forEach(btn => {
-      btn.onclick = () => {
-        document.querySelectorAll('.auth-tab').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const mode = btn.dataset.mode;
-        const regBtn = document.getElementById('register-btn');
-        const logBtn = document.getElementById('login-btn');
-        const nickGroup = document.getElementById('nickname-group');
-        if (mode === 'login') {
-          regBtn.classList.add('hidden');
-          logBtn.classList.remove('hidden');
-          nickGroup.classList.add('hidden');
-        } else {
-          regBtn.classList.remove('hidden');
-          logBtn.classList.add('hidden');
-          nickGroup.classList.remove('hidden');
+        function updateRoomBadge(rid) {
+            const items = document.querySelectorAll('.room-item');
+            items.forEach(el => {
+                const id2 = Number(el.dataset.roomId || 0);
+                if (!id2) return;
+                if (id2 !== rid) return;
+                const unread = Number(roomUnreadMap.get(rid) || 0);
+                const badge = el.querySelector('.badge');
+                if (!badge) return;
+                badge.textContent = String(unread);
+                badge.classList.toggle('zero', unread <= 0);
+            });
         }
-      };
-    });
 
-    document.getElementById('login-btn').onclick = () => doLoginOrRegister('login');
-    document.getElementById('register-btn').onclick = () => doLoginOrRegister('register');
-    document.getElementById('password').onkeydown = (e) => {
-      if (e.key === 'Enter') {
-        const isReg = !document.getElementById('register-btn').classList.contains('hidden');
-        doLoginOrRegister(isReg ? 'register' : 'login');
-      }
-    };
-
-    document.getElementById('refreshRoomsBtn').onclick = loadRooms;
-    document.getElementById('joinBtn').onclick = joinRoom;
-    document.getElementById('leaveBtn').onclick = leaveRoom;
-    document.getElementById('loadUsersBtn').onclick = loadRoomUsers;
-    document.getElementById('sendBtn').onclick = sendWsMsg;
-    document.getElementById('msgText').onkeydown = (e) => { if (e.key === 'Enter') sendWsMsg(); };
-    document.getElementById('httpSendBtn').onclick = sendHttpMsg;
-    document.getElementById('logoutBtn').onclick = logout;
-    document.getElementById('markReadBtn').onclick = markReadCurrentRoom;
-
-    document.getElementById('msgs').addEventListener('scroll', function() {
-      maybeAutoMarkRead();
-    });
-    document.addEventListener('visibilitychange', function() {
-      maybeAutoMarkRead();
-    });
-
-    // auto login
-    (function() {
-      const s = Auth.get();
-      if (s) {
-        uid = Number(s.user_id);
-        token = s.token;
-        name = s.name || ('User ' + uid);
-        updateUI();
-        sysMsg('自动登录成功');
-        connectWs();
-        loadRooms();
-        // 如果是分享链接进来，自动加入对应房间
-        maybeAutoJoinFromShareLink('auto_login').catch(() => {});
-      } else {
-        updateUI();
-        if (shareParams && shareParams.join && shareParams.roomId) {
-          sysMsg('检测到分享链接：请先登录，登录后将自动加入房间 ' + shareParams.roomId);
-          document.getElementById('joinRoomId').value = String(shareParams.roomId);
+        function markReadCurrentRoom() {
+            if (!currentSessionId) return;
+            roomUnreadMap.set(currentRoomId, 0);
+            updateCurrentRoomUnreadUI();
+            updateRoomBadge(currentRoomId);
         }
-      }
-    })();
 
-    async function fetchUnreadBatch(sessionIds) {
-      const ids = Array.isArray(sessionIds) ? sessionIds.filter(Boolean) : [];
-      if (ids.length === 0) return new Map();
-      try {
-        const resp = await fetch(logicBase + '/api/session/unread_batch', {
-          method: 'POST',
-          headers: Object.assign({'Content-Type':'application/json'}, authHeader()),
-          body: JSON.stringify({ session_ids: ids })
-        });
-        const data = await resp.json();
-        if (data.code !== 0) return new Map();
-        const arr = (data.data && Array.isArray(data.data.unreads)) ? data.data.unreads : [];
-        const m = new Map();
-        arr.forEach(x => {
-          if (!x || !x.session_id) return;
-          m.set(String(x.session_id), Number(x.unread_count || 0));
-        });
-        return m;
-      } catch(_) {
-        return new Map();
-      }
-    }
+        let lastAutoMarkReadAt = 0;
+        function maybeAutoMarkRead(force = false) {
+            if (!currentSessionId) return;
+            if (document.hidden) return;
+            const nearBottom = isMsgsNearBottom();
+            if (!nearBottom) return;
+            // 节流：避免滚动/消息高频触发连续请求
+            const now = Date.now();
+            if (!force && (now - lastAutoMarkReadAt) < 1500) return;
+            lastAutoMarkReadAt = now;
 
-    async function refreshRoomsUnread() {
-      const items = document.querySelectorAll('.room-item');
-      const pairs = [];
-      items.forEach(el => {
-        const m = (el.textContent || '').match(/room_id:\s*(\d+)/);
-        if (!m) return;
-        const rid = Number(m[1]);
-        pairs.push({ rid, sid: 'r_' + String(rid) });
-      });
-      const sidList = pairs.map(p => p.sid);
-      const m = await fetchUnreadBatch(sidList);
-      pairs.forEach(p => {
-        const n = Number(m.get(p.sid) || 0);
-        roomUnreadMap.set(p.rid, n);
-        updateRoomBadge(p.rid);
-      });
-      if (currentRoomId) {
-        document.getElementById('roomUnread').textContent = String(roomUnreadMap.get(currentRoomId) || 0);
-      }
-    }
-
-    function updateRoomBadge(rid) {
-      const items = document.querySelectorAll('.room-item');
-      items.forEach(el => {
-        const m = (el.textContent || '').match(/room_id:\s*(\d+)/);
-        if (!m) return;
-        const id2 = Number(m[1]);
-        if (id2 !== rid) return;
-        const unread = Number(roomUnreadMap.get(rid) || 0);
-        const badge = el.querySelector('.badge');
-        if (!badge) return;
-        badge.textContent = String(unread);
-        badge.classList.toggle('zero', unread <= 0);
-      });
-    }
-
-    async function refreshUnreadCurrentRoom() {
-      if (!currentRoomId || !currentSessionId) return;
-      const m = await fetchUnreadBatch([currentSessionId]);
-      const n = Number(m.get(currentSessionId) || 0);
-      roomUnreadMap.set(currentRoomId, n);
-      document.getElementById('roomUnread').textContent = String(n);
-      updateRoomBadge(currentRoomId);
-    }
-
-    async function markReadCurrentRoom() {
-      if (!currentSessionId) return;
-      try {
-        const resp = await fetch(logicBase + '/api/session/mark_read', {
-          method:'POST',
-          headers: Object.assign({'Content-Type':'application/json'}, authHeader()),
-          body: JSON.stringify({ session_id: currentSessionId, read_seq: currentMaxSeq || 0 })
-        });
-        const data = await resp.json();
-        if (data.code !== 0) return sysMsg('标记已读失败: ' + data.message);
-        roomUnreadMap.set(currentRoomId, 0);
-        document.getElementById('roomUnread').textContent = '0';
-        updateRoomBadge(currentRoomId);
-      } catch(e) {
-        sysMsg('标记已读失败: ' + e);
-      }
-    }
-
-    let lastAutoMarkReadAt = 0;
-    function maybeAutoMarkRead(force = false) {
-      if (!currentSessionId) return;
-      if (document.hidden) return;
-      const el = document.getElementById('msgs');
-      const nearBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) < 80;
-      if (!nearBottom) return;
-      // 节流：避免滚动/消息高频触发连续请求
-      const now = Date.now();
-      if (!force && (now - lastAutoMarkReadAt) < 1500) return;
-      lastAutoMarkReadAt = now;
-
-      // 即便本地 unread=0，也可能服务端未读仍在增长（服务端按成员维度累计）。
-      // 因此这里不再依赖 roomUnreadMap 判断，直接在“观看到底部”时推进已读/清零未读。
-      markReadCurrentRoom();
-    }
-  </script>
+            // 本版本不调用 mark_read：在“观看到底部”时直接清零本地未读
+            markReadCurrentRoom();
+        }
+    </script>
 </body>
+
 </html>
-
-

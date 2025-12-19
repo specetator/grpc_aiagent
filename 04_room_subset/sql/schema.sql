@@ -18,34 +18,25 @@ CREATE TABLE IF NOT EXISTS `user` (
   UNIQUE KEY `uk_account` (`account`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-   
--- ============================================================================
--- 话题（聊天室房间）表设计 
---
--- 重要说明：
--- - 本 04_room_subset 版本“房间/话题”不落 MySQL，全部落 Redis（见 logic/redis_store.*）。
--- - 这里仅提供将来迁移到 MySQL 的表结构参考，便于后续版本演进。
--- - 若未来启用：建议对 name 做唯一约束（或做软删除 + 唯一约束变体）。
--- ============================================================================
+-- 房间表（群组表）：存储房间基本信息
 CREATE TABLE IF NOT EXISTS `im_group` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `name` VARCHAR(128) NOT NULL COMMENT '群组/房间名称',
-  `owner_id` BIGINT NOT NULL COMMENT '创建者（管理员）user_id',
-  `group_type` TINYINT NOT NULL DEFAULT 1 COMMENT '0=normal_group,1=chatroom,2=danmaku_room',
-  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '房间 ID',
+  `name` VARCHAR(128) NOT NULL DEFAULT '' COMMENT '房间名称',
+  `owner_id` BIGINT NOT NULL COMMENT '创建者/房主用户 ID',
+  `group_type` TINYINT NOT NULL DEFAULT 1 COMMENT '房间类型：1=聊天室，2=弹幕房间（预留）',
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   PRIMARY KEY (`id`),
-  KEY `idx_owner` (`owner_id`),
-  UNIQUE KEY `uk_group_name` (`name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='群组/聊天室房间表（设计稿）';
+  KEY `idx_owner` (`owner_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='房间/群组表';
 
--- 话题成员表（设计稿）：记录用户加入/退出关系（便于统计、黑名单等扩展）。
+-- 房间成员表：存储房间成员关系（join/leave 的持久化）
 CREATE TABLE IF NOT EXISTS `group_member` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `group_id` BIGINT NOT NULL,
-  `user_id` BIGINT NOT NULL,
-  `role` TINYINT NOT NULL DEFAULT 0 COMMENT '0=member,1=admin,2=owner',
-  `join_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `group_id` BIGINT NOT NULL COMMENT '房间 ID',
+  `user_id` BIGINT NOT NULL COMMENT '成员用户 ID',
+  `role` VARCHAR(16) NOT NULL DEFAULT 'member' COMMENT '角色：owner/admin/member',
+  `join_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '加入时间',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_group_user` (`group_id`, `user_id`),
   KEY `idx_user` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='房间成员表';

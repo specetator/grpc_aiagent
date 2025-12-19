@@ -66,7 +66,7 @@ bool HttpContext::processHeaders(Buffer* buf) {
                         ++colon;  // 跳过空白字符
                     }
                     contentLength_ = static_cast<size_t>(atoi(colon));
-                    LOG_INFO << "Content-Length: " << contentLength_;
+                    LOG_DEBUG << "Content-Length: " << contentLength_;
                 } else if (strcasecmp(field.c_str(), "Transfer-Encoding") == 0) {
                     ++colon;
                     while (colon < crlf && isspace(*colon)) {
@@ -75,7 +75,7 @@ bool HttpContext::processHeaders(Buffer* buf) {
                     std::string encoding(colon, crlf);
                     if (strcasecmp(encoding.c_str(), "chunked") == 0) {
                         isChunked_ = true;
-                        LOG_INFO << "Transfer-Encoding: chunked";
+                        LOG_DEBUG << "Transfer-Encoding: chunked";
                     }
                 }
                 buf->retrieveUntil(crlf + 2);

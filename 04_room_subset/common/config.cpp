@@ -62,7 +62,6 @@ Config LoadConfig(const std::string& path) {
     cfg.comet_redis_ttl_ms = 60000;
     cfg.job_rpc_worker_threads = 8;
     cfg.connection_ttl_ms = 60000;
-    cfg.room_list_prefer_redis = 0;
 
     std::ifstream fin(path);
     if (!fin) {
@@ -164,8 +163,6 @@ Config LoadConfig(const std::string& path) {
             cfg.job_rpc_worker_threads = std::stoi(value);
         } else if (key == "connection_ttl_ms") {
             cfg.connection_ttl_ms = std::stoi(value);
-        } else if (key == "room_list_prefer_redis") {
-            cfg.room_list_prefer_redis = std::stoi(value);
         }
     }
 

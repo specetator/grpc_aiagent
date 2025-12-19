@@ -185,14 +185,22 @@
       const tb = document.getElementById('tbody');
       tb.innerHTML = '<tr><td colspan="5" class="muted">加载中...</td></tr>';
       try {
-        const resp = await fetch(logicBase + '/api/room/list', { method: 'GET' });
+        const resp = await fetch(logicBase + '/api/room/list', {
+          method: 'GET',
+          headers: authHeader(),
+        });
         const data = await resp.json();
         if (data.code !== 0) {
           tb.innerHTML = '<tr><td colspan="5" style="color:#ef5350;">加载失败: ' + data.message + '</td></tr>';
           return;
         }
-        const rooms = data.data || [];
-        if (!Array.isArray(rooms) || rooms.length === 0) {
+        // 契约：GET /api/room/list 返回 data = { rooms: [...] }
+        if (!data.data || !Array.isArray(data.data.rooms)) {
+          tb.innerHTML = '<tr><td colspan="5" style="color:#ef5350;">返回结构错误：期望 data.rooms 为数组</td></tr>';
+          return;
+        }
+        const rooms = data.data.rooms;
+        if (rooms.length === 0) {
           tb.innerHTML = '<tr><td colspan="5" class="muted">暂无房间</td></tr>';
           return;
         }

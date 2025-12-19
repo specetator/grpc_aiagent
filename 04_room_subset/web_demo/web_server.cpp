@@ -210,12 +210,12 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    LOG_INFO << "Starting web_demo_server_04_room_subset on port " << port
+    LOG_INFO << "Starting web_demo_server on port " << port
              << ", doc_root=" << doc_root;
 
     EventLoop loop;
     InetAddress listenAddr(port);
-    HttpServer server(&loop, listenAddr, "web_demo_server_04_room_subset");
+    HttpServer server(&loop, listenAddr, "web_demo_server");
 
     StaticFileHandler handler(doc_root);
     // 绑定静态文件处理回调
