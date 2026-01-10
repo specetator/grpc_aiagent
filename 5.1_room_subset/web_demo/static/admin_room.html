@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>04_room_subset - 管理员房间管理</title>
+  <link rel="stylesheet" href="auth_style.css">
+  <script src="auth.js"></script>
+  <style>
+    body { font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif; background:#f5f7fa; margin:0; padding:24px; color:#333; }
+    .wrap { max-width: 1100px; margin: 0 auto; }
+    .top { display:flex; justify-content:space-between; align-items:center; margin-bottom: 14px; }
+    h2 { margin:0; color:#1976d2; }
+    .card { background:#fff; border:1px solid #eee; border-radius:10px; padding:16px; box-shadow:0 6px 20px rgba(0,0,0,0.04); margin-bottom: 14px; }
+    .row { display:flex; gap:12px; }
+    .col { flex:1; }
+    .muted { font-size:12px; color:#777; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { padding:10px; border-bottom:1px solid #eee; text-align:left; font-size:13px; }
+    th { color:#666; font-weight:700; }
+    .pill { display:inline-block; padding:2px 8px; border-radius:999px; background:#e3f2fd; color:#0d47a1; font-size:12px; }
+    .btn-mini { padding:6px 10px; font-size:12px; border-radius:6px; border:1px solid #ddd; cursor:pointer; background:#fff; }
+    .btn-mini:hover { background:#f5f5f5; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h2>管理员房间管理</h2>
+        <div class="muted">适配 04_room_subset：创建话题接口为 <code>/api/room/create</code>，需 Bearer Token</div>
+      </div>
+      <div>
+        <a class="btn-mini" href="index.html">返回首页</a>
+      </div>
+    </div>
+
+    <div class="card" id="loginCard">
+      <div style="font-weight:700; margin-bottom:10px;">管理员登录</div>
+      <div class="muted" style="margin-bottom:8px;">默认账号：admin / admin123</div>
+      <div class="row">
+        <div class="col">
+          <input id="acc" class="form-control" placeholder="账号" />
+        </div>
+        <div class="col">
+          <input id="pwd" type="password" class="form-control" placeholder="密码" />
+        </div>
+        <div style="display:flex; align-items:center;">
+          <button id="loginBtn" class="btn-primary" style="width:auto;">登录</button>
+        </div>
+      </div>
+      <div id="err" class="status-text" style="color:#ef5350;"></div>
+    </div>
+
+    <div id="dash" class="hidden">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <div style="font-weight:700;">当前管理员</div>
+            <div class="muted">uid: <span id="adminUid">-</span></div>
+          </div>
+          <button id="logoutBtn" class="btn-mini" style="border-color:#ef5350;color:#ef5350;">退出</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col card">
+          <div style="font-weight:700; margin-bottom:10px;">创建话题（房间）</div>
+          <div class="row">
+            <div class="col">
+              <input id="roomName" class="form-control" placeholder="房间名称，例如：技术交流" />
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button id="createBtn" class="btn-primary" style="width:auto;">创建</button>
+            </div>
+          </div>
+          <div id="createRes" class="status-text"></div>
+        </div>
+        <div class="col card">
+          <div style="font-weight:700; margin-bottom:10px;">查看房间成员</div>
+          <div class="row">
+            <div class="col">
+              <input id="roomId" class="form-control" placeholder="room_id" />
+            </div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <button id="usersBtn" class="btn-primary" style="width:auto; background:#455a64;">查询</button>
+            </div>
+          </div>
+          <div id="usersRes" class="status-text"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="font-weight:700;">房间列表</div>
+          <button id="refreshBtn" class="btn-mini">刷新</button>
+        </div>
+        <div class="muted" style="margin:6px 0 10px;">来源：<code>GET /api/room/list</code></div>
+        <table>
+          <thead>
+            <tr>
+              <th>room_id</th>
+              <th>name</th>
+              <th>owner_id</th>
+              <th>member_count</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const logicBase = window.location.protocol + '//' + window.location.hostname + ':9101';
+
+    let uid = null;
+    let token = null;
+
+    function authHeader() {
+      return token ? { 'Authorization': 'Bearer ' + token } : {};
+    }
+
+    async function doLogin() {
+      const account = document.getElementById('acc').value.trim();
+      const pwd = document.getElementById('pwd').value;
+      if (!account || !pwd) return (document.getElementById('err').textContent = '请输入账号密码');
+      document.getElementById('err').textContent = '';
+
+      try {
+        const resp = await fetch(logicBase + '/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ account, password: hashPassword(pwd) }),
+        });
+        const data = await resp.json();
+        if (data.code !== 0) return (document.getElementById('err').textContent = data.message || '登录失败');
+        uid = Number(data.data.user_id);
+        token = data.data.token;
+        // admin 也复用 Auth 的存储（便于刷新页面）
+        Auth.set(uid, token, 'admin');
+        showDash();
+      } catch (e) {
+        document.getElementById('err').textContent = '网络异常: ' + e;
+      }
+    }
+
+    function showDash() {
+      document.getElementById('loginCard').classList.add('hidden');
+      document.getElementById('dash').classList.remove('hidden');
+      document.getElementById('adminUid').textContent = uid;
+      loadRooms();
+    }
+
+    function logout() {
+      Auth.clear();
+      uid = null;
+      token = null;
+      location.reload();
+    }
+
+    async function createRoom() {
+      const name = document.getElementById('roomName').value.trim();
+      if (!name) return;
+      document.getElementById('createRes').textContent = '创建中...';
+      try {
+        const resp = await fetch(logicBase + '/api/room/create', {
+          method: 'POST',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, authHeader()),
+          body: JSON.stringify({ name }),
+        });
+        const data = await resp.json();
+        if (data.code !== 0) {
+          document.getElementById('createRes').textContent = '失败: ' + data.message;
+          return;
+        }
+        document.getElementById('createRes').textContent = '成功：room_id=' + data.data.room_id;
+        await loadRooms();
+      } catch (e) {
+        document.getElementById('createRes').textContent = '失败: ' + e;
+      }
+    }
+
+    async function loadRooms() {
+      const tb = document.getElementById('tbody');
+      tb.innerHTML = '<tr><td colspan="5" class="muted">加载中...</td></tr>';
+      try {
+        const resp = await fetch(logicBase + '/api/room/list', {
+          method: 'GET',
+          headers: authHeader(),
+        });
+        const data = await resp.json();
+        if (data.code !== 0) {
+          tb.innerHTML = '<tr><td colspan="5" style="color:#ef5350;">加载失败: ' + data.message + '</td></tr>';
+          return;
+        }
+        // 契约：GET /api/room/list 返回 data = { rooms: [...] }
+        if (!data.data || !Array.isArray(data.data.rooms)) {
+          tb.innerHTML = '<tr><td colspan="5" style="color:#ef5350;">返回结构错误：期望 data.rooms 为数组</td></tr>';
+          return;
+        }
+        const rooms = data.data.rooms;
+        if (rooms.length === 0) {
+          tb.innerHTML = '<tr><td colspan="5" class="muted">暂无房间</td></tr>';
+          return;
+        }
+        tb.innerHTML = '';
+        rooms.forEach(r => {
+          const rid = Number(r.room_id);
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td><span class="pill">#${rid}</span></td>
+            <td>${r.name || ''}</td>
+            <td>${r.owner_id || ''}</td>
+            <td>${r.member_count ?? '-'}</td>
+            <td>
+              <button class="btn-mini" data-rid="${rid}">成员</button>
+              <button class="btn-mini" data-share="${rid}">分享</button>
+              <a class="btn-mini" href="room_chat.html" style="text-decoration:none; display:inline-block;">进入</a>
+            </td>
+          `;
+          tb.appendChild(tr);
+          tr.querySelector('button').onclick = () => { document.getElementById('roomId').value = String(rid); loadUsers(); };
+          tr.querySelector('button[data-share]').onclick = () => shareJoinLink(rid);
+        });
+      } catch (e) {
+        tb.innerHTML = '<tr><td colspan="5" style="color:#ef5350;">加载失败: ' + e + '</td></tr>';
+      }
+    }
+
+    function buildJoinLink(roomId) {
+      const rid = Number(roomId || 0);
+      // 统一走 room_chat.html，由该页面识别 join=1 并自动调用 /api/room/join
+      return window.location.origin + '/room_chat.html?room_id=' + encodeURIComponent(String(rid)) + '&join=1';
+    }
+
+    async function shareJoinLink(roomId) {
+      const link = buildJoinLink(roomId);
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(link);
+          document.getElementById('createRes').textContent = '已复制分享链接：' + link;
+          return;
+        }
+      } catch (_) {}
+      // 兼容老浏览器：用 prompt 让用户手动复制
+      window.prompt('复制该链接分享给其他用户（访问后将自动加入房间）:', link);
+    }
+
+    async function loadUsers() {
+      const rid = Number(document.getElementById('roomId').value.trim());
+      if (!rid) return;
+      document.getElementById('usersRes').textContent = '查询中...';
+      try {
+        const resp = await fetch(logicBase + '/api/room/users', {
+          method: 'POST',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, authHeader()),
+          body: JSON.stringify({ room_id: rid }),
+        });
+        const data = await resp.json();
+        if (data.code !== 0) {
+          document.getElementById('usersRes').textContent = '失败: ' + data.message;
+          return;
+        }
+        const users = (data.data && data.data.users) ? data.data.users : [];
+        document.getElementById('usersRes').textContent = '成员(' + users.length + '): ' + users.join(', ');
+      } catch (e) {
+        document.getElementById('usersRes').textContent = '失败: ' + e;
+      }
+    }
+
+    document.getElementById('loginBtn').onclick = doLogin;
+    document.getElementById('createBtn').onclick = createRoom;
+    document.getElementById('refreshBtn').onclick = loadRooms;
+    document.getElementById('usersBtn').onclick = loadUsers;
+    document.getElementById('logoutBtn').onclick = logout;
+
+    // auto login: 使用 Auth.get()（本 demo 的 KEY 与用户端一致）
+    (function () {
+      const s = Auth.get();
+      if (s) {
+        uid = Number(s.user_id);
+        token = s.token;
+        showDash();
+      }
+    })();
+  </script>
+</body>
+</html>
+
+

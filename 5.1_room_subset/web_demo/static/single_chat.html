@@ -1,0 +1,1171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <title>Spark Push - 私聊消息中心</title>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+    <link rel="stylesheet" href="auth_style.css">
+    <style>
+        :root {
+            --primary-color: #1976d2;
+            --bg-color: #f5f7fa;
+            --sidebar-bg: #ffffff;
+            --border-color: #e0e0e0;
+            --bubble-me: #e3f2fd;
+            --bubble-other: #ffffff;
+            --text-color: #333;
+            --danger-color: #ef5350;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            height: 100vh;
+            background: var(--bg-color);
+            color: var(--text-color);
+            overflow: hidden;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .flex-col {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .flex-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #sidebar {
+            width: 320px;
+            background: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-header h2 {
+            margin: 0;
+            font-size: 20px;
+            color: var(--primary-color);
+        }
+
+        #auth-panel {
+            padding: 20px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        #nav-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .user-profile-bar {
+            padding: 15px;
+            background: #f9f9f9;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .user-info {
+            font-size: 14px;
+            font-weight: bold;
+            color: #555;
+        }
+
+        .logout-btn {
+            font-size: 12px;
+            color: var(--danger-color);
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 4px 8px;
+        }
+
+        .logout-btn:hover {
+            background: #ffebee;
+            border-radius: 4px;
+        }
+
+        .session-list-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        .session-item {
+            padding: 12px;
+            margin-bottom: 8px;
+            background: #fff;
+            border: 1px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .session-item:hover {
+            background: #f0f7ff;
+        }
+
+        .session-item.active {
+            background: #e3f2fd;
+            border-color: #bbdefb;
+        }
+
+        .avatar-placeholder {
+            width: 36px;
+            height: 36px;
+            background: #90caf9;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #0d47a1;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        .session-info {
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .session-name {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .session-preview {
+            font-size: 12px;
+            color: #999;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .badge {
+            min-width: 18px;
+            height: 18px;
+            padding: 0 6px;
+            border-radius: 999px;
+            background: #ef5350;
+            color: #fff;
+            font-size: 11px;
+            line-height: 18px;
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .badge.zero {
+            display: none;
+        }
+
+        #main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #fff;
+        }
+
+        #empty-state {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #aaa;
+        }
+
+        #chat-window {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        .chat-header {
+            height: 60px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            background: #fff;
+            gap: 10px;
+        }
+
+        .chat-title {
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .chat-sub {
+            font-size: 11px;
+            color: #999;
+        }
+
+        .chat-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chat-actions button {
+            border: 1px solid #ddd;
+            background: #fff;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .chat-actions button:hover {
+            background: #f5f5f5;
+        }
+
+        .ws-pill {
+            font-size: 12px;
+            color: #666;
+        }
+
+        #messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: var(--bg-color);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .msg-row {
+            display: flex;
+            gap: 10px;
+            max-width: 70%;
+        }
+
+        .msg-row.me {
+            align-self: flex-end;
+            flex-direction: row-reverse;
+        }
+
+        .msg-row.other {
+            align-self: flex-start;
+        }
+
+        .msg-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 4px;
+            background: #ccc;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #fff;
+        }
+
+        .msg-content-wrapper {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .msg-name {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 4px;
+        }
+
+        .msg-row.me .msg-name {
+            text-align: right;
+        }
+
+        .msg-bubble {
+            padding: 10px 14px;
+            border-radius: 8px;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+
+        .msg-row.me .msg-bubble {
+            background: var(--bubble-me);
+            color: #0d47a1;
+            border-top-right-radius: 2px;
+        }
+
+        .msg-row.other .msg-bubble {
+            background: var(--bubble-other);
+            border: 1px solid #e6e6e6;
+            color: #333;
+            border-top-left-radius: 2px;
+        }
+
+        #input-area {
+            padding: 15px;
+            background: #fff;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 10px;
+        }
+
+        #msg-text {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            outline: none;
+        }
+
+        #msg-text:focus {
+            border-color: var(--primary-color);
+        }
+
+        #send-btn {
+            padding: 0 24px;
+            background: var(--primary-color);
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        #send-btn:hover {
+            background: #1565c0;
+        }
+
+        .msg-system {
+            align-self: center;
+            background: rgba(0, 0, 0, 0.1);
+            color: #666;
+            font-size: 12px;
+            padding: 4px 12px;
+            border-radius: 100px;
+            margin: 10px 0;
+        }
+
+        #toast-container {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            pointer-events: none;
+        }
+
+        .toast {
+            background: rgba(50, 50, 50, 0.9);
+            color: #fff;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            animation: toast-in 0.3s ease-out forwards;
+        }
+
+        @keyframes toast-in {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes toast-out {
+            from {
+                opacity: 1;
+                transform: translateY(0);
+            }
+
+            to {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+        }
+    </style>
+    <script src="auth.js"></script>
+</head>
+
+<body>
+    <div id="toast-container"></div>
+    <div id="sidebar">
+        <div class="sidebar-header">
+            <h2>Spark Push</h2>
+            <div style="font-size:12px;color:#999;margin-top:4px;">商业化 IM 演示（私聊）</div>
+        </div>
+
+        <div id="auth-panel">
+            <div class="auth-tabs">
+                <button type="button" class="auth-tab active" data-mode="login">登录</button>
+                <button type="button" class="auth-tab" data-mode="register">注册</button>
+            </div>
+            <div class="form-group">
+                <input id="account" class="form-control" placeholder="账号 / 手机 / 邮箱" />
+            </div>
+            <div class="form-group hidden" id="nickname-group">
+                <input id="nickname" class="form-control" placeholder="昵称 (注册时可选)" />
+            </div>
+            <div class="form-group">
+                <input id="password" type="password" class="form-control" placeholder="密码 (6位+)" />
+            </div>
+            <button id="login-btn" class="btn-primary btn-block">立即登录</button>
+            <button id="register-btn" class="btn-primary btn-block hidden">注册并自动登录</button>
+            <div id="login-status" class="status-text"></div>
+
+            <div style="margin-top:24px; border-top:1px solid #eee; padding-top:12px;">
+                <div style="font-size:13px; font-weight:bold; margin-bottom:8px;">其他入口</div>
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    <a href="room_chat.html" style="font-size:13px; color:#1976d2; text-decoration:none;">👉 房间群聊</a>
+                    <a href="admin_room.html" style="font-size:13px; color:#666; text-decoration:none;">🛡️ 管理后台</a>
+                    <a href="index.html" style="font-size:13px; color:#666; text-decoration:none;">🏠 返回首页</a>
+                </div>
+            </div>
+        </div>
+
+        <div id="nav-panel" class="hidden">
+            <div style="padding:10px; border-bottom:1px solid #eee; display:flex; gap:6px;">
+                <input id="to-user" class="form-control" style="padding:6px;" placeholder="输入对方 UserID..." />
+                <button id="start-chat-btn" class="btn-primary" style="padding:6px 12px; width:auto;">私聊</button>
+            </div>
+
+            <div
+                style="padding:0 10px 10px 10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
+                <span style="font-size:12px;color:#999;">最近会话</span>
+                <button id="refresh-sessions-btn"
+                    style="background:none;border:none;color:#1976d2;cursor:pointer;font-size:12px;">刷新</button>
+            </div>
+
+            <div id="session-list" class="session-list-container">
+                <div style="text-align:center; color:#999; font-size:12px; margin-top:20px;">
+                    暂无历史会话<br>请在上方输入 ID 发起聊天
+                </div>
+            </div>
+
+            <div class="user-profile-bar">
+                <div class="flex-center" style="gap:8px;">
+                    <div class="avatar-placeholder" style="background:#4caf50;color:#fff;">Me</div>
+                    <div class="flex-col">
+                        <span id="my-user-id" class="user-info">ID: -</span>
+                        <span class="ws-pill" id="ws-state">WS: 未连接</span>
+                    </div>
+                </div>
+                <button class="logout-btn" onclick="doLogout()">退出</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="main">
+        <div id="empty-state">
+            <div style="font-size:48px; margin-bottom:10px;">👋</div>
+            <div style="font-size:18px; color:#666; font-weight:700;">欢迎使用 Spark Push</div>
+            <div style="font-size:13px; margin-top:8px;">请在左侧选择会话或输入 UserID 发起私聊</div>
+        </div>
+
+        <div id="chat-window" class="hidden">
+            <div class="chat-header">
+                <div class="flex-col">
+                    <span class="chat-title" id="chat-title">未选择会话</span>
+                    <span class="chat-sub">Session ID: <span id="session-id-disp">-</span></span>
+                </div>
+                <div class="chat-actions">
+                    <span style="font-size:12px; color:#666;">未读: <span id="unread-count">0</span></span>
+                    <button id="mark-read-btn">标记已读</button>
+                </div>
+            </div>
+            <div id="messages"></div>
+            <div id="input-area">
+                <input id="msg-text" placeholder="输入消息... (Enter 发送)" />
+                <button id="send-btn">发送</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let pingTimer = null;
+        let reconnectTimer = null;
+        let reconnectDelayMs = 800;
+
+        let currentUserId = null;
+        let token = null;
+        // 当前登录用户昵称（来自注册/登录返回或本地 Auth 缓存）
+        let currentUserName = null;
+        let currentPeerId = null;
+        let currentSessionId = null;
+
+        // 当前会话已展示的最大 msg_seq（用于 read_seq）
+        let currentMaxSeq = 0;
+
+        // session cache: sid -> { peer_user_id, unread, last_preview, last_time_ms }
+        const sessionMap = new Map();
+
+        // 用户昵称缓存：user_id -> name（用于把“User 123”显示成真实昵称）
+        const userNameCache = new Map();
+
+        // 消息缓存：session_id -> 消息数组（用于切换会话不丢消息）
+        // 每个元素：{ text, isMe, senderId, senderLabel, timeStr, seq, clientMsgId }
+        const messageCache = new Map();
+
+        // 发送去重：用于避免“本地回显 + 服务端回推”导致重复展示
+        const pendingClientMsgIds = new Set();
+
+        const logicBase = window.location.protocol + '//' + window.location.hostname + ':9101';
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const cometWsUrl = wsProtocol + '//' + window.location.hostname + ':9000/ws';
+
+        function authHeaders() {
+            const h = { 'Content-Type': 'application/json' };
+            if (token) h['Authorization'] = 'Bearer ' + token;
+            return h;
+        }
+
+        function rand4() {
+            const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+            let out = '';
+            // 优先用更可靠的随机源
+            if (window.crypto && window.crypto.getRandomValues) {
+                const buf = new Uint8Array(4);
+                window.crypto.getRandomValues(buf);
+                for (let i = 0; i < 4; i++) out += chars[buf[i] % chars.length];
+                return out;
+            }
+            for (let i = 0; i < 4; i++) out += chars[Math.floor(Math.random() * chars.length)];
+            return out;
+        }
+
+        // client_msg_id 统一格式：c-{userid}-{timestamp}-{4位随机字符}
+        function makeClientMsgId(userId) {
+            const uid2 = Number(userId || 0);
+            const ts = Date.now();
+            return `c-${uid2}-${ts}-${rand4()}`;
+        }
+
+        function showToast(msg) {
+            const container = document.getElementById('toast-container');
+            const div = document.createElement('div');
+            div.className = 'toast';
+            div.textContent = msg;
+            container.appendChild(div);
+            setTimeout(() => {
+                div.style.animation = 'toast-out 0.3s ease-in forwards';
+                div.addEventListener('animationend', () => div.remove());
+            }, 2500);
+        }
+
+        async function fetchUserNames(userIds) {
+            const ids = Array.isArray(userIds) ? userIds.map(x => Number(x)).filter(x => x > 0) : [];
+            const need = [];
+            ids.forEach(id => {
+                if (!userNameCache.has(id)) need.push(id);
+            });
+            if (need.length === 0) return;
+            try {
+                const resp = await fetch(logicBase + '/api/user/batch', {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({ user_ids: need })
+                });
+                const data = await resp.json();
+                if (data.code !== 0) return;
+                const arr = (data.data && Array.isArray(data.data.users)) ? data.data.users : [];
+                arr.forEach(u => {
+                    const id = Number(u.user_id || 0);
+                    const nm = (u.name || '').trim();
+                    if (id > 0 && nm) userNameCache.set(id, nm);
+                });
+            } catch (_) {
+                // ignore
+            }
+        }
+
+        function getDisplayNameById(id) {
+            const uid = Number(id || 0);
+            if (uid > 0 && userNameCache.has(uid)) return userNameCache.get(uid);
+            if (uid === Number(currentUserId) && currentUserName) return currentUserName;
+            return uid > 0 ? ('User ' + uid) : '未知';
+        }
+
+        function pushMsgToCache(sessionId, msg) {
+            if (!sessionId) return;
+            const arr = messageCache.get(sessionId) || [];
+            arr.push(msg);
+            // 控制缓存大小：避免页面开久后过大（仅保留最近 500 条）
+            if (arr.length > 500) arr.splice(0, arr.length - 500);
+            messageCache.set(sessionId, arr);
+        }
+
+        function renderCachedMessages(sessionId) {
+            const msgsDiv = document.getElementById('messages');
+            msgsDiv.innerHTML = '';
+            const arr = messageCache.get(sessionId) || [];
+            arr.forEach(m => {
+                appendMsgRow(m.text, m.isMe, m.senderLabel, m.timeStr, m.seq);
+            });
+        }
+
+        function appendSystemMsg(text) {
+            const msgsDiv = document.getElementById('messages');
+            const el = document.createElement('div');
+            el.className = 'msg-system';
+            el.textContent = text;
+            msgsDiv.appendChild(el);
+            msgsDiv.scrollTop = msgsDiv.scrollHeight;
+        }
+
+        function appendMsgRow(text, isMe, senderLabel, timeStr, seq) {
+            const msgsDiv = document.getElementById('messages');
+            const row = document.createElement('div');
+            row.className = 'msg-row ' + (isMe ? 'me' : 'other');
+
+            const avatar = document.createElement('div');
+            avatar.className = 'msg-avatar';
+            avatar.textContent = isMe ? 'Me' : 'Ta';
+            if (isMe) avatar.style.background = '#4caf50';
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'msg-content-wrapper';
+
+            const name = document.createElement('div');
+            name.className = 'msg-name';
+            const displayTime = timeStr || new Date().toLocaleTimeString();
+            name.innerHTML = `<span>${senderLabel || (isMe ? ('User ' + currentUserId) : '对方')}</span> <span style="font-weight:normal;margin-left:5px;">${displayTime}</span>`;
+
+            const bubble = document.createElement('div');
+            bubble.className = 'msg-bubble';
+            bubble.textContent = text;
+
+            wrapper.appendChild(name);
+            wrapper.appendChild(bubble);
+            row.appendChild(avatar);
+            row.appendChild(wrapper);
+            msgsDiv.appendChild(row);
+            msgsDiv.scrollTop = msgsDiv.scrollHeight;
+
+            if (typeof seq === 'number' && seq > 0) {
+                currentMaxSeq = Math.max(currentMaxSeq, seq);
+            }
+        }
+
+        function buildSingleSessionId(u1, u2) {
+            const a = Number(u1), b = Number(u2);
+            if (!a || !b) return null;
+            const small = Math.min(a, b);
+            const large = Math.max(a, b);
+            return 's_' + small + ':' + large;
+        }
+
+        function updateUIState() {
+            const authed = !!currentUserId;
+            document.getElementById('auth-panel').classList.toggle('hidden', authed);
+            document.getElementById('nav-panel').classList.toggle('hidden', !authed);
+            document.getElementById('my-user-id').textContent = authed ? ('ID: ' + currentUserId) : 'ID: -';
+            if (!authed) {
+                document.getElementById('empty-state').classList.remove('hidden');
+                document.getElementById('chat-window').classList.add('hidden');
+            }
+        }
+
+        function setWsState(text) {
+            document.getElementById('ws-state').textContent = text;
+        }
+
+        function stopHeartbeat() {
+            if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
+        }
+
+        function startHeartbeat() {
+            stopHeartbeat();
+            pingTimer = setInterval(() => {
+                if (!ws || ws.readyState !== WebSocket.OPEN) return;
+                ws.send(JSON.stringify({ type: 'ping', ts: Date.now() }));
+            }, 30000);
+        }
+
+        function scheduleReconnect() {
+            if (reconnectTimer) return;
+            if (!token) return;
+            const delay = Math.min(reconnectDelayMs, 8000);
+            reconnectTimer = setTimeout(() => {
+                reconnectTimer = null;
+                connectWebSocket();
+                reconnectDelayMs = Math.min(reconnectDelayMs * 1.6, 8000);
+            }, delay);
+        }
+
+        function connectWebSocket() {
+            if (!token) return;
+            if (ws) { try { ws.close(); } catch (_) { } ws = null; }
+            setWsState('WS: 连接中...');
+            ws = new WebSocket(cometWsUrl + '?token=' + encodeURIComponent(token));
+
+            ws.onopen = () => {
+                setWsState('WS: 已连接');
+                reconnectDelayMs = 800;
+                startHeartbeat();
+                // 本版本不依赖“会话列表/会话未读”相关后端能力；
+                // 只保证：对方在线时能互发互收，收到消息可自动打开一个“临时会话”窗口展示。
+            };
+
+            ws.onclose = () => {
+                setWsState('WS: 已断开');
+                stopHeartbeat();
+                scheduleReconnect();
+            };
+
+            ws.onmessage = (ev) => {
+                // 调试：打印服务端下发的原始消息，便于分析协议/字段
+                // 如需关闭，注释掉下面两行即可
+                try { console.log('[WS recv raw]', ev.data); } catch (_) { }
+                let obj = null;
+                try { obj = JSON.parse(ev.data); } catch (e) {
+                    try { console.warn('[WS recv] JSON parse failed', e, ev.data); } catch (_) { }
+                    return;
+                }
+                // 调试：打印解析后的对象（结构化）
+                try { console.log('[WS recv obj]', obj); } catch (_) { }
+                if (!obj) return;
+                if (obj.type === 'ack' || obj.type === 'pong') return;
+                if (obj.type === 'session_update') {
+                    const sid = String(obj.session_id || '');
+                    if (!sid) return;
+                    const info = sessionMap.get(sid) || { session_id: sid, peer_user_id: 0, unread: 0, last_preview: '' };
+                    if (obj.peer_user_id) info.peer_user_id = Number(obj.peer_user_id);
+                    if (obj.last_preview !== undefined) info.last_preview = String(obj.last_preview || '');
+                    if (obj.last_time_ms) info.last_time_ms = Number(obj.last_time_ms);
+                    if (obj.unread_count !== undefined) info.unread = Number(obj.unread_count || 0);
+                    sessionMap.set(sid, info);
+                    // 若当前打开会话，刷新右上角未读显示（本版本不调用 mark_read/unread_batch，仅本地维护）
+                    if (currentSessionId && currentSessionId === sid) {
+                        document.getElementById('unread-count').textContent = String(info.unread || 0);
+                    }
+                    renderSessionList(Array.from(sessionMap.values()));
+                    return;
+                }
+                if (obj.type === 'error') {
+                    showToast('服务端错误: ' + (obj.message || 'unknown'));
+                    return;
+                }
+                // 只处理单聊
+                const tt = obj.target_type || '';
+                if (tt !== 'single_chat') return;
+
+                const fromId = Number(obj.from_user_id || obj.sender_id || 0);
+                // 最终协议：只认 target_id（单聊 target_id=接收方 user_id）
+                const toId = Number(obj.target_id || 0);
+                const peerId = (fromId === Number(currentUserId)) ? toId : fromId;
+                const sid = buildSingleSessionId(fromId, toId);
+                if (!sid) return;
+                const msgText = getMsgText(obj);
+                const seq = Number(obj.msg_seq || 0);
+                const ts = Number(obj.create_time || obj.timestamp_ms || Date.now());
+                const timeStr = new Date(ts).toLocaleTimeString();
+                const clientMsgId = String(obj.client_msg_id || '');
+
+                // 去重：如果服务端回推了我刚刚发送的 client_msg_id，则不重复写入缓存/展示
+                const deduped = (clientMsgId && fromId === Number(currentUserId) && pendingClientMsgIds.has(clientMsgId));
+                if (deduped) {
+                    pendingClientMsgIds.delete(clientMsgId);
+                } else {
+                    // 异步补齐昵称（不阻塞展示）
+                    fetchUserNames([fromId, toId]).finally(() => {
+                        // 如果当前正显示该会话，刷新一次标题/列表（昵称可能刚补齐）
+                        if (currentSessionId && currentSessionId === sid) {
+                            document.getElementById('chat-title').textContent = '与 ' + getDisplayNameById(currentPeerId) + ' 聊天中';
+                        }
+                        renderSessionList(Array.from(sessionMap.values()));
+                    });
+                    const senderLabel = getDisplayNameById(fromId);
+                    pushMsgToCache(sid, { text: msgText, isMe: fromId === Number(currentUserId), senderId: fromId, senderLabel, timeStr, seq, clientMsgId });
+                }
+
+                // 更新/创建会话项
+                const info = sessionMap.get(sid) || { session_id: sid, peer_user_id: peerId, unread: 0, last_preview: '' };
+                info.peer_user_id = peerId || info.peer_user_id;
+                info.last_preview = msgText;
+                info.last_time_ms = ts;
+                sessionMap.set(sid, info);
+
+                // 如果当前没有打开任何会话：自动打开“临时会话”窗口，直接让用户看见对方消息
+                if (!currentSessionId) {
+                    // 若消息尚未写入缓存（deduped=false 时已写入），这里确保缓存存在
+                    if (!deduped) {
+                        // pushMsgToCache 已在上面 deduped=false 分支执行，这里只是防御性兜底
+                        // （不重复写入，避免双倍消息）
+                    }
+                    // 在 UI 上直接进入该会话（相当于“临时会话”）
+                    showChatWindow(peerId, sid);
+                    // showChatWindow 会 renderCachedMessages，因此不需要这里再 append 一次
+                    return;
+                }
+
+                // 当前会话：直接展示（本版本只做本地已读清零，不调用后端）
+                if (currentSessionId && sid === currentSessionId) {
+                    // 如果刚才命中去重，则不重复展示（已本地回显）
+                    if (!deduped) {
+                        const senderLabel = getDisplayNameById(fromId);
+                        appendMsgRow(msgText, fromId === Number(currentUserId), senderLabel, timeStr, seq);
+                    }
+                    // 当前会话收到消息：视为已读（由滚动到底部/按钮触发清零，这里只刷新 UI）
+                    document.getElementById('unread-count').textContent = '0';
+                    const cur = sessionMap.get(currentSessionId);
+                    if (cur) { cur.unread = 0; sessionMap.set(currentSessionId, cur); }
+                    renderSessionList(Array.from(sessionMap.values()));
+                    return;
+                }
+
+                // 非当前会话：未读 +1（本版本不做 HTTP 校准）
+                info.unread = (info.unread || 0) + 1;
+                sessionMap.set(sid, info);
+                renderSessionList(Array.from(sessionMap.values()));
+            };
+        }
+
+        function maybeAutoMarkRead() {
+            // 简化商业策略：窗口在前台 + 贴近底部时清零本地未读
+            if (!currentSessionId) return;
+            if (document.hidden) return;
+            const el = document.getElementById('messages');
+            const nearBottom = (el.scrollHeight - el.scrollTop - el.clientHeight) < 80;
+            if (!nearBottom) return;
+            markReadCurrent();
+        }
+
+        function markReadCurrent() {
+            if (!currentSessionId) return;
+            document.getElementById('unread-count').textContent = '0';
+            const info = sessionMap.get(currentSessionId);
+            if (info) {
+                info.unread = 0;
+                sessionMap.set(currentSessionId, info);
+            }
+            renderSessionList(Array.from(sessionMap.values()));
+        }
+
+        async function loadSingleSessionList() {
+            if (!currentUserId) return;
+            try {
+                const resp = await fetch(logicBase + '/api/session/list_single', {
+                    method: 'POST',
+                    headers: authHeaders(),
+                    body: JSON.stringify({})
+                });
+                const data = await resp.json();
+                if (data.code !== 0) return;
+                const list = (data.data && data.data.sessions) ? data.data.sessions : [];
+                sessionMap.clear();
+                list.forEach(s => {
+                    // 兼容后端可能返回 unread/unread_count；本版本不再调用 unread_batch 做校准
+                    const unread = Number(s.unread ?? s.unread_count ?? 0);
+                    sessionMap.set(s.session_id, Object.assign({ unread }, s));
+                });
+                // 批量拉取会话列表中的对方昵称（显示真实 name）
+                const peerIds = list.map(s => Number(s.peer_user_id || 0)).filter(x => x > 0);
+                fetchUserNames(peerIds).finally(() => {
+                    renderSessionList(Array.from(sessionMap.values()));
+                });
+                renderSessionList(Array.from(sessionMap.values()));
+            } catch (e) {
+                console.error('List session error', e);
+            }
+        }
+
+        function renderSessionList(list) {
+            const container = document.getElementById('session-list');
+            container.innerHTML = '';
+            if (!list || list.length === 0) {
+                container.innerHTML = '<div style="text-align:center;color:#999;font-size:12px;margin-top:20px;">暂无历史会话</div>';
+                return;
+            }
+
+            // 最新会话置顶（按 last_time_ms）
+            list.sort((a, b) => Number(b.last_time_ms || 0) - Number(a.last_time_ms || 0));
+
+            list.forEach(s => {
+                const div = document.createElement('div');
+                div.className = 'session-item';
+                if (s.session_id === currentSessionId) div.classList.add('active');
+                div.dataset.sid = s.session_id;
+
+                const unread = Number(s.unread || 0);
+                const badgeCls = unread > 0 ? 'badge' : 'badge zero';
+                div.innerHTML = `
+          <div class="avatar-placeholder">${s.peer_user_id || '?'}</div>
+          <div class="session-info">
+            <div class="session-name">
+              <span>${getDisplayNameById(s.peer_user_id)}</span>
+              <span class="${badgeCls}">${unread}</span>
+            </div>
+            <div class="session-preview">${(s.last_preview || ('会话: ' + s.session_id)).replace(/</g, '&lt;')}</div>
+          </div>
+        `;
+                div.onclick = () => showChatWindow(s.peer_user_id, s.session_id);
+                container.appendChild(div);
+            });
+        }
+
+        function showChatWindow(peerId, sessionId) {
+            currentPeerId = Number(peerId);
+            currentSessionId = sessionId;
+            currentMaxSeq = 0;
+
+            document.getElementById('empty-state').classList.add('hidden');
+            document.getElementById('chat-window').classList.remove('hidden');
+            // 优先展示真实昵称（异步补齐后会刷新标题与会话列表）
+            document.getElementById('chat-title').textContent = '与 ' + getDisplayNameById(currentPeerId) + ' 聊天中';
+            fetchUserNames([currentPeerId]).finally(() => {
+                document.getElementById('chat-title').textContent = '与 ' + getDisplayNameById(currentPeerId) + ' 聊天中';
+                renderSessionList(Array.from(sessionMap.values()));
+            });
+            document.getElementById('session-id-disp').textContent = sessionId;
+            // 切换会话：从缓存恢复消息，而不是直接清空导致“消息丢了”
+            renderCachedMessages(sessionId);
+
+            // 进入会话：本地清零未读（本版本不调用 unread_batch/mark_read）
+            const info = sessionMap.get(sessionId);
+            if (info) {
+                info.unread = 0;
+                sessionMap.set(sessionId, info);
+            }
+            document.getElementById('unread-count').textContent = '0';
+            renderSessionList(Array.from(sessionMap.values()));
+            appendSystemMsg('已进入会话');
+        }
+
+        function getMsgText(obj) {
+            if (obj.content === undefined || obj.content === null) return '[空]';
+            try {
+                const c = (typeof obj.content === 'string') ? obj.content : JSON.stringify(obj.content);
+                return c;
+            } catch (_) {
+                return String(obj.content);
+            }
+        }
+
+        async function doLoginOrRegister(mode) {
+            const account = document.getElementById('account').value.trim();
+            const passwordRaw = document.getElementById('password').value;
+            const nickname = document.getElementById('nickname').value.trim();
+            const statusEl = document.getElementById('login-status');
+
+            if (!account || !passwordRaw) { statusEl.textContent = '请输入账号和密码'; return; }
+            if (passwordRaw.length < 6) { statusEl.textContent = '密码至少 6 位'; return; }
+
+            try {
+                statusEl.textContent = '请求中...';
+                const url = logicBase + (mode === 'register' ? '/api/register' : '/api/login');
+                const body = { account, password: hashPassword(passwordRaw) };
+                if (mode === 'register' && nickname) body.name = nickname;
+
+                const resp = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await resp.json();
+                if (data.code !== 0) { statusEl.textContent = data.message || '失败'; return; }
+
+                currentUserId = Number(data.data.user_id);
+                token = data.data.token;
+                currentUserName = (data.data.name || nickname || ('User ' + currentUserId));
+                Auth.set(currentUserId, token, currentUserName);
+                // 登录后先把自己昵称写入缓存，便于消息展示
+                if (currentUserId > 0 && currentUserName) userNameCache.set(Number(currentUserId), String(currentUserName));
+                statusEl.textContent = '';
+                updateUIState();
+                connectWebSocket();
+            } catch (e) {
+                statusEl.textContent = '网络异常: ' + e;
+            }
+        }
+
+        function doLogout() {
+            Auth.clear();
+            stopHeartbeat();
+            if (ws) try { ws.close(); } catch (_) { }
+            ws = null;
+            currentUserId = null;
+            token = null;
+            currentUserName = null;
+            currentPeerId = null;
+            currentSessionId = null;
+            currentMaxSeq = 0;
+            sessionMap.clear();
+            userNameCache.clear();
+            messageCache.clear();
+            pendingClientMsgIds.clear();
+            document.getElementById('messages').innerHTML = '';
+            document.getElementById('session-list').innerHTML = '';
+            updateUIState();
+        }
+
+        function sendMsg() {
+            const text = document.getElementById('msg-text').value.trim();
+            if (!text) return;
+
+            // 如果尚未选择会话，尝试用“对方 ID 输入框”自动发起会话，避免“无响应”的误解
+            if (!currentPeerId) {
+                const peer = document.getElementById('to-user')?.value?.trim() || '';
+                if (!peer) {
+                    appendSystemMsg('请先在左侧输入对方 UserID 并点击“私聊”，或从会话列表选择一个会话');
+                    document.getElementById('to-user')?.focus();
+                    return;
+                }
+                if (!currentUserId) {
+                    appendSystemMsg('请先登录后再发起会话');
+                    return;
+                }
+                const sid = buildSingleSessionId(currentUserId, peer);
+                if (!sid) {
+                    appendSystemMsg('对方 UserID 非法，请检查输入');
+                    document.getElementById('to-user')?.focus();
+                    return;
+                }
+                // 确保会话存在于列表（本地）
+                const info = sessionMap.get(sid) || { session_id: sid, peer_user_id: Number(peer), unread: 0, last_preview: '' };
+                sessionMap.set(sid, info);
+                renderSessionList(Array.from(sessionMap.values()));
+                showChatWindow(peer, sid);
+            }
+
+            if (!ws || ws.readyState !== WebSocket.OPEN) { appendSystemMsg('WebSocket 未连接'); return; }
+            // 发送方本地回显：避免服务端不回推给发送方时“看不到自己发的消息”
+            // 说明：这里不增加 currentMaxSeq（seq=0），read_seq 仍以服务端下发的 msg_seq 为准。
+            const now = Date.now();
+            const timeStr = new Date(now).toLocaleTimeString();
+            const clientMsgId = makeClientMsgId(currentUserId);
+            pendingClientMsgIds.add(clientMsgId);
+            const senderLabel = currentUserName || ('User ' + currentUserId);
+            appendMsgRow(text, true, senderLabel, timeStr, 0);
+            pushMsgToCache(currentSessionId, { text, isMe: true, senderId: Number(currentUserId), senderLabel, timeStr, seq: 0, clientMsgId });
+            const payload = {
+                msg_type: 'text',
+                target_type: 'single_chat',
+                target_id: Number(currentPeerId),
+                client_msg_id: clientMsgId,
+                content: text,
+            };
+            // 同步更新会话列表的预览与时间（体验更像商业 IM）
+            if (currentSessionId) {
+                const info = sessionMap.get(currentSessionId) || { session_id: currentSessionId, peer_user_id: Number(currentPeerId), unread: 0, last_preview: '' };
+                info.peer_user_id = Number(currentPeerId) || info.peer_user_id;
+                info.last_preview = text;
+                info.last_time_ms = now;
+                info.unread = 0;
+                sessionMap.set(currentSessionId, info);
+                renderSessionList(Array.from(sessionMap.values()));
+            }
+            ws.send(JSON.stringify(payload));
+            document.getElementById('msg-text').value = '';
+        }
+
+        // 事件绑定
+        document.querySelectorAll('.auth-tab').forEach(btn => {
+            btn.onclick = () => {
+                document.querySelectorAll('.auth-tab').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const mode = btn.dataset.mode;
+                const regBtn = document.getElementById('register-btn');
+                const logBtn = document.getElementById('login-btn');
+                const nickGroup = document.getElementById('nickname-group');
+                if (mode === 'login') {
+                    regBtn.classList.add('hidden'); logBtn.classList.remove('hidden'); nickGroup.classList.add('hidden');
+                } else {
+                    regBtn.classList.remove('hidden'); logBtn.classList.add('hidden'); nickGroup.classList.remove('hidden');
+                }
+                document.getElementById('login-status').textContent = '';
+            };
+        });
+        document.getElementById('login-btn').onclick = () => doLoginOrRegister('login');
+        document.getElementById('register-btn').onclick = () => doLoginOrRegister('register');
+        document.getElementById('password').onkeydown = (e) => {
+            if (e.key === 'Enter') {
+                const isReg = !document.getElementById('register-btn').classList.contains('hidden');
+                doLoginOrRegister(isReg ? 'register' : 'login');
+            }
+        };
+        document.getElementById('refresh-sessions-btn').onclick = loadSingleSessionList;
+        document.getElementById('send-btn').onclick = sendMsg;
+        document.getElementById('msg-text').onkeydown = (e) => {
+            // 避免中文输入法组合输入时误触发 Enter 发送
+            if (e.isComposing || e.keyCode === 229) return;
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                sendMsg();
+            }
+        };
+        document.getElementById('mark-read-btn').onclick = markReadCurrent;
+        document.getElementById('messages').addEventListener('scroll', maybeAutoMarkRead);
+        document.addEventListener('visibilitychange', maybeAutoMarkRead);
+
+        document.getElementById('start-chat-btn').onclick = async () => {
+            const peer = document.getElementById('to-user').value.trim();
+            if (!peer) return alert('请输入对方ID');
+            if (!currentUserId) return alert('请先登录');
+            const sid = buildSingleSessionId(currentUserId, peer);
+            if (!sid) return alert('非法ID');
+            // 确保会话存在于列表（本地）
+            const info = sessionMap.get(sid) || { session_id: sid, peer_user_id: Number(peer), unread: 0, last_preview: '' };
+            sessionMap.set(sid, info);
+            renderSessionList(Array.from(sessionMap.values()));
+            showChatWindow(peer, sid);
+        };
+
+        // 初始化：自动登录
+        (function init() {
+            const s = Auth.get();
+            if (s) {
+                currentUserId = Number(s.user_id);
+                token = s.token;
+                currentUserName = s.name || ('User ' + currentUserId);
+                if (currentUserId > 0 && currentUserName) userNameCache.set(Number(currentUserId), String(currentUserName));
+                updateUIState();
+                connectWebSocket();
+            } else {
+                updateUIState();
+            }
+        })();
+    </script>
+</body>
+
+</html>
