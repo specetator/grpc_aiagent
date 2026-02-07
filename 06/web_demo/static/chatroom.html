@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Spark 聊天室</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
+  <link rel="stylesheet" href="auth_style.css">
+  <style>
+    /* 复用 index.html 的大部分样式，保持风格统一 */
+    :root { 
+      --primary: #1976d2; 
+      --bg: #f5f7fa; 
+      --border: #e0e0e0;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; display: flex; height: 100vh; background: var(--bg); color: #333; }
+    /* .hidden is in auth_style.css but useful to keep if auth_style fails to load, but we can rely on it */
+    
+    #sidebar {
+      width: 280px;
+      background: #fff;
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+    }
+    .sb-header { padding: 20px; border-bottom: 1px solid var(--border); }
+    .sb-header h2 { margin: 0; color: var(--primary); font-size: 20px; }
+    
+    #auth-box { padding: 20px; }
+    /* Removed global input/button styles to use auth_style.css classes */
+    
+    #room-nav { flex: 1; display: flex; flex-direction: column; }
+    .room-list { flex: 1; overflow-y: auto; padding: 10px; }
+    .room-item {
+      padding: 12px; background: #fff; margin-bottom: 8px; border-radius: 6px; cursor: pointer;
+      border: 1px solid transparent; transition: all 0.2s;
+    }
+    .room-item:hover { background: #f0f7ff; }
+    .room-item.active { background: #e3f2fd; border-color: #bbdefb; }
+    
+    #main { flex: 1; display: flex; flex-direction: column; background: #fff; }
+    #header-bar { height: 60px; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 20px; justify-content: space-between; background: #fff; }
+    #msgs { flex: 1; padding: 20px; overflow-y: auto; background: var(--bg); display: flex; flex-direction: column; gap: 10px; }
+    
+    .msg { max-width: 70%; padding: 10px 14px; border-radius: 8px; word-wrap: break-word; font-size: 14px; line-height: 1.5; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .msg.sys { margin: 10px auto; background: rgba(0,0,0,0.1); color: #666; font-size: 12px; border-radius: 100px; max-width: fit-content; padding: 4px 12px; box-shadow: none; }
+    .msg.me { align-self: flex-end; background: #e3f2fd; color: #0d47a1; border-top-right-radius: 2px; }
+    .msg.other { align-self: flex-start; background: #fff; border: 1px solid #e6e6e6; border-top-left-radius: 2px; }
+    
+    .sender-name { font-size: 12px; color: #999; margin-bottom: 4px; }
+    
+    #input-box { padding: 15px; border-top: 1px solid var(--border); display: flex; gap: 10px; background: #fff; }
+    #msg-input { margin: 0; border: 1px solid #ddd; }
+    #msg-input:focus { border-color: var(--primary); outline: none; }
+    #send-btn { width: auto; padding: 0 24px; font-weight: bold; }
+  </style>
+  <script src="auth.js"></script>
+</head>
+<body>
+  <div id="sidebar">
+    <div class="sb-header">
+      <h2>Spark Chatroom</h2>
+      <small style="color:#999">群聊 / 直播间模式</small>
+    </div>
+    
+    <!-- 登录前 -->
+    <div id="auth-box">
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" data-mode="login">登录</button>
+        <button type="button" class="auth-tab" data-mode="register">注册</button>
+      </div>
+      <div class="form-group">
+        <input id="account" class="form-control" placeholder="账号" />
+      </div>
+      <div class="form-group hidden" id="nickname-group">
+        <input id="nickname" class="form-control" placeholder="昵称 (注册时可选)" />
+      </div>
+      <div class="form-group">
+        <input id="password" type="password" class="form-control" placeholder="密码" />
+      </div>
+      <button id="login-btn" class="btn-primary btn-block">立即登录</button>
+      <button id="register-btn" class="btn-primary btn-block hidden">注册并自动登录</button>
+      <div id="status" class="status-text"></div>
+    </div>
+    
+    <!-- 登录后 -->
+    <div id="room-nav" class="hidden">
+       <div style="padding:10px; border-bottom:1px solid #eee;">
+          <div style="font-size:12px; color:#666; margin-bottom:4px;">加入新房间 (ID):</div>
+          <div style="display:flex; gap:4px;">
+            <input id="join-room-id" class="form-control" placeholder="1001" style="margin:0;">
+            <button id="join-btn" class="btn-primary" style="width:auto;">加入</button>
+          </div>
+       </div>
+       <div style="padding:10px 10px 0; font-size:12px; color:#999;">我的订阅列表:</div>
+       <div id="room-list" class="room-list"></div>
+       <div style="padding:10px; border-top:1px solid #eee; text-align:center;">
+          <span id="my-id" style="font-size:12px; color:#666; margin-right:10px;"></span>
+          <a href="#" onclick="doLogout()" style="font-size:12px; color:red;">退出</a>
+       </div>
+    </div>
+  </div>
+  
+  <div id="main">
+    <div id="header-bar">
+       <span id="room-title" style="font-weight:bold;">未选择房间</span>
+       <span id="online-count" style="font-size:12px; color:#666;"></span>
+    </div>
+    <div id="msgs">
+       <div style="text-align:center; margin-top:50px; color:#ccc;">请先在左侧加入或选择一个房间</div>
+    </div>
+    <div id="input-box">
+       <input id="msg-input" class="form-control" placeholder="发送消息... (Enter)" style="margin:0;">
+       <button id="send-btn" class="btn-primary" style="width:100px;">发送</button>
+    </div>
+  </div>
+
+  <script>
+    const logicBase = window.location.protocol + '//' + window.location.hostname + ':9101';
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const cometWsUrl = wsProtocol + '//' + window.location.hostname + ':9200/ws';
+    
+    let ws=null, uid=null, token=null, myName=null, currentRoom=null, currentRoomName='';
+    // 对应当前房间在后端的 session_id，用于拉取历史消息
+    let currentSessionId=null;
+    // 聊天室历史分页状态
+    let roomHistoryAnchorSeq = 0;   // 当前已加载历史中最早一条的 msg_seq
+    let roomHistoryHasMore = true;  // 是否还有更多历史
+    let roomHistoryLoading = false; // 是否正在加载
+    
+    // UI Toggles
+    function toggleUI(isLogin) {
+       const ab = document.getElementById('auth-box');
+       const rn = document.getElementById('room-nav');
+       if(isLogin) {
+          ab.classList.add('hidden');
+          rn.classList.remove('hidden');
+          document.getElementById('my-id').textContent = `Uid: ${uid} (${myName||'User'})`;
+          
+          // 如果有 URL 参数 room_id，自动加入
+          const params = new URLSearchParams(window.location.search);
+          const rid = params.get('room_id');
+          if(rid && !currentRoom) {
+             // 稍作延迟确保 WS 连接
+             setTimeout(() => {
+                 document.getElementById('join-room-id').value = rid;
+                 joinRoom();
+             }, 500);
+          }
+          
+          loadMyRooms();
+       } else {
+          ab.classList.remove('hidden');
+          rn.classList.add('hidden');
+       }
+    }
+
+    // Tab switching logic
+    document.querySelectorAll('.auth-tab').forEach(btn => {
+       btn.onclick = () => {
+         document.querySelectorAll('.auth-tab').forEach(b => b.classList.remove('active'));
+         btn.classList.add('active');
+         const mode = btn.dataset.mode;
+         const regBtn = document.getElementById('register-btn');
+         const logBtn = document.getElementById('login-btn');
+         const nickGroup = document.getElementById('nickname-group');
+         
+         if(mode === 'login') {
+            regBtn.classList.add('hidden');
+            logBtn.classList.remove('hidden');
+            nickGroup.classList.add('hidden');
+         } else {
+            regBtn.classList.remove('hidden');
+            logBtn.classList.add('hidden');
+            nickGroup.classList.remove('hidden');
+         }
+         document.getElementById('status').textContent = '';
+       };
+    });
+
+    async function doLoginOrRegister(mode) {
+       const account = document.getElementById('account').value.trim();
+       const pass = document.getElementById('password').value;
+       const nickname = document.getElementById('nickname').value.trim();
+       
+       if(!account || !pass) return document.getElementById('status').textContent = '请输入账号密码';
+       
+       try {
+         const url = logicBase + (mode === 'register' ? '/api/register' : '/api/login');
+         const body = {account, password: hashPassword(pass)};
+         if(mode === 'register') body.name = nickname;
+
+         const res = await fetch(url, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body:JSON.stringify(body)
+         });
+         const d = await res.json();
+         if(d.code!==0) return document.getElementById('status').textContent=d.message;
+         
+         // Success
+         uid = d.data.user_id; token = d.data.token; myName = d.data.name;
+         Auth.set(uid, token, myName);
+         document.getElementById('status').textContent = '';
+         toggleUI(true);
+         connectWs();
+       } catch(e){ document.getElementById('status').textContent = 'Error: '+e; }
+    }
+
+    function connectWs() {
+       if(ws) ws.close();
+       ws = new WebSocket(cometWsUrl + '?token=' + encodeURIComponent(token));
+       ws.onopen = () => console.log('WS OK');
+       ws.onmessage = (e) => {
+          try {
+             const msg = JSON.parse(e.data);
+             console.info('msg', msg);
+             if(msg.type === 'chatroom') {
+                // 消息格式化
+                // msg.content 可能是字符串或者对象
+                let contentObj = msg.content;
+                if(typeof contentObj === 'string') {
+                   try { contentObj = JSON.parse(contentObj); } catch(x){}
+                }
+                
+                let text = contentObj.text;
+                // 兼容嵌套结构 (如 WebSocket 上行消息存库后被包裹了一层)
+                if (!text && contentObj.content) {
+                    const inner = contentObj.content;
+                    if (typeof inner === 'string') text = inner;
+                    else if (inner.text) text = inner.text;
+                }
+                if (!text) text = JSON.stringify(contentObj);
+                // 尝试获取发送者名字
+                let senderName = '有人';
+                
+                // 1. 优先从 contentObj 中找 (后端注入到 content_json)
+                if(contentObj.sender && contentObj.sender.name) {
+                   senderName = contentObj.sender.name;
+                } 
+                // 2. 其次看顶层 msg 是否有 sender (兼容性)
+                else if(msg.sender && msg.sender.name) {
+                   senderName = msg.sender.name;
+                }
+                // 3. 最后用 ID 兜底
+                else if (msg.from_user_id) {
+                   senderName = 'User ' + msg.from_user_id;
+                } else if (contentObj.from_user_id) {
+                   senderName = 'User ' + contentObj.from_user_id;
+                }
+                console.info('senderName', senderName);
+                // 只有当前选中的房间才显示 (简单Demo逻辑)
+                if(msg.group_id === currentRoom) {
+                   const isMe = (msg.from_user_id === uid);
+                   const timeStr = new Date(msg.timestamp_ms || Date.now()).toLocaleTimeString();
+                   appendMsg(text, isMe, senderName, false, timeStr);
+                }
+             } else if (msg.type === 'system_broadcast') {
+                // 处理系统广播
+                let text = '';
+                if (typeof msg.content === 'string') text = msg.content;
+                else if (msg.content && msg.content.text) text = msg.content.text;
+                else text = JSON.stringify(msg.content);
+                
+                // 如果是房间广播，且当前就在该房间，或者 scope=all
+                if (msg.scope === 'all' || (msg.room_id && msg.room_id === currentRoom) || (msg.group_id && msg.group_id === currentRoom)) {
+                     appendMsg(text, false, '系统广播', true);
+                } else if (!msg.room_id && !msg.group_id) {
+                     // 没有指定房间的广播，通常是全局
+                     appendMsg(text, false, '系统广播', true);
+                }
+             }
+          } catch(x){}
+       };
+    }
+
+    async function loadMyRooms() {
+       try {
+          const res = await fetch(logicBase+'/api/chatroom/list', {
+             method:'POST',
+             headers:{'Content-Type':'application/json'},
+             body:JSON.stringify({user_id:uid})
+          });
+          const d = await res.json();
+          const listDiv = document.getElementById('room-list');
+          listDiv.innerHTML = '';
+          if(d.code===0 && d.data.rooms) {
+             d.data.rooms.forEach(r => {
+                const div = document.createElement('div');
+                div.className = 'room-item';
+                if(r.room_id === currentRoom) div.classList.add('active');
+                div.dataset.rid = r.room_id;
+                div.dataset.name = r.name;
+                // 记录后端的会话 ID，后面拉取历史消息会用到
+                if (r.session_id) {
+                  div.dataset.sessionId = r.session_id;
+                }
+                div.textContent = `${r.name} (${r.room_id})`;
+                div.onclick = () => selectRoom(r.room_id, r.name, div);
+                listDiv.appendChild(div);
+             });
+          }
+       } catch(e){
+          console.error('loadMyRooms error', e);
+       }
+    }
+    
+    async function joinRoom() {
+       const rid = parseInt(document.getElementById('join-room-id').value);
+       if(!rid) return;
+       await fetch(logicBase+'/api/chatroom/join', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({user_id:uid, room_id:rid})
+       });
+       if(ws) ws.send(JSON.stringify({type:'chatroom_join', group_id:rid}));
+       
+       await loadMyRooms(); // 刷新列表并等待完成
+       
+       // 自动选中新加入的房间
+       const items = document.querySelectorAll('.room-item');
+       for(let i=0; i<items.length; i++) {
+          if(parseInt(items[i].dataset.rid) === rid) {
+             selectRoom(rid, items[i].dataset.name, items[i]);
+             break;
+          }
+       }
+    }
+    
+    function selectRoom(rid, rname, el) {
+       currentRoom = rid;
+       currentRoomName = rname || ('房间 '+rid);
+       document.getElementById('room-title').textContent = currentRoomName;
+       document.getElementById('msgs').innerHTML = ''; // 清空旧消息
+
+       // 重置历史分页状态
+       roomHistoryAnchorSeq = 0;
+       roomHistoryHasMore = true;
+       roomHistoryLoading = false;
+
+       // 取出该房间对应的 session_id（如果有）
+       let sid = null;
+       if (el && el.dataset && el.dataset.sessionId) {
+          sid = el.dataset.sessionId;
+       } else {
+          const item = document.querySelector(`.room-item[data-rid="${rid}"]`);
+          if (item && item.dataset && item.dataset.sessionId) {
+            sid = item.dataset.sessionId;
+          }
+       }
+       currentSessionId = sid || (`r_${rid}`);
+       
+       document.querySelectorAll('.room-item').forEach(x=>x.classList.remove('active'));
+       if(el) el.classList.add('active');
+       else {
+          // 尝试通过ID查找
+           const item = document.querySelector(`.room-item[data-rid="${rid}"]`);
+           if(item) item.classList.add('active');
+       }
+       
+       // 先加载历史，再追加“已进入”提示，避免把系统提示插在历史中间
+       loadHistory(true).then(() => {
+         appendMsg(`已进入 ${currentRoomName}`, true, '系统', true);
+       }).catch(() => {
+         appendMsg(`已进入 ${currentRoomName}`, true, '系统', true);
+       });
+    }
+
+    // 拉取当前聊天室的历史消息（分页）
+    async function loadHistory(isInitial) {
+       if (!currentSessionId) return;
+       if (roomHistoryLoading) return;
+
+       // 非首次加载且没有更多历史时，直接返回
+       if (!isInitial && (!roomHistoryHasMore || !roomHistoryAnchorSeq)) return;
+
+       roomHistoryLoading = true;
+       const pageSize = 50;
+       const anchor = isInitial ? 0 : roomHistoryAnchorSeq;
+
+       try {
+         const res = await fetch(logicBase + '/api/session/history', {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({
+              session_id: currentSessionId,
+              anchor_seq: anchor,
+              limit: pageSize
+            })
+         });
+         const d = await res.json();
+         if (d.code !== 0 || !d.data || !Array.isArray(d.data.messages)) {
+           roomHistoryLoading = false;
+           return;
+         }
+
+         const msgs = d.data.messages;
+         if (msgs.length === 0) {
+           roomHistoryHasMore = false;
+           roomHistoryLoading = false;
+           return;
+         }
+
+         const container = document.getElementById('msgs');
+         const oldScrollHeight = container.scrollHeight;
+
+         msgs.forEach(m => {
+            let contentObj = m.content;
+            if (typeof contentObj === 'string') {
+              try { contentObj = JSON.parse(contentObj); } catch(_) {}
+            }
+            if (!contentObj) return;
+
+            // 只展示聊天室类型的消息
+            if (contentObj.type && contentObj.type !== 'chatroom') return;
+
+            // 解析正文
+            let text = '';
+            if (contentObj.content) {
+              const inner = contentObj.content;
+              if (typeof inner === 'string') text = inner;
+              else if (inner && inner.text) text = inner.text;
+            }
+            if (!text) {
+              // 兼容 text 直接挂在顶层的老格式
+              if (contentObj.text) text = contentObj.text;
+            }
+            if (!text) {
+              text = JSON.stringify(contentObj);
+            }
+
+            // 发送者名称
+            let senderName = '有人';
+            if (contentObj.sender && contentObj.sender.name) {
+              senderName = contentObj.sender.name;
+            } else if (m.sender_id) {
+              senderName = 'User ' + m.sender_id;
+            }
+
+            const isMe = (m.sender_id === uid);
+            const timeStr = new Date(m.timestamp_ms || Date.now()).toLocaleTimeString();
+
+            // 首次加载：直接追加；后续分页：插入顶部并保持滚动位置
+            if (isInitial) {
+              appendMsg(text, isMe, senderName, false, timeStr);
+            } else {
+              appendMsg(text, isMe, senderName, false, timeStr, { prepend: true, keepScroll: true });
+            }
+         });
+
+         // 更新 anchor_seq：使用本次批次中最早一条的 msg_seq
+         const first = msgs[0];
+         if (first && typeof first.msg_seq === 'number') {
+           if (!roomHistoryAnchorSeq || first.msg_seq < roomHistoryAnchorSeq) {
+             roomHistoryAnchorSeq = first.msg_seq;
+           }
+         }
+         roomHistoryHasMore = msgs.length >= pageSize && roomHistoryAnchorSeq > 1;
+
+         if (!isInitial) {
+           const newScrollHeight = container.scrollHeight;
+           container.scrollTop = newScrollHeight - oldScrollHeight;
+         }
+       } catch (e) {
+         console.error('loadHistory error', e);
+       } finally {
+         roomHistoryLoading = false;
+       }
+    }
+    
+    // 统一的消息追加函数，支持 prepend / 保持滚动
+    function appendMsg(text, isMe, name, isSys, timeStr, options) {
+       const div = document.getElementById('msgs');
+       const opts = options || {};
+       const prepend = !!opts.prepend;
+       const keepScroll = !!opts.keepScroll;
+
+       let node;
+       if (isSys) {
+          node = document.createElement('div');
+          node.className = 'msg sys';
+          node.textContent = text;
+       } else {
+          node = document.createElement('div');
+          node.className = 'msg ' + (isMe ? 'me' : 'other');
+          node.innerHTML = `
+               <div class="sender-name">${name} <span style="font-weight:normal;color:#bbb;font-size:10px;margin-left:5px;">${timeStr||''}</span></div>
+               ${text}
+          `;
+       }
+
+       if (prepend && div.firstChild) {
+         div.insertBefore(node, div.firstChild);
+       } else {
+         div.appendChild(node);
+       }
+
+       if (!prepend && !keepScroll) {
+         div.scrollTop = div.scrollHeight;
+       }
+    }
+    
+    document.getElementById('login-btn').onclick = () => doLoginOrRegister('login');
+    document.getElementById('register-btn').onclick = () => doLoginOrRegister('register');
+    document.getElementById('password').onkeydown = (e) => {
+       if(e.key === 'Enter') {
+          const isReg = !document.getElementById('register-btn').classList.contains('hidden');
+          doLoginOrRegister(isReg ? 'register' : 'login');
+       }
+    };
+    document.getElementById('join-btn').onclick = joinRoom;
+
+    // 上滑到顶部时自动加载更多历史
+    document.getElementById('msgs').addEventListener('scroll', function() {
+       if (this.scrollTop < 40 && !roomHistoryLoading && roomHistoryHasMore && currentSessionId) {
+          loadHistory(false);
+       }
+    });
+    
+    // Enter to send
+    document.getElementById('msg-input').onkeydown = (e) => {
+       if(e.key === 'Enter') document.getElementById('send-btn').click();
+    };
+    
+    document.getElementById('send-btn').onclick = () => {
+       const txt = document.getElementById('msg-input').value;
+       if(!txt || !currentRoom) return;
+       if(ws) ws.send(JSON.stringify({
+          type:'chatroom', group_id:currentRoom, content:{text:txt}, client_msg_id:Date.now()+''
+       }));
+       // 乐观更新
+       // appendMsg(txt, true, myName || '我'); 
+       // 注：如果依赖后端回推 inject sender info，这里最好不乐观更新，或者乐观更新时只有 text
+       document.getElementById('msg-input').value = '';
+    };
+
+    function doLogout() {
+      Auth.clear();
+      if(ws) ws.close();
+      uid = null;
+      token = null;
+      toggleUI(false);
+    }
+
+    // Auto Login initialization
+    (function() {
+      const s = Auth.get();
+      if (s) {
+        uid = Number(s.user_id);
+        token = s.token;
+        myName = s.name;
+        toggleUI(true);
+        connectWs();
+      }
+    })();
+  </script>
+</body>
+</html>

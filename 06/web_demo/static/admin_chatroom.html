@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Spark Push 管理后台</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>">
+  <style>
+    /* 简洁的后台风格 */
+    body { font-family: -apple-system, system-ui, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; color: #333; }
+    .container { max-width: 1000px; margin: 0 auto; }
+    .card { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    h2 { margin-top: 0; color: #1976d2; }
+    h3 { border-bottom: 1px solid #eee; padding-bottom: 10px; margin-top: 0; }
+    
+    .hidden { display: none; }
+    
+    input, textarea, select { width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; }
+    button { padding: 8px 16px; background: #1976d2; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+    button.secondary { background: #9e9e9e; }
+    button:hover { opacity: 0.9; }
+    
+    .row { display: flex; gap: 20px; }
+    .col { flex: 1; }
+
+    /* Modal Styles */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; justify-content: center; align-items: center; }
+    .modal { background: #fff; padding: 20px; border-radius: 8px; width: 450px; max-width: 90%; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .modal-header h3 { margin: 0; border: none; padding: 0; font-size: 18px; }
+    .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; padding: 0; line-height: 1; }
+    .close-btn:hover { color: #333; }
+    .modal-body input { width: 100%; padding: 10px; font-size: 14px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; margin: 10px 0; }
+    .modal-footer { margin-top: 15px; text-align: right; display: flex; justify-content: flex-end; gap: 10px; }
+    
+    .modal-overlay.hidden { display: none; }
+  </style>
+  <script src="auth.js"></script>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+         <h2>Spark Push 管理后台</h2>
+         <div id="user-info" class="hidden">
+            管理员: <span id="admin-id" style="font-weight:bold;"></span>
+            <button class="secondary" onclick="doLogout()" style="margin-left:10px; padding: 4px 10px; font-size:12px;">退出</button>
+         </div>
+      </div>
+    </div>
+
+    <!-- 登录卡片 -->
+    <div id="login-card" class="card">
+       <h3>管理员登录</h3>
+       <p style="color:#666; font-size:14px;">默认账号: admin / 密码: admin123</p>
+       <input id="acc" placeholder="账号">
+       <input id="pwd" type="password" placeholder="密码">
+       <button onclick="doLogin()">登录</button>
+       <div id="err-msg" style="color:red; margin-top:10px;"></div>
+    </div>
+
+    <!-- 主控面板 (默认隐藏) -->
+    <div id="dashboard" class="hidden">
+       <div class="row">
+         <!-- 创建房间 -->
+         <div class="col card">
+            <h3>创建聊天室</h3>
+            <input id="new-room-name" placeholder="房间名称 (e.g. 技术交流群)">
+            <button onclick="createRoom()">创建</button>
+            <div id="create-res" style="margin-top:10px; color:green;"></div>
+         </div>
+         
+         <!-- 广播 -->
+         <div class="col card">
+            <h3>全站/房间广播</h3>
+            <select id="bc-scope">
+               <option value="all">全站广播 (所有在线)</option>
+               <option value="chatroom">指定房间</option>
+            </select>
+            <input id="bc-room-id" placeholder="房间ID (仅指定房间时有效)">
+            <textarea id="bc-text" rows="3" placeholder="广播内容..."></textarea>
+            <button onclick="sendBroadcast()">发送广播</button>
+         </div>
+       </div>
+       
+       <div class="card">
+          <div style="display:flex; justify-content:space-between;">
+             <h3>房间列表</h3>
+             <button class="secondary" onclick="loadRooms()" style="padding:4px 10px;">刷新</button>
+          </div>
+          <div id="room-list" style="max-height:300px; overflow-y:auto;">
+             <div style="padding:10px; text-align:center; color:#999;">加载中...</div>
+          </div>
+       </div>
+    </div>
+  </div>
+
+  <!-- 分享弹窗 -->
+  <div id="share-modal" class="modal-overlay hidden">
+    <div class="modal">
+      <div class="modal-header">
+        <h3>分享链接</h3>
+        <button class="close-btn" onclick="closeShareModal()">×</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin: 0; font-size: 14px; color: #666;">复制下方链接发送给好友：</p>
+        <input type="text" id="share-link-input" readonly onclick="this.select()">
+        <div id="copy-tip" style="min-height: 20px; font-size: 12px; color: green;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="secondary" onclick="closeShareModal()">关闭</button>
+        <button onclick="doCopyFromModal()">复制链接</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const logicBase = window.location.protocol + '//' + window.location.hostname + ':9101';
+    let uid = null;
+
+    async function doLogin() {
+       const account = document.getElementById('acc').value;
+       const password = document.getElementById('pwd').value;
+       try {
+          const res = await fetch(logicBase + '/api/login', {
+             method:'POST', headers:{'Content-Type':'application/json'},
+             body:JSON.stringify({account, password: hashPassword(password)})
+          });
+          const d = await res.json();
+          if(d.code!==0) return document.getElementById('err-msg').textContent = d.message;
+          
+          uid = d.data.user_id;
+          Auth.setAdmin(uid, d.data.token);
+
+          // 切换 UI
+          document.getElementById('login-card').classList.add('hidden');
+          document.getElementById('dashboard').classList.remove('hidden');
+          document.getElementById('user-info').classList.remove('hidden');
+          document.getElementById('admin-id').textContent = uid;
+          
+          loadRooms();
+       } catch(e){alert(e);}
+    }
+
+    function doLogout() {
+      Auth.clearAdmin();
+      location.reload();
+    }
+
+    // Auto Login
+    (function(){
+      const s = Auth.getAdmin();
+      if(s) {
+        uid = Number(s.user_id);
+        // 虽然目前 Admin API 可能没用到 token，但保持一致性
+        document.getElementById('login-card').classList.add('hidden');
+        document.getElementById('dashboard').classList.remove('hidden');
+        document.getElementById('user-info').classList.remove('hidden');
+        document.getElementById('admin-id').textContent = uid;
+        loadRooms();
+      }
+    })();
+
+    async function createRoom() {
+       const name = document.getElementById('new-room-name').value;
+       if(!name) return;
+       const res = await fetch(logicBase+'/api/admin/chatroom/create', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({name, owner_id:uid})
+       });
+       const d = await res.json();
+       if(d.code===0) {
+          document.getElementById('create-res').textContent = '成功: room_id=' + d.data.room_id;
+          loadRooms();
+       } else alert(d.message);
+    }
+
+    async function sendBroadcast() {
+       const scope = document.getElementById('bc-scope').value;
+       const text = document.getElementById('bc-text').value;
+       const rid = parseInt(document.getElementById('bc-room-id').value) || 0;
+       if(!text) return;
+       
+       const body = { scope, text };
+       if(scope==='chatroom') body.room_id = rid;
+       
+       const res = await fetch(logicBase+'/api/admin/broadcast', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+       });
+       const d = await res.json();
+       if(d.code===0) alert('广播已发送');
+       else alert('失败:'+d.message);
+    }
+
+    async function loadRooms() {
+       const res = await fetch(logicBase+'/api/admin/chatroom/list', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({limit:50})
+       });
+       const d = await res.json();
+       const div = document.getElementById('room-list');
+       div.innerHTML = '';
+       if(d.code===0 && d.data.rooms) {
+          d.data.rooms.forEach(r => {
+             const row = document.createElement('div');
+             row.style.borderBottom = '1px solid #eee';
+             row.style.padding = '8px 0';
+             
+             const shareLink = window.location.origin + '/chatroom.html?room_id=' + r.room_id + '&name=' + encodeURIComponent(r.name);
+             
+             row.innerHTML = `
+               <div style="display:flex; justify-content:space-between; align-items:center;">
+                 <span><b>[${r.room_id}]</b> ${r.name} (Owner: ${r.owner_id})</span>
+                 <button class="secondary" id="btn-${r.room_id}" style="padding:2px 8px; font-size:12px;">分享</button>
+               </div>
+             `;
+             div.appendChild(row);
+             
+             // Bind event
+             document.getElementById(`btn-${r.room_id}`).onclick = () => openShareModal(shareLink);
+          });
+       } else div.innerHTML = '暂无数据';
+    }
+
+    function openShareModal(link) {
+       const modal = document.getElementById('share-modal');
+       const input = document.getElementById('share-link-input');
+       const tip = document.getElementById('copy-tip');
+       
+       modal.classList.remove('hidden');
+       input.value = link;
+       tip.textContent = '';
+       
+       input.select();
+       // Try auto copy
+       copyText(link, (success) => {
+          if(success) tip.textContent = '✅ 已自动复制到剪贴板';
+       });
+    }
+
+    function closeShareModal() {
+       document.getElementById('share-modal').classList.add('hidden');
+    }
+
+    function doCopyFromModal() {
+       const input = document.getElementById('share-link-input');
+       copyText(input.value, (success) => {
+           document.getElementById('copy-tip').textContent = success ? '✅ 复制成功' : '❌ 复制失败，请手动复制';
+       });
+    }
+
+    function copyText(text, callback) {
+        // 优先尝试 navigator.clipboard (需要 HTTPS 或 localhost)
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => callback(true)).catch(() => tryFallbackCopy(text, callback));
+        } else {
+            tryFallbackCopy(text, callback);
+        }
+    }
+
+    function tryFallbackCopy(text, callback) {
+        try {
+            const input = document.getElementById('share-link-input');
+            // 确保是选中的
+            input.value = text;
+            input.select(); 
+            input.setSelectionRange(0, 99999); // 移动端兼容
+
+            const successful = document.execCommand('copy');
+            callback(successful);
+        } catch (err) {
+            callback(false);
+        }
+    }
+  </script>
+</body>
+</html>

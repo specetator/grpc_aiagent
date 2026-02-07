@@ -1,0 +1,207 @@
+// SparkPush 消息推送系统 - Protocol Buffers 定义
+//
+// 系统架构：Client ↔ Comet(WebSocket) ↔ Logic(gRPC) → Kafka → Job → Comet(gRPC)
+//
+// 服务定义：
+//   LogicService  - Comet 调用 Logic：鉴权、上行消息、房间管理
+//   CometService  - Job 调用 Comet：下行消息推送
+//   JobService    - 预留，当前通过 Kafka 解耦
+
+syntax = "proto3";
+
+package sparkpush;
+
+// 通用错误信息
+message ErrorInfo {
+  int32 code = 1;      // 0 表示成功，非 0 代表错误码
+  string message = 2;  // 具体错误原因
+}
+
+// 基础消息模型（内部存储/序列化使用）
+message ChatMessage {
+  string msg_id = 1;          // 服务端生成的唯一ID
+  string session_id = 2;       // 会话ID
+  int64 msg_seq = 3;           // 会话内严格递增序号
+  int64 sender_id = 4;         // 发送方用户ID
+  int64 timestamp_ms = 5;      // 消息时间戳（毫秒）
+  string msg_type = 6;         // 消息类型: text / system / danmaku / ...
+  string content_json = 7;     // 消息内容JSON
+  string client_msg_id = 8;    // 客户端生成的ID，用于ACK匹配（可选）
+}
+
+// 弹幕消息结构（用于时间轴拉取）
+message DanmakuMessage {
+  string msg_id = 1;
+  string video_id = 2;
+  int64 timeline_ms = 3;
+  int64 sender_id = 4;
+  string content_json = 5;
+  int64 timestamp_ms = 6;
+}
+
+// 消息确认（ACK）请求
+message AckMessageRequest {
+  int64 user_id = 1;        // 确认方用户ID
+  int64 msg_seq = 2;        // 确认的消息序号
+  string session_id = 3;    // 会话ID
+}
+
+message AckMessageReply {
+  ErrorInfo error = 1;
+}
+
+// ========== LogicService 相关 ==========
+
+// comet -> logic：鉴权
+message VerifyTokenRequest {
+  string token = 1;
+  string comet_id = 2;
+  string conn_id = 3;     // 连接唯一标识，便于绑定与审计
+}
+
+message VerifyTokenReply {
+  ErrorInfo error = 1;
+  int64 user_id = 2;
+}
+
+// comet -> logic：上行聊天/聊天室/弹幕消息
+message UpstreamMessageRequest {
+  int64 from_user_id = 1;
+  string client_msg_id = 2;
+  string scene = 3;            // single / chatroom / danmaku
+  int64 to_user_id = 4;       // 单聊目标
+  int64 group_id = 5;         // 群聊/聊天室 room_id
+  string video_id = 6;        // 弹幕视频ID
+  int64 timeline_ms = 7;      // 弹幕时间轴位置（毫秒）
+  string content_json = 8;    // 消息内容JSON
+  string comet_id = 9;        // 来源 comet 节点
+  string conn_id = 10;        // 来源连接 ID
+  int64 received_time_ms = 11; // Comet 收到时间（毫秒）
+}
+
+message UpstreamMessageReply {
+  ErrorInfo error = 1;
+  ChatMessage message = 2;
+}
+
+// comet -> logic：用户下线
+message UserOfflineRequest {
+  int64 user_id = 1;
+  string comet_id = 2;
+  string conn_id = 3;     // 连接 ID，便于精确清理路由
+}
+
+message SimpleReply {
+  ErrorInfo error = 1;
+}
+
+// 房间加入/离开（聊天室/弹幕房）
+message RoomReportRequest {
+  int64 user_id = 1;
+  int64 room_id = 2;
+  string comet_id = 3;
+}
+
+// 广播请求（由 HTTP 或内部调用）
+message BroadcastRequest {
+  string scope = 1;          // all / group / tag ...
+  int64 group_id = 2;        // 可选
+  string content_json = 3;
+}
+
+message BroadcastReply {
+  ErrorInfo error = 1;
+  string task_id = 2;
+}
+
+// 双向流消息包装
+message StreamMessage {
+  string request_id = 1;  // 用于匹配请求和响应
+  oneof payload {
+    UpstreamMessageRequest upstream = 2;
+    UserOfflineRequest offline = 3;
+    RoomReportRequest room_join = 4;
+    RoomReportRequest room_leave = 5;
+  }
+}
+
+message StreamResponse {
+  string request_id = 1;  // 对应请求的ID
+  ErrorInfo error = 2;
+  oneof payload {
+    UpstreamMessageReply upstream_reply = 3;
+    SimpleReply simple_reply = 4;
+  }
+}
+
+service LogicService {
+  // Token 鉴权 + 路由注册（WebSocket 握手时调用）
+  rpc VerifyToken(VerifyTokenRequest) returns (VerifyTokenReply);
+  // 上行消息处理（单聊/聊天室/弹幕）
+  rpc SendUpstreamMessage(UpstreamMessageRequest) returns (UpstreamMessageReply);
+  // 用户下线通知，清理 Redis 路由
+  rpc UserOffline(UserOfflineRequest) returns (SimpleReply);
+  // 房间路由管理
+  rpc ReportRoomJoin(RoomReportRequest) returns (SimpleReply);
+  rpc ReportRoomLeave(RoomReportRequest) returns (SimpleReply);
+  // 全量/分组广播
+  rpc Broadcast(BroadcastRequest) returns (BroadcastReply);
+  
+  // 双向流模式：Comet 与 Logic 之间的持久连接
+  // 优势：消除每次 RPC 的连接开销，吞吐量提升 100%（16K → 33K QPS）
+  // 通过 oneof payload 复用多种消息类型
+  rpc MessageStream(stream StreamMessage) returns (stream StreamResponse);
+}
+
+// ========== JobService / CometService 相关 ==========
+// 消息流转：Logic → Kafka → Job → Comet（gRPC）
+
+// Fanout 目标：单聊时指定具体 user_id，聊天室广播时为空（由 Comet 按 room 查找）
+message FanoutTarget {
+  int64 user_id = 1;
+}
+
+// 推送请求：Logic 生产到 Kafka，Job 消费后通过 gRPC 推送到 Comet
+// 同一条消息会被推送消费组和持久化消费组分别消费（Kafka 消费组隔离）
+message PushToCometRequest {
+  string comet_id = 1;            // 目标 Comet 节点（"persist_only" 为特殊标记：仅落盘不推送）
+  ChatMessage message = 2;
+  repeated FanoutTarget targets = 3;  // 单聊时填写目标用户列表
+  
+  // 以下字段供 Job 异步持久化到 MySQL 使用
+  string scene = 4;       // single / chatroom / danmaku
+  int64 to_user_id = 5;   // 单聊目标
+  int64 room_id = 6;      // 聊天室/弹幕房 ID
+  bool need_persist = 7;  // 是否需要落盘（控制 PersistHandler 是否写 MySQL）
+}
+
+message PushToCometReply {
+  ErrorInfo error = 1;
+}
+
+// Job -> Comet 客户端流响应
+message PushStreamReply {
+  int64 received_count = 1;  // 收到的消息数
+}
+
+// logic -> job：广播任务
+message BroadcastTaskRequest {
+  string task_id = 1;
+  string scope = 2;
+  int64 group_id = 3;
+  string content_json = 4;
+}
+
+service JobService {
+  rpc EnqueuePushTask(PushToCometRequest) returns (SimpleReply);
+  rpc EnqueueBroadcastTask(BroadcastTaskRequest) returns (SimpleReply);
+}
+
+service CometService {
+  // unary 推送（默认模式）：每条消息一次独立 RPC，可靠性高
+  rpc PushToComet(PushToCometRequest) returns (PushToCometReply);
+  
+  // 客户端流推送（可选高吞吐模式）：Job 持续向 Comet 发送消息流
+  // 优势：减少连接开销；风险：流断开需要重连机制
+  rpc PushStream(stream PushToCometRequest) returns (PushStreamReply);
+}

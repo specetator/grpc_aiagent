@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>Spark Push - Test Console</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔧</text></svg>">
+  <script src="auth.js"></script>
+  <style>
+    :root {
+      --c-blue: #1976d2;
+      --c-green: #4caf50;
+      --c-orange: #ff9800;
+      --c-red: #ef5350;
+      --c-bg: #1e1e2e;
+      --c-panel: #2a2a3e;
+      --c-border: #3a3a50;
+      --c-text: #e0e0e0;
+      --c-muted: #888;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+      background: var(--c-bg);
+      color: var(--c-text);
+      font-size: 13px;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    /* Top Bar */
+    .topbar {
+      background: #16162a;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--c-border);
+      flex-shrink: 0;
+    }
+    .topbar h1 { font-size: 15px; color: #7dd3fc; font-weight: 600; }
+    .topbar .links a { color: var(--c-muted); text-decoration: none; margin-left: 12px; font-size: 12px; }
+    .topbar .links a:hover { color: #fff; }
+
+    /* Mode Tabs */
+    .mode-bar {
+      display: flex;
+      gap: 4px;
+      padding: 6px 16px;
+      background: #1a1a30;
+      border-bottom: 1px solid var(--c-border);
+      flex-shrink: 0;
+    }
+    .mode-tab {
+      padding: 5px 16px;
+      border: 1px solid var(--c-border);
+      border-radius: 4px;
+      cursor: pointer;
+      background: transparent;
+      color: var(--c-muted);
+      font-size: 12px;
+      font-family: inherit;
+    }
+    .mode-tab.active { background: var(--c-blue); color: #fff; border-color: var(--c-blue); }
+    .mode-tab:hover:not(.active) { background: #333350; }
+
+    /* Main Layout */
+    .main-area {
+      flex: 1;
+      display: flex;
+      min-height: 0;
+    }
+
+    /* User Panels */
+    .user-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--c-border);
+      min-width: 0;
+    }
+    .user-panel:last-of-type { border-right: none; }
+
+    .panel-header {
+      padding: 8px 12px;
+      background: var(--c-panel);
+      border-bottom: 1px solid var(--c-border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .panel-label {
+      font-weight: bold;
+      font-size: 14px;
+      min-width: 50px;
+    }
+    .panel-label.a { color: #4fc3f7; }
+    .panel-label.b { color: #ce93d8; }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+    .status-dot.off { background: var(--c-red); }
+    .status-dot.on { background: var(--c-green); }
+
+    .panel-info {
+      font-size: 11px;
+      color: var(--c-muted);
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Auth Row */
+    .auth-row {
+      padding: 8px 12px;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      background: #222238;
+      border-bottom: 1px solid var(--c-border);
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    .auth-row input {
+      background: #2e2e48;
+      border: 1px solid var(--c-border);
+      color: var(--c-text);
+      padding: 5px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: inherit;
+      width: 100px;
+    }
+    .auth-row input:focus { border-color: var(--c-blue); outline: none; }
+
+    .btn {
+      padding: 5px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 11px;
+      font-family: inherit;
+      font-weight: 500;
+    }
+    .btn-login { background: var(--c-green); color: #fff; }
+    .btn-login:hover { background: #43a047; }
+    .btn-quick { background: #5c6bc0; color: #fff; }
+    .btn-quick:hover { background: #3f51b5; }
+    .btn-action { background: var(--c-blue); color: #fff; }
+    .btn-action:hover { background: #1565c0; }
+    .btn-danger { background: var(--c-red); color: #fff; }
+    .btn-danger:hover { background: #e53935; }
+    .btn-small { padding: 3px 8px; font-size: 10px; }
+
+    /* Chat Config Row */
+    .config-row {
+      padding: 6px 12px;
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      background: #222238;
+      border-bottom: 1px solid var(--c-border);
+      flex-shrink: 0;
+    }
+    .config-row label { font-size: 11px; color: var(--c-muted); min-width: 50px; }
+    .config-row input, .config-row select {
+      background: #2e2e48;
+      border: 1px solid var(--c-border);
+      color: var(--c-text);
+      padding: 4px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: inherit;
+    }
+
+    /* Messages Area */
+    .msg-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 12px;
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-height: 0;
+    }
+    .msg-item {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      line-height: 1.5;
+      word-break: break-all;
+    }
+    .msg-item.me { background: #1b3a4b; align-self: flex-end; max-width: 80%; border: 1px solid #264d5e; }
+    .msg-item.other { background: #2a2a3e; align-self: flex-start; max-width: 80%; border: 1px solid var(--c-border); }
+    .msg-item.sys { align-self: center; color: var(--c-muted); font-size: 11px; background: transparent; }
+    .msg-item .meta { font-size: 10px; color: var(--c-muted); margin-bottom: 2px; }
+
+    /* Input Row */
+    .input-row {
+      padding: 8px 12px;
+      display: flex;
+      gap: 6px;
+      border-top: 1px solid var(--c-border);
+      background: var(--c-panel);
+      flex-shrink: 0;
+    }
+    .input-row input {
+      flex: 1;
+      background: #2e2e48;
+      border: 1px solid var(--c-border);
+      color: var(--c-text);
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: inherit;
+    }
+    .input-row input:focus { border-color: var(--c-blue); outline: none; }
+
+    /* Debug Log */
+    .debug-panel {
+      height: 180px;
+      border-top: 1px solid var(--c-border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    .debug-header {
+      padding: 4px 12px;
+      background: #16162a;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--c-border);
+    }
+    .debug-header span { font-size: 11px; color: var(--c-muted); font-weight: bold; }
+    .debug-log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 12px;
+      background: #0e0e1a;
+      font-size: 11px;
+      line-height: 1.6;
+    }
+    .debug-log .log-entry { border-bottom: 1px solid #1a1a2a; padding: 2px 0; }
+    .log-time { color: #666; }
+    .log-dir-out { color: #ff9800; }
+    .log-dir-in { color: #4caf50; }
+    .log-user-a { color: #4fc3f7; }
+    .log-user-b { color: #ce93d8; }
+    .log-content { color: #aaa; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <!-- Top Bar -->
+  <div class="topbar">
+    <h1>Spark Push Test Console</h1>
+    <div class="links">
+      <a href="index.html">Single Chat</a>
+      <a href="chatroom.html">Chatroom</a>
+      <a href="danmaku.html">Danmaku</a>
+      <a href="admin_chatroom.html">Admin</a>
+    </div>
+  </div>
+
+  <!-- Mode Selector -->
+  <div class="mode-bar">
+    <button class="mode-tab active" data-mode="single">Single Chat</button>
+    <button class="mode-tab" data-mode="chatroom">Chatroom</button>
+    <button class="mode-tab" data-mode="danmaku">Danmaku</button>
+  </div>
+
+  <!-- Main Area: Two Panels -->
+  <div class="main-area">
+    <!-- Panel A -->
+    <div class="user-panel" id="panel-a">
+      <div class="panel-header">
+        <span class="panel-label a">User A</span>
+        <span class="status-dot off" id="ws-dot-a"></span>
+        <span class="panel-info" id="info-a">not connected</span>
+      </div>
+      <div class="auth-row">
+        <input id="acc-a" placeholder="account" value="testerA" />
+        <input id="pwd-a" type="password" placeholder="password" value="123456" />
+        <button class="btn btn-quick" onclick="quickLogin('a')">Quick Login</button>
+        <button class="btn btn-danger btn-small" onclick="logout('a')">Logout</button>
+        <span id="uid-a" style="font-size:11px; color:var(--c-muted);"></span>
+      </div>
+      <!-- Single chat config -->
+      <div class="config-row" id="cfg-single-a">
+        <label>Target UID:</label>
+        <input id="target-a" placeholder="peer user_id" style="width:80px;" />
+        <span style="font-size:10px;color:var(--c-muted);">(auto-filled after B logs in)</span>
+      </div>
+      <!-- Chatroom config -->
+      <div class="config-row" id="cfg-room-a" style="display:none;">
+        <label>Room ID:</label>
+        <input id="room-a" value="2" style="width:60px;" />
+        <button class="btn btn-action btn-small" onclick="joinRoom('a')">Join Room</button>
+        <button class="btn btn-danger btn-small" onclick="leaveRoom('a')">Leave</button>
+      </div>
+      <!-- Danmaku config -->
+      <div class="config-row" id="cfg-dm-a" style="display:none;">
+        <label>Room:</label>
+        <input id="dm-room-a" value="2" style="width:50px;" />
+        <label>Video:</label>
+        <input id="dm-vid-a" value="vid_001" style="width:70px;" />
+        <label>Timeline:</label>
+        <input id="dm-tl-a" value="5000" style="width:60px;" />
+        <button class="btn btn-action btn-small" onclick="joinRoom('a', true)">Join</button>
+      </div>
+      <div class="msg-area" id="msgs-a"></div>
+      <div class="input-row">
+        <input id="input-a" placeholder="Type message... (Enter to send)" onkeydown="if(event.key==='Enter')sendMsg('a')" />
+        <button class="btn btn-action" onclick="sendMsg('a')">Send</button>
+      </div>
+    </div>
+
+    <!-- Panel B -->
+    <div class="user-panel" id="panel-b">
+      <div class="panel-header">
+        <span class="panel-label b">User B</span>
+        <span class="status-dot off" id="ws-dot-b"></span>
+        <span class="panel-info" id="info-b">not connected</span>
+      </div>
+      <div class="auth-row">
+        <input id="acc-b" placeholder="account" value="testerB" />
+        <input id="pwd-b" type="password" placeholder="password" value="123456" />
+        <button class="btn btn-quick" onclick="quickLogin('b')">Quick Login</button>
+        <button class="btn btn-danger btn-small" onclick="logout('b')">Logout</button>
+        <span id="uid-b" style="font-size:11px; color:var(--c-muted);"></span>
+      </div>
+      <div class="config-row" id="cfg-single-b">
+        <label>Target UID:</label>
+        <input id="target-b" placeholder="peer user_id" style="width:80px;" />
+        <span style="font-size:10px;color:var(--c-muted);">(auto-filled after A logs in)</span>
+      </div>
+      <div class="config-row" id="cfg-room-b" style="display:none;">
+        <label>Room ID:</label>
+        <input id="room-b" value="2" style="width:60px;" />
+        <button class="btn btn-action btn-small" onclick="joinRoom('b')">Join Room</button>
+        <button class="btn btn-danger btn-small" onclick="leaveRoom('b')">Leave</button>
+      </div>
+      <div class="config-row" id="cfg-dm-b" style="display:none;">
+        <label>Room:</label>
+        <input id="dm-room-b" value="2" style="width:50px;" />
+        <label>Video:</label>
+        <input id="dm-vid-b" value="vid_001" style="width:70px;" />
+        <label>Timeline:</label>
+        <input id="dm-tl-b" value="5000" style="width:60px;" />
+        <button class="btn btn-action btn-small" onclick="joinRoom('b', true)">Join</button>
+      </div>
+      <div class="msg-area" id="msgs-b"></div>
+      <div class="input-row">
+        <input id="input-b" placeholder="Type message... (Enter to send)" onkeydown="if(event.key==='Enter')sendMsg('b')" />
+        <button class="btn btn-action" onclick="sendMsg('b')">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Debug Log -->
+  <div class="debug-panel">
+    <div class="debug-header">
+      <span>RAW WebSocket Log</span>
+      <div>
+        <button class="btn btn-small" style="background:#333;color:#aaa;margin-right:4px;" onclick="document.getElementById('debug-log').innerHTML=''">Clear</button>
+        <button class="btn btn-small" style="background:#333;color:#aaa;" onclick="toggleDebug()">Toggle</button>
+      </div>
+    </div>
+    <div class="debug-log" id="debug-log"></div>
+  </div>
+
+<script>
+// ========== Config ==========
+const LOGIC_BASE = window.location.protocol + '//' + window.location.hostname + ':9101';
+const WS_BASE = (window.location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + window.location.hostname + ':9200/ws';
+
+// ========== State ==========
+const users = {
+  a: { uid: null, token: null, ws: null, connId: null },
+  b: { uid: null, token: null, ws: null, connId: null }
+};
+let currentMode = 'single'; // single | chatroom | danmaku
+
+// ========== Utility ==========
+function $(id) { return document.getElementById(id); }
+
+function ts() {
+  const d = new Date();
+  return d.toLocaleTimeString('en-GB', {hour12:false}) + '.' + String(d.getMilliseconds()).padStart(3,'0');
+}
+
+function debugLog(who, dir, data) {
+  const log = $('debug-log');
+  const entry = document.createElement('div');
+  entry.className = 'log-entry';
+  const whoClass = who === 'a' ? 'log-user-a' : 'log-user-b';
+  const dirClass = dir === 'OUT' ? 'log-dir-out' : 'log-dir-in';
+  const label = who.toUpperCase();
+  // Truncate long messages for readability
+  let display = data;
+  if (display.length > 200) display = display.substring(0, 200) + '...';
+  entry.innerHTML = `<span class="log-time">${ts()}</span> <span class="${whoClass}">[${label}]</span> <span class="${dirClass}">${dir}</span> <span class="log-content">${escapeHtml(display)}</span>`;
+  log.appendChild(entry);
+  log.scrollTop = log.scrollHeight;
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function appendMsg(who, text, isMe, senderName, isSys) {
+  const area = $('msgs-' + who);
+  const div = document.createElement('div');
+  if (isSys) {
+    div.className = 'msg-item sys';
+    div.textContent = text;
+  } else {
+    div.className = 'msg-item ' + (isMe ? 'me' : 'other');
+    div.innerHTML = `<div class="meta">${escapeHtml(senderName || '?')} &middot; ${ts()}</div>${escapeHtml(text)}`;
+  }
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+
+function updateStatus(who) {
+  const u = users[who];
+  const dot = $('ws-dot-' + who);
+  const info = $('info-' + who);
+  if (u.ws && u.ws.readyState === WebSocket.OPEN) {
+    dot.className = 'status-dot on';
+    info.textContent = `uid=${u.uid} | ws=OPEN` + (u.connId ? ` | conn_id=${u.connId}` : '');
+  } else if (u.uid) {
+    dot.className = 'status-dot off';
+    info.textContent = `uid=${u.uid} | ws=CLOSED`;
+  } else {
+    dot.className = 'status-dot off';
+    info.textContent = 'not connected';
+  }
+  $('uid-' + who).textContent = u.uid ? `(uid: ${u.uid})` : '';
+}
+
+// ========== Auth ==========
+async function quickLogin(who) {
+  const acc = $('acc-' + who).value.trim();
+  const pwd = $('pwd-' + who).value;
+  if (!acc || !pwd) return alert('Fill account & password');
+
+  const pwdHash = hashPassword(pwd);
+
+  // Try login first
+  let res = await fetch(LOGIC_BASE + '/api/login', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ account: acc, password: pwdHash })
+  });
+  let data = await res.json();
+
+  // Auto-register if login fails
+  if (data.code !== 0) {
+    appendMsg(who, `Login failed (${data.message}), trying register...`, false, null, true);
+    res = await fetch(LOGIC_BASE + '/api/register', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ account: acc, password: pwdHash, name: acc })
+    });
+    data = await res.json();
+    if (data.code !== 0) {
+      appendMsg(who, `Register failed: ${data.message}`, false, null, true);
+      return;
+    }
+    appendMsg(who, `Auto-registered & logged in`, false, null, true);
+  }
+
+  users[who].uid = data.data.user_id;
+  users[who].token = data.data.token;
+  appendMsg(who, `Logged in: uid=${data.data.user_id}`, false, null, true);
+
+  // Auto-fill target for single chat
+  const other = who === 'a' ? 'b' : 'a';
+  if (users[other].uid) {
+    $('target-' + who).value = users[other].uid;
+    $('target-' + other).value = users[who].uid;
+  }
+
+  connectWs(who);
+  updateStatus(who);
+}
+
+function logout(who) {
+  if (users[who].ws) users[who].ws.close();
+  users[who] = { uid: null, token: null, ws: null, connId: null };
+  $('msgs-' + who).innerHTML = '';
+  updateStatus(who);
+}
+
+// ========== WebSocket ==========
+function connectWs(who) {
+  const u = users[who];
+  if (u.ws) u.ws.close();
+
+  u.ws = new WebSocket(WS_BASE + '?token=' + encodeURIComponent(u.token));
+
+  u.ws.onopen = () => {
+    appendMsg(who, 'WebSocket connected', false, null, true);
+    updateStatus(who);
+    // If in chatroom/danmaku mode and room is filled, auto-join
+    if (currentMode === 'chatroom' || currentMode === 'danmaku') {
+      setTimeout(() => joinRoom(who, currentMode === 'danmaku'), 300);
+    }
+  };
+
+  u.ws.onmessage = (ev) => {
+    debugLog(who, 'IN', ev.data);
+    try {
+      const obj = JSON.parse(ev.data);
+
+      // Extract conn_id from auth response if present
+      if (obj.conn_id) u.connId = obj.conn_id;
+
+      if (obj.type === 'ack') {
+        appendMsg(who, `ACK: msg_id=${obj.msg_id || obj.op || ''}`, false, null, true);
+      } else if (obj.type === 'single_chat') {
+        const text = extractText(obj);
+        const sender = obj.from_user_id || obj.sender_id || '?';
+        const isMe = (Number(sender) === u.uid);
+        appendMsg(who, text, isMe, `User ${sender}`);
+      } else if (obj.type === 'chatroom') {
+        const text = extractText(obj);
+        const sender = obj.from_user_id || '?';
+        const isMe = (Number(sender) === u.uid);
+        appendMsg(who, text, isMe, `User ${sender}`);
+      } else if (obj.type === 'danmaku') {
+        const text = extractText(obj);
+        const sender = obj.from_user_id || '?';
+        appendMsg(who, `[DM @${obj.timeline_ms || 0}ms] ${text}`, false, `User ${sender}`);
+      } else if (obj.type === 'system_broadcast') {
+        appendMsg(who, `[Broadcast] ${extractText(obj)}`, false, null, true);
+      } else if (obj.type === 'error') {
+        appendMsg(who, `ERROR: ${obj.message}`, false, null, true);
+      } else {
+        appendMsg(who, `[${obj.type || 'unknown'}] ${ev.data.substring(0, 100)}`, false, null, true);
+      }
+    } catch (e) {
+      appendMsg(who, `[parse error] ${ev.data.substring(0, 80)}`, false, null, true);
+    }
+    updateStatus(who);
+  };
+
+  u.ws.onclose = () => {
+    appendMsg(who, 'WebSocket closed', false, null, true);
+    updateStatus(who);
+  };
+
+  u.ws.onerror = () => {
+    appendMsg(who, 'WebSocket error', false, null, true);
+  };
+}
+
+function extractText(obj) {
+  if (!obj.content) return JSON.stringify(obj).substring(0, 80);
+  const c = (typeof obj.content === 'string') ? (() => { try { return JSON.parse(obj.content); } catch(e) { return obj.content; } })() : obj.content;
+  if (typeof c === 'string') return c;
+  if (c.text) return c.text;
+  if (c.content) {
+    if (typeof c.content === 'string') return c.content;
+    if (c.content.text) return c.content.text;
+  }
+  return JSON.stringify(c).substring(0, 80);
+}
+
+// ========== Send Messages ==========
+function sendMsg(who) {
+  const u = users[who];
+  const input = $('input-' + who);
+  const text = input.value.trim();
+  if (!text) return;
+  if (!u.ws || u.ws.readyState !== WebSocket.OPEN) {
+    appendMsg(who, 'WS not connected!', false, null, true);
+    return;
+  }
+
+  let payload;
+  if (currentMode === 'single') {
+    const target = parseInt($('target-' + who).value);
+    if (!target) { appendMsg(who, 'Set target UID first!', false, null, true); return; }
+    payload = {
+      type: 'single_chat',
+      to_user_id: target,
+      content: { text },
+      client_msg_id: Date.now().toString()
+    };
+    appendMsg(who, text, true, `User ${u.uid}`);
+  } else if (currentMode === 'chatroom') {
+    const roomId = parseInt($('room-' + who).value);
+    if (!roomId) { appendMsg(who, 'Set room ID first!', false, null, true); return; }
+    payload = {
+      type: 'chatroom',
+      group_id: roomId,
+      content: { text },
+      client_msg_id: Date.now().toString()
+    };
+    // Don't append optimistically for chatroom (will come back via push)
+  } else if (currentMode === 'danmaku') {
+    const roomId = parseInt($('dm-room-' + who).value);
+    const videoId = $('dm-vid-' + who).value.trim();
+    const timeline = parseInt($('dm-tl-' + who).value) || 0;
+    if (!roomId || !videoId) { appendMsg(who, 'Set room & video ID!', false, null, true); return; }
+    payload = {
+      type: 'danmaku',
+      group_id: roomId,
+      video_id: videoId,
+      timeline_ms: timeline,
+      content: { text },
+      client_msg_id: Date.now().toString()
+    };
+  }
+
+  const raw = JSON.stringify(payload);
+  u.ws.send(raw);
+  debugLog(who, 'OUT', raw);
+  input.value = '';
+}
+
+// ========== Room Operations ==========
+async function joinRoom(who, isDanmaku) {
+  const u = users[who];
+  if (!u.uid) return;
+
+  const roomId = isDanmaku
+    ? parseInt($('dm-room-' + who).value)
+    : parseInt($('room-' + who).value);
+  if (!roomId) return;
+
+  // HTTP join
+  await fetch(LOGIC_BASE + '/api/chatroom/join', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ user_id: u.uid, room_id: roomId })
+  });
+
+  // WS join
+  if (u.ws && u.ws.readyState === WebSocket.OPEN) {
+    const msg = JSON.stringify({ type: 'chatroom_join', group_id: roomId });
+    u.ws.send(msg);
+    debugLog(who, 'OUT', msg);
+  }
+  appendMsg(who, `Joined room ${roomId}`, false, null, true);
+}
+
+function leaveRoom(who) {
+  const u = users[who];
+  if (!u.ws || u.ws.readyState !== WebSocket.OPEN) return;
+  const roomId = parseInt($('room-' + who).value);
+  if (!roomId) return;
+  const msg = JSON.stringify({ type: 'chatroom_leave', group_id: roomId });
+  u.ws.send(msg);
+  debugLog(who, 'OUT', msg);
+  appendMsg(who, `Left room ${roomId}`, false, null, true);
+}
+
+// ========== Mode Switching ==========
+document.querySelectorAll('.mode-tab').forEach(tab => {
+  tab.onclick = () => {
+    document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    currentMode = tab.dataset.mode;
+    updateConfigVisibility();
+  };
+});
+
+function updateConfigVisibility() {
+  ['a', 'b'].forEach(w => {
+    $('cfg-single-' + w).style.display = currentMode === 'single' ? 'flex' : 'none';
+    $('cfg-room-' + w).style.display = currentMode === 'chatroom' ? 'flex' : 'none';
+    $('cfg-dm-' + w).style.display = currentMode === 'danmaku' ? 'flex' : 'none';
+  });
+}
+
+function toggleDebug() {
+  const dp = document.querySelector('.debug-panel');
+  if (dp.style.display === 'none') {
+    dp.style.display = 'flex';
+  } else {
+    dp.style.display = 'none';
+  }
+}
+
+// ========== Init ==========
+updateConfigVisibility();
+</script>
+</body>
+</html>
