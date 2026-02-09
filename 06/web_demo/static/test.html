@@ -645,8 +645,11 @@ async function joinRoom(who, isDanmaku) {
   // HTTP join
   await fetch(LOGIC_BASE + '/api/chatroom/join', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ user_id: u.uid, room_id: roomId })
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + u.token
+    },
+    body: JSON.stringify({ room_id: roomId })
   });
 
   // WS join

@@ -119,6 +119,13 @@
     const cometWsUrl = wsProtocol + '//' + window.location.hostname + ':9200/ws';
     
     let ws=null, uid=null, token=null, myName=null, currentRoom=null, currentRoomName='';
+
+    // 构造带 Authorization 的请求头
+    function authHeaders() {
+      const h = {'Content-Type': 'application/json'};
+      if (token) h['Authorization'] = 'Bearer ' + token;
+      return h;
+    }
     // 对应当前房间在后端的 session_id，用于拉取历史消息
     let currentSessionId=null;
     // 聊天室历史分页状态
@@ -275,8 +282,8 @@
        try {
           const res = await fetch(logicBase+'/api/chatroom/list', {
              method:'POST',
-             headers:{'Content-Type':'application/json'},
-             body:JSON.stringify({user_id:uid})
+             headers:authHeaders(),
+             body:JSON.stringify({})
           });
           const d = await res.json();
           const listDiv = document.getElementById('room-list');
@@ -306,7 +313,7 @@
        const rid = parseInt(document.getElementById('join-room-id').value);
        if(!rid) return;
        await fetch(logicBase+'/api/chatroom/join', {
-          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({user_id:uid, room_id:rid})
+          method:'POST', headers:authHeaders(), body:JSON.stringify({room_id:rid})
        });
        if(ws) ws.send(JSON.stringify({type:'chatroom_join', group_id:rid}));
        
@@ -376,7 +383,7 @@
        try {
          const res = await fetch(logicBase + '/api/session/history', {
             method:'POST',
-            headers:{'Content-Type':'application/json'},
+            headers:authHeaders(),
             body: JSON.stringify({
               session_id: currentSessionId,
               anchor_seq: anchor,

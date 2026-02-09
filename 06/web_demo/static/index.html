@@ -435,6 +435,13 @@
 
     // 配置
     const logicBase = window.location.protocol + '//' + window.location.hostname + ':9101';
+
+    // 构造带 Authorization 的请求头
+    function authHeaders() {
+      const h = {'Content-Type': 'application/json'};
+      if (token) h['Authorization'] = 'Bearer ' + token;
+      return h;
+    }
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const cometWsUrl = wsProtocol + '//' + window.location.hostname + ':9200/ws';
 
@@ -704,8 +711,8 @@
       try {
         const resp = await fetch(logicBase + '/api/session/list_single', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ user_id: currentUserId })
+          headers: authHeaders(),
+          body: JSON.stringify({})
         });
         const data = await resp.json();
         if (data.code === 0) {
@@ -766,7 +773,7 @@
        try {
          const resp = await fetch(logicBase + '/api/session/history', {
            method: 'POST',
-           headers: { 'Content-Type': 'application/json' },
+           headers: authHeaders(),
            body: JSON.stringify({
              session_id: currentSessionId,
              anchor_seq: anchor,

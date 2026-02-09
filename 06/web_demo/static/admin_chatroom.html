@@ -116,6 +116,14 @@
   <script>
     const logicBase = window.location.protocol + '//' + window.location.hostname + ':9101';
     let uid = null;
+    let adminToken = null;
+
+    // 构造带 Authorization 的请求头
+    function authHeaders() {
+      const h = {'Content-Type': 'application/json'};
+      if (adminToken) h['Authorization'] = 'Bearer ' + adminToken;
+      return h;
+    }
 
     async function doLogin() {
        const account = document.getElementById('acc').value;
@@ -129,7 +137,8 @@
           if(d.code!==0) return document.getElementById('err-msg').textContent = d.message;
           
           uid = d.data.user_id;
-          Auth.setAdmin(uid, d.data.token);
+          adminToken = d.data.token;
+          Auth.setAdmin(uid, adminToken);
 
           // 切换 UI
           document.getElementById('login-card').classList.add('hidden');
@@ -151,7 +160,7 @@
       const s = Auth.getAdmin();
       if(s) {
         uid = Number(s.user_id);
-        // 虽然目前 Admin API 可能没用到 token，但保持一致性
+        adminToken = s.token;
         document.getElementById('login-card').classList.add('hidden');
         document.getElementById('dashboard').classList.remove('hidden');
         document.getElementById('user-info').classList.remove('hidden');
@@ -164,7 +173,7 @@
        const name = document.getElementById('new-room-name').value;
        if(!name) return;
        const res = await fetch(logicBase+'/api/admin/chatroom/create', {
-          method:'POST', headers:{'Content-Type':'application/json'},
+          method:'POST', headers:authHeaders(),
           body:JSON.stringify({name, owner_id:uid})
        });
        const d = await res.json();
@@ -184,7 +193,7 @@
        if(scope==='chatroom') body.room_id = rid;
        
        const res = await fetch(logicBase+'/api/admin/broadcast', {
-          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+          method:'POST', headers:authHeaders(), body:JSON.stringify(body)
        });
        const d = await res.json();
        if(d.code===0) alert('广播已发送');
@@ -193,7 +202,7 @@
 
     async function loadRooms() {
        const res = await fetch(logicBase+'/api/admin/chatroom/list', {
-          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({limit:50})
+          method:'POST', headers:authHeaders(), body:JSON.stringify({limit:50})
        });
        const d = await res.json();
        const div = document.getElementById('room-list');

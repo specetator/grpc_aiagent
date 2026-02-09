@@ -258,6 +258,13 @@
     let ws = null;
     let currentUserId = null;
     let token = null;
+
+    // 构造带 Authorization 的请求头
+    function authHeaders() {
+      const h = {'Content-Type': 'application/json'};
+      if (token) h['Authorization'] = 'Bearer ' + token;
+      return h;
+    }
     const danmakus = []; 
     // 弹幕按时间片分段加载（毫秒），类似商业视频网站做时间分片预加载
     const DANMAKU_SLICE_MS = 60 * 1000; // 每片 60 秒
@@ -356,7 +363,7 @@
       try {
         const res = await fetch(logicBase + '/api/danmaku/list', {
           method:'POST',
-          headers:{'Content-Type':'application/json'},
+          headers:authHeaders(),
           body:JSON.stringify({
             video_id: videoId,
             from_ms: fromMs,
@@ -476,8 +483,8 @@
     
     async function joinRoom() {
        await fetch(logicBase + '/api/chatroom/join', {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({ room_id: danmakuRoomId, user_id: currentUserId })
+          method:'POST', headers:authHeaders(),
+          body:JSON.stringify({ room_id: danmakuRoomId })
        });
        if(ws && ws.readyState===1) ws.send(JSON.stringify({ type:'chatroom_join', group_id: danmakuRoomId }));
     }
@@ -494,13 +501,11 @@
        const timelineMs = Math.floor((video.currentTime||0) * 1000);
        try {
           await fetch(logicBase + '/api/danmaku/send', {
-             method:'POST', headers:{'Content-Type':'application/json'},
+             method:'POST', headers:authHeaders(),
              body:JSON.stringify({
-               user_id: currentUserId,
                video_id: videoId,
                timeline_ms: timelineMs,
-               text,
-               token
+               text
              })
           });
           dmInput.value = '';
