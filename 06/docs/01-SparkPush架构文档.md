@@ -43,7 +43,7 @@
 | Logic Server | 9101 | HTTP | 前端 REST API（登录/注册/发消息/历史等） |
 | Comet Server | 9200 | WebSocket | 客户端长连接 |
 | Comet Server | 9205 | gRPC | Job 推送消息到 Comet（CometService） |
-| Web Demo | 9080 | HTTP | 静态页面服务 |
+| Web Demo | 9080（单独启动默认是9001， 一键启动时设置的9080） | HTTP | 静态页面服务 |
 | Kafka | 9092 | TCP | 消息队列 |
 | Zookeeper | 2181 | TCP | Kafka 依赖 |
 | MySQL | 3306 | TCP | 数据存储 |
