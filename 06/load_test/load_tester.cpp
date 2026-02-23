@@ -9,7 +9,7 @@
 #include <string>
 #include <thread>
 #include <vector>
-
+#include <sstream>
 #include <sys/socket.h>
 #include <unistd.h>
 

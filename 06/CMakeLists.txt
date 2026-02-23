@@ -4,6 +4,10 @@ project(spark_push LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+
+# 让自定义的 Find*.cmake 可被找到（用于兼容系统未提供的 gRPC Config）
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/../cmake)
+
 # 让 #include <muduo/...> 优先命中本仓库下的 muduo 目录
 include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
