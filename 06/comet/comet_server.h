@@ -22,6 +22,7 @@
 #include <queue>
 #include <condition_variable>
 #include <functional>
+#include <grpcpp/grpcpp.h> // 解决部分平台出现编译报错 std::shared_ptr<grpc::Channel> channel_;  有报错，因为muduo库的Channel和grpc的Channel有冲突
 
 namespace sparkpush {
 
