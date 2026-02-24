@@ -130,3 +130,36 @@ spark-push/
 | Logic gRPC | 9100 | gRPC |
 | Logic HTTP | 9101 | HTTP |
 | Web Demo | 9001 | HTTP |
+
+
+# 异常问题
+## grpc protoc多个版本
+cmake ..时报错：
+```
+CMake Warning at /usr/cmake-3.22/Modules/FindProtobuf.cmake:524 (message):
+  Protobuf compiler version 3.12.4 doesn't match library version 3.19.4
+Call Stack (most recent call first):
+  proto/CMakeLists.txt:3 (find_package)
+```
+导致后续编译报错或者启动comet server时卡住，可以使用`whereis protoc`命令查看对应的`protoc`在哪里，使用绝对路径查看其版本，比如
+```
+root@VM-8-4-ubuntu:~/darren/11.2-spark_push/06# whereis protoc
+protoc: /usr/bin/protoc /usr/local/bin/protoc /usr/share/man/man1/protoc.1.gz
+root@VM-8-4-ubuntu:~/darren/11.2-spark_push/06# /usr/bin/protoc --version
+libprotoc 3.12.4
+root@VM-8-4-ubuntu:~/darren/11.2-spark_push/06# /usr/local/bin/protoc --version
+libprotoc 3.19.4
+```
+如果我们需要手动设置默认版本，则使用`export PATH=/usr/local/bin:$PATH`进行设置，即是：
+```
+# 在终端执行
+export PATH=/usr/local/bin:$PATH
+# 然后
+protoc --version
+此时就显示的是/usr/local/bin/protoc路径的版本。
+
+```
+## SSL报错
+将11.2-spark_push/cmake目录里的 FindgRPC-bk.cmake替换默认的FindgRPC.cmake
+
+
