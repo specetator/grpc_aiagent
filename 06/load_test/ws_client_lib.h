@@ -9,7 +9,7 @@ struct Config {
     std::string logic_host = "127.0.0.1";
     int logic_port = 9101;
     std::string comet_host = "127.0.0.1";
-    int comet_port = 9100;
+    int comet_port = 9200;
 
     std::string account;
     std::string password;
