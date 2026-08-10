@@ -9,6 +9,10 @@ add_library(spark_push_common
     kafka_producer.cpp
     kafka_consumer.cpp
     thread_pool.cpp
+    security.cpp
+    metrics.cpp
+    metrics_http_server.cpp
+    rate_limiter.cpp
 )
 
 target_include_directories(spark_push_common
@@ -17,6 +21,7 @@ target_include_directories(spark_push_common
 )
 
 find_package(Threads REQUIRED)
+find_package(OpenSSL REQUIRED)
 
 target_link_libraries(spark_push_common
     PUBLIC
@@ -26,6 +31,5 @@ target_link_libraries(spark_push_common
         muduo_base
         rdkafka++
         rdkafka
+        OpenSSL::Crypto
 )
-
-

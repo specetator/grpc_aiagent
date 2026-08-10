@@ -33,4 +33,7 @@ target_link_libraries(load_tester
             ws_client_lib
 )
 
+# 双账号端到端验证：发送方 ACK + Kafka/Job/Comet 接收方送达 + 延迟分位数
+add_executable(e2e_bench e2e_bench.cpp)
+target_link_libraries(e2e_bench PRIVATE Threads::Threads ws_client_lib)
 

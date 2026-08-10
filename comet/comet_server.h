@@ -2,19 +2,29 @@
 
 #include "config.h"
 #include "logging.h"
+#include "metrics_http_server.h"
 #include "spark_push.grpc.pb.h"
+#include "thread_pool.h"
 #include "websocket_utils.h"
 
 #include <muduo/net/Buffer.h>
 #include <muduo/net/EventLoop.h>
 #include <muduo/net/TcpServer.h>
 
+#include <atomic>
+#include <condition_variable>
+#include <deque>
+#include <functional>
+#include <mutex>
+#include <queue>
 #include <set>
 #include <string>
 #include <thread>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
-#include <mutex>
+
+#include <grpcpp/grpcpp.h>
 
 namespace sparkpush {
 
@@ -23,79 +33,99 @@ using muduo::net::EventLoop;
 using muduo::net::TcpConnectionPtr;
 using muduo::net::TcpServer;
 
-// 每条 TCP 连接的上下文：握手阶段 / 已升级为 WebSocket，以及绑定的 user_id。
-// 通过 Muduo 的 boost::any 存储在 TcpConnection 上，便于状态机切换。
 struct ConnContext {
     enum State { kHandshake, kOpen } state{kHandshake};
     int64_t user_id{0};
 };
 
-// CometServer：负责管理 WebSocket 连接，与 logic 通信，
-// 以及为 gRPC CometService 提供下行推送能力。
 class CometServer {
 public:
     CometServer(EventLoop* loop, const Config& cfg);
+    ~CometServer();
 
-    // 设置 muduo TcpServer 的 IO 线程数（即 worker EventLoop 数量），需在 Start() 之前调用。
     void SetThreadNum(int thread_num);
-
     void Start();
 
-    // 供 gRPC CometService 调用：将消息推送给若干用户（注意一个 user_id 可能有多条连接）。
-    void PushToUsers(const ChatMessage& msg,
-                     const std::vector<int64_t>& user_ids);
-    // 通过本机房间成员表，将消息推送给某个 room 的所有本机在线用户。
-    void PushToRoom(const ChatMessage& msg, int64_t room_id);
-    // 广播给本机所有在线连接。
-    void PushToAll(const ChatMessage& msg);
+    size_t PushToUsers(const ChatMessage& msg,
+                       const std::vector<int64_t>& user_ids);
+    size_t PushToRoom(const ChatMessage& msg, int64_t room_id);
+    size_t PushToAll(const ChatMessage& msg);
+    void PushDeliveryAck(int64_t user_id, const ChatMessage& msg);
+    void ReportDeliveredToUsers(const ChatMessage& msg,
+                                const std::vector<int64_t>& user_ids);
+    std::vector<int64_t> GetRoomUserIds(int64_t room_id) const;
+
+    // Job 重连重放时使用 request_id 去重；返回 false 表示已经处理过。
+    bool AcceptPushRequest(const std::string& request_id);
 
 private:
-    // muduo 回调：新连接建立或关闭。
     void OnConnection(const TcpConnectionPtr& conn);
-    // muduo 回调：收到数据时调用，根据状态机区分握手/帧处理。
-    void OnMessage(const TcpConnectionPtr& conn,
-                   Buffer* buf,
+    void OnMessage(const TcpConnectionPtr& conn, Buffer* buf,
                    muduo::Timestamp);
 
-    // 处理 HTTP -> WebSocket 升级握手；验证 token，回写 Sec-WebSocket-Accept。
     void HandleHandshake(const TcpConnectionPtr& conn, Buffer* buf);
-    // 处理已升级连接的 WebSocket 帧，解析掩码与负载。
-    void HandleWebSocketFrame(const TcpConnectionPtr& conn,
-                              Buffer* buf,
+    void HandleWebSocketFrame(const TcpConnectionPtr& conn, Buffer* buf,
                               ConnContext& ctx);
-    // 处理客户端文本消息，包括路由解析与转发到 logic。
-    void OnTextMessage(const TcpConnectionPtr& conn,
-                       ConnContext& ctx,
+    void OnTextMessage(const TcpConnectionPtr& conn, ConnContext& ctx,
                        const std::string& payload);
 
-    // 解析 HTTP GET 请求行中的 token 参数。
     std::string ParseTokenFromHandshake(const std::string& req);
-
-    // 当某个 user 在本 comet 上的连接数变为 0 时，通知 logic 执行 UserOffline。
     void NotifyUserOffline(int64_t user_id);
+    void RequestOfflineSync(int64_t user_id);
+    void RequestCursorSync(const TcpConnectionPtr& conn, int64_t user_id,
+                           const std::string& session_id, int64_t after_seq,
+                           int limit);
 
-    // 聊天室本机房间成员管理（room_id -> user_ids）。
     void AddUserToRoom(int64_t room_id, int64_t user_id);
     void RemoveUserFromRoom(int64_t room_id, int64_t user_id);
-    // 通过逻辑服上报房间路由 + 在线人数（WebSocket 控制消息驱动）。
     void NotifyRoomJoin(int64_t room_id, int64_t user_id);
     void NotifyRoomLeave(int64_t room_id, int64_t user_id);
 
-    // 事件循环驱动的 TCP 服务器。
+    // gRPC 双向流
+    void InitStreams();
+    void StreamWriterLoop(int stream_idx);
+    void StreamReaderLoop(int stream_idx);
+    void SendToStream(StreamMessage msg,
+                      std::function<void(const StreamResponse&)> callback);
+    uint64_t NextRequestId();
+
     TcpServer server_;
-    // user_id -> 该用户在本 comet 上的所有 WebSocket 连接。
     std::unordered_map<int64_t, std::set<TcpConnectionPtr>> user_conns_;
-    // room_id -> 当前在本 comet 上该房间内的 user_id 列表。
     std::unordered_map<int64_t, std::set<int64_t>> room_users_;
-    // 保护 user_conns_ / room_users_ 的互斥。
     mutable std::mutex conns_mu_;
-    // 访问 LogicService 的 gRPC stub。
+    std::unordered_set<std::string> recent_push_ids_;
+    std::deque<std::string> recent_push_order_;
+    std::shared_ptr<grpc::Channel> channel_;
     std::unique_ptr<sparkpush::LogicService::Stub> logic_stub_;
-    // 当前 comet 实例标识，用于上报与鉴权。
     std::string comet_id_;
+    int metrics_port_{0};
+    MetricsHttpServer metrics_server_;
+    ThreadPool grpc_pool_;
+
+    bool use_stream_{false};
+    int stream_count_{4};
+    struct PendingRequest {
+        StreamMessage msg;
+        std::function<void(const StreamResponse&)> callback;
+    };
+    struct StreamState {
+        std::unique_ptr<grpc::ClientContext> ctx;
+        std::unique_ptr<
+            grpc::ClientReaderWriter<StreamMessage, StreamResponse>>
+            stream;
+        std::thread writer_thread;
+        std::thread reader_thread;
+        std::queue<PendingRequest> send_queue;
+        std::mutex send_queue_mutex;
+        std::condition_variable send_queue_cv;
+    };
+    std::vector<std::unique_ptr<StreamState>> streams_;
+    std::atomic<bool> stream_running_{false};
+    std::unordered_map<std::string,
+                       std::function<void(const StreamResponse&)>>
+        pending_callbacks_;
+    std::mutex callbacks_mutex_;
+    std::atomic<uint64_t> request_id_counter_{0};
 };
 
 }  // namespace sparkpush
-
-
-

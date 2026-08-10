@@ -381,6 +381,52 @@ bool SessionDao::AllocateMessageSeq(const std::string& session_id,
     return true;
 }
 
+bool SessionDao::UpdateLastMessageSeqAtLeast(const std::string& session_id,
+                                             int64_t last_seq,
+                                             std::string* err_msg) {
+    if (!pool_ || session_id.empty() || last_seq <= 0) {
+        if (err_msg) *err_msg = "invalid last_msg_seq update arguments";
+        return false;
+    }
+    auto guard = pool_->Acquire();
+    MYSQL* conn = guard.get();
+    if (!conn) {
+        if (err_msg) *err_msg = "no mysql connection";
+        return false;
+    }
+    const char* sql =
+        "UPDATE `session` SET last_msg_seq=GREATEST(last_msg_seq, ?) "
+        "WHERE session_id=?";
+    MYSQL_STMT* stmt = mysql_stmt_init(conn);
+    if (!stmt) {
+        if (err_msg) *err_msg = "mysql_stmt_init failed";
+        return false;
+    }
+    if (mysql_stmt_prepare(stmt, sql, strlen(sql)) != 0) {
+        if (err_msg) *err_msg = mysql_stmt_error(stmt);
+        mysql_stmt_close(stmt);
+        return false;
+    }
+    MYSQL_BIND bind[2];
+    memset(bind, 0, sizeof(bind));
+    long long seq_buf = last_seq;
+    bind[0].buffer_type = MYSQL_TYPE_LONGLONG;
+    bind[0].buffer = &seq_buf;
+    unsigned long sid_len = static_cast<unsigned long>(session_id.size());
+    bind[1].buffer_type = MYSQL_TYPE_STRING;
+    bind[1].buffer = const_cast<char*>(session_id.data());
+    bind[1].buffer_length = sid_len;
+    bind[1].length = &sid_len;
+    if (mysql_stmt_bind_param(stmt, bind) != 0 ||
+        mysql_stmt_execute(stmt) != 0) {
+        if (err_msg) *err_msg = mysql_stmt_error(stmt);
+        mysql_stmt_close(stmt);
+        return false;
+    }
+    mysql_stmt_close(stmt);
+    return true;
+}
+
 // 列出用户参与的单聊会话
 bool SessionDao::ListUserSingleSessions(int64_t user_id,
                                         std::vector<Session>* sessions,

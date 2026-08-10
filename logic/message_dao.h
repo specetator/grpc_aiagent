@@ -25,7 +25,19 @@ class MessageDao {
                       int limit, std::vector<Message>* messages,
                       std::string* err_msg);
 
+    // 按 msg_seq 正序读取 after_seq 之后的消息，用于游标补偿和离线补推。
+    bool ListMessagesAfter(const std::string& session_id, int64_t after_seq,
+                           int limit, std::vector<Message>* messages,
+                           std::string* err_msg);
+
+    // 查询会话当前最大 msg_seq（无消息时 *max_seq=0）
+    bool GetMaxMsgSeq(const std::string& session_id, int64_t* max_seq,
+                      std::string* err_msg);
+
    private:
+    bool IsSameStoredMessage(MYSQL* conn, const Message& message, bool* same,
+                             std::string* err_msg);
+
     MySqlConnectionPool* pool_{nullptr};
 };
 

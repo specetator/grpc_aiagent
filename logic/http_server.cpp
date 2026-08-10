@@ -4,8 +4,11 @@
 #include <nlohmann/json.hpp>
 #include <sstream>
 #include <unordered_map>
+#include <utility>
 
 #include "logging.h"
+#include "metrics.h"
+#include "security.h"
 #include "spark_push.pb.h"
 
 namespace sparkpush {
@@ -14,19 +17,6 @@ using namespace muduo;
 using namespace muduo::net;
 
 namespace {
-
-// 简单的预设管理员账号配置（Demo 级别，仅用于本地/内网环境）
-// 前端会对明文密码做 MD5，后端仅对 MD5 结果做字符串匹配。
-// 这里约定：
-//   账号：admin
-//   密码明文：admin123
-//   密码 MD5（小写 32 位）：0192023a7bbd73250516f069df18b500
-// 注意：真实生产环境请务必使用更安全的方案（带盐哈希、多次迭代、HTTPS 等）。
-const std::string kAdminAccount = "admin";
-const std::string kAdminPasswordHash = "0192023a7bbd73250516f069df18b500";
-// 管理员在当前 中使用一个固定 user_id，仅用于 token 与 owner_id 标识。
-// 不依赖于数据库中是否真实存在该用户记录。
-const int64_t kAdminUserId = 900000000000LL;
 
 // 解析 x-www-form-urlencoded（旧实现，保留以兼容可能的其他调用）
 std::unordered_map<std::string, std::string> ParseForm(
@@ -66,7 +56,8 @@ void AddCORSHeaders(HttpResponse* resp) {
     if (!resp) return;
     resp->addHeader("Access-Control-Allow-Origin", "*");
     resp->addHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-    resp->addHeader("Access-Control-Allow-Headers", "Content-Type");
+    resp->addHeader("Access-Control-Allow-Headers",
+                    "Content-Type, Authorization");
     resp->addHeader("Access-Control-Max-Age", "86400");
 }
 
@@ -127,6 +118,39 @@ bool ParseJsonRegister(const std::string& body, std::string* account,
     }
 }
 
+bool ParseUserStatus(const nlohmann::json& value, int* status) {
+    if (!status) return false;
+    if (value.is_number_integer()) {
+        *status = value.get<int>();
+        return *status >= kUserStatusActive && *status <= kUserStatusDeleted;
+    }
+    if (!value.is_string()) return false;
+    const std::string name = value.get<std::string>();
+    if (name == "active") {
+        *status = kUserStatusActive;
+    } else if (name == "disabled") {
+        *status = kUserStatusDisabled;
+    } else if (name == "deleted") {
+        *status = kUserStatusDeleted;
+    } else {
+        return false;
+    }
+    return true;
+}
+
+const char* UserStatusName(int status) {
+    switch (status) {
+        case kUserStatusActive:
+            return "active";
+        case kUserStatusDisabled:
+            return "disabled";
+        case kUserStatusDeleted:
+            return "deleted";
+        default:
+            return "unknown";
+    }
+}
+
 void WriteJson(HttpResponse* resp, int code, const std::string& message,
                const std::string& data_json = "{}",
                HttpResponse::HttpStatusCode http_code = HttpResponse::k200Ok) {
@@ -134,10 +158,17 @@ void WriteJson(HttpResponse* resp, int code, const std::string& message,
     resp->setContentType("application/json; charset=utf-8");
     // 所有 JSON API 统一打上 CORS 头，方便在 9010/其他端口的前端页面直接调用
     AddCORSHeaders(resp);
-    std::ostringstream oss;
-    oss << "{\"code\":" << code << ",\"message\":\"" << message << "\""
-        << ",\"data\":" << data_json << "}";
-    resp->setBody(oss.str());
+    nlohmann::json data = nlohmann::json::object();
+    try {
+        data = nlohmann::json::parse(data_json);
+    } catch (...) {
+        LOG_ERROR << "WriteJson received invalid data JSON";
+    }
+    nlohmann::json body;
+    body["code"] = code;
+    body["message"] = message;
+    body["data"] = std::move(data);
+    resp->setBody(body.dump());
 }
 
 }  // namespace
@@ -146,16 +177,21 @@ void WriteJson(HttpResponse* resp, int code, const std::string& message,
 HttpApiServer::HttpApiServer(
     EventLoop* loop, const InetAddress& listenAddr, ConversationStore* store,
     UserDao* user_dao, GroupDao* group_dao, GroupMemberDao* group_member_dao,
-    RedisStore* redis_store, KafkaProducer* kafka_producer,
-    KafkaProducer* broadcast_producer, DanmakuDao* danmaku_dao)
+    RedisStore* redis_store, KafkaProducer* group_producer,
+    KafkaProducer* broadcast_producer, DanmakuDao* danmaku_dao,
+    AuditLogDao* audit_log_dao,
+    std::string admin_account, std::string admin_password)
     : store_(store),
       user_dao_(user_dao),
       group_dao_(group_dao),
       group_member_dao_(group_member_dao),
       redis_store_(redis_store),
-      kafka_producer_(kafka_producer),
+      group_producer_(group_producer),
       broadcast_producer_(broadcast_producer),
       danmaku_dao_(danmaku_dao),
+      audit_log_dao_(audit_log_dao),
+      admin_account_(std::move(admin_account)),
+      admin_password_(std::move(admin_password)),
       server_(loop, listenAddr, "logic_http_server") {
     // 适配新的 HttpServer 回调签名：bool (const TcpConnectionPtr&,
     // HttpRequest&, HttpResponse*)
@@ -204,9 +240,27 @@ void HttpApiServer::onRequest(const HttpRequest& req, HttpResponse* resp) {
          &HttpApiServer::handleAdminCreateChatroom},
         {"/api/admin/chatroom/list", &HttpApiServer::handleAdminListChatroom},
         {"/api/admin/broadcast", &HttpApiServer::handleAdminBroadcast},
+        {"/api/admin/user/list", &HttpApiServer::handleAdminListUsers},
+        {"/api/admin/user/status", &HttpApiServer::handleAdminSetUserStatus},
+        {"/api/admin/user/disable",
+         &HttpApiServer::handleAdminSetUserStatus},
+        {"/api/admin/user/restore",
+         &HttpApiServer::handleAdminSetUserStatus},
+        {"/api/admin/user/delete",
+         &HttpApiServer::handleAdminSetUserStatus},
+        {"/api/admin/user/update", &HttpApiServer::handleAdminUpdateUser},
+        {"/api/admin/user/revoke_tokens",
+         &HttpApiServer::handleAdminRevokeUserTokens},
+        {"/api/admin/audit/list", &HttpApiServer::handleAdminListAuditLogs},
     };
 
     const std::string& path = req.path();
+    if (path == "/metrics") {
+        resp->setStatusCode(HttpResponse::k200Ok);
+        resp->setContentType("text/plain; version=0.0.4; charset=utf-8");
+        resp->setBody(MetricsRegistry::Instance().RenderPrometheus());
+        return;
+    }
     auto it = kRouteTable.find(path);
     if (it == kRouteTable.end()) {
         WriteJson(resp, 404, "unknown path");
@@ -229,8 +283,8 @@ void HttpApiServer::handleDanmakuSend(const HttpRequest& req,
         WriteJson(resp, 500, "conversation store not initialized");
         return;
     }
-    if (!kafka_producer_) {
-        WriteJson(resp, 500, "kafka producer not initialized");
+    if (!group_producer_) {
+        WriteJson(resp, 500, "group kafka producer not initialized");
         return;
     }
 
@@ -398,6 +452,7 @@ void HttpApiServer::handleDanmakuSend(const HttpRequest& req,
 
         PushToCometRequest req_pb;
         req_pb.set_comet_id(comet_id);
+        req_pb.set_scene("group");
         *req_pb.mutable_message() = cm;
         for (int64_t uid : users) {
             auto* t = req_pb.add_targets();
@@ -410,8 +465,9 @@ void HttpApiServer::handleDanmakuSend(const HttpRequest& req,
             continue;
         }
         LOG_INFO << "Sending danmaku to comet " << comet_id
-                 << " for " << users.size() << " users, payload: " << payload;
-        if (!kafka_producer_->Send(comet_id, payload)) {
+                 << " for " << users.size()
+                 << " users, payload_bytes=" << payload.size();
+        if (!group_producer_->Send(comet_id, payload)) {
             LOG_ERROR << "Kafka send danmaku failed for comet " << comet_id;
         }
     }
@@ -421,7 +477,7 @@ void HttpApiServer::handleDanmakuSend(const HttpRequest& req,
     WriteJson(resp, 0, "ok", data.str());
 }
 
-// 账号登录：支持管理员与普通用户
+// 账号登录：普通用户使用 PBKDF2；可选管理员口令由环境变量注入。
 void HttpApiServer::handleLogin(const HttpRequest& req, HttpResponse* resp) {
     std::string account;
     std::string password;
@@ -446,19 +502,36 @@ void HttpApiServer::handleLogin(const HttpRequest& req, HttpResponse* resp) {
         return;
     }
 
-    // 特殊处理：预设管理员账号走内存校验，不依赖数据库中是否存在该账号。
-    if (account == kAdminAccount) {
-        if (password != kAdminPasswordHash) {
+    if (account == kHermesBotAccount) {
+        WriteJson(resp, 403, "Hermes Bot account cannot login directly");
+        return;
+    }
+
+    if (!admin_account_.empty() && account == admin_account_) {
+        if (admin_password_.empty() ||
+            !ConstantTimeEquals(password, admin_password_)) {
             WriteJson(resp, 401, "invalid password");
             return;
         }
-        // 生成 token 并写入 Redis，方便后续如需基于 token 做校验。
-        std::string token = "tk-" + std::to_string(kAdminUserId) + "-" +
-                            std::to_string(::time(nullptr));
+        std::string token;
+        std::string token_error;
+        if (!GenerateSecureToken(&token, &token_error)) {
+            WriteJson(resp, 500, "generate token failed");
+            return;
+        }
         if (!redis_store_ ||
             !redis_store_->SetToken(token, kAdminUserId, 24 * 3600)) {
             WriteJson(resp, 500, "save token to redis failed");
             return;
+        }
+
+        if (audit_log_dao_) {
+            std::string audit_error;
+            if (!audit_log_dao_->Append(kAdminUserId, 0, "admin.login", "",
+                                        R"({"login":"success"})",
+                                        &audit_error)) {
+                LOG_WARN << "Admin login audit failed: " << audit_error;
+            }
         }
 
         std::ostringstream data;
@@ -488,19 +561,47 @@ void HttpApiServer::handleLogin(const HttpRequest& req, HttpResponse* resp) {
         return;
     }
 
-    // 这里约定 password 已经是前端做过 MD5 的
-    // hash（示例实现，真实业务还需加盐、迭代等）
-    if (user.password_hash != password) {
-        WriteJson(resp, 401, "invalid password");
+    if (user.status != kUserStatusActive || !user.deleted_at.empty()) {
+        WriteJson(resp, 403, "user account is disabled or deleted", "{}",
+                  HttpResponse::k400BadRequest);
         return;
     }
 
-    // 生成随机 token，这里简单用 user_id+时间戳
-    std::string token =
-        "tk-" + std::to_string(user.id) + "-" + std::to_string(::time(nullptr));
+    bool needs_rehash = false;
+    std::string security_error;
+    if (!VerifyPassword(password, user.password_hash, &needs_rehash,
+                        &security_error)) {
+        WriteJson(resp, 401, "invalid password");
+        return;
+    }
+    if (needs_rehash) {
+        std::string upgraded_hash;
+        std::string upgrade_error;
+        if (HashPassword(password, &upgraded_hash, &upgrade_error) &&
+            !user_dao_->UpdatePasswordHash(user.id, upgraded_hash,
+                                           &upgrade_error)) {
+            LOG_ERROR << "Password hash upgrade failed for user_id="
+                      << user.id << ": " << upgrade_error;
+        }
+    }
+
+    std::string token;
+    if (!GenerateSecureToken(&token, &security_error)) {
+        WriteJson(resp, 500, "generate token failed");
+        return;
+    }
     if (!redis_store_ || !redis_store_->SetToken(token, user.id, 24 * 3600)) {
         WriteJson(resp, 500, "save token to redis failed");
         return;
+    }
+
+    if (audit_log_dao_) {
+        std::string audit_error;
+        nlohmann::json metadata = {{"account", user.account}};
+        if (!audit_log_dao_->Append(user.id, user.id, "user.login", "",
+                                    metadata.dump(), &audit_error)) {
+            LOG_WARN << "User login audit failed: " << audit_error;
+        }
     }
 
     std::ostringstream data;
@@ -535,16 +636,22 @@ void HttpApiServer::handleRegister(const HttpRequest& req, HttpResponse* resp) {
         return;
     }
 
-    if (account.empty() || password.empty()) {
+    if (account.empty() || password.size() < 6 || password.size() > 128) {
         WriteJson(resp, 400, "account/password are required", "{}",
                   HttpResponse::k400BadRequest);
         return;
     }
 
-    // 预设管理员账号保留，禁止通过注册接口覆盖/创建同名账号。
-    if (account == kAdminAccount) {
+    // 已启用的管理账号不能由注册接口覆盖。
+    if (!admin_account_.empty() && account == admin_account_) {
         WriteJson(resp, 409,
                   "admin account is reserved, please use login directly", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    if (account == kHermesBotAccount) {
+        WriteJson(resp, 409,
+                  "Hermes Bot account is reserved for the system", "{}",
                   HttpResponse::k400BadRequest);
         return;
     }
@@ -566,8 +673,14 @@ void HttpApiServer::handleRegister(const HttpRequest& req, HttpResponse* resp) {
         return;
     }
 
+    std::string password_hash;
+    if (!HashPassword(password, &password_hash, &err)) {
+        WriteJson(resp, 500, "hash password failed");
+        return;
+    }
+
     int64_t uid = 0;
-    if (!user_dao_->CreateUser(account, name, password, &uid, &err)) {
+    if (!user_dao_->CreateUser(account, name, password_hash, &uid, &err)) {
         WriteJson(resp, 500, "register user failed: " + err);
         return;
     }
@@ -576,14 +689,26 @@ void HttpApiServer::handleRegister(const HttpRequest& req, HttpResponse* resp) {
     user.id = uid;
     user.account = account;
     user.name = name;
-    user.password_hash = password;
+    user.password_hash = password_hash;
 
     // 注册成功后直接下发 token，让前端“注册即登录”
-    std::string token =
-        "tk-" + std::to_string(user.id) + "-" + std::to_string(::time(nullptr));
+    std::string token;
+    if (!GenerateSecureToken(&token, &err)) {
+        WriteJson(resp, 500, "generate token failed");
+        return;
+    }
     if (!redis_store_ || !redis_store_->SetToken(token, user.id, 24 * 3600)) {
         WriteJson(resp, 500, "save token to redis failed");
         return;
+    }
+
+    if (audit_log_dao_) {
+        std::string audit_error;
+        nlohmann::json metadata = {{"account", account}};
+        if (!audit_log_dao_->Append(user.id, user.id, "user.register", "",
+                                    metadata.dump(), &audit_error)) {
+            LOG_WARN << "User register audit failed: " << audit_error;
+        }
     }
 
     std::ostringstream data;
@@ -671,6 +796,9 @@ void HttpApiServer::handleHistory(const HttpRequest& req, HttpResponse* resp) {
         return;
     }
 
+    int64_t requester_id = 0;
+    if (!requireUser(req, resp, &requester_id)) return;
+
     nlohmann::json j;
     if (!ParseJsonBody(req.body(), &j)) {
         WriteJson(resp, 400,
@@ -710,6 +838,32 @@ void HttpApiServer::handleHistory(const HttpRequest& req, HttpResponse* resp) {
         WriteJson(resp, 500, "conversation store not initialized");
         return;
     }
+
+    Session session;
+    std::string session_error;
+    if (!store_->GetSessionById(session_id, &session, &session_error)) {
+        WriteJson(resp, 404, "session not found", "{}",
+                  HttpResponse::k404NotFound);
+        return;
+    }
+    bool authorized = false;
+    if (session.type == SessionType::kSingle) {
+        authorized = session.user1_id == requester_id ||
+                     session.user2_id == requester_id;
+    } else if (session.group_id > 0 && group_member_dao_) {
+        if (!group_member_dao_->IsMember(session.group_id, requester_id,
+                                         &authorized, &session_error)) {
+            WriteJson(resp, 500, "check session membership failed: " +
+                                     session_error);
+            return;
+        }
+    }
+    if (!authorized) {
+        WriteJson(resp, 403, "user is not a member of this session", "{}",
+                  HttpResponse::k403Forbidden);
+        return;
+    }
+
     std::vector<Message> msgs;
     std::string err;
     if (!store_->GetHistory(session_id, anchor_seq, limit, &msgs, &err)) {
@@ -742,6 +896,9 @@ void HttpApiServer::handleMarkRead(const HttpRequest& req, HttpResponse* resp) {
         return;
     }
 
+    int64_t authenticated_id = 0;
+    if (!requireUser(req, resp, &authenticated_id)) return;
+
     nlohmann::json j;
     if (!ParseJsonBody(req.body(), &j)) {
         WriteJson(resp, 400,
@@ -769,6 +926,11 @@ void HttpApiServer::handleMarkRead(const HttpRequest& req, HttpResponse* resp) {
                   HttpResponse::k400BadRequest);
         return;
     }
+    if (user_id != authenticated_id) {
+        WriteJson(resp, 403, "user_id does not match bearer token", "{}",
+                  HttpResponse::k403Forbidden);
+        return;
+    }
     if (user_id <= 0 || session_id.empty() || read_seq <= 0) {
         WriteJson(resp, 400, "user_id/session_id/read_seq required", "{}",
                   HttpResponse::k400BadRequest);
@@ -794,6 +956,9 @@ void HttpApiServer::handleUnread(const HttpRequest& req, HttpResponse* resp) {
         return;
     }
 
+    int64_t authenticated_id = 0;
+    if (!requireUser(req, resp, &authenticated_id)) return;
+
     nlohmann::json j;
     if (!ParseJsonBody(req.body(), &j)) {
         WriteJson(resp, 400,
@@ -816,6 +981,11 @@ void HttpApiServer::handleUnread(const HttpRequest& req, HttpResponse* resp) {
     } catch (const nlohmann::json::exception& e) {
         WriteJson(resp, 400, "invalid json fields in unread", "{}",
                   HttpResponse::k400BadRequest);
+        return;
+    }
+    if (user_id != authenticated_id) {
+        WriteJson(resp, 403, "user_id does not match bearer token", "{}",
+                  HttpResponse::k403Forbidden);
         return;
     }
     if (user_id <= 0 || session_id.empty()) {
@@ -847,6 +1017,9 @@ void HttpApiServer::handleSingleSessionList(const HttpRequest& req,
         return;
     }
 
+    int64_t authenticated_id = 0;
+    if (!requireUser(req, resp, &authenticated_id)) return;
+
     nlohmann::json j;
     if (!ParseJsonBody(req.body(), &j)) {
         WriteJson(resp, 400, "invalid json body, expect {\"user_id\":...}",
@@ -865,6 +1038,11 @@ void HttpApiServer::handleSingleSessionList(const HttpRequest& req,
     } catch (const nlohmann::json::exception& e) {
         WriteJson(resp, 400, "invalid json fields in list_single", "{}",
                   HttpResponse::k400BadRequest);
+        return;
+    }
+    if (user_id != authenticated_id) {
+        WriteJson(resp, 403, "user_id does not match bearer token", "{}",
+                  HttpResponse::k403Forbidden);
         return;
     }
     if (user_id <= 0) {
@@ -1005,6 +1183,9 @@ void HttpApiServer::handleChatroomList(const HttpRequest& req,
         return;
     }
 
+    int64_t authenticated_id = 0;
+    if (!requireUser(req, resp, &authenticated_id)) return;
+
     nlohmann::json j;
     if (!ParseJsonBody(req.body(), &j)) {
         WriteJson(resp, 400, "invalid json body, expect {\"user_id\":...}",
@@ -1023,6 +1204,11 @@ void HttpApiServer::handleChatroomList(const HttpRequest& req,
     } catch (const nlohmann::json::exception& e) {
         WriteJson(resp, 400, "invalid json fields in chatroom list", "{}",
                   HttpResponse::k400BadRequest);
+        return;
+    }
+    if (user_id != authenticated_id) {
+        WriteJson(resp, 403, "user_id does not match bearer token", "{}",
+                  HttpResponse::k403Forbidden);
         return;
     }
     if (user_id <= 0) {
@@ -1084,6 +1270,9 @@ void HttpApiServer::handleChatroomJoin(const HttpRequest& req,
         return;
     }
 
+    int64_t authenticated_id = 0;
+    if (!requireUser(req, resp, &authenticated_id)) return;
+
     nlohmann::json j;
     if (!ParseJsonBody(req.body(), &j)) {
         WriteJson(resp, 400,
@@ -1105,6 +1294,11 @@ void HttpApiServer::handleChatroomJoin(const HttpRequest& req,
     } catch (const nlohmann::json::exception& e) {
         WriteJson(resp, 400, "invalid json fields in chatroom join", "{}",
                   HttpResponse::k400BadRequest);
+        return;
+    }
+    if (user_id != authenticated_id) {
+        WriteJson(resp, 403, "user_id does not match bearer token", "{}",
+                  HttpResponse::k403Forbidden);
         return;
     }
     if (room_id <= 0 || user_id <= 0) {
@@ -1145,6 +1339,9 @@ void HttpApiServer::handleChatroomLeave(const HttpRequest& req,
         return;
     }
 
+    int64_t authenticated_id = 0;
+    if (!requireUser(req, resp, &authenticated_id)) return;
+
     nlohmann::json j;
     if (!ParseJsonBody(req.body(), &j)) {
         WriteJson(resp, 400,
@@ -1168,6 +1365,11 @@ void HttpApiServer::handleChatroomLeave(const HttpRequest& req,
                   HttpResponse::k400BadRequest);
         return;
     }
+    if (user_id != authenticated_id) {
+        WriteJson(resp, 403, "user_id does not match bearer token", "{}",
+                  HttpResponse::k403Forbidden);
+        return;
+    }
     if (room_id <= 0 || user_id <= 0) {
         WriteJson(resp, 400, "room_id/user_id required", "{}",
                   HttpResponse::k400BadRequest);
@@ -1188,6 +1390,9 @@ void HttpApiServer::handleChatroomUnsubscribe(const HttpRequest& req,
                   HttpResponse::k400BadRequest);
         return;
     }
+
+    int64_t authenticated_id = 0;
+    if (!requireUser(req, resp, &authenticated_id)) return;
 
     nlohmann::json j;
     if (!ParseJsonBody(req.body(), &j)) {
@@ -1212,6 +1417,11 @@ void HttpApiServer::handleChatroomUnsubscribe(const HttpRequest& req,
                   "{}", HttpResponse::k400BadRequest);
         return;
     }
+    if (user_id != authenticated_id) {
+        WriteJson(resp, 403, "user_id does not match bearer token", "{}",
+                  HttpResponse::k403Forbidden);
+        return;
+    }
     if (room_id <= 0 || user_id <= 0) {
         WriteJson(resp, 400, "room_id/user_id required", "{}",
                   HttpResponse::k400BadRequest);
@@ -1229,6 +1439,71 @@ void HttpApiServer::handleChatroomUnsubscribe(const HttpRequest& req,
     WriteJson(resp, 0, "ok");
 }
 
+bool HttpApiServer::requireUser(const HttpRequest& req, HttpResponse* resp,
+                                int64_t* user_id) {
+    if (!user_id) {
+        WriteJson(resp, 500, "user output is null");
+        return false;
+    }
+    *user_id = 0;
+    if (!redis_store_ || !user_dao_) {
+        WriteJson(resp, 503, "user authentication is unavailable");
+        return false;
+    }
+    const std::string authorization = req.getHeader("Authorization");
+    constexpr const char* kBearer = "Bearer ";
+    if (authorization.rfind(kBearer, 0) != 0 ||
+        authorization.size() <= std::char_traits<char>::length(kBearer)) {
+        WriteJson(resp, 401, "user bearer token required", "{}",
+                  HttpResponse::k401Unauthorized);
+        return false;
+    }
+    const std::string token =
+        authorization.substr(std::char_traits<char>::length(kBearer));
+    int64_t authenticated_id = 0;
+    if (!redis_store_->GetUserIdByToken(token, &authenticated_id) ||
+        authenticated_id <= 0) {
+        WriteJson(resp, 401, "user token invalid or expired", "{}",
+                  HttpResponse::k401Unauthorized);
+        return false;
+    }
+    User user;
+    std::string user_error;
+    if (!user_dao_->GetUserById(authenticated_id, &user, &user_error) ||
+        user.status != kUserStatusActive || !user.deleted_at.empty()) {
+        WriteJson(resp, 403, "user account is disabled or deleted", "{}",
+                  HttpResponse::k403Forbidden);
+        return false;
+    }
+    *user_id = authenticated_id;
+    return true;
+}
+
+bool HttpApiServer::requireAdmin(const HttpRequest& req, HttpResponse* resp) {
+    if (!redis_store_ || admin_account_.empty() || admin_password_.empty()) {
+        WriteJson(resp, 503, "admin login is disabled");
+        return false;
+    }
+    std::string authorization = req.getHeader("Authorization");
+    constexpr const char* kBearer = "Bearer ";
+    if (authorization.rfind(kBearer, 0) != 0 ||
+        authorization.size() <= std::char_traits<char>::length(kBearer)) {
+        WriteJson(resp, 401, "admin bearer token required", "{}",
+                  HttpResponse::k400BadRequest);
+        return false;
+    }
+    const std::string token =
+        authorization.substr(std::char_traits<char>::length(kBearer));
+    int64_t user_id = 0;
+    if (!redis_store_->GetUserIdByToken(token, &user_id) ||
+        user_id != kAdminUserId) {
+        WriteJson(resp, 403, "admin token invalid or expired", "{}",
+                  HttpResponse::k400BadRequest);
+        return false;
+    }
+    return true;
+}
+
 // 管理员创建聊天室
 void HttpApiServer::handleAdminCreateChatroom(const HttpRequest& req,
                                               HttpResponse* resp) {
@@ -1237,6 +1512,7 @@ void HttpApiServer::handleAdminCreateChatroom(const HttpRequest& req,
                   HttpResponse::k400BadRequest);
         return;
     }
+    if (!requireAdmin(req, resp)) return;
 
     nlohmann::json j;
     if (!ParseJsonBody(req.body(), &j)) {
@@ -1290,6 +1566,7 @@ void HttpApiServer::handleAdminListChatroom(const HttpRequest& req,
                   HttpResponse::k400BadRequest);
         return;
     }
+    if (!requireAdmin(req, resp)) return;
 
     nlohmann::json j;
     if (!ParseJsonBody(req.body(), &j)) {
@@ -1344,6 +1621,7 @@ void HttpApiServer::handleAdminBroadcast(const HttpRequest& req,
                   HttpResponse::k400BadRequest);
         return;
     }
+    if (!requireAdmin(req, resp)) return;
 
     nlohmann::json j;
     if (!ParseJsonBody(req.body(), &j)) {
@@ -1440,6 +1718,382 @@ void HttpApiServer::handleAdminBroadcast(const HttpRequest& req,
     WriteJson(resp, 0, "ok", data.str());
 }
 
+void HttpApiServer::handleAdminListUsers(const HttpRequest& req,
+                                         HttpResponse* resp) {
+    if (req.method() != HttpRequest::kPost) {
+        WriteJson(resp, 405, "only POST allowed", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    if (!requireAdmin(req, resp)) return;
+    if (!user_dao_) {
+        WriteJson(resp, 500, "user dao not initialized");
+        return;
+    }
+
+    nlohmann::json body = nlohmann::json::object();
+    if (!req.body().empty() && !ParseJsonBody(req.body(), &body)) {
+        WriteJson(resp, 400, "invalid json body", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    int offset = 0;
+    int limit = 20;
+    int status = 0;
+    try {
+        if (body.contains("offset")) offset = body.at("offset").get<int>();
+        if (body.contains("limit")) limit = body.at("limit").get<int>();
+        if (body.contains("status")) {
+            if (body.at("status").is_number_integer() &&
+                body.at("status").get<int>() == 0) {
+                status = 0;
+            } else if (!ParseUserStatus(body.at("status"), &status)) {
+                WriteJson(resp, 400,
+                          "status must be active/disabled/deleted or 0", "{}",
+                          HttpResponse::k400BadRequest);
+                return;
+            }
+        }
+    } catch (const nlohmann::json::exception&) {
+        WriteJson(resp, 400, "invalid user list fields", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    if (offset < 0 || limit <= 0 || limit > 100) {
+        WriteJson(resp, 400, "offset/limit out of range", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+
+    std::vector<User> users;
+    int total = 0;
+    std::string err;
+    if (!user_dao_->ListUsers(offset, limit, status, &users, &total, &err)) {
+        WriteJson(resp, 500, "list users failed: " + err);
+        return;
+    }
+    nlohmann::json data;
+    data["total"] = total;
+    data["offset"] = offset;
+    data["limit"] = limit;
+    data["users"] = nlohmann::json::array();
+    for (const auto& user : users) {
+        nlohmann::json item = {
+            {"user_id", user.id},
+            {"account", user.account},
+            {"name", user.name},
+            {"status", UserStatusName(user.status)},
+            {"status_code", user.status},
+            {"created_at", user.created_at},
+        };
+        if (user.deleted_at.empty()) {
+            item["deleted_at"] = nullptr;
+        } else {
+            item["deleted_at"] = user.deleted_at;
+        }
+        data["users"].push_back(std::move(item));
+    }
+    WriteJson(resp, 0, "ok", data.dump());
+}
+
+void HttpApiServer::handleAdminSetUserStatus(const HttpRequest& req,
+                                             HttpResponse* resp) {
+    if (req.method() != HttpRequest::kPost) {
+        WriteJson(resp, 405, "only POST allowed", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    if (!requireAdmin(req, resp)) return;
+    if (!user_dao_ || !redis_store_) {
+        WriteJson(resp, 500, "user center dependencies not initialized");
+        return;
+    }
+
+    nlohmann::json body;
+    if (!ParseJsonBody(req.body(), &body)) {
+        WriteJson(resp, 400,
+                  "invalid json body, expect {\"user_id\":1,\"status\":\"disabled\"}",
+                  "{}", HttpResponse::k400BadRequest);
+        return;
+    }
+    int64_t user_id = 0;
+    int status = 0;
+    std::string reason;
+    try {
+        if (!body.contains("user_id")) {
+            WriteJson(resp, 400, "user_id required", "{}",
+                      HttpResponse::k400BadRequest);
+            return;
+        }
+        user_id = body.at("user_id").get<int64_t>();
+        const std::string path = req.path();
+        if (path == "/api/admin/user/disable") {
+            status = kUserStatusDisabled;
+        } else if (path == "/api/admin/user/restore") {
+            status = kUserStatusActive;
+        } else if (path == "/api/admin/user/delete") {
+            status = kUserStatusDeleted;
+        } else if (!body.contains("status") ||
+                   !ParseUserStatus(body.at("status"), &status)) {
+            WriteJson(resp, 400, "status must be active/disabled/deleted", "{}",
+                      HttpResponse::k400BadRequest);
+            return;
+        }
+        if (body.contains("reason")) reason = body.at("reason").get<std::string>();
+    } catch (const nlohmann::json::exception&) {
+        WriteJson(resp, 400, "invalid user status fields", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    if (user_id <= 0 || user_id == kAdminUserId || reason.size() > 512) {
+        WriteJson(resp, 400, "invalid user_id or reason", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+
+    User before;
+    std::string err;
+    if (!user_dao_->GetUserById(user_id, &before, &err)) {
+        WriteJson(resp, 404, "user not found", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+
+    int revoked_tokens = 0;
+    // 先撤销凭证再改变状态，避免状态已经 disabled 但旧 token 仍可用。
+    if (status != kUserStatusActive &&
+        !redis_store_->RevokeUserTokens(user_id, &revoked_tokens)) {
+        WriteJson(resp, 503, "revoke user tokens failed", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    if (!user_dao_->UpdateStatus(user_id, status, &err)) {
+        WriteJson(resp, 500, "update user status failed: " + err);
+        return;
+    }
+
+    nlohmann::json metadata = {
+        {"old_status", UserStatusName(before.status)},
+        {"new_status", UserStatusName(status)},
+        {"revoked_tokens", revoked_tokens},
+    };
+    const std::string action =
+        status == kUserStatusDisabled
+            ? "user.disable"
+            : (status == kUserStatusDeleted ? "user.delete" : "user.restore");
+    bool audit_recorded = false;
+    if (audit_log_dao_) {
+        std::string audit_error;
+        audit_recorded = audit_log_dao_->Append(
+            kAdminUserId, user_id, action, reason, metadata.dump(),
+            &audit_error);
+        if (!audit_recorded) {
+            LOG_ERROR << "User status audit failed: " << audit_error;
+        }
+    }
+
+    User after;
+    if (!user_dao_->GetUserById(user_id, &after, &err)) after = before;
+    nlohmann::json data = {
+        {"user_id", after.id},
+        {"account", after.account},
+        {"status", UserStatusName(after.status)},
+        {"status_code", after.status},
+        {"revoked_tokens", revoked_tokens},
+        {"audit_recorded", audit_recorded},
+    };
+    if (after.deleted_at.empty()) {
+        data["deleted_at"] = nullptr;
+    } else {
+        data["deleted_at"] = after.deleted_at;
+    }
+    WriteJson(resp, 0, "ok", data.dump());
+}
+
+void HttpApiServer::handleAdminUpdateUser(const HttpRequest& req,
+                                          HttpResponse* resp) {
+    if (req.method() != HttpRequest::kPost) {
+        WriteJson(resp, 405, "only POST allowed", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    if (!requireAdmin(req, resp)) return;
+    if (!user_dao_) {
+        WriteJson(resp, 500, "user dao not initialized");
+        return;
+    }
+    nlohmann::json body;
+    if (!ParseJsonBody(req.body(), &body)) {
+        WriteJson(resp, 400,
+                  "invalid json body, expect {\"user_id\":1,\"name\":\"...\"}",
+                  "{}", HttpResponse::k400BadRequest);
+        return;
+    }
+    int64_t user_id = 0;
+    std::string name;
+    try {
+        user_id = body.at("user_id").get<int64_t>();
+        name = body.at("name").get<std::string>();
+    } catch (const nlohmann::json::exception&) {
+        WriteJson(resp, 400, "user_id/name required", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    if (user_id <= 0 || user_id == kAdminUserId || name.empty() ||
+        name.size() > 64) {
+        WriteJson(resp, 400, "invalid user_id/name", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    User before;
+    std::string err;
+    if (!user_dao_->GetUserById(user_id, &before, &err)) {
+        WriteJson(resp, 404, "user not found", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    if (!user_dao_->UpdateName(user_id, name, &err)) {
+        WriteJson(resp, 500, "update user failed: " + err);
+        return;
+    }
+    bool audit_recorded = false;
+    if (audit_log_dao_) {
+        std::string audit_error;
+        nlohmann::json metadata = {{"old_name", before.name},
+                                   {"new_name", name}};
+        audit_recorded = audit_log_dao_->Append(
+            kAdminUserId, user_id, "user.update_profile", "",
+            metadata.dump(), &audit_error);
+        if (!audit_recorded) LOG_ERROR << "User profile audit failed: " << audit_error;
+    }
+    nlohmann::json data = {{"user_id", user_id},
+                           {"name", name},
+                           {"audit_recorded", audit_recorded}};
+    WriteJson(resp, 0, "ok", data.dump());
+}
+
+void HttpApiServer::handleAdminRevokeUserTokens(const HttpRequest& req,
+                                                HttpResponse* resp) {
+    if (req.method() != HttpRequest::kPost) {
+        WriteJson(resp, 405, "only POST allowed", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    if (!requireAdmin(req, resp)) return;
+    if (!user_dao_ || !redis_store_) {
+        WriteJson(resp, 500, "user center dependencies not initialized");
+        return;
+    }
+    nlohmann::json body;
+    if (!ParseJsonBody(req.body(), &body)) {
+        WriteJson(resp, 400, "invalid json body, expect {\"user_id\":1}",
+                  "{}", HttpResponse::k400BadRequest);
+        return;
+    }
+    int64_t user_id = 0;
+    try {
+        user_id = body.at("user_id").get<int64_t>();
+    } catch (const nlohmann::json::exception&) {
+        WriteJson(resp, 400, "user_id required", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    if (user_id <= 0 || user_id == kAdminUserId) {
+        WriteJson(resp, 400, "invalid user_id", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    User target;
+    std::string err;
+    if (!user_dao_->GetUserById(user_id, &target, &err)) {
+        WriteJson(resp, 404, "user not found", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    int revoked_tokens = 0;
+    if (!redis_store_->RevokeUserTokens(user_id, &revoked_tokens)) {
+        WriteJson(resp, 503, "revoke user tokens failed", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    bool audit_recorded = false;
+    if (audit_log_dao_) {
+        std::string audit_error;
+        nlohmann::json metadata = {{"revoked_tokens", revoked_tokens}};
+        audit_recorded = audit_log_dao_->Append(
+            kAdminUserId, user_id, "user.revoke_tokens", "",
+            metadata.dump(), &audit_error);
+        if (!audit_recorded) LOG_ERROR << "Token revoke audit failed: " << audit_error;
+    }
+    nlohmann::json data = {{"user_id", user_id},
+                           {"revoked_tokens", revoked_tokens},
+                           {"audit_recorded", audit_recorded}};
+    WriteJson(resp, 0, "ok", data.dump());
+}
+
+void HttpApiServer::handleAdminListAuditLogs(const HttpRequest& req,
+                                             HttpResponse* resp) {
+    if (req.method() != HttpRequest::kPost) {
+        WriteJson(resp, 405, "only POST allowed", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    if (!requireAdmin(req, resp)) return;
+    if (!audit_log_dao_) {
+        WriteJson(resp, 500, "audit log dao not initialized");
+        return;
+    }
+    nlohmann::json body = nlohmann::json::object();
+    if (!req.body().empty() && !ParseJsonBody(req.body(), &body)) {
+        WriteJson(resp, 400, "invalid json body", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    int offset = 0;
+    int limit = 20;
+    int64_t target_user_id = 0;
+    try {
+        if (body.contains("offset")) offset = body.at("offset").get<int>();
+        if (body.contains("limit")) limit = body.at("limit").get<int>();
+        if (body.contains("target_user_id")) {
+            target_user_id = body.at("target_user_id").get<int64_t>();
+        }
+    } catch (const nlohmann::json::exception&) {
+        WriteJson(resp, 400, "invalid audit list fields", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    if (offset < 0 || limit <= 0 || limit > 100 || target_user_id < 0) {
+        WriteJson(resp, 400, "invalid offset/limit/target_user_id", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    std::vector<AuditLogRecord> records;
+    int total = 0;
+    std::string err;
+    if (!audit_log_dao_->List(offset, limit, target_user_id, &records, &total,
+                              &err)) {
+        WriteJson(resp, 500, "list audit logs failed: " + err);
+        return;
+    }
+    nlohmann::json data = {{"total", total}};
+    data["offset"] = offset;
+    data["limit"] = limit;
+    data["logs"] = nlohmann::json::array();
+    for (const auto& record : records) {
+        data["logs"].push_back({
+            {"id", record.id},
+            {"actor_user_id", record.actor_user_id},
+            {"target_user_id", record.target_user_id},
+            {"action", record.action},
+            {"reason", record.reason},
+            {"metadata", record.metadata_json},
+            {"created_at", record.created_at},
+        });
+    }
+    WriteJson(resp, 0, "ok", data.dump());
+}
+
 // 查询聊天室在线人数
 void HttpApiServer::handleChatroomOnlineCount(const HttpRequest& req,
                                               HttpResponse* resp) {
@@ -1448,6 +2102,10 @@ void HttpApiServer::handleChatroomOnlineCount(const HttpRequest& req,
                   HttpResponse::k400BadRequest);
         return;
     }
+
+    int64_t authenticated_id = 0;
+    if (!requireUser(req, resp, &authenticated_id)) return;
+    (void)authenticated_id;
 
     nlohmann::json j;
     if (!ParseJsonBody(req.body(), &j)) {

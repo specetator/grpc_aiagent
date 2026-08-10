@@ -22,12 +22,23 @@ public:
             const ::sparkpush::PushToCometRequest* request,
             ::sparkpush::PushToCometReply* response) override;
 
+    ::grpc::Status PushDeliveryAck(
+            ::grpc::ServerContext* context,
+            const ::sparkpush::PushDeliveryAckRequest* request,
+            ::sparkpush::SimpleReply* response) override;
+
+    // Job 为每个 Comet 复用一条双向客户端流；每个 request 都返回对应 reply。
+    ::grpc::Status PushStream(
+            ::grpc::ServerContext* context,
+            ::grpc::ServerReaderWriter<::sparkpush::PushToCometReply,
+                                       ::sparkpush::PushToCometRequest>* stream)
+            override;
+
 private:
+    size_t ProcessPushRequest(const ::sparkpush::PushToCometRequest& request);
     // 外部注入的 comet 服务实例，生命周期由调用方管理。
     CometServer* server_;
 };
 
 }  // namespace sparkpush
-
-
 

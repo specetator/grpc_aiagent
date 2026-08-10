@@ -53,18 +53,19 @@ void ThreadPool::Stop() {
 }
 
 // 提交一个任务到队列，如果池已停止则忽略。
-void ThreadPool::Submit(std::function<void()> task) {
+bool ThreadPool::Submit(std::function<void()> task) {
     if (!task) {
-        return;
+        return false;
     }
     {
         std::lock_guard<std::mutex> lock(mutex_);
         if (stopping_) {
-            return;
+            return false;
         }
         tasks_.push(std::move(task));
     }
     cv_.notify_one();
+    return true;
 }
 
 // 工作线程循环，从队列取任务并捕获异常防止线程崩溃。
@@ -95,5 +96,4 @@ void ThreadPool::WorkerLoop(size_t worker_id) {
 }
 
 }  // namespace sparkpush
-
 

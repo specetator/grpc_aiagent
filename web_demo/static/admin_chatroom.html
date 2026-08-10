@@ -2,143 +2,268 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <title>Spark Push 管理后台</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Spark Push · 管理员控制台</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>">
-  <style>
-    /* 简洁的后台风格 */
-    body { font-family: -apple-system, system-ui, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; color: #333; }
-    .container { max-width: 1000px; margin: 0 auto; }
-    .card { background: #fff; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-    h2 { margin-top: 0; color: #1976d2; }
-    h3 { border-bottom: 1px solid #eee; padding-bottom: 10px; margin-top: 0; }
-    
-    .hidden { display: none; }
-    
-    input, textarea, select { width: 100%; padding: 8px; margin: 8px 0; box-sizing: border-box; border: 1px solid #ddd; border-radius: 4px; }
-    button { padding: 8px 16px; background: #1976d2; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
-    button.secondary { background: #9e9e9e; }
-    button:hover { opacity: 0.9; }
-    
-    .row { display: flex; gap: 20px; }
-    .col { flex: 1; }
-
-    /* Modal Styles */
-    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; display: flex; justify-content: center; align-items: center; }
-    .modal { background: #fff; padding: 20px; border-radius: 8px; width: 450px; max-width: 90%; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-    .modal-header h3 { margin: 0; border: none; padding: 0; font-size: 18px; }
-    .close-btn { background: none; border: none; font-size: 24px; cursor: pointer; color: #999; padding: 0; line-height: 1; }
-    .close-btn:hover { color: #333; }
-    .modal-body input { width: 100%; padding: 10px; font-size: 14px; border: 1px solid #ddd; border-radius: 4px; background: #f9f9f9; margin: 10px 0; }
-    .modal-footer { margin-top: 15px; text-align: right; display: flex; justify-content: flex-end; gap: 10px; }
-    
-    .modal-overlay.hidden { display: none; }
-  </style>
+  <link rel="stylesheet" href="admin_style.css">
   <script src="auth.js"></script>
 </head>
 <body>
-  <div class="container">
-    <div class="card">
-      <div style="display:flex; justify-content:space-between; align-items:center;">
-         <h2>Spark Push 管理后台</h2>
-         <div id="user-info" class="hidden">
-            管理员: <span id="admin-id" style="font-weight:bold;"></span>
-            <button class="secondary" onclick="doLogout()" style="margin-left:10px; padding: 4px 10px; font-size:12px;">退出</button>
-         </div>
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-icon">⚡</span>
+        <div>
+          <h1>Spark Push 管理员控制台</h1>
+          <p>用户中心 · 投递运维 · 审计追踪</p>
+        </div>
       </div>
-    </div>
+      <div id="topbar-actions" class="topbar-actions hidden">
+        <span class="admin-identity">管理员 <b id="admin-id">-</b></span>
+        <a class="btn ghost" href="index.html">聊天首页</a>
+        <button class="btn ghost" type="button" onclick="doLogout()">退出</button>
+      </div>
+    </header>
 
-    <!-- 登录卡片 -->
-    <div id="login-card" class="card">
-       <h3>管理员登录</h3>
-       <p style="color:#666; font-size:14px;">默认账号: admin / 密码: admin123</p>
-       <input id="acc" placeholder="账号">
-       <input id="pwd" type="password" placeholder="密码">
-       <button onclick="doLogin()">登录</button>
-       <div id="err-msg" style="color:red; margin-top:10px;"></div>
-    </div>
+    <section id="login-card" class="page-card login-card">
+      <h2>管理员登录</h2>
+      <p>使用服务端配置的管理员账号进入用户中心。管理员身份与普通聊天账号相互隔离。</p>
+      <div class="field">
+        <label for="acc">管理员账号</label>
+        <input id="acc" autocomplete="username" placeholder="例如 admin" />
+      </div>
+      <div class="field">
+        <label for="pwd">管理员密码</label>
+        <input id="pwd" type="password" autocomplete="current-password" placeholder="请输入管理员密码" />
+      </div>
+      <button class="btn full" type="button" onclick="doLogin()">进入控制台</button>
+      <div id="err-msg" class="login-message"></div>
+    </section>
 
-    <!-- 主控面板 (默认隐藏) -->
-    <div id="dashboard" class="hidden">
-       <div class="row">
-         <!-- 创建房间 -->
-         <div class="col card">
-            <h3>创建聊天室</h3>
-            <input id="new-room-name" placeholder="房间名称 (e.g. 技术交流群)">
-            <button onclick="createRoom()">创建</button>
-            <div id="create-res" style="margin-top:10px; color:green;"></div>
-         </div>
-         
-         <!-- 广播 -->
-         <div class="col card">
-            <h3>全站/房间广播</h3>
-            <select id="bc-scope">
-               <option value="all">全站广播 (所有在线)</option>
-               <option value="chatroom">指定房间</option>
-            </select>
-            <input id="bc-room-id" placeholder="房间ID (仅指定房间时有效)">
-            <textarea id="bc-text" rows="3" placeholder="广播内容..."></textarea>
-            <button onclick="sendBroadcast()">发送广播</button>
-         </div>
-       </div>
-       
-       <div class="card">
-          <div style="display:flex; justify-content:space-between;">
-             <h3>房间列表</h3>
-             <button class="secondary" onclick="loadRooms()" style="padding:4px 10px;">刷新</button>
+    <div id="app" class="app-layout hidden">
+      <nav class="page-card sidebar-nav" aria-label="管理员导航">
+        <div class="nav-label">运营控制台</div>
+        <button class="nav-item active" type="button" data-section="overview">
+          <span class="nav-icon">◈</span>运行概览
+        </button>
+        <button class="nav-item" type="button" data-section="users">
+          <span class="nav-icon">👤</span>用户中心
+        </button>
+        <button class="nav-item" type="button" data-section="audit">
+          <span class="nav-icon">🧾</span>审计日志
+        </button>
+        <button class="nav-item" type="button" data-section="operations">
+          <span class="nav-icon">📡</span>房间与广播
+        </button>
+      </nav>
+
+      <main class="content">
+        <section id="section-overview" class="section active">
+          <div class="section-heading">
+            <div>
+              <h2>运行概览</h2>
+              <p>查看用户状态分布，并快速进入高频管理操作。</p>
+            </div>
+            <div class="heading-actions">
+              <button class="btn secondary" type="button" onclick="refreshAll()">↻ 刷新数据</button>
+            </div>
           </div>
-          <div id="room-list" style="max-height:300px; overflow-y:auto;">
-             <div style="padding:10px; text-align:center; color:#999;">加载中...</div>
+          <div class="stat-grid">
+            <div class="stat-card"><div class="stat-label">用户总数</div><div id="stat-total" class="stat-value">-</div><div class="stat-hint">包含全部状态</div></div>
+            <div class="stat-card active"><div class="stat-label">正常用户</div><div id="stat-active" class="stat-value">-</div><div class="stat-hint">可以登录并发送消息</div></div>
+            <div class="stat-card disabled"><div class="stat-label">已禁用</div><div id="stat-disabled" class="stat-value">-</div><div class="stat-hint">登录和新消息会被拒绝</div></div>
+            <div class="stat-card deleted"><div class="stat-label">已软删除</div><div id="stat-deleted" class="stat-value">-</div><div class="stat-hint">保留历史引用和审计记录</div></div>
           </div>
-       </div>
+          <div class="two-col">
+            <div class="panel">
+              <div class="panel-header"><div><h3>用户中心</h3><p>状态、昵称和 Token 的集中管理。</p></div><button class="btn small" type="button" onclick="switchSection('users')">打开</button></div>
+              <div class="page-message success">禁用或软删除用户时会先撤销其全部 Token。</div>
+            </div>
+            <div class="panel">
+              <div class="panel-header"><div><h3>审计追踪</h3><p>记录管理员和用户中心关键操作。</p></div><button class="btn small" type="button" onclick="switchSection('audit')">查看</button></div>
+              <div class="page-message success">审计记录只追加，不提供业务层修改和删除。</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="section-users" class="section">
+          <div class="section-heading">
+            <div>
+              <h2>用户中心</h2>
+              <p>管理账号生命周期、昵称和登录凭证。</p>
+            </div>
+            <div class="heading-actions"><button class="btn secondary" type="button" onclick="loadUsers(); loadUserStats()">↻ 刷新</button></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <div><h3>用户列表</h3><p id="user-total-label">加载中...</p></div>
+              <div class="toolbar">
+                <input id="user-search" type="search" placeholder="搜索 ID / 账号 / 昵称" />
+                <select id="user-status-filter" aria-label="用户状态">
+                  <option value="all">全部状态</option>
+                  <option value="active">正常</option>
+                  <option value="disabled">已禁用</option>
+                  <option value="deleted">已删除</option>
+                </select>
+                <button class="btn" type="button" onclick="loadUsers()">查询</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>ID / 账号</th><th>昵称</th><th>状态</th><th>创建时间</th><th>删除时间</th><th>操作</th></tr></thead>
+                <tbody id="user-table-body"><tr><td class="empty-row" colspan="6">加载中...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section id="section-audit" class="section">
+          <div class="section-heading">
+            <div>
+              <h2>审计日志</h2>
+              <p>追踪登录、状态变更、资料修改和 Token 撤销。</p>
+            </div>
+            <div class="heading-actions"><button class="btn secondary" type="button" onclick="loadAudit()">↻ 刷新</button></div>
+          </div>
+          <div class="panel">
+            <div class="panel-header">
+              <div><h3>操作记录</h3><p id="audit-total-label">加载中...</p></div>
+              <div class="toolbar">
+                <input id="audit-target" type="number" min="1" placeholder="目标用户 ID（可选）" />
+                <button class="btn" type="button" onclick="loadAudit()">查询</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>时间</th><th>动作</th><th>操作者</th><th>目标用户</th><th>原因</th><th>元数据</th></tr></thead>
+                <tbody id="audit-table-body"><tr><td class="empty-row" colspan="6">加载中...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <section id="section-operations" class="section">
+          <div class="section-heading">
+            <div>
+              <h2>房间与广播</h2>
+              <p>保留原有聊天室运营能力，和用户中心共用管理员会话。</p>
+            </div>
+            <div class="heading-actions"><button class="btn secondary" type="button" onclick="loadRooms()">↻ 刷新房间</button></div>
+          </div>
+          <div class="two-col">
+            <div class="panel">
+              <div class="panel-header"><div><h3>创建聊天室</h3><p>创建后可从房间列表复制分享链接。</p></div></div>
+              <div class="field"><label for="new-room-name">房间名称</label><input id="new-room-name" placeholder="例如：技术交流群" /></div>
+              <div class="field"><label for="room-owner-id">房主用户 ID</label><input id="room-owner-id" type="number" min="1" placeholder="例如：1" /></div>
+              <button class="btn" type="button" onclick="createRoom()">创建房间</button>
+              <div id="create-res" class="page-message"></div>
+            </div>
+            <div class="panel">
+              <div class="panel-header"><div><h3>全站 / 房间广播</h3><p>将系统广播投递到在线用户或指定聊天室。</p></div></div>
+              <div class="field"><label for="bc-scope">广播范围</label><select id="bc-scope"><option value="all">全站在线用户</option><option value="chatroom">指定聊天室</option></select></div>
+              <div class="field"><label for="bc-room-id">聊天室 ID</label><input id="bc-room-id" type="number" min="1" placeholder="指定聊天室时填写" /></div>
+              <div class="field"><label for="bc-text">广播内容</label><textarea id="bc-text" rows="3" placeholder="输入广播内容..."></textarea></div>
+              <button class="btn" type="button" onclick="sendBroadcast()">发送广播</button>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-header"><div><h3>房间列表</h3><p>管理后台创建的聊天室。</p></div></div>
+            <div id="room-list"><div class="empty-row">加载中...</div></div>
+          </div>
+        </section>
+      </main>
     </div>
   </div>
 
-  <!-- 分享弹窗 -->
   <div id="share-modal" class="modal-overlay hidden">
     <div class="modal">
-      <div class="modal-header">
-        <h3>分享链接</h3>
-        <button class="close-btn" onclick="closeShareModal()">×</button>
-      </div>
-      <div class="modal-body">
-        <p style="margin: 0; font-size: 14px; color: #666;">复制下方链接发送给好友：</p>
-        <input type="text" id="share-link-input" readonly onclick="this.select()">
-        <div id="copy-tip" style="min-height: 20px; font-size: 12px; color: green;"></div>
-      </div>
-      <div class="modal-footer">
-        <button class="secondary" onclick="closeShareModal()">关闭</button>
-        <button onclick="doCopyFromModal()">复制链接</button>
-      </div>
+      <div class="modal-header"><h3>分享聊天室</h3><button class="close-btn" type="button" onclick="closeShareModal()">×</button></div>
+      <p style="margin:0 0 10px;color:#64748b;font-size:13px;">复制下方链接发送给好友：</p>
+      <input class="copy-input" type="text" id="share-link-input" readonly onclick="this.select()">
+      <div id="copy-tip" class="page-message success"></div>
+      <div class="modal-footer"><button class="btn secondary" type="button" onclick="closeShareModal()">关闭</button><button class="btn" type="button" onclick="doCopyFromModal()">复制链接</button></div>
     </div>
   </div>
+  <div id="toast-container" class="toast-container"></div>
 
   <script>
     const logicBase = window.location.protocol + '//' + window.location.hostname + ':9101';
-    let uid = null;
+    let uid = 0;
+    let usersCache = [];
+
+    const $ = (id) => document.getElementById(id);
+
+    function adminHeaders() {
+      const session = Auth.getAdmin();
+      return {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (session ? session.token : '')
+      };
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>'"]/g, (ch) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+      }[ch]));
+    }
+
+    function showToast(message, type) {
+      const item = document.createElement('div');
+      item.className = 'toast ' + (type || '');
+      item.textContent = message;
+      $('toast-container').appendChild(item);
+      setTimeout(() => item.remove(), 3200);
+    }
+
+    async function api(path, body) {
+      const response = await fetch(logicBase + path, {
+        method: 'POST', headers: adminHeaders(), body: JSON.stringify(body || {})
+      });
+      let data;
+      try { data = await response.json(); } catch (_) { throw new Error('服务返回了无效响应'); }
+      if (data.code !== 0) {
+        if (data.code === 401 || data.code === 403) {
+          Auth.clearAdmin();
+          showLogin();
+        }
+        throw new Error(data.message || '请求失败');
+      }
+      return data.data || {};
+    }
+
+    function showLogin() {
+      $('login-card').classList.remove('hidden');
+      $('app').classList.add('hidden');
+      $('topbar-actions').classList.add('hidden');
+    }
+
+    function showApp() {
+      $('login-card').classList.add('hidden');
+      $('app').classList.remove('hidden');
+      $('topbar-actions').classList.remove('hidden');
+      $('admin-id').textContent = uid;
+    }
 
     async function doLogin() {
-       const account = document.getElementById('acc').value;
-       const password = document.getElementById('pwd').value;
-       try {
-          const res = await fetch(logicBase + '/api/login', {
-             method:'POST', headers:{'Content-Type':'application/json'},
-             body:JSON.stringify({account, password: hashPassword(password)})
-          });
-          const d = await res.json();
-          if(d.code!==0) return document.getElementById('err-msg').textContent = d.message;
-          
-          uid = d.data.user_id;
-          Auth.setAdmin(uid, d.data.token);
-
-          // 切换 UI
-          document.getElementById('login-card').classList.add('hidden');
-          document.getElementById('dashboard').classList.remove('hidden');
-          document.getElementById('user-info').classList.remove('hidden');
-          document.getElementById('admin-id').textContent = uid;
-          
-          loadRooms();
-       } catch(e){alert(e);}
+      const account = $('acc').value.trim();
+      const password = $('pwd').value;
+      const error = $('err-msg');
+      if (!account || !password) { error.textContent = '请输入管理员账号和密码'; return; }
+      error.textContent = '登录中...';
+      try {
+        const response = await fetch(logicBase + '/api/login', {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({account, password})
+        });
+        const data = await response.json();
+        if (data.code !== 0) { error.textContent = data.message || '登录失败'; return; }
+        uid = Number(data.data.user_id);
+        Auth.setAdmin(uid, data.data.token);
+        error.textContent = '';
+        showApp();
+        refreshAll();
+        showToast('管理员登录成功', 'success');
+      } catch (e) { error.textContent = '网络异常：' + e.message; }
     }
 
     function doLogout() {
@@ -146,130 +271,214 @@
       location.reload();
     }
 
-    // Auto Login
-    (function(){
-      const s = Auth.getAdmin();
-      if(s) {
-        uid = Number(s.user_id);
-        // 虽然目前 Admin API 可能没用到 token，但保持一致性
-        document.getElementById('login-card').classList.add('hidden');
-        document.getElementById('dashboard').classList.remove('hidden');
-        document.getElementById('user-info').classList.remove('hidden');
-        document.getElementById('admin-id').textContent = uid;
-        loadRooms();
-      }
-    })();
+    function switchSection(name) {
+      document.querySelectorAll('.nav-item').forEach((item) => item.classList.toggle('active', item.dataset.section === name));
+      document.querySelectorAll('.section').forEach((section) => section.classList.toggle('active', section.id === 'section-' + name));
+      if (name === 'users') loadUsers();
+      if (name === 'audit') loadAudit();
+      if (name === 'operations') loadRooms();
+    }
+
+    async function refreshAll() {
+      await Promise.allSettled([loadUserStats(), loadUsers(), loadAudit(), loadRooms()]);
+    }
+
+    async function loadUserStats() {
+      try {
+        const data = await api('/api/admin/user/list', {offset: 0, limit: 100, status: 0});
+        const users = data.users || [];
+        $('stat-total').textContent = data.total ?? users.length;
+        $('stat-active').textContent = users.filter((u) => u.status === 'active').length;
+        $('stat-disabled').textContent = users.filter((u) => u.status === 'disabled').length;
+        $('stat-deleted').textContent = users.filter((u) => u.status === 'deleted').length;
+      } catch (e) { showToast('用户统计加载失败：' + e.message, 'error'); }
+    }
+
+    function statusBadge(status) {
+      const labels = {active: '正常', disabled: '已禁用', deleted: '已删除'};
+      return '<span class="badge ' + escapeHtml(status) + '">' + escapeHtml(labels[status] || status) + '</span>';
+    }
+
+    function formatTime(value) { return value ? escapeHtml(value).replace('T', ' ') : '-'; }
+
+    async function loadUsers() {
+      const filter = $('user-status-filter').value;
+      const body = {offset: 0, limit: 100, status: filter === 'all' ? 0 : filter};
+      try {
+        const data = await api('/api/admin/user/list', body);
+        usersCache = data.users || [];
+        renderUsers(data.total ?? usersCache.length);
+      } catch (e) { $('user-table-body').innerHTML = '<tr><td class="empty-row" colspan="6">加载失败</td></tr>'; showToast('用户列表加载失败：' + e.message, 'error'); }
+    }
+
+    function renderUsers(total) {
+      const keyword = $('user-search').value.trim().toLowerCase();
+      const users = usersCache.filter((user) => {
+        if (!keyword) return true;
+        return [user.user_id, user.account, user.name].some((value) => String(value ?? '').toLowerCase().includes(keyword));
+      });
+      $('user-total-label').textContent = '共 ' + total + ' 个账号，当前展示 ' + users.length + ' 个';
+      const body = $('user-table-body');
+      if (!users.length) { body.innerHTML = '<tr><td class="empty-row" colspan="6">暂无匹配用户</td></tr>'; return; }
+      body.innerHTML = users.map((user) => {
+        const status = user.status;
+        let actions = '<button class="btn small warning" type="button" onclick="revokeTokens(' + user.user_id + ')">撤销 Token</button>';
+        if (status === 'active') actions += '<button class="btn small secondary" type="button" onclick="changeStatus(' + user.user_id + ', \'disable\')">禁用</button>';
+        if (status === 'disabled') actions += '<button class="btn small" type="button" onclick="changeStatus(' + user.user_id + ', \'restore\')">恢复</button>';
+        if (status === 'deleted') actions += '<button class="btn small" type="button" onclick="changeStatus(' + user.user_id + ', \'restore\')">恢复</button>';
+        if (status !== 'deleted') actions += '<button class="btn small danger" type="button" onclick="changeStatus(' + user.user_id + ', \'delete\')">删除</button>';
+        actions += '<button class="btn small ghost" type="button" onclick="editUser(' + user.user_id + ')">改昵称</button>';
+        actions += '<button class="btn small ghost" type="button" onclick="viewAudit(' + user.user_id + ')">审计</button>';
+        return '<tr>' +
+          '<td><span class="primary-cell">#' + escapeHtml(user.user_id) + '</span><span class="secondary-cell">' + escapeHtml(user.account) + '</span></td>' +
+          '<td>' + escapeHtml(user.name || '-') + '</td>' +
+          '<td>' + statusBadge(status) + '</td>' +
+          '<td>' + formatTime(user.created_at) + '</td>' +
+          '<td>' + formatTime(user.deleted_at) + '</td>' +
+          '<td><div class="row-actions">' + actions + '</div></td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    async function changeStatus(userId, action) {
+      const labels = {disable: '禁用', restore: '恢复', delete: '软删除'};
+      const label = labels[action];
+      if (action === 'delete' && !window.confirm('确认软删除用户 #' + userId + '？该操作会撤销 Token，但保留历史消息引用。')) return;
+      const reason = window.prompt('请输入操作原因（可选）', '') ?? '';
+      try {
+        const data = await api('/api/admin/user/' + action, {user_id: userId, reason});
+        showToast(label + '成功，撤销 Token：' + (data.revoked_tokens || 0), 'success');
+        await Promise.all([loadUsers(), loadUserStats(), loadAudit()]);
+      } catch (e) { showToast(label + '失败：' + e.message, 'error'); }
+    }
+
+    async function editUser(userId) {
+      const user = usersCache.find((item) => Number(item.user_id) === Number(userId));
+      const name = window.prompt('请输入新的昵称', user ? user.name : '');
+      if (name === null || !name.trim()) return;
+      try {
+        await api('/api/admin/user/update', {user_id: userId, name: name.trim()});
+        showToast('昵称已更新', 'success');
+        await Promise.all([loadUsers(), loadUserStats(), loadAudit()]);
+      } catch (e) { showToast('修改昵称失败：' + e.message, 'error'); }
+    }
+
+    async function revokeTokens(userId) {
+      if (!window.confirm('确认撤销用户 #' + userId + ' 的全部登录 Token？')) return;
+      try {
+        const data = await api('/api/admin/user/revoke_tokens', {user_id: userId});
+        showToast('已撤销 ' + (data.revoked_tokens || 0) + ' 个 Token', 'success');
+        await loadAudit();
+      } catch (e) { showToast('Token 撤销失败：' + e.message, 'error'); }
+    }
+
+    function viewAudit(userId) {
+      $('audit-target').value = userId;
+      switchSection('audit');
+    }
+
+    async function loadAudit() {
+      const target = Number($('audit-target').value || 0);
+      try {
+        const data = await api('/api/admin/audit/list', {offset: 0, limit: 100, target_user_id: target});
+        const logs = data.logs || [];
+        $('audit-total-label').textContent = '共 ' + (data.total ?? logs.length) + ' 条记录';
+        const body = $('audit-table-body');
+        if (!logs.length) { body.innerHTML = '<tr><td class="empty-row" colspan="6">暂无审计记录</td></tr>'; return; }
+        body.innerHTML = logs.map((log) => '<tr>' +
+          '<td>' + formatTime(log.created_at) + '</td>' +
+          '<td><span class="badge active">' + escapeHtml(log.action) + '</span></td>' +
+          '<td>#' + escapeHtml(log.actor_user_id) + '</td>' +
+          '<td>#' + escapeHtml(log.target_user_id) + '</td>' +
+          '<td>' + escapeHtml(log.reason || '-') + '</td>' +
+          '<td><span class="secondary-cell" title="' + escapeHtml(log.metadata || '') + '">' + escapeHtml(log.metadata || '-') + '</span></td>' +
+          '</tr>').join('');
+      } catch (e) { $('audit-table-body').innerHTML = '<tr><td class="empty-row" colspan="6">加载失败</td></tr>'; showToast('审计日志加载失败：' + e.message, 'error'); }
+    }
 
     async function createRoom() {
-       const name = document.getElementById('new-room-name').value;
-       if(!name) return;
-       const res = await fetch(logicBase+'/api/admin/chatroom/create', {
-          method:'POST', headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({name, owner_id:uid})
-       });
-       const d = await res.json();
-       if(d.code===0) {
-          document.getElementById('create-res').textContent = '成功: room_id=' + d.data.room_id;
-          loadRooms();
-       } else alert(d.message);
+      const name = $('new-room-name').value.trim();
+      const ownerId = Number($('room-owner-id').value || uid);
+      if (!name || ownerId <= 0) { $('create-res').textContent = '请填写房间名称和房主用户 ID'; return; }
+      try {
+        const data = await api('/api/admin/chatroom/create', {name, owner_id: ownerId});
+        $('create-res').textContent = '创建成功：room_id=' + data.room_id;
+        $('new-room-name').value = '';
+        await loadRooms();
+      } catch (e) { $('create-res').textContent = '创建失败：' + e.message; }
     }
 
     async function sendBroadcast() {
-       const scope = document.getElementById('bc-scope').value;
-       const text = document.getElementById('bc-text').value;
-       const rid = parseInt(document.getElementById('bc-room-id').value) || 0;
-       if(!text) return;
-       
-       const body = { scope, text };
-       if(scope==='chatroom') body.room_id = rid;
-       
-       const res = await fetch(logicBase+'/api/admin/broadcast', {
-          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
-       });
-       const d = await res.json();
-       if(d.code===0) alert('广播已发送');
-       else alert('失败:'+d.message);
+      const scope = $('bc-scope').value;
+      const text = $('bc-text').value.trim();
+      const roomId = Number($('bc-room-id').value || 0);
+      if (!text || (scope === 'chatroom' && roomId <= 0)) { showToast('请填写广播内容和有效的聊天室 ID', 'error'); return; }
+      const body = {scope, text};
+      if (scope === 'chatroom') body.room_id = roomId;
+      try {
+        await api('/api/admin/broadcast', body);
+        $('bc-text').value = '';
+        showToast('广播任务已提交到 Kafka', 'success');
+      } catch (e) { showToast('广播失败：' + e.message, 'error'); }
     }
 
     async function loadRooms() {
-       const res = await fetch(logicBase+'/api/admin/chatroom/list', {
-          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({limit:50})
-       });
-       const d = await res.json();
-       const div = document.getElementById('room-list');
-       div.innerHTML = '';
-       if(d.code===0 && d.data.rooms) {
-          d.data.rooms.forEach(r => {
-             const row = document.createElement('div');
-             row.style.borderBottom = '1px solid #eee';
-             row.style.padding = '8px 0';
-             
-             const shareLink = window.location.origin + '/chatroom.html?room_id=' + r.room_id + '&name=' + encodeURIComponent(r.name);
-             
-             row.innerHTML = `
-               <div style="display:flex; justify-content:space-between; align-items:center;">
-                 <span><b>[${r.room_id}]</b> ${r.name} (Owner: ${r.owner_id})</span>
-                 <button class="secondary" id="btn-${r.room_id}" style="padding:2px 8px; font-size:12px;">分享</button>
-               </div>
-             `;
-             div.appendChild(row);
-             
-             // Bind event
-             document.getElementById(`btn-${r.room_id}`).onclick = () => openShareModal(shareLink);
-          });
-       } else div.innerHTML = '暂无数据';
+      try {
+        const data = await api('/api/admin/chatroom/list', {offset: 0, limit: 100});
+        const rooms = data.rooms || [];
+        const container = $('room-list');
+        if (!rooms.length) { container.innerHTML = '<div class="empty-row">暂无聊天室</div>'; return; }
+        container.innerHTML = rooms.map((room) => {
+          return '<div class="room-row"><div><span class="room-name">#' + escapeHtml(room.room_id) + ' · ' + escapeHtml(room.name) + '</span><span class="room-meta">房主用户 #' + escapeHtml(room.owner_id) + '</span></div><div class="room-actions"><button class="btn small secondary share-room" type="button" data-room-id="' + escapeHtml(room.room_id) + '">分享</button></div></div>';
+        }).join('');
+        rooms.forEach((room, index) => {
+          const button = container.querySelectorAll('.share-room')[index];
+          if (button) {
+            const link = window.location.origin + '/chatroom.html?room_id=' + encodeURIComponent(room.room_id) + '&name=' + encodeURIComponent(room.name);
+            button.addEventListener('click', () => openShareModal(link));
+          }
+        });
+      } catch (e) { $('room-list').innerHTML = '<div class="empty-row">加载失败</div>'; showToast('聊天室加载失败：' + e.message, 'error'); }
     }
 
     function openShareModal(link) {
-       const modal = document.getElementById('share-modal');
-       const input = document.getElementById('share-link-input');
-       const tip = document.getElementById('copy-tip');
-       
-       modal.classList.remove('hidden');
-       input.value = link;
-       tip.textContent = '';
-       
-       input.select();
-       // Try auto copy
-       copyText(link, (success) => {
-          if(success) tip.textContent = '✅ 已自动复制到剪贴板';
-       });
+      $('share-modal').classList.remove('hidden');
+      $('share-link-input').value = link;
+      $('copy-tip').textContent = '';
+      copyText(link, (success) => { if (success) $('copy-tip').textContent = '已自动复制到剪贴板'; });
     }
 
-    function closeShareModal() {
-       document.getElementById('share-modal').classList.add('hidden');
-    }
+    function closeShareModal() { $('share-modal').classList.add('hidden'); }
 
     function doCopyFromModal() {
-       const input = document.getElementById('share-link-input');
-       copyText(input.value, (success) => {
-           document.getElementById('copy-tip').textContent = success ? '✅ 复制成功' : '❌ 复制失败，请手动复制';
-       });
+      copyText($('share-link-input').value, (success) => {
+        $('copy-tip').textContent = success ? '复制成功' : '复制失败，请手动复制';
+      });
     }
 
     function copyText(text, callback) {
-        // 优先尝试 navigator.clipboard (需要 HTTPS 或 localhost)
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            navigator.clipboard.writeText(text).then(() => callback(true)).catch(() => tryFallbackCopy(text, callback));
-        } else {
-            tryFallbackCopy(text, callback);
-        }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => callback(true)).catch(() => callback(false));
+        return;
+      }
+      $('share-link-input').select();
+      callback(document.execCommand('copy'));
     }
 
-    function tryFallbackCopy(text, callback) {
-        try {
-            const input = document.getElementById('share-link-input');
-            // 确保是选中的
-            input.value = text;
-            input.select(); 
-            input.setSelectionRange(0, 99999); // 移动端兼容
+    document.querySelectorAll('.nav-item').forEach((item) => item.addEventListener('click', () => switchSection(item.dataset.section)));
+    $('user-status-filter').addEventListener('change', loadUsers);
+    $('user-search').addEventListener('input', () => renderUsers(usersCache.length));
+    $('pwd').addEventListener('keydown', (event) => { if (event.key === 'Enter') doLogin(); });
+    $('bc-scope').addEventListener('change', () => { $('bc-room-id').disabled = $('bc-scope').value !== 'chatroom'; });
+    $('bc-room-id').disabled = true;
 
-            const successful = document.execCommand('copy');
-            callback(successful);
-        } catch (err) {
-            callback(false);
-        }
-    }
+    (function init() {
+      const session = Auth.getAdmin();
+      if (!session) { showLogin(); return; }
+      uid = Number(session.user_id);
+      showApp();
+      refreshAll();
+    })();
   </script>
 </body>
 </html>

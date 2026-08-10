@@ -6,6 +6,7 @@
 #include <muduo/net/http/HttpServer.h>
 
 #include "conversation_store.h"
+#include "audit_log_dao.h"
 #include "danmaku_dao.h"
 #include "group_dao.h"
 #include "kafka_producer.h"
@@ -20,15 +21,18 @@ class HttpApiServer {
     // 参数：loop 事件循环；listenAddr 监听地址；store 会话存储；user_dao 用户
     // DAO；
     //       group_dao 群 DAO；group_member_dao 成员 DAO；redis_store 路由存储；
-    //       kafka_producer 推送 Kafka；broadcast_producer 广播
+    //       group_producer 群聊 Kafka；broadcast_producer 广播 Kafka
     //       Kafka；danmaku_dao 弹幕 DAO
     // 返回：无
     HttpApiServer(muduo::net::EventLoop* loop,
                   const muduo::net::InetAddress& listenAddr,
                   ConversationStore* store, UserDao* user_dao,
                   GroupDao* group_dao, GroupMemberDao* group_member_dao,
-                  RedisStore* redis_store, KafkaProducer* kafka_producer,
-                  KafkaProducer* broadcast_producer, DanmakuDao* danmaku_dao);
+                  RedisStore* redis_store, KafkaProducer* group_producer,
+                  KafkaProducer* broadcast_producer, DanmakuDao* danmaku_dao,
+                  AuditLogDao* audit_log_dao,
+                  std::string admin_account = {},
+                  std::string admin_password = {});
 
     // 功能：启动 HTTP 服务监听
     // 参数：无
@@ -115,14 +119,34 @@ class HttpApiServer {
     void handleAdminBroadcast(const muduo::net::HttpRequest& req,
                               muduo::net::HttpResponse* resp);
 
+    // 管理后台：用户列表、状态变更、Token 撤销、审计日志。
+    void handleAdminListUsers(const muduo::net::HttpRequest& req,
+                              muduo::net::HttpResponse* resp);
+    void handleAdminSetUserStatus(const muduo::net::HttpRequest& req,
+                                  muduo::net::HttpResponse* resp);
+    void handleAdminUpdateUser(const muduo::net::HttpRequest& req,
+                               muduo::net::HttpResponse* resp);
+    void handleAdminRevokeUserTokens(const muduo::net::HttpRequest& req,
+                                     muduo::net::HttpResponse* resp);
+    void handleAdminListAuditLogs(const muduo::net::HttpRequest& req,
+                                  muduo::net::HttpResponse* resp);
+
+    bool requireUser(const muduo::net::HttpRequest& req,
+                     muduo::net::HttpResponse* resp, int64_t* user_id);
+    bool requireAdmin(const muduo::net::HttpRequest& req,
+                      muduo::net::HttpResponse* resp);
+
     ConversationStore* store_;
     UserDao* user_dao_;
     GroupDao* group_dao_;
     GroupMemberDao* group_member_dao_;
     RedisStore* redis_store_;
-    KafkaProducer* kafka_producer_;
+    KafkaProducer* group_producer_;
     KafkaProducer* broadcast_producer_;
     DanmakuDao* danmaku_dao_;
+    AuditLogDao* audit_log_dao_;
+    std::string admin_account_;
+    std::string admin_password_;
     muduo::net::HttpServer server_;
 };
 

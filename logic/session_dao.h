@@ -35,6 +35,11 @@ class SessionDao {
     bool AllocateMessageSeq(const std::string& session_id, int64_t* next_seq,
                             std::string* err_msg);
 
+    // 将 session.last_msg_seq 单调推进到至少 last_seq，乱序异步落盘不会回退。
+    bool UpdateLastMessageSeqAtLeast(const std::string& session_id,
+                                     int64_t last_seq,
+                                     std::string* err_msg);
+
     // 列出某个用户参与的所有单聊会话
     // 功能：列出用户参与的单聊会话
     bool ListUserSingleSessions(int64_t user_id, std::vector<Session>* sessions,

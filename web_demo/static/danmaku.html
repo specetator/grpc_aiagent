@@ -412,7 +412,7 @@
        
        try {
           const url = logicBase + (mode === 'register' ? '/api/register' : '/api/login');
-          const body = { account, password: hashPassword(pwdRaw) };
+          const body = { account, password: pwdRaw };
           if(mode === 'register') body.name = nickname;
 
           const resp = await fetch(url, {

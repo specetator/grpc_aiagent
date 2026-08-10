@@ -20,6 +20,15 @@ message ChatMessage {
   string client_msg_id = 8;
 }
 
+// 上行请求已经被 Logic 接收，或已经被目标 Comet 排入本地连接队列。
+// accepted 不代表客户端已经看到消息；delivered 也表示服务端已交给
+// Comet/WebSocket 队列，客户端仍应以 msg_seq 做去重和缺口补偿。
+enum AckStage {
+  ACK_STAGE_UNSPECIFIED = 0;
+  ACK_STAGE_ACCEPTED = 1;
+  ACK_STAGE_DELIVERED = 2;
+}
+
 // 弹幕消息结构（用于时间轴拉取）
 message DanmakuMessage {
   string msg_id = 1;
@@ -53,11 +62,14 @@ message UpstreamMessageRequest {
   string video_id = 6;       // 弹幕
   int64 timeline_ms = 7;     // 弹幕时间轴
   string content_json = 8;
+  string source_comet_id = 9;  // 来源 Comet，用于回传 delivered_ack
 }
 
 message UpstreamMessageReply {
   ErrorInfo error = 1;
   ChatMessage message = 2;
+  AckStage ack_stage = 3;
+  int64 accepted_at_ms = 4;
 }
 
 // comet -> logic：用户下线
@@ -68,6 +80,50 @@ message UserOfflineRequest {
 
 message SimpleReply {
   ErrorInfo error = 1;
+}
+
+// 客户端按 session_id/msg_seq 主动补齐缺口。
+message SyncMessagesRequest {
+  int64 user_id = 1;
+  string session_id = 2;
+  int64 after_seq = 3;
+  int32 limit = 4;
+}
+
+message SyncMessagesReply {
+  ErrorInfo error = 1;
+  repeated ChatMessage messages = 2;
+  bool has_more = 3;
+  int64 next_seq = 4;
+}
+
+message DeliveredCursor {
+  string session_id = 1;
+  int64 msg_seq = 2;
+}
+
+message UserDeliveredCursor {
+  int64 user_id = 1;
+  string session_id = 2;
+  int64 msg_seq = 3;
+}
+
+// 建立 WebSocket 后补推用户离线期间尚未交给 Comet 的消息。
+message SyncOfflineRequest {
+  int64 user_id = 1;
+  int32 limit = 2;
+}
+
+message SyncOfflineReply {
+  ErrorInfo error = 1;
+  repeated ChatMessage messages = 2;
+  bool has_more = 3;
+}
+
+message MarkDeliveredRequest {
+  int64 user_id = 1;
+  repeated DeliveredCursor cursors = 2;
+  repeated UserDeliveredCursor user_cursors = 3;
 }
 
 // 房间加入/离开（聊天室/弹幕房）
@@ -89,6 +145,26 @@ message BroadcastReply {
   string task_id = 2;
 }
 
+// 双向流包装：Comet↔Logic 持久连接，消除逐条 Unary RPC 开销
+message StreamMessage {
+  string request_id = 1;
+  oneof payload {
+    UpstreamMessageRequest upstream = 2;
+    UserOfflineRequest offline = 3;
+    RoomReportRequest room_join = 4;
+    RoomReportRequest room_leave = 5;
+  }
+}
+
+message StreamResponse {
+  string request_id = 1;
+  ErrorInfo error = 2;
+  oneof payload {
+    UpstreamMessageReply upstream_reply = 3;
+    SimpleReply simple_reply = 4;
+  }
+}
+
 service LogicService {
   rpc VerifyToken(VerifyTokenRequest) returns (VerifyTokenReply);
   rpc SendUpstreamMessage(UpstreamMessageRequest) returns (UpstreamMessageReply);
@@ -96,6 +172,11 @@ service LogicService {
   rpc ReportRoomJoin(RoomReportRequest) returns (SimpleReply);
   rpc ReportRoomLeave(RoomReportRequest) returns (SimpleReply);
   rpc Broadcast(BroadcastRequest) returns (BroadcastReply);
+  rpc SyncMessages(SyncMessagesRequest) returns (SyncMessagesReply);
+  rpc SyncOffline(SyncOfflineRequest) returns (SyncOfflineReply);
+  rpc MarkDelivered(MarkDeliveredRequest) returns (SimpleReply);
+  // 双向流模式（高性能）
+  rpc MessageStream(stream StreamMessage) returns (stream StreamResponse);
 }
 
 // ========== JobService / CometService 相关 ==========
@@ -109,10 +190,35 @@ message PushToCometRequest {
   string comet_id = 1;
   ChatMessage message = 2;
   repeated FanoutTarget targets = 3;
+  string request_id = 4;       // Job/Comet 流内幂等键
+  string ack_comet_id = 5;     // delivered_ack 回传的来源 Comet
+  int64 ack_user_id = 6;
+  string scene = 7;            // single / group / broadcast，便于独立排队与指标
 }
 
 message PushToCometReply {
   ErrorInfo error = 1;
+  string request_id = 2;
+  int32 delivered_count = 3;
+}
+
+message PushDeliveryAckRequest {
+  int64 user_id = 1;
+  ChatMessage message = 2;
+}
+
+// Logic -> Job 的持久化事件。该事件先写入 Kafka，再由 Job 消费并幂等落库，
+// 消除 Logic 进程崩溃时本地异步任务丢失的窗口。
+message PersistMessageRequest {
+  ChatMessage message = 1;
+  string scene = 2;
+  int64 user1_id = 3;
+  int64 user2_id = 4;
+  int64 room_id = 5;
+}
+
+message PushStreamReply {
+  int64 received_count = 1;
 }
 
 // logic -> job：广播任务
@@ -130,8 +236,8 @@ service JobService {
 
 service CometService {
   rpc PushToComet(PushToCometRequest) returns (PushToCometReply);
+  rpc PushDeliveryAck(PushDeliveryAckRequest) returns (SimpleReply);
+  // Job 为每个 Comet 复用一条双向长连接；每条 request 都有对应 reply，
+  // 只有收到 Comet reply 后 Job 才确认 Kafka 消息。
+  rpc PushStream(stream PushToCometRequest) returns (stream PushToCometReply);
 }
-
-
-
-

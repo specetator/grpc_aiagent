@@ -24,8 +24,8 @@ public:
     // 停止线程池并回收资源。
     void Stop();
 
-    // 提交任务；空任务会被忽略
-    void Submit(std::function<void()> task);
+    // 提交任务；线程池已停止或任务为空时返回 false。
+    bool Submit(std::function<void()> task);
 
     size_t size() const { return thread_num_; }
 
@@ -42,5 +42,4 @@ private:
 };
 
 }  // namespace sparkpush
-
 

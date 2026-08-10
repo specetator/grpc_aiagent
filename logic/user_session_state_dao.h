@@ -22,6 +22,16 @@ class UserSessionStateDao {
     bool GetReadSeq(int64_t user_id, const std::string& session_id,
                     int64_t* read_seq, std::string* err_msg);
 
+    // 单调推进客户端已收到的 msg_seq，用于断线后的离线补推。
+    bool UpsertDeliveredSeq(int64_t user_id, const std::string& session_id,
+                            int64_t delivered_seq, std::string* err_msg);
+
+    bool GetDeliveredSeq(int64_t user_id, const std::string& session_id,
+                         int64_t* delivered_seq, std::string* err_msg);
+
+    // 兼容已经初始化旧 schema 的本地开发库。
+    bool EnsureDeliveredSeqColumn(std::string* err_msg);
+
    private:
     MySqlConnectionPool* pool_{nullptr};
 };

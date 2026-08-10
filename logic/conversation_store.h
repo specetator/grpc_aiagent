@@ -1,7 +1,9 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "message_dao.h"
@@ -44,6 +46,20 @@ class ConversationStore {
                        const std::string& client_msg_id, Message* message,
                        std::string* err_msg);
 
+    // 热路径：仅 Redis INCR 分配序号并构造 Message，不写 MySQL
+    bool AppendMessageHotPath(const std::string& session_id, int64_t sender_id,
+                              const std::string& msg_type,
+                              const std::string& content_json,
+                              int64_t timestamp_ms,
+                              const std::string& client_msg_id, Message* message,
+                              bool* is_new, std::string* err_msg);
+
+    // 异步落盘：确保 session 行存在并 INSERT message（使用已分配的 msg_seq）
+    // scene: "single" | "chatroom"；single 时用 user1/user2，chatroom 用 room_id
+    bool PersistMessage(const Message& message, const std::string& scene,
+                        int64_t user1, int64_t user2, int64_t room_id,
+                        std::string* err_msg);
+
     // 功能：查询会话历史消息
     // 参数：session_id 会话；anchor_seq 游标（不包含）；limit 条数；messages
     // 输出结果；
@@ -52,6 +68,10 @@ class ConversationStore {
     bool GetHistory(const std::string& session_id, int64_t anchor_seq,
                     int limit, std::vector<Message>* messages,
                     std::string* err_msg);
+
+    bool GetMessagesAfter(const std::string& session_id, int64_t after_seq,
+                          int limit, std::vector<Message>* messages,
+                          std::string* err_msg);
 
     // 功能：标记用户已读序列并写回 Redis/MySQL
     // 参数：user_id 用户；session_id 会话；read_seq 已读序号；err_msg 记录错误
@@ -64,6 +84,12 @@ class ConversationStore {
     // 返回：成功返回 true，失败返回 false
     bool GetUnread(int64_t user_id, const std::string& session_id,
                    int64_t* unread, std::string* err_msg);
+
+    bool MarkDelivered(int64_t user_id, const std::string& session_id,
+                       int64_t delivered_seq, std::string* err_msg);
+
+    bool GetDeliveredSeq(int64_t user_id, const std::string& session_id,
+                         int64_t* delivered_seq, std::string* err_msg);
 
     // 功能：列出用户参与的所有单聊会话
     // 参数：user_id 用户；sessions 输出会话列表；err_msg 记录错误
@@ -82,6 +108,9 @@ class ConversationStore {
     MessageDao* message_dao_{nullptr};
     UserSessionStateDao* state_dao_{nullptr};
     RedisStore* redis_store_{nullptr};
+    // 本进程内已完成 Redis 序号种子的会话，避免每条 EXISTS/查库
+    std::mutex seq_seed_mu_;
+    std::unordered_set<std::string> seq_seeded_sessions_;
 };
 
 }  // namespace sparkpush

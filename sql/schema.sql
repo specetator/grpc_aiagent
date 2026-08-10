@@ -1,6 +1,5 @@
--- 自动创建数据库并初始化所有表
--- 支持重复执行（幂等）
-DROP DATABASE IF EXISTS spark_push;
+-- 创建数据库并初始化所有表；不会删除已有业务数据。
+-- 如需清空本地开发库，请显式执行 reset_dev.sql 后再执行本文件。
 CREATE DATABASE IF NOT EXISTS `spark_push`
   DEFAULT CHARACTER SET utf8mb4
   COLLATE utf8mb4_unicode_ci;
@@ -13,9 +12,28 @@ CREATE TABLE IF NOT EXISTS `user` (
   `account` VARCHAR(64) NOT NULL UNIQUE,
   `name` VARCHAR(64) NOT NULL DEFAULT '',
   `password_hash` VARCHAR(128) NOT NULL,
+  `status` TINYINT NOT NULL DEFAULT 1,       -- 1=active,2=disabled,3=deleted
+  `deleted_at` DATETIME(3) NULL DEFAULT NULL,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+    ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_account` (`account`)
+  UNIQUE KEY `uk_account` (`account`),
+  KEY `idx_user_status` (`status`, `deleted_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- 用户中心审计日志：管理员操作、注册和登录等生命周期事件只追加不更新。
+CREATE TABLE IF NOT EXISTS `audit_log` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `actor_user_id` BIGINT NOT NULL DEFAULT 0,
+  `target_user_id` BIGINT NOT NULL DEFAULT 0,
+  `action` VARCHAR(64) NOT NULL,
+  `reason` VARCHAR(512) NOT NULL DEFAULT '',
+  `metadata_json` LONGTEXT NOT NULL,
+  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  KEY `idx_audit_target_created` (`target_user_id`, `created_at`),
+  KEY `idx_audit_action_created` (`action`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- 会话表：单聊/群聊/聊天室等（当前代码主要使用单聊）
@@ -57,6 +75,7 @@ CREATE TABLE IF NOT EXISTS `user_session_state` (
   `user_id` BIGINT NOT NULL,
   `session_id` VARCHAR(128) NOT NULL,
   `read_seq` BIGINT NOT NULL DEFAULT 0,     -- 已读到的最大 msg_seq
+  `delivered_seq` BIGINT NOT NULL DEFAULT 0, -- 已交给客户端连接的最大 msg_seq
   `last_visit_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_user_session` (`user_id`, `session_id`),

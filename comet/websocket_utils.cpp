@@ -1,8 +1,65 @@
 #include "websocket_utils.h"
 
+#include <charconv>
 #include <cctype>
 
 namespace sparkpush {
+namespace {
+
+bool FindNumberField(const std::string& json, const std::string& key,
+                     int64_t* out) {
+    if (!out) return false;
+    auto pos = json.find("\"" + key + "\"");
+    if (pos == std::string::npos) return false;
+    pos = json.find(':', pos);
+    if (pos == std::string::npos) return false;
+    ++pos;
+    while (pos < json.size() &&
+           std::isspace(static_cast<unsigned char>(json[pos]))) {
+        ++pos;
+    }
+    size_t end = pos;
+    while (end < json.size() &&
+           std::isdigit(static_cast<unsigned char>(json[end]))) {
+        ++end;
+    }
+    if (end == pos) return false;
+    int64_t value = 0;
+    const auto result =
+        std::from_chars(json.data() + pos, json.data() + end, value);
+    if (result.ec != std::errc{} || result.ptr != json.data() + end ||
+        value <= 0) {
+        return false;
+    }
+    *out = value;
+    return true;
+}
+
+bool FindStringField(const std::string& json, const std::string& key,
+                     std::string* out) {
+    if (!out) return false;
+    auto pos = json.find("\"" + key + "\"");
+    if (pos == std::string::npos) return false;
+    pos = json.find(':', pos);
+    if (pos == std::string::npos) return false;
+    ++pos;
+    while (pos < json.size() &&
+           std::isspace(static_cast<unsigned char>(json[pos]))) {
+        ++pos;
+    }
+    if (pos >= json.size() || json[pos] != '"') return false;
+    ++pos;
+    size_t end = pos;
+    while (end < json.size() && json[end] != '"') {
+        if (json[end] == '\\') return false;  // 轻量解析器明确拒绝转义字段
+        ++end;
+    }
+    if (end >= json.size()) return false;
+    *out = json.substr(pos, end - pos);
+    return true;
+}
+
+}  // namespace
 
 std::string BuildWebSocketTextFrame(const std::string& payload) {
     // 构造最小化的 WebSocket 文本帧：仅支持 FIN=1 且不分片。
@@ -29,57 +86,13 @@ std::string BuildWebSocketTextFrame(const std::string& payload) {
 
 // 极简 JSON 解析器：从文本中提取数字字段。
 bool ParseSingleChatJson(const std::string& json, int64_t* to_user_id) {
-    if (!to_user_id) return false;
-    // 通过字符串查找 + 数字提取，不依赖第三方 JSON 库，适合 demo 场景
-    auto findNumberField = [&](const std::string& key, int64_t* out) -> bool {
-        auto pos = json.find("\"" + key + "\"");
-        if (pos == std::string::npos) return false;
-        pos = json.find(":", pos);
-        if (pos == std::string::npos) return false;
-        ++pos;
-        while (pos < json.size() &&
-                      (json[pos] == ' ' || json[pos] == '\t')) {
-            ++pos;
-        }
-        size_t end = pos;
-        while (end < json.size() &&
-                      std::isdigit(static_cast<unsigned char>(json[end]))) {
-            ++end;
-        }
-        if (end == pos) return false;
-        *out = std::stoll(json.substr(pos, end - pos));
-        return true;
-    };
-
-    return findNumberField("to_user_id", to_user_id);
+    return FindNumberField(json, "to_user_id", to_user_id);
 }
 
 bool ParseChatroomJson(const std::string& json, int64_t* room_id) {
-    if (!room_id) return false;
-    // 兼容 group_id 与 room_id 两种字段名称。
-    auto findNumberField = [&](const std::string& key, int64_t* out) -> bool {
-        auto pos = json.find("\"" + key + "\"");
-        if (pos == std::string::npos) return false;
-        pos = json.find(":", pos);
-        if (pos == std::string::npos) return false;
-        ++pos;
-        while (pos < json.size() &&
-                      (json[pos] == ' ' || json[pos] == '\t')) {
-            ++pos;
-        }
-        size_t end = pos;
-        while (end < json.size() &&
-                      std::isdigit(static_cast<unsigned char>(json[end]))) {
-            ++end;
-        }
-        if (end == pos) return false;
-        *out = std::stoll(json.substr(pos, end - pos));
-        return true;
-    };
-
     // 先尝试 group_id，再尝试 room_id
-    if (findNumberField("group_id", room_id)) return true;
-    if (findNumberField("room_id", room_id)) return true;
+    if (FindNumberField(json, "group_id", room_id)) return true;
+    if (FindNumberField(json, "room_id", room_id)) return true;
     return false;
 }
 
@@ -87,60 +100,23 @@ bool ParseChatroomJson(const std::string& json, int64_t* room_id) {
 bool ParseUpstreamMessage(const std::string& json, UpstreamMessageMeta* meta) {
     if (!meta) return false;
 
-    // 以极简方式提取字段，忽略转义/数组等复杂场景
-    auto findNumberField = [&](const std::string& key, int64_t* out) -> bool {
-        auto pos = json.find("\"" + key + "\"");
-        if (pos == std::string::npos) return false;
-        pos = json.find(":", pos);
-        if (pos == std::string::npos) return false;
-        ++pos;
-        while (pos < json.size() &&
-                      (json[pos] == ' ' || json[pos] == '\t')) {
-            ++pos;
-        }
-        size_t end = pos;
-        while (end < json.size() &&
-                      std::isdigit(static_cast<unsigned char>(json[end]))) {
-            ++end;
-        }
-        if (end == pos) return false;
-        *out = std::stoll(json.substr(pos, end - pos));
-        return true;
-    };
-
-    auto findStringField = [&](const std::string& key, std::string* out) -> bool {
-        auto pos = json.find("\"" + key + "\"");
-        if (pos == std::string::npos) return false;
-        pos = json.find(":", pos);
-        if (pos == std::string::npos) return false;
-        ++pos;
-        while (pos < json.size() &&
-                      (json[pos] == ' ' || json[pos] == '\t')) {
-            ++pos;
-        }
-        if (pos >= json.size() || json[pos] != '"') return false;
-        ++pos;
-        size_t end = pos;
-        while (end < json.size() && json[end] != '"') {
-            // 简化：不处理转义
-            ++end;
-        }
-        if (end >= json.size()) return false;
-        *out = json.substr(pos, end - pos);
-        return true;
-    };
-
     UpstreamMessageMeta m;
-    findStringField("type", &m.type);
-    findStringField("client_msg_id", &m.client_msg_id);
-    findNumberField("to_user_id", &m.to_user_id);
+    FindStringField(json, "type", &m.type);
+    FindStringField(json, "client_msg_id", &m.client_msg_id);
+    FindNumberField(json, "to_user_id", &m.to_user_id);
     // group_id / room_id 任选其一
-    if (!findNumberField("group_id", &m.group_id)) {
-        findNumberField("room_id", &m.group_id);
+    if (!FindNumberField(json, "group_id", &m.group_id)) {
+        FindNumberField(json, "room_id", &m.group_id);
     }
 
-    // 至少需要有 type 或一个路由字段才认为是合法消息
-    if (m.type.empty() && m.to_user_id <= 0 && m.group_id <= 0) {
+    if (m.type == "single_chat" && m.to_user_id <= 0) return false;
+    if ((m.type == "chatroom" || m.type == "chatroom_join" ||
+         m.type == "chatroom_leave") &&
+        m.group_id <= 0) {
+        return false;
+    }
+    if (m.type != "single_chat" && m.type != "chatroom" &&
+        m.type != "chatroom_join" && m.type != "chatroom_leave") {
         return false;
     }
     *meta = m;
@@ -148,6 +124,4 @@ bool ParseUpstreamMessage(const std::string& json, UpstreamMessageMeta* meta) {
 }
 
 }  // namespace sparkpush
-
-
 

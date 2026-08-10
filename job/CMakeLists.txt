@@ -4,7 +4,11 @@ cmake_minimum_required(VERSION 3.14)
 add_executable(job_server
     main.cpp
     service.cpp
+    ../logic/message_dao.cpp
+    ../logic/session_dao.cpp
 )
+
+target_include_directories(job_server PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../logic)
 
 target_link_libraries(job_server
     PRIVATE
@@ -13,5 +17,3 @@ target_link_libraries(job_server
         grpc++
         grpc
 )
-
-

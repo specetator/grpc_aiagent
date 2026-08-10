@@ -63,6 +63,10 @@ class GroupMemberDao {
     bool ListUserChatrooms(int64_t user_id, std::vector<int64_t>* group_ids,
                            std::string* err_msg);
 
+    // 校验用户是否仍订阅指定聊天室，用于历史/离线同步的对象级授权。
+    bool IsMember(int64_t group_id, int64_t user_id, bool* is_member,
+                  std::string* err_msg);
+
     // 功能：列出聊天室成员列表
     // 参数：group_id 房间；user_ids 输出成员；err_msg 错误信息
     // 返回：成功 true，失败 false

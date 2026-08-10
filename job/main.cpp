@@ -5,10 +5,17 @@
 
 #include <cstdio>
 #include <chrono>
+#include <csignal>
 #include <string>
 #include <thread>
 
 namespace {
+
+    volatile std::sig_atomic_t g_stop_requested = 0;
+
+    void HandleStopSignal(int) {
+        g_stop_requested = 1;
+    }
 
     enum class ArgParseResult { kOk, kHelp, kError };
 
@@ -66,11 +73,12 @@ namespace sparkpush {
         runner.Start();
         LOG_INFO << "Job runner started. Waiting for Kafka messages...";
 
-        // 简单阻塞主线程：运行过程中无需退出，保持进程常驻。
-        while (true) {
-            std::this_thread::sleep_for(std::chrono::seconds(5));
+        // 响应 SIGINT/SIGTERM，确保 Kafka consumer close 后主动离组。
+        while (!g_stop_requested) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
-        runner.Stop();  // 理论上不会执行到这里，保留以防未来调整
+        runner.Stop();
+        LOG_INFO << "Job runner stopped gracefully";
         return 0;
     }
 
@@ -78,6 +86,9 @@ namespace sparkpush {
 
 // 程序入口：解析参数、初始化日志与配置，并启动 Job 逻辑。
 int main(int argc, char** argv) {
+    std::signal(SIGINT, HandleStopSignal);
+    std::signal(SIGTERM, HandleStopSignal);
+
     std::string config_path;
     ArgParseResult result = ParseConfigPath(argc, argv, &config_path);
     if (result == ArgParseResult::kHelp) {
@@ -98,7 +109,6 @@ int main(int argc, char** argv) {
     sparkpush::ShutdownLogging();
     return ret;
 }
-
 
 
 

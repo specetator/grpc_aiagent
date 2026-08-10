@@ -220,6 +220,41 @@ bool GroupMemberDao::ListUserChatrooms(int64_t user_id,
     return true;
 }
 
+bool GroupMemberDao::IsMember(int64_t group_id, int64_t user_id,
+                              bool* is_member, std::string* err_msg) {
+    if (!is_member || group_id <= 0 || user_id <= 0) {
+        if (err_msg) *err_msg = "invalid membership arguments";
+        return false;
+    }
+    *is_member = false;
+    if (!pool_) {
+        if (err_msg) *err_msg = "mysql pool not initialized";
+        return false;
+    }
+    auto guard = pool_->Acquire();
+    MYSQL* conn = guard.get();
+    if (!conn) {
+        if (err_msg) *err_msg = "no mysql connection";
+        return false;
+    }
+    std::ostringstream oss;
+    oss << "SELECT COUNT(*) FROM group_member WHERE group_id=" << group_id
+        << " AND user_id=" << user_id;
+    if (mysql_query(conn, oss.str().c_str()) != 0) {
+        if (err_msg) *err_msg = mysql_error(conn);
+        return false;
+    }
+    MYSQL_RES* res = mysql_store_result(conn);
+    if (!res) {
+        if (err_msg) *err_msg = "store_result failed";
+        return false;
+    }
+    MYSQL_ROW row = mysql_fetch_row(res);
+    if (row && row[0]) *is_member = std::stoll(row[0]) > 0;
+    mysql_free_result(res);
+    return true;
+}
+
 // 功能：列出聊天室成员
 bool GroupMemberDao::ListRoomMembers(int64_t group_id,
                                      std::vector<int64_t>* user_ids,

@@ -4,6 +4,7 @@ add_executable(logic_server
   main.cpp
   grpc_service.cpp
   http_server.cpp
+  audit_log_dao.cpp
   user_dao.cpp
   redis_store.cpp
   danmaku_dao.cpp
@@ -24,6 +25,5 @@ target_link_libraries(logic_server
     muduo_base
     pthread
 )
-
 
 

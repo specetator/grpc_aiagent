@@ -4,13 +4,61 @@
 
 #include <librdkafka/rdkafkacpp.h>
 
+#include <chrono>
+#include <condition_variable>
+#include <memory>
+#include <thread>
+
 namespace sparkpush {
 
-// 析构时尝试 flush，降低进程退出前的消息丢失概率。
+class KafkaProducer::DeliveryCallback final : public RdKafka::DeliveryReportCb {
+ public:
+    explicit DeliveryCallback(KafkaProducer* owner) : owner_(owner) {}
+
+    void dr_cb(RdKafka::Message& message) override {
+        if (!owner_ || !message.msg_opaque()) return;
+        std::shared_ptr<DeliveryState> state;
+        {
+            std::lock_guard<std::mutex> lock(owner_->delivery_mutex_);
+            auto it = owner_->deliveries_.find(message.msg_opaque());
+            if (it == owner_->deliveries_.end()) return;
+            state = it->second;
+            owner_->deliveries_.erase(it);
+        }
+        {
+            std::lock_guard<std::mutex> lock(state->mutex);
+            state->done = true;
+            state->ok = message.err() == RdKafka::ERR_NO_ERROR;
+        }
+        state->cv.notify_one();
+    }
+
+ private:
+    KafkaProducer* owner_{nullptr};
+};
+
+KafkaProducer::KafkaProducer() = default;
+
+// 析构时停止 poll 线程并 flush，降低进程退出前的消息丢失概率。
 KafkaProducer::~KafkaProducer() {
+    poll_running_ = false;
+    if (poll_thread_.joinable()) {
+        poll_thread_.join();
+    }
     if (producer_) {
-        // 离开前尽量刷盘，减少消息丢失
         producer_->flush(3000);
+    }
+    std::lock_guard<std::mutex> lock(delivery_mutex_);
+    deliveries_.clear();
+}
+
+void KafkaProducer::PollLoop() {
+    while (poll_running_) {
+        if (producer_) {
+            producer_->poll(5);
+        } else {
+            std::this_thread::sleep_for(std::chrono::milliseconds(5));
+        }
     }
 }
 
@@ -20,6 +68,7 @@ bool KafkaProducer::Init(const std::string& brokers, const std::string& topic) {
     topic_name_ = topic;
 
     RdKafka::Conf* conf = RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL);
+    delivery_callback_ = std::make_unique<DeliveryCallback>(this);
     auto set_conf = [&](const std::string& key, const std::string& value) {
         if (conf->set(key, value, errstr) != RdKafka::Conf::CONF_OK) {
             LOG_ERROR << "KafkaProducer set " << key << " failed: " << errstr;
@@ -50,6 +99,12 @@ bool KafkaProducer::Init(const std::string& brokers, const std::string& topic) {
 
     // 基础 broker 和可靠性、性能参数
     if (!set_conf("bootstrap.servers", brokers)) {
+        delete conf;
+        return false;
+    }
+    if (conf->set("dr_cb", delivery_callback_.get(), errstr) !=
+        RdKafka::Conf::CONF_OK) {
+        LOG_ERROR << "KafkaProducer set dr_cb failed: " << errstr;
         delete conf;
         return false;
     }
@@ -97,7 +152,12 @@ bool KafkaProducer::Init(const std::string& brokers, const std::string& topic) {
         return false;
     }
 
-    LOG_INFO << "KafkaProducer initialized topic=" << topic_name_;
+    // 后台 poll：异步 produce 依赖定期 poll 才会真正发出
+    poll_running_ = true;
+    poll_thread_ = std::thread(&KafkaProducer::PollLoop, this);
+
+    LOG_INFO << "KafkaProducer initialized topic=" << topic_name_
+             << " (async produce + background poll)";
     return true;
 }
 
@@ -120,11 +180,48 @@ bool KafkaProducer::Send(const std::string& key, const std::string& value) {
         return false;
     }
 
-    // poll 触发内部回调与发送进度
+    // 高性能路径：仅 poll 触发发送，不在每条消息上 flush。
+    // 可靠性依赖 acks/idempotence/retries 与析构时 flush；吞吐优先。
     producer_->poll(0);
     return true;
 }
 
+bool KafkaProducer::SendAndWait(const std::string& key,
+                                const std::string& value, int timeout_ms) {
+    if (!producer_ || !topic_ || timeout_ms <= 0) return false;
+
+    auto state = std::make_shared<DeliveryState>();
+    void* opaque = state.get();
+    {
+        std::lock_guard<std::mutex> lock(delivery_mutex_);
+        deliveries_[opaque] = state;
+    }
+
+    RdKafka::ErrorCode err = producer_->produce(
+        topic_.get(), RdKafka::Topic::PARTITION_UA,
+        RdKafka::Producer::RK_MSG_COPY,
+        const_cast<char*>(value.data()), value.size(),
+        key.empty() ? nullptr : &key, opaque);
+    if (err != RdKafka::ERR_NO_ERROR) {
+        std::lock_guard<std::mutex> lock(delivery_mutex_);
+        deliveries_.erase(opaque);
+        LOG_ERROR << "Kafka durable produce failed: " << RdKafka::err2str(err);
+        return false;
+    }
+    producer_->poll(0);
+
+    std::unique_lock<std::mutex> lock(state->mutex);
+    const bool completed = state->cv.wait_for(
+        lock, std::chrono::milliseconds(timeout_ms),
+        [&state] { return state->done; });
+    if (!completed) {
+        LOG_ERROR << "Kafka durable delivery timeout topic=" << topic_name_;
+        return false;
+    }
+    if (!state->ok) {
+        LOG_ERROR << "Kafka durable delivery failed topic=" << topic_name_;
+    }
+    return state->ok;
+}
+
 }  // namespace sparkpush
-
-

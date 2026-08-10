@@ -46,6 +46,8 @@
     .msg.other { align-self: flex-start; background: #fff; border: 1px solid #e6e6e6; border-top-left-radius: 2px; }
     
     .sender-name { font-size: 12px; color: #999; margin-bottom: 4px; }
+    .msg-status { margin-top: 3px; color: #94a3b8; font-size: 10px; text-align: right; }
+    .msg.other .msg-status { text-align: left; }
     
     #input-box { padding: 15px; border-top: 1px solid var(--border); display: flex; gap: 10px; background: #fff; }
     #msg-input { margin: 0; border: 1px solid #ddd; }
@@ -125,6 +127,19 @@
     let roomHistoryAnchorSeq = 0;   // 当前已加载历史中最早一条的 msg_seq
     let roomHistoryHasMore = true;  // 是否还有更多历史
     let roomHistoryLoading = false; // 是否正在加载
+    let roomHistoryReady = false;
+    let roomHistoryController = null;
+    let pendingRoomMessages = [];
+    const renderedRoomMessages = new Map();
+    const roomSessionCursors = Object.create(null);
+    const roomSeenSequences = Object.create(null);
+    const pendingRoomSync = new Set();
+    let wsGeneration = 0;
+    let reconnectTimer = null;
+    let reconnectAttempt = 0;
+    let wasConnected = false;
+    let onlineRefreshTimer = null;
+    let roomViewGeneration = 0;
     
     // UI Toggles
     function toggleUI(isLogin) {
@@ -185,7 +200,7 @@
        
        try {
          const url = logicBase + (mode === 'register' ? '/api/register' : '/api/login');
-         const body = {account, password: hashPassword(pass)};
+         const body = {account, password: pass};
          if(mode === 'register') body.name = nickname;
 
          const res = await fetch(url, {
@@ -200,7 +215,7 @@
          Auth.set(uid, token, myName);
          document.getElementById('status').textContent = '';
          toggleUI(true);
-         connectWs();
+         connectWsSmooth();
        } catch(e){ document.getElementById('status').textContent = 'Error: '+e; }
     }
 
@@ -271,11 +286,250 @@
        };
     }
 
+    function sendRoomSync(sessionId, afterSeq) {
+       if (!sessionId || !ws || ws.readyState !== WebSocket.OPEN) return;
+       const cursor = Number(afterSeq || 0);
+       const key = String(sessionId) + ':' + cursor;
+       if (pendingRoomSync.has(key)) return;
+       pendingRoomSync.add(key);
+       try {
+         ws.send(JSON.stringify({
+           type:'sync', session_id:String(sessionId), after_seq:cursor, limit:100
+         }));
+       } catch (e) {
+         pendingRoomSync.delete(key);
+       }
+    }
+
+    function advanceRoomCursor(seq) {
+       if (!currentSessionId || !Number.isFinite(Number(seq)) || Number(seq) <= 0) return;
+       const sid = String(currentSessionId);
+       const value = Number(seq);
+       const seen = roomSeenSequences[sid] || (roomSeenSequences[sid] = new Set());
+       seen.add(value);
+       let cursor = Number(roomSessionCursors[sid] || 0);
+       while (seen.has(cursor + 1)) {
+         seen.delete(cursor + 1);
+         ++cursor;
+       }
+       roomSessionCursors[sid] = cursor;
+       if (value > cursor + 1) sendRoomSync(sid, cursor);
+       if (seen.size > 4096) {
+         seen.clear();
+         sendRoomSync(sid, cursor);
+       }
+    }
+
+    function handleRoomSyncEnd(msg) {
+       const sid = String(msg.session_id || '');
+       if (!sid) return;
+       for (const key of Array.from(pendingRoomSync)) {
+         if (key.startsWith(sid + ':')) pendingRoomSync.delete(key);
+       }
+       const seen = roomSeenSequences[sid] || new Set();
+       let cursor = Number(roomSessionCursors[sid] || 0);
+       const next = Number(msg.next_seq);
+       if (Number.isFinite(next) && next > cursor) cursor = next;
+       while (seen.has(cursor + 1)) {
+         seen.delete(cursor + 1);
+         ++cursor;
+       }
+       roomSessionCursors[sid] = cursor;
+       if (msg.has_more) sendRoomSync(sid, cursor);
+    }
+
+    function parseRoomMessage(msg) {
+       let contentObj = msg.content;
+       if (typeof contentObj === 'string') {
+         try { contentObj = JSON.parse(contentObj); } catch (x) {}
+       }
+       if (!contentObj || typeof contentObj !== 'object') contentObj = {};
+       const inner = contentObj.content;
+       let text = contentObj.text || '';
+       if (!text && inner) text = typeof inner === 'string' ? inner : (inner.text || '');
+       if (!text) text = JSON.stringify(contentObj);
+       const groupId = Number(msg.group_id || contentObj.group_id || 0);
+       const senderId = Number(msg.from_user_id || contentObj.from_user_id || msg.sender_id || 0);
+       const senderName = (contentObj.sender && contentObj.sender.name) ||
+         (msg.sender && msg.sender.name) || (senderId ? 'User ' + senderId : '有人');
+       return {
+         text,
+         groupId,
+         senderId,
+         senderName,
+         msgId: String(msg.msg_id || contentObj.msg_id || ''),
+         clientMsgId: String(msg.client_msg_id || contentObj.client_msg_id || ''),
+         seq: Number(msg.msg_seq || contentObj.msg_seq || 0),
+         timestamp: Number(msg.timestamp_ms || contentObj.timestamp_ms ||
+           contentObj.create_time || Date.now())
+       };
+    }
+
+    function roomMessageKeys(msg, parsed) {
+       const keys = [];
+       for (const value of [msg.msg_id, parsed && parsed.msgId,
+                            msg.client_msg_id, parsed && parsed.clientMsgId]) {
+         if (value === undefined || value === null || String(value) === '') continue;
+         if (!keys.includes(String(value))) keys.push(String(value));
+       }
+       return keys;
+    }
+
+    function renderRoomMessage(msg, options) {
+       const parsed = parseRoomMessage(msg);
+       if (parsed.groupId && Number(parsed.groupId) !== Number(currentRoom)) return;
+       const keys = roomMessageKeys(msg, parsed);
+       let node = null;
+       for (const key of keys) {
+         if (renderedRoomMessages.has(key)) {
+           node = renderedRoomMessages.get(key);
+           break;
+         }
+       }
+       const opts = options || {};
+       if (opts.optimistic && !parsed.senderId) {
+         parsed.senderId = Number(uid);
+         parsed.senderName = myName || '我';
+       }
+       const isMe = parsed.senderId === Number(uid);
+       if (node) {
+         const bubble = node.querySelector('.msg-body');
+         if (bubble) bubble.textContent = parsed.text;
+         const name = node.querySelector('.sender-name');
+         if (name) name.textContent = parsed.senderName + ' ' +
+           new Date(parsed.timestamp).toLocaleTimeString();
+         node.classList.toggle('me', isMe);
+         node.classList.toggle('other', !isMe);
+         const status = node.querySelector('.msg-status');
+         if (status && !opts.optimistic) status.textContent = isMe ? '已送达' : '';
+       } else {
+         node = appendMsg(parsed.text, isMe, parsed.senderName, false,
+           new Date(parsed.timestamp).toLocaleTimeString(), {
+             prepend: !!opts.prepend,
+             keepScroll: !!opts.keepScroll,
+             deferScroll: !!opts.deferScroll,
+             statusText: opts.optimistic ? '发送中' : (isMe ? '已送达' : ''),
+             messageId: parsed.msgId,
+             clientMsgId: parsed.clientMsgId,
+             messageSeq: parsed.seq
+           });
+       }
+       keys.forEach(key => renderedRoomMessages.set(key, node));
+       while (renderedRoomMessages.size > 20000) {
+         renderedRoomMessages.delete(renderedRoomMessages.keys().next().value);
+       }
+       return node;
+    }
+
+    function flushPendingRoomMessages() {
+       if (!roomHistoryReady || !currentRoom || !pendingRoomMessages.length) return;
+       const queued = pendingRoomMessages.splice(0);
+       queued.sort((a, b) => Number(a.msg_seq || 0) - Number(b.msg_seq || 0));
+       queued.forEach(msg => renderRoomMessage(msg));
+    }
+
+    function handleRoomSocketMessage(msg) {
+       if (msg.type === 'sync_end') {
+         handleRoomSyncEnd(msg);
+         return;
+       }
+       if (msg.type === 'accepted_ack' || msg.type === 'delivered_ack') {
+         const state = msg.type === 'accepted_ack' ? '已接收' : '已送达';
+         [String(msg.msg_id || ''), String(msg.client_msg_id || '')].forEach(key => {
+           if (!key) return;
+           const node = renderedRoomMessages.get(key);
+           if (node) {
+             const status = node.querySelector('.msg-status');
+             if (status) status.textContent = state;
+           }
+         });
+         return;
+       }
+       if (msg.type === 'error') {
+         if (msg.client_msg_id) {
+           const node = renderedRoomMessages.get(String(msg.client_msg_id));
+           if (node) {
+             const status = node.querySelector('.msg-status');
+             if (status) status.textContent = '发送失败';
+           }
+         }
+         appendMsg('发送失败: ' + (msg.message || '请求失败'), false, '系统', true);
+         return;
+       }
+       if (msg.type === 'chatroom') {
+         const parsed = parseRoomMessage(msg);
+         if (parsed.seq > 0) advanceRoomCursor(parsed.seq);
+         if (!currentRoom || (parsed.groupId && Number(parsed.groupId) !== Number(currentRoom))) return;
+         if (!roomHistoryReady) pendingRoomMessages.push(msg);
+         else renderRoomMessage(msg);
+         return;
+       }
+       if (msg.type === 'system_broadcast') {
+         let text = '';
+         if (typeof msg.content === 'string') text = msg.content;
+         else if (msg.content && msg.content.text) text = msg.content.text;
+         else text = JSON.stringify(msg.content);
+         const target = Number(msg.room_id || msg.group_id || 0);
+         if (msg.scope === 'all' || !target || target === Number(currentRoom)) {
+           appendMsg(text, false, '系统广播', true);
+         }
+       }
+    }
+
+    function scheduleReconnect() {
+       if (!token || reconnectTimer) return;
+       const delay = Math.min(1000 * Math.pow(2, reconnectAttempt++), 10000);
+       reconnectTimer = setTimeout(() => {
+         reconnectTimer = null;
+         connectWsSmooth();
+       }, delay);
+    }
+
+    function connectWsSmooth() {
+       if (!token) return;
+       if (ws) {
+         ws.onclose = null;
+         ws.close();
+       }
+       const generation = ++wsGeneration;
+       const socket = new WebSocket(cometWsUrl + '?token=' + encodeURIComponent(token));
+       ws = socket;
+       socket.onopen = () => {
+         if (generation !== wsGeneration) return;
+         reconnectAttempt = 0;
+         if (wasConnected && currentRoom && roomHistoryReady) {
+           appendMsg('连接已恢复，正在补齐消息', false, '系统', true);
+         }
+         wasConnected = true;
+         if (currentRoom) {
+           socket.send(JSON.stringify({type:'chatroom_join', group_id:Number(currentRoom)}));
+           sendRoomSync(currentSessionId, roomSessionCursors[currentSessionId] || 0);
+         }
+         loadMyRooms();
+       };
+       socket.onmessage = event => {
+         if (generation !== wsGeneration) return;
+         try { handleRoomSocketMessage(JSON.parse(event.data)); }
+         catch (e) { console.error('chatroom message parse error', e); }
+       };
+       socket.onerror = () => {
+         if (generation === wsGeneration) socket.close();
+       };
+       socket.onclose = () => {
+         if (generation !== wsGeneration) return;
+         ws = null;
+         scheduleReconnect();
+       };
+    }
+
     async function loadMyRooms() {
        try {
           const res = await fetch(logicBase+'/api/chatroom/list', {
              method:'POST',
-             headers:{'Content-Type':'application/json'},
+             headers:{
+               'Content-Type':'application/json',
+               ...(token ? {'Authorization':'Bearer ' + token} : {})
+             },
              body:JSON.stringify({user_id:uid})
           });
           const d = await res.json();
@@ -285,7 +539,7 @@
              d.data.rooms.forEach(r => {
                 const div = document.createElement('div');
                 div.className = 'room-item';
-                if(r.room_id === currentRoom) div.classList.add('active');
+                if(Number(r.room_id) === Number(currentRoom)) div.classList.add('active');
                 div.dataset.rid = r.room_id;
                 div.dataset.name = r.name;
                 // 记录后端的会话 ID，后面拉取历史消息会用到
@@ -305,10 +559,27 @@
     async function joinRoom() {
        const rid = parseInt(document.getElementById('join-room-id').value);
        if(!rid) return;
-       await fetch(logicBase+'/api/chatroom/join', {
-          method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({user_id:uid, room_id:rid})
-       });
-       if(ws) ws.send(JSON.stringify({type:'chatroom_join', group_id:rid}));
+       try {
+         const response = await fetch(logicBase+'/api/chatroom/join', {
+            method:'POST',
+            headers:{
+              'Content-Type':'application/json',
+              ...(token ? {'Authorization':'Bearer ' + token} : {})
+            },
+            body:JSON.stringify({user_id:uid, room_id:rid})
+         });
+         const result = await response.json();
+         if (result.code !== 0) {
+           document.getElementById('status').textContent = result.message || '加入房间失败';
+           return;
+         }
+       } catch (e) {
+         document.getElementById('status').textContent = '加入房间失败，请检查网络';
+         return;
+       }
+       if(ws && ws.readyState === WebSocket.OPEN) {
+         ws.send(JSON.stringify({type:'chatroom_join', group_id:rid}));
+       }
        
        await loadMyRooms(); // 刷新列表并等待完成
        
@@ -323,6 +594,12 @@
     }
     
     function selectRoom(rid, rname, el) {
+       const viewGeneration = ++roomViewGeneration;
+       if (roomHistoryController) roomHistoryController.abort();
+       if (onlineRefreshTimer) {
+         clearInterval(onlineRefreshTimer);
+         onlineRefreshTimer = null;
+       }
        currentRoom = rid;
        currentRoomName = rname || ('房间 '+rid);
        document.getElementById('room-title').textContent = currentRoomName;
@@ -332,6 +609,9 @@
        roomHistoryAnchorSeq = 0;
        roomHistoryHasMore = true;
        roomHistoryLoading = false;
+       roomHistoryReady = false;
+       pendingRoomMessages = [];
+       renderedRoomMessages.clear();
 
        // 取出该房间对应的 session_id（如果有）
        let sid = null;
@@ -344,6 +624,7 @@
           }
        }
        currentSessionId = sid || (`r_${rid}`);
+       document.getElementById('online-count').textContent = '在线人数加载中…';
        
        document.querySelectorAll('.room-item').forEach(x=>x.classList.remove('active'));
        if(el) el.classList.add('active');
@@ -355,14 +636,20 @@
        
        // 先加载历史，再追加“已进入”提示，避免把系统提示插在历史中间
        loadHistory(true).then(() => {
+         if (viewGeneration !== roomViewGeneration || Number(currentRoom) !== Number(rid)) return;
          appendMsg(`已进入 ${currentRoomName}`, true, '系统', true);
+         refreshOnlineCount();
+         onlineRefreshTimer = setInterval(refreshOnlineCount, 5000);
        }).catch(() => {
+         if (viewGeneration !== roomViewGeneration || Number(currentRoom) !== Number(rid)) return;
          appendMsg(`已进入 ${currentRoomName}`, true, '系统', true);
+         refreshOnlineCount();
+         onlineRefreshTimer = setInterval(refreshOnlineCount, 5000);
        });
     }
 
-    // 拉取当前聊天室的历史消息（分页）
-    async function loadHistory(isInitial) {
+    // 旧版历史加载实现保留作对照；实际页面使用下面的带视图快照版本。
+    async function loadHistoryLegacy(isInitial) {
        if (!currentSessionId) return;
        if (roomHistoryLoading) return;
 
@@ -376,7 +663,10 @@
        try {
          const res = await fetch(logicBase + '/api/session/history', {
             method:'POST',
-            headers:{'Content-Type':'application/json'},
+            headers:{
+              'Content-Type':'application/json',
+              ...(token ? {'Authorization':'Bearer ' + token} : {})
+            },
             body: JSON.stringify({
               session_id: currentSessionId,
               anchor_seq: anchor,
@@ -463,6 +753,101 @@
        }
     }
     
+    async function loadHistory(isInitial) {
+       if (!currentSessionId || roomHistoryLoading) return;
+       if (!isInitial && (!roomHistoryHasMore || !roomHistoryAnchorSeq)) return;
+       const requestedSessionId = String(currentSessionId);
+       const requestedViewGeneration = roomViewGeneration;
+       const controller = new AbortController();
+       roomHistoryController = controller;
+       roomHistoryLoading = true;
+       const pageSize = 50;
+       const anchor = isInitial ? 0 : roomHistoryAnchorSeq;
+       try {
+         const res = await fetch(logicBase + '/api/session/history', {
+           method:'POST',
+           headers:{
+             'Content-Type':'application/json',
+             ...(token ? {'Authorization':'Bearer ' + token} : {})
+           },
+           signal: controller.signal,
+           body: JSON.stringify({
+             session_id: requestedSessionId, anchor_seq: anchor, limit: pageSize
+           })
+         });
+         const d = await res.json();
+         if (String(currentSessionId) !== requestedSessionId ||
+             roomViewGeneration !== requestedViewGeneration) return;
+         if (d.code !== 0 && !(isInitial && d.code === 404)) return;
+         const msgs = d.code === 404 ? [] : ((d.data && d.data.messages) || []);
+         const container = document.getElementById('msgs');
+         const transientNodes = isInitial ? Array.from(container.children) : [];
+         transientNodes.forEach(node => node.remove());
+         if (msgs.length === 0) {
+           roomHistoryHasMore = false;
+           transientNodes.forEach(node => container.appendChild(node));
+           return;
+         }
+         const oldScrollHeight = container.scrollHeight;
+         msgs.forEach(m => renderRoomMessage(m, {
+           prepend: !isInitial,
+           keepScroll: !isInitial,
+           deferScroll: true
+         }));
+         transientNodes.forEach(node => container.appendChild(node));
+         const first = msgs[0];
+         const firstSeq = Number(first && first.msg_seq);
+         if (Number.isFinite(firstSeq) && firstSeq > 0 &&
+             (!roomHistoryAnchorSeq || firstSeq < roomHistoryAnchorSeq)) {
+           roomHistoryAnchorSeq = firstSeq;
+         }
+         const maxSeq = msgs.reduce((max, item) =>
+           Math.max(max, Number(item.msg_seq || 0)), 0);
+         roomSessionCursors[requestedSessionId] = Math.max(
+           Number(roomSessionCursors[requestedSessionId] || 0), maxSeq);
+         roomHistoryHasMore = msgs.length >= pageSize && roomHistoryAnchorSeq > 1;
+         if (!isInitial) {
+           container.scrollTop = container.scrollHeight - oldScrollHeight;
+         } else {
+           container.scrollTop = container.scrollHeight;
+         }
+       } catch (e) {
+         if (e.name !== 'AbortError') console.error('loadHistory error', e);
+       } finally {
+         if (roomHistoryController === controller) roomHistoryController = null;
+         if (String(currentSessionId) === requestedSessionId &&
+             roomViewGeneration === requestedViewGeneration) {
+           roomHistoryLoading = false;
+           if (isInitial) {
+             roomHistoryReady = true;
+             flushPendingRoomMessages();
+           }
+         }
+       }
+    }
+
+    async function refreshOnlineCount() {
+       if (!currentRoom || !token) return;
+       const roomSnapshot = Number(currentRoom);
+       try {
+         const res = await fetch(logicBase + '/api/chatroom/online_count', {
+           method:'POST',
+           headers:{
+             'Content-Type':'application/json',
+             'Authorization':'Bearer ' + token
+           },
+           body: JSON.stringify({room_id: roomSnapshot})
+         });
+         const d = await res.json();
+         if (Number(currentRoom) === roomSnapshot && d.code === 0) {
+           document.getElementById('online-count').textContent =
+             '在线 ' + String((d.data && d.data.online_count) || 0);
+         }
+       } catch (e) {
+         // 在线人数是辅助信息，失败不打断聊天。
+       }
+    }
+
     // 统一的消息追加函数，支持 prepend / 保持滚动
     function appendMsg(text, isMe, name, isSys, timeStr, options) {
        const div = document.getElementById('msgs');
@@ -478,10 +863,23 @@
        } else {
           node = document.createElement('div');
           node.className = 'msg ' + (isMe ? 'me' : 'other');
-          node.innerHTML = `
-               <div class="sender-name">${name} <span style="font-weight:normal;color:#bbb;font-size:10px;margin-left:5px;">${timeStr||''}</span></div>
-               ${text}
-          `;
+          if (opts.messageId) node.dataset.messageId = String(opts.messageId);
+          if (opts.clientMsgId) node.dataset.clientMsgId = String(opts.clientMsgId);
+          if (opts.messageSeq !== undefined && opts.messageSeq !== null) {
+            node.dataset.messageSeq = String(opts.messageSeq);
+          }
+          const sender = document.createElement('div');
+          sender.className = 'sender-name';
+          sender.textContent = String(name || '有人') + ' ' + String(timeStr || '');
+          const body = document.createElement('div');
+          body.className = 'msg-body';
+          body.textContent = String(text || '');
+          const status = document.createElement('div');
+          status.className = 'msg-status';
+          status.textContent = opts.statusText || '';
+          node.appendChild(sender);
+          node.appendChild(body);
+          node.appendChild(status);
        }
 
        if (prepend && div.firstChild) {
@@ -490,9 +888,10 @@
          div.appendChild(node);
        }
 
-       if (!prepend && !keepScroll) {
+       if (!prepend && !keepScroll && !opts.deferScroll) {
          div.scrollTop = div.scrollHeight;
        }
+       return node;
     }
     
     document.getElementById('login-btn').onclick = () => doLoginOrRegister('login');
@@ -518,22 +917,52 @@
     };
     
     document.getElementById('send-btn').onclick = () => {
-       const txt = document.getElementById('msg-input').value;
+       const txt = document.getElementById('msg-input').value.trim();
        if(!txt || !currentRoom) return;
-       if(ws) ws.send(JSON.stringify({
-          type:'chatroom', group_id:currentRoom, content:{text:txt}, client_msg_id:Date.now()+''
-       }));
-       // 乐观更新
-       // appendMsg(txt, true, myName || '我'); 
-       // 注：如果依赖后端回推 inject sender info，这里最好不乐观更新，或者乐观更新时只有 text
+       if(!ws || ws.readyState !== WebSocket.OPEN) {
+         appendMsg('连接尚未恢复，请稍后重试', false, '系统', true);
+         scheduleReconnect();
+         return;
+       }
+       if (ws.bufferedAmount > 1024 * 1024) {
+         appendMsg('发送队列繁忙，请稍后重试', false, '系统', true);
+         return;
+       }
+       const payload = {
+          type:'chatroom', group_id:Number(currentRoom), content:{text:txt},
+          client_msg_id:Date.now() + '-' + Math.random().toString(36).slice(2, 8)
+       };
+       try {
+         ws.send(JSON.stringify(payload));
+       } catch (e) {
+         appendMsg('发送失败，连接正在恢复', false, '系统', true);
+         scheduleReconnect();
+         return;
+       }
+       renderRoomMessage(payload, {optimistic:true});
        document.getElementById('msg-input').value = '';
     };
 
     function doLogout() {
       Auth.clear();
-      if(ws) ws.close();
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+      if (roomHistoryController) roomHistoryController.abort();
+      if (onlineRefreshTimer) clearInterval(onlineRefreshTimer);
+      onlineRefreshTimer = null;
+      if(ws) {
+        ws.onclose = null;
+        ws.close();
+      }
       uid = null;
       token = null;
+      ws = null;
+      currentRoom = null;
+      currentSessionId = null;
+      roomHistoryReady = false;
+      pendingRoomMessages = [];
+      renderedRoomMessages.clear();
+      wasConnected = false;
       toggleUI(false);
     }
 
@@ -545,7 +974,7 @@
         token = s.token;
         myName = s.name;
         toggleUI(true);
-        connectWs();
+        connectWsSmooth();
       }
     })();
   </script>

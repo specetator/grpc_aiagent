@@ -1,7 +1,9 @@
 #include "ws_client_lib.h"
 
+#include <algorithm>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -125,7 +127,74 @@ bool ReadExact(int fd, void* buf, size_t len) {
     return true;
 }
 
+bool ReadExactWithTimeout(int fd, void* buf, size_t len, int timeout_ms) {
+    char* p = static_cast<char*>(buf);
+    size_t n = 0;
+    const auto deadline = std::chrono::steady_clock::now() +
+                          std::chrono::milliseconds(timeout_ms);
+    while (n < len) {
+        const auto now = std::chrono::steady_clock::now();
+        if (now >= deadline) return false;
+        const int remaining = static_cast<int>(
+            std::chrono::duration_cast<std::chrono::milliseconds>(deadline - now)
+                .count());
+        pollfd pfd{fd, POLLIN, 0};
+        const int poll_result = poll(&pfd, 1, std::max(1, remaining));
+        if (poll_result <= 0 || !(pfd.revents & POLLIN)) return false;
+        const ssize_t received = ::recv(fd, p + n, len - n, 0);
+        if (received <= 0) return false;
+        n += static_cast<size_t>(received);
+    }
+    return true;
+}
+
 }  // namespace
+
+bool ReadServerWebSocketTextFrame(int fd, std::string* payload,
+                                  int timeout_ms) {
+    if (fd < 0 || !payload || timeout_ms <= 0) return false;
+    unsigned char header[2];
+    if (!ReadExactWithTimeout(fd, header, sizeof(header), timeout_ms)) {
+        return false;
+    }
+    const bool fin = (header[0] & 0x80) != 0;
+    const unsigned char opcode = header[0] & 0x0f;
+    const bool masked = (header[1] & 0x80) != 0;
+    uint64_t payload_len = header[1] & 0x7f;
+    if (!fin || opcode != 0x1) return false;
+    if (payload_len == 126) {
+        unsigned char extended[2];
+        if (!ReadExactWithTimeout(fd, extended, sizeof(extended), timeout_ms)) {
+            return false;
+        }
+        payload_len = (static_cast<uint64_t>(extended[0]) << 8) | extended[1];
+    } else if (payload_len == 127) {
+        unsigned char extended[8];
+        if (!ReadExactWithTimeout(fd, extended, sizeof(extended), timeout_ms)) {
+            return false;
+        }
+        payload_len = 0;
+        for (unsigned char byte : extended) {
+            payload_len = (payload_len << 8) | byte;
+        }
+    }
+    if (payload_len > 10 * 1024 * 1024) return false;
+    unsigned char mask[4] = {0, 0, 0, 0};
+    if (masked && !ReadExactWithTimeout(fd, mask, sizeof(mask), timeout_ms)) {
+        return false;
+    }
+    payload->assign(static_cast<size_t>(payload_len), '\0');
+    if (payload_len > 0 &&
+        !ReadExactWithTimeout(fd, payload->data(), payload->size(), timeout_ms)) {
+        return false;
+    }
+    if (masked) {
+        for (size_t i = 0; i < payload->size(); ++i) {
+            (*payload)[i] = static_cast<char>((*payload)[i] ^ mask[i % 4]);
+        }
+    }
+    return true;
+}
 
 /// @brief 调用 logic 的 /api/login，解析返回 JSON，提取 user_id/token。
 bool HttpPostLogin(const Config& cfg, long long* user_id, std::string* token) {
@@ -367,5 +436,3 @@ void ReceiveLoop(int fd) {
         }
     }
 }
-
-

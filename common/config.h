@@ -1,6 +1,9 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
+
+#include "rate_limiter.h"
 
 namespace sparkpush {
 
@@ -12,12 +15,24 @@ struct Config {
 
     // logic 对外的 HTTP 端口（未配置时回退为 listen_port + 1）
     int http_port{0};
+    // Job / Comet 的本机 metrics 端口；Logic 复用 http_port /metrics。
+    int metrics_port{0};
     std::string logic_grpc_target;
 
     // Kafka 相关主题与消费组
     std::string kafka_brokers;
+    // 单聊和群聊使用独立 topic / consumer group，避免大群或广播挤占单聊。
+    std::string kafka_single_topic;
+    std::string kafka_group_topic;
+    // 兼容旧配置的统一推送 topic；新配置应优先填写上面两个 topic。
     std::string kafka_push_topic;
     std::string kafka_broadcast_topic;
+    std::string kafka_persist_topic;
+    // Hermes Bridge 使用的请求/回复 topic；只有 hermes_enabled 时启用。
+    std::string kafka_ai_request_topic;
+    // Hermes 流式增量 topic；仅用于实时展示，不进入历史持久化。
+    std::string kafka_ai_delta_topic;
+    std::string kafka_ai_reply_topic;
     std::string kafka_consumer_group;
 
     // Redis 连接池参数
@@ -50,14 +65,37 @@ struct Config {
     int comet_io_threads{4};
     // comet gRPC 端口（未配置时回退为 listen_port + 100）
     int comet_grpc_port{0};
+    // Comet 异步 Unary gRPC 线程池
+    int comet_grpc_pool_size{4};
+    // Comet↔Logic 双向流（对齐 06）
+    bool use_grpc_stream{false};
+    int grpc_stream_count{4};
 
-    // job RPC worker 线程数
-    int job_rpc_worker_threads{8};
+    // Job -> Comet 长连接推送。
+    bool use_push_stream{true};
+    int push_stream_queue_max{10000};
+    int push_stream_reconnect_base_ms{200};
+    int push_stream_reconnect_max_ms{5000};
+    int push_rpc_deadline_ms{2000};
+
+    // Logic 写入持久化 topic 时等待 broker delivery report 的超时。
+    int persist_kafka_timeout_ms{5000};
+
+    // 单聊/群聊/广播分别使用令牌桶，避免广播流量挤占单聊资源。
+    RateLimitConfig rate_limit;
+
+    // 可选管理账号；口令仅从环境变量注入，未配置时管理登录禁用。
+    std::string admin_account;
+    std::string admin_password;
+
+    // Hermes Bot 集成。API Key 和 Hermes 地址由 Bridge 进程单独读取，
+    // Logic 只负责把 AI 请求写入 Kafka 并消费 AI 回复。
+    bool hermes_enabled{false};
+    int64_t hermes_bot_user_id{900000000001LL};
+
 };
 
 // 简单 key=value 文本配置加载，读取失败则返回内置默认值。
 Config LoadConfig(const std::string& path);
 
 }  // namespace sparkpush
-
-

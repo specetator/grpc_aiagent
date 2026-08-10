@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.14)
 project(spark_push LANGUAGES CXX)
 
+include(CTest)
+find_package(OpenSSL REQUIRED)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -27,6 +30,7 @@ add_subdirectory(common)
 add_subdirectory(logic)
 add_subdirectory(comet)
 add_subdirectory(job)
+add_subdirectory(hermes_bridge)
 
 add_subdirectory(load_test)
 
@@ -35,4 +39,6 @@ if(BUILD_WEB_DEMO)
   add_subdirectory(web_demo)
 endif()
 
-
+if(BUILD_TESTING)
+  add_subdirectory(tests)
+endif()

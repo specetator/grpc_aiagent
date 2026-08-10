@@ -65,4 +65,7 @@ bool WebSocketHandshake(int fd,
 /// @param fd 已握手完成的 WebSocket 连接 fd
 void ReceiveLoop(int fd);
 
+/// @brief 在 timeout_ms 内读取一个完整的服务端 WebSocket 文本帧。
+bool ReadServerWebSocketTextFrame(int fd, std::string* payload,
+                                  int timeout_ms);
 

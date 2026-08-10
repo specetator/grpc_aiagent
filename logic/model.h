@@ -12,6 +12,10 @@ struct User {
     std::string account;
     std::string name;
     std::string password_hash;
+    // 1=active, 2=disabled, 3=deleted（软删除）。
+    int status{1};
+    std::string deleted_at;
+    std::string created_at;
 };
 
 enum class SessionType {

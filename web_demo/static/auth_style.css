@@ -1,64 +1,92 @@
 :root {
-  --primary-color: #1976d2;
+  --primary-color: #2563eb;
+  --primary-dark: #1d4ed8;
+  --text-color: #172033;
+  --muted-color: #64748b;
+  --border-color: #e2e8f0;
+  --surface-color: #ffffff;
+  --page-color: #f8fafc;
 }
 
 /* 通用工具类 */
 .hidden { display: none !important; }
 
+*, *::before, *::after { box-sizing: border-box; }
+
+button, input, textarea, select { font: inherit; }
+
+button { transition: background .18s ease, border-color .18s ease, color .18s ease,
+  transform .18s ease, box-shadow .18s ease; }
+
+button:active { transform: translateY(1px); }
+
 /* 登录表单样式 */
-.form-group { margin-bottom: 15px; }
+.form-group { margin-bottom: 16px; }
 
 .form-control {
   width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
+  padding: 11px 13px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
   box-sizing: border-box;
   font-size: 14px;
+  color: var(--text-color);
+  background: #fff;
+  transition: border-color .18s ease, box-shadow .18s ease;
 }
 .form-control:focus {
   border-color: var(--primary-color);
   outline: none;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
 }
 
-.btn-block { width: 100%; padding: 10px; font-size: 14px; }
+.form-control::placeholder { color: #94a3b8; }
 
-.btn-primary { 
+.btn-block { width: 100%; padding: 11px 14px; font-size: 14px; }
+
+.btn-primary {
   background: var(--primary-color); 
   color: #fff; 
   border: none; 
-  border-radius: 6px; 
+  border-radius: 10px;
   cursor: pointer; 
   text-align: center;
+  box-shadow: 0 6px 14px rgba(37, 99, 235, .16);
 }
-.btn-primary:hover { background: #1565c0; }
+.btn-primary:hover { background: var(--primary-dark); box-shadow: 0 8px 18px rgba(37, 99, 235, .22); }
 
-.auth-tabs { 
+.auth-tabs {
   display: flex; 
-  margin-bottom: 15px; 
-  border: 1px solid #ddd; 
-  border-radius: 6px; 
+  margin-bottom: 18px;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
   overflow: hidden; 
+  background: #f8fafc;
 }
 
-.auth-tab { 
+.auth-tab {
   flex: 1; 
-  padding: 8px; 
+  padding: 10px;
   border: none; 
-  background: #f5f5f5; 
+  background: transparent;
   cursor: pointer; 
   font-size: 14px;
+  color: var(--muted-color);
 }
 
-.auth-tab.active { 
+.auth-tab.active {
   background: var(--primary-color); 
   color: #fff; 
+  box-shadow: 0 3px 8px rgba(37, 99, 235, .18);
 }
 
 .status-text { 
   margin-top: 10px; 
   font-size: 12px; 
-  color: #666; 
+  color: var(--muted-color);
   text-align: center; 
+  min-height: 18px;
 }
 
+.status-text.error { color: #dc2626; }
+.status-text.success { color: #15803d; }

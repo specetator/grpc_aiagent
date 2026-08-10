@@ -1,6 +1,8 @@
 #include "conversation_store.h"
 
 #include <algorithm>
+#include <chrono>
+#include <thread>
 
 #include "logging.h"
 
@@ -84,6 +86,115 @@ bool ConversationStore::AppendMessage(const Session& session, int64_t sender_id,
     return true;
 }
 
+// 热路径：Redis INCR 取号，不阻塞 MySQL
+bool ConversationStore::AppendMessageHotPath(
+    const std::string& session_id, int64_t sender_id,
+    const std::string& msg_type, const std::string& content_json,
+    int64_t timestamp_ms, const std::string& client_msg_id, Message* message,
+    bool* is_new, std::string* err_msg) {
+    if (!redis_store_ || !message_dao_ || session_id.empty() || !message ||
+        !is_new) {
+        if (err_msg) *err_msg = "hot path dependencies or arguments invalid";
+        return false;
+    }
+
+    int64_t seq = 0;
+    bool allocated_new = false;
+    bool allocated = false;
+
+    // 每个 Logic 进程首次看到会话时必须查询 MySQL MAX，并通过 Lua 将 Redis
+    // 计数器提升到至少该值。即使 Redis 中存在落后的旧 key，也不会再从旧值取号。
+    {
+        std::lock_guard<std::mutex> lk(seq_seed_mu_);
+        if (seq_seeded_sessions_.find(session_id) ==
+            seq_seeded_sessions_.end()) {
+            int64_t max_seq = 0;
+            std::string seed_err;
+            if (!message_dao_->GetMaxMsgSeq(session_id, &max_seq, &seed_err)) {
+                if (err_msg) *err_msg = "load MySQL max msg_seq: " + seed_err;
+                return false;
+            }
+            allocated = redis_store_->AllocateSessionMsgSeq(
+                session_id, sender_id, client_msg_id, max_seq, 24 * 3600, &seq,
+                &allocated_new);
+            if (!allocated) {
+                if (err_msg) *err_msg = "atomic Redis sequence allocation failed";
+                return false;
+            }
+            seq_seeded_sessions_.insert(session_id);
+        }
+    }
+
+    if (!allocated &&
+        !redis_store_->AllocateSessionMsgSeq(
+            session_id, sender_id, client_msg_id, 0, 24 * 3600, &seq,
+            &allocated_new)) {
+        if (err_msg) *err_msg = "atomic Redis sequence allocation failed";
+        return false;
+    }
+    if (seq <= 0) {
+        if (err_msg) *err_msg = "Redis returned invalid msg_seq";
+        return false;
+    }
+
+    Message msg;
+    msg.session_id = session_id;
+    msg.msg_seq = seq;
+    msg.sender_id = sender_id;
+    msg.msg_type = msg_type;
+    msg.content_json = content_json;
+    msg.timestamp_ms = timestamp_ms;
+    msg.client_msg_id = client_msg_id;
+    msg.msg_id = session_id + "-" + std::to_string(seq);
+    *message = msg;
+    *is_new = allocated_new;
+    return true;
+}
+
+// 异步落盘：补 session + 写 message（序号已由 Redis 分配）
+bool ConversationStore::PersistMessage(const Message& message,
+                                       const std::string& scene, int64_t user1,
+                                       int64_t user2, int64_t room_id,
+                                       std::string* err_msg) {
+    if (!session_dao_ || !message_dao_) {
+        if (err_msg) *err_msg = "conversation store not initialized";
+        return false;
+    }
+    constexpr int kMaxAttempts = 4;
+    std::string last_error;
+    for (int attempt = 0; attempt < kMaxAttempts; ++attempt) {
+        Session session;
+        std::string err;
+        bool session_ok = false;
+        if (scene == "single") {
+            session_ok = session_dao_->GetOrCreateSingleSession(
+                user1, user2, &session, &err);
+        } else if (scene == "chatroom") {
+            session_ok = session_dao_->GetOrCreateRoomSession(room_id, &session,
+                                                               &err);
+        } else {
+            session_ok = session_dao_->GetSessionById(message.session_id,
+                                                       &session, &err);
+        }
+
+        if (session_ok && message_dao_->InsertMessage(message, &err) &&
+            session_dao_->UpdateLastMessageSeqAtLeast(
+                message.session_id, message.msg_seq, &err)) {
+            return true;
+        }
+
+        last_error = err.empty() ? "unknown persistence error" : err;
+        if (last_error.rfind("message sequence collision", 0) == 0) break;
+        if (attempt + 1 < kMaxAttempts) {
+            const int backoff_ms = 50 * (1 << attempt);
+            std::this_thread::sleep_for(
+                std::chrono::milliseconds(backoff_ms));
+        }
+    }
+    if (err_msg) *err_msg = last_error;
+    return false;
+}
+
 // 功能：读取会话历史消息
 bool ConversationStore::GetHistory(const std::string& session_id,
                                    int64_t anchor_seq, int limit,
@@ -95,6 +206,18 @@ bool ConversationStore::GetHistory(const std::string& session_id,
     }
     return message_dao_->ListMessages(session_id, anchor_seq, limit, messages,
                                       err_msg);
+}
+
+bool ConversationStore::GetMessagesAfter(const std::string& session_id,
+                                         int64_t after_seq, int limit,
+                                         std::vector<Message>* messages,
+                                         std::string* err_msg) {
+    if (!message_dao_) {
+        if (err_msg) *err_msg = "message dao not initialized";
+        return false;
+    }
+    return message_dao_->ListMessagesAfter(session_id, after_seq, limit,
+                                           messages, err_msg);
 }
 
 // 功能：标记用户已读序列并缓存到 Redis
@@ -168,6 +291,30 @@ bool ConversationStore::GetUnread(int64_t user_id,
 
     *unread = last_seq > read_seq ? (last_seq - read_seq) : 0;
     return true;
+}
+
+bool ConversationStore::MarkDelivered(int64_t user_id,
+                                      const std::string& session_id,
+                                      int64_t delivered_seq,
+                                      std::string* err_msg) {
+    if (!state_dao_) {
+        if (err_msg) *err_msg = "state dao not initialized";
+        return false;
+    }
+    return state_dao_->UpsertDeliveredSeq(user_id, session_id, delivered_seq,
+                                          err_msg);
+}
+
+bool ConversationStore::GetDeliveredSeq(int64_t user_id,
+                                        const std::string& session_id,
+                                        int64_t* delivered_seq,
+                                        std::string* err_msg) {
+    if (!state_dao_) {
+        if (err_msg) *err_msg = "state dao not initialized";
+        return false;
+    }
+    return state_dao_->GetDeliveredSeq(user_id, session_id, delivered_seq,
+                                       err_msg);
 }
 
 // 功能：列出用户参与的单聊会话

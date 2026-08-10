@@ -9,10 +9,12 @@
 
 #include "config.h"
 #include "conversation_store.h"
+#include "audit_log_dao.h"
 #include "danmaku_dao.h"
 #include "group_dao.h"
 #include "grpc_service.h"
 #include "http_server.h"
+#include "kafka_consumer.h"
 #include "kafka_producer.h"
 #include "logging.h"
 #include "message_dao.h"
@@ -20,6 +22,7 @@
 #include "redis_pool.h"
 #include "redis_store.h"
 #include "session_dao.h"
+#include "thread_pool.h"
 #include "user_dao.h"
 #include "user_session_state_dao.h"
 
@@ -71,9 +74,15 @@ namespace sparkpush {
 
 // 启动逻辑服务：初始化 Kafka/MySQL/Redis、构造服务并启动 gRPC/HTTP
 int RunLogic(const Config& cfg) {
-    KafkaProducer producer;
-    if (!producer.Init(cfg.kafka_brokers, cfg.kafka_push_topic)) {
-        LOG_ERROR << "Failed to initialize Kafka push producer";
+    KafkaProducer single_producer;
+    if (!single_producer.Init(cfg.kafka_brokers, cfg.kafka_single_topic)) {
+        LOG_ERROR << "Failed to initialize Kafka single producer";
+        return 1;
+    }
+
+    KafkaProducer group_producer;
+    if (!group_producer.Init(cfg.kafka_brokers, cfg.kafka_group_topic)) {
+        LOG_ERROR << "Failed to initialize Kafka group producer";
         return 1;
     }
 
@@ -82,6 +91,24 @@ int RunLogic(const Config& cfg) {
     if (!broadcast_producer.Init(cfg.kafka_brokers,
                                  cfg.kafka_broadcast_topic)) {
         LOG_ERROR << "Failed to initialize Kafka broadcast producer";
+        return 1;
+    }
+
+    // 持久化 outbox topic：Logic 只负责等待 Kafka delivery report，MySQL
+    // 写入转移到 Job，避免 Logic 崩溃时本地异步任务丢失。
+    KafkaProducer persist_producer;
+    if (!persist_producer.Init(cfg.kafka_brokers, cfg.kafka_persist_topic)) {
+        LOG_ERROR << "Failed to initialize Kafka persist producer";
+        return 1;
+    }
+
+    // Hermes 请求 producer 只在启用集成时创建；回复 consumer 在 Logic
+    // 内部启动，使 Hermes 回复可以复用普通单聊的落盘与 Comet 路由。
+    KafkaProducer hermes_request_producer;
+    if (cfg.hermes_enabled &&
+        !hermes_request_producer.Init(cfg.kafka_brokers,
+                                      cfg.kafka_ai_request_topic)) {
+        LOG_ERROR << "Failed to initialize Kafka Hermes request producer";
         return 1;
     }
 
@@ -105,12 +132,37 @@ int RunLogic(const Config& cfg) {
         return 1;
     }
     UserDao user_dao(&mysql_pool);
+    std::string user_schema_err;
+    if (!user_dao.EnsureUserCenterSchema(&user_schema_err)) {
+        LOG_ERROR << "Failed to ensure user center schema: "
+                  << user_schema_err;
+        return 1;
+    }
+    std::string hermes_user_err;
+    if (!user_dao.EnsureHermesBotUser(cfg.hermes_bot_user_id,
+                                      kHermesBotAccount, kHermesBotName,
+                                      &hermes_user_err)) {
+        LOG_ERROR << "Failed to ensure Hermes Bot user: " << hermes_user_err;
+        return 1;
+    }
+    AuditLogDao audit_log_dao(&mysql_pool);
+    std::string audit_schema_err;
+    if (!audit_log_dao.EnsureSchema(&audit_schema_err)) {
+        LOG_ERROR << "Failed to ensure audit log schema: " << audit_schema_err;
+        return 1;
+    }
     DanmakuDao danmaku_dao(&mysql_pool);
     GroupDao group_dao(&mysql_pool);
     GroupMemberDao group_member_dao(&mysql_pool);
     SessionDao session_dao(&mysql_pool);
     MessageDao message_dao(&mysql_pool);
     UserSessionStateDao state_dao(&mysql_pool);
+    std::string state_schema_err;
+    if (!state_dao.EnsureDeliveredSeqColumn(&state_schema_err)) {
+        LOG_ERROR << "Failed to ensure delivered cursor schema: "
+                  << state_schema_err;
+        return 1;
+    }
 
     // 初始化 Redis 连接池
     RedisConnectionPool redis_pool;
@@ -141,8 +193,42 @@ int RunLogic(const Config& cfg) {
         cfg.listen_addr + ":" + std::to_string(cfg.listen_port);
     grpc::ServerBuilder builder;
     auto service = std::make_unique<LogicServiceImpl>(
-        &conversation_store, &group_member_dao, &user_dao, &producer,
-        &broadcast_producer, &redis_store);
+        &conversation_store, &group_member_dao, &user_dao, &single_producer,
+        &group_producer, &broadcast_producer, &persist_producer, &redis_store,
+        cfg.rate_limit, cfg.persist_kafka_timeout_ms,
+        cfg.hermes_enabled ? &hermes_request_producer : nullptr,
+        cfg.hermes_enabled, cfg.hermes_bot_user_id);
+
+    KafkaConsumer hermes_reply_consumer;
+    KafkaConsumer hermes_delta_consumer;
+    if (cfg.hermes_enabled) {
+        KafkaConsumer::Options hermes_consumer_options;
+        hermes_consumer_options.enable_auto_commit = false;
+        hermes_consumer_options.auto_offset_reset = "earliest";
+        hermes_consumer_options.max_processing_attempts = 3;
+        if (!hermes_reply_consumer.Init(
+                cfg.kafka_brokers,
+                cfg.kafka_consumer_group + "_hermes_reply",
+                cfg.kafka_ai_reply_topic,
+                [&service](const std::string& key, const std::string& payload) {
+                    return service->HandleHermesReply(payload, key);
+                },
+                hermes_consumer_options)) {
+            LOG_ERROR << "Failed to initialize Kafka Hermes reply consumer";
+            return 1;
+        }
+        if (!hermes_delta_consumer.Init(
+                cfg.kafka_brokers,
+                cfg.kafka_consumer_group + "_hermes_delta",
+                cfg.kafka_ai_delta_topic,
+                [&service](const std::string& key, const std::string& payload) {
+                    return service->HandleHermesDelta(payload, key);
+                },
+                hermes_consumer_options)) {
+            LOG_ERROR << "Failed to initialize Kafka Hermes delta consumer";
+            return 1;
+        }
+    }
     builder.AddListeningPort(grpc_addr, grpc::InsecureServerCredentials());
     builder.RegisterService(service.get());
     std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
@@ -154,13 +240,25 @@ int RunLogic(const Config& cfg) {
     muduo::net::InetAddress httpAddr(cfg.http_port);
     HttpApiServer httpServer(&loop, httpAddr, &conversation_store, &user_dao,
                              &group_dao, &group_member_dao, &redis_store,
-                             &producer, &broadcast_producer, &danmaku_dao);
+                             &group_producer, &broadcast_producer, &danmaku_dao,
+                             &audit_log_dao, cfg.admin_account,
+                             cfg.admin_password);
     httpServer.start();
     LOG_INFO << "Logic HTTP server listening on port "
              << std::to_string(cfg.http_port);
 
     // gRPC 使用单独线程阻塞 Wait，muduo EventLoop 在当前线程运行
     std::thread grpc_thread([&server]() { server->Wait(); });
+
+    if (cfg.hermes_enabled) {
+        hermes_reply_consumer.Start();
+        hermes_delta_consumer.Start();
+        LOG_INFO << "Hermes integration enabled, bot_user_id="
+                 << std::to_string(cfg.hermes_bot_user_id)
+                 << ", request_topic=" << cfg.kafka_ai_request_topic
+                 << ", delta_topic=" << cfg.kafka_ai_delta_topic
+                 << ", reply_topic=" << cfg.kafka_ai_reply_topic;
+    }
 
     // 必须在创建 EventLoop 的线程中调用 loop()
     loop.loop();
@@ -169,6 +267,8 @@ int RunLogic(const Config& cfg) {
     if (grpc_thread.joinable()) {
         grpc_thread.join();
     }
+    hermes_reply_consumer.Stop();
+    hermes_delta_consumer.Stop();
     return 0;
 }
 
