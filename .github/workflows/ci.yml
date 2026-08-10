@@ -16,7 +16,7 @@ jobs:
           sudo apt-get install -y \
             build-essential cmake libssl-dev default-libmysqlclient-dev \
             libhiredis-dev librdkafka-dev libprotobuf-dev protobuf-compiler \
-            protobuf-compiler-grpc libgrpc++-dev redis-server
+            protobuf-compiler-grpc libgrpc++-dev nlohmann-json3-dev redis-server
 
       - name: Configure
         run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
