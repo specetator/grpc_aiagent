@@ -50,21 +50,35 @@ class AgentStore:
         with self.connect() as db:
             db.execute("INSERT OR REPLACE INTO states VALUES (?,?,?)", (namespace,key,json.dumps(value,ensure_ascii=False)))
 
+    def update(self, namespace, key, mutate):
+        """Atomically read/modify/write one routing record under SQLite's write lock."""
+        if not callable(mutate):
+            raise ValueError("mutate must be callable")
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT value FROM states WHERE namespace=? AND key=?", (namespace, key)).fetchone()
+            current = json.loads(row[0]) if row else {}
+            value = mutate(current)
+            if not isinstance(value, dict):
+                raise ValueError("state mutation must return an object")
+            db.execute("INSERT OR REPLACE INTO states VALUES (?,?,?)", (namespace, key, json.dumps(value, ensure_ascii=False)))
+            return value
+
     def append_context(self, key, role, text, max_messages=24):
         """Persist a bounded context projection without replacing IM history."""
         if role not in {"user", "assistant"} or not isinstance(text, str):
             raise ValueError("invalid context entry")
-        state = self.get("context", key)
-        messages = state.get("recent_messages", [])
-        if not isinstance(messages, list):
-            messages = []
-        messages.append({"role": role, "text": text[:12000]})
-        state["recent_messages"] = messages[-max_messages:]
-        state["context_revision"] = int(state.get("context_revision", 0)) + 1
-        state["last_message_role"] = role
-        state["updated_at_ms"] = int(time.time() * 1000)
-        self.put("context", key, state)
-        return state
+        def mutate(state):
+            messages = state.get("recent_messages", [])
+            if not isinstance(messages, list):
+                messages = []
+            messages.append({"role": role, "text": text[:12000]})
+            state["recent_messages"] = messages[-max_messages:]
+            state["context_revision"] = int(state.get("context_revision", 0)) + 1
+            state["last_message_role"] = role
+            state["updated_at_ms"] = int(time.time() * 1000)
+            return state
+        return self.update("context", key, mutate)
 
     def context(self, key):
         state = self.get("context", key)
