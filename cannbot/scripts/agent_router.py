@@ -105,7 +105,27 @@ class ArtifactStore:
             if not path.exists():
                 path.write_text(text, encoding='utf-8')
                 os.chmod(path, 0o600)
+        # Metadata is kept in a sidecar so reads can enforce ownership without
+        # exposing filesystem paths to callers.
+        meta = path.with_suffix('.json')
+        if not meta.exists():
+            meta.write_text(json.dumps({"owner": owner, "name": name, "mime": mime}, ensure_ascii=False), encoding='utf-8')
+            os.chmod(meta, 0o600)
         return {"id": artifact_id, "name": name, "mime": mime, "bytes": len(text.encode('utf-8'))}
+
+    def read_text(self, owner: str, artifact_id: str):
+        if not isinstance(owner, str) or not re.fullmatch(r"art_[0-9a-f]{24}", str(artifact_id)):
+            raise ValueError("invalid artifact id")
+        path = self.root / artifact_id
+        meta = path.with_suffix('.json')
+        with self.lock:
+            if not path.is_file() or not meta.is_file():
+                raise FileNotFoundError("artifact not found")
+            info = json.loads(meta.read_text(encoding='utf-8'))
+            if info.get('owner') != owner:
+                raise PermissionError("artifact owner mismatch")
+            return {"id": artifact_id, "name": info.get('name','artifact'), "mime": info.get('mime','application/octet-stream'),
+                    "text": path.read_text(encoding='utf-8')}
 
 
 class SessionLocks:
