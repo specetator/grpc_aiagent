@@ -40,6 +40,13 @@ class RouterTests(unittest.TestCase):
         self.router=AgentRouter(self.entries,self.adapters,self.store)
         self.sid='s_3_900000000001'
     def tearDown(self): self.temp.cleanup()
+    def test_context_compaction_keeps_tail_and_revision(self):
+        self.store.append_context('ctx', 'user', 'one')
+        self.store.append_context('ctx', 'assistant', 'two')
+        state=self.store.compact_context('ctx', 'summary', keep_last=1)
+        self.assertEqual(state['summary'], 'summary')
+        self.assertEqual(state['recent_messages'], [{'role':'assistant','text':'two'}])
+        self.assertEqual(state['context_revision'], 3)
     def select(self,key,seq=10):
         return self.router.control({'session_id':self.sid,'operation':'set_agent','target_agent':key,'command_seq':seq})
     def test_selection_persists_and_does_not_copy_history_or_preferences(self):

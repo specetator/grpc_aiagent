@@ -84,6 +84,22 @@ class AgentStore:
         state = self.get("context", key)
         return state if isinstance(state, dict) else {}
 
+    def compact_context(self, key, summary, keep_last=4):
+        """Store an explicit context summary while retaining a small recent tail."""
+        if not isinstance(summary, str) or not summary.strip() or len(summary) > 24000:
+            raise ValueError("invalid context summary")
+        if type(keep_last) is not int or not 0 <= keep_last <= 24:
+            raise ValueError("invalid context tail size")
+        def mutate(state):
+            messages = state.get("recent_messages", [])
+            if not isinstance(messages, list): messages = []
+            state["summary"] = summary[:24000]
+            state["recent_messages"] = messages[-keep_last:] if keep_last else []
+            state["context_revision"] = int(state.get("context_revision", 0)) + 1
+            state["compacted_at_ms"] = int(time.time() * 1000)
+            return state
+        return self.update("context", key, mutate)
+
 
 class ArtifactStore:
     """Small durable artifact boundary; callers receive opaque IDs, never paths."""
