@@ -109,7 +109,7 @@ class ArtifactStore:
         # exposing filesystem paths to callers.
         meta = path.with_suffix('.json')
         if not meta.exists():
-            meta.write_text(json.dumps({"owner": owner, "name": name, "mime": mime}, ensure_ascii=False), encoding='utf-8')
+            meta.write_text(json.dumps({"owner": owner, "name": name, "mime": mime, "created_at": time.time()}, ensure_ascii=False), encoding='utf-8')
             os.chmod(meta, 0o600)
         return {"id": artifact_id, "name": name, "mime": mime, "bytes": len(text.encode('utf-8'))}
 
@@ -126,6 +126,23 @@ class ArtifactStore:
                 raise PermissionError("artifact owner mismatch")
             return {"id": artifact_id, "name": info.get('name','artifact'), "mime": info.get('mime','application/octet-stream'),
                     "text": path.read_text(encoding='utf-8')}
+
+    def purge(self, max_age_s=86400):
+        """Remove expired artifacts without following symlinks."""
+        if type(max_age_s) not in (int, float) or max_age_s < 0:
+            raise ValueError("invalid artifact age")
+        cutoff = time.time() - max_age_s; removed = 0
+        with self.lock:
+            for meta in self.root.glob('art_*.json'):
+                try:
+                    info = json.loads(meta.read_text(encoding='utf-8'))
+                    if float(info.get('created_at', 0)) >= cutoff: continue
+                    artifact = self.root / meta.stem
+                    if artifact.is_file() and not artifact.is_symlink(): artifact.unlink()
+                    meta.unlink(); removed += 1
+                except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                    continue
+        return removed
 
 
 class SessionLocks:
