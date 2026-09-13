@@ -334,10 +334,17 @@ start_services() {
     fi
   fi
 
-  start_process web_demo_server "$ROOT/logs/web.out" \
-    "$BUILD_DIR/web_demo/web_demo_server" --port 9010 \
-    --doc-root "$ROOT/web_demo/static"
-  wait_port 9010 WebDemo
+  # 9010 可能已有本项目之前启动的 WebDemo（例如旧 shell/IDE 会话仍在运行）。
+  # 端口已能提供 HTTP 时直接复用，避免新实例因 bind 失败导致整套服务启动失败。
+  if tcp_ok 127.0.0.1 9010 &&
+      curl -fsS --max-time 2 http://127.0.0.1:9010/ >/dev/null 2>&1; then
+    echo "WebDemo 已在 9010 运行，复用现有实例"
+  else
+    start_process web_demo_server "$ROOT/logs/web.out" \
+      "$BUILD_DIR/web_demo/web_demo_server" --port 9010 \
+      --doc-root "$ROOT/web_demo/static"
+    wait_port 9010 WebDemo
+  fi
 
   if [[ -z "$ACCESS_IP" ]]; then
     ACCESS_IP="$(detect_access_ip)"

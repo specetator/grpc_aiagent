@@ -17,6 +17,7 @@ Spark Push 本地运维入口
   health      执行严格健康检查，失败时返回非零
   logs        查看或跟踪服务日志
   knowledge   更新并验证 CANN RAG generation
+  bench       启动服务并运行四类隔离压测
   doctor      启动前检查命令、配置、Docker、Hermes 和知识索引
   help        显示本帮助
 
@@ -28,6 +29,7 @@ Spark Push 本地运维入口
   ./scripts/sparkctl.sh logs bridge -f
   ./scripts/sparkctl.sh knowledge --source custom-docs
   ./scripts/sparkctl.sh restart --fast
+  ./scripts/sparkctl.sh bench
   ./scripts/sparkctl.sh down --with-deps
 
 可选环境变量：
@@ -48,6 +50,7 @@ case "$command_name" in
   health) exec bash "$SCRIPT_DIR/ops/health.sh" "$@" ;;
   logs|log) exec bash "$SCRIPT_DIR/ops/logs.sh" "$@" ;;
   knowledge|kb) exec bash "$SCRIPT_DIR/ops/knowledge.sh" "$@" ;;
+  bench) exec bash "$SCRIPT_DIR/ops/bench.sh" "$@" ;;
   doctor) exec bash "$SCRIPT_DIR/ops/doctor.sh" "$@" ;;
   help|-h|--help) usage ;;
   *) echo "未知命令：$command_name" >&2; usage >&2; exit 2 ;;
