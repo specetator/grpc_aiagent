@@ -42,7 +42,9 @@ inline bool AgentCommandActionValid(const nlohmann::json& action) {
                level == "high" || level == "xhigh" || level == "max";
     }
     return id == "agent" || id == "model" || id == "reasoning" || id == "new" || id == "retry" ||
-        id == "restart" || id == "restart_confirm" || id == "status" || id == "help" || id == "new_confirm" || id == "retry_confirm" || id == "cancel";
+        id == "restart" || id == "restart_confirm" || id == "status" || id == "help" || id == "new_confirm" || id == "retry_confirm" || id == "cancel" ||
+        id == "roleplay" || id == "write" || id == "scene" || id == "character" || id == "persona" ||
+        id == "world" || id == "memory" || id == "branch" || id == "branches" || id == "export";
 }
 
 // Validate and project onto a channel-neutral, public contract. Never forward
@@ -74,6 +76,22 @@ inline bool NormalizeAgentEvent(const nlohmann::json& input, nlohmann::json* out
                 actions.push_back(safe);
             }
             public_data["presentation"] = {{"kind", "command_card"}, {"title", ui["title"]}, {"actions", actions}};
+        } else if (ui.value("kind", nlohmann::json()) == "reasoning_picker") {
+            if (!ui.contains("levels") || !ui["levels"].is_array() || ui["levels"].size() > 8) return false;
+            public_data["presentation"] = { {"kind", "reasoning_picker"}, {"levels", ui["levels"]},
+                {"current", ui.value("current", nlohmann::json())} };
+        } else if (ui.value("kind", nlohmann::json()) == "creative_workspace") {
+            if (!ui.contains("title") || !ui["title"].is_string() || ui["title"].get<std::string>().size() > 320 ||
+                !ui.contains("state") || !ui["state"].is_object() || !ui.contains("actions") ||
+                !ui["actions"].is_array() || ui["actions"].size() > 16) return false;
+            auto actions = nlohmann::json::array();
+            for (const auto& action : ui["actions"]) {
+                if (!AgentCommandActionValid(action)) return false;
+                actions.push_back({{"id", action["id"]}, {"label", action["label"]},
+                    {"selected", action.value("selected", false) == true}});
+            }
+            public_data["presentation"] = {{"kind", "creative_workspace"}, {"title", ui["title"]},
+                {"state", ui["state"]}, {"actions", actions}};
         } else {
             if (ui.value("kind", nlohmann::json()) != "model_picker" ||
                 !ui.contains("models") || !ui["models"].is_array() || ui["models"].size() > 512 ||
