@@ -122,8 +122,9 @@ ACK 不代表切换成功。失败恢复选择列表，成功提供“重新选�
 显示结果未知并引导 `/status`，不自动重启第二次。该能力只接受固定的 technical 本机路径和
 CLI 参数；保持原有 owner ACL，不接受聊天输入提供命令、profile 或路径。Pi 不提供此重启操作。
 
-当前适配仍未开放 Hermes 会话思考等级切换，`/reasoning` 明确提示沿用 profile 配置；
-不会虚报切换成功或把 Pi 的 max 等级套给 Hermes。Stop、steering、附件等不属于本批实现。
+Hermes technical 已支持会话级 `/reasoning`：`low/high/xhigh/max` 四档通过兼容接口的
+`reasoning_effort` 传递，状态保存在独立 Hermes session 中，不修改 Windows profile 文件。
+Stop、steering、附件等仍不属于本批实现。
 
 ## 验证
 
