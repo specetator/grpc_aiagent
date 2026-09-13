@@ -13,3 +13,5 @@ dump.rdb
 .env
 .env.local
 conf/*.local.conf
+android-app/.gradle/
+android-app/**/build/
