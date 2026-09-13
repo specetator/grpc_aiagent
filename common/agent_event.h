@@ -90,8 +90,21 @@ inline bool NormalizeAgentEvent(const nlohmann::json& input, nlohmann::json* out
                 actions.push_back({{"id", action["id"]}, {"label", action["label"]},
                     {"selected", action.value("selected", false) == true}});
             }
-            public_data["presentation"] = {{"kind", "creative_workspace"}, {"title", ui["title"]},
+            auto projected = nlohmann::json{{"kind", "creative_workspace"}, {"title", ui["title"]},
                 {"state", ui["state"]}, {"actions", actions}};
+            if (ui.contains("artifact")) {
+                const auto& artifact = ui["artifact"];
+                if (!artifact.is_object() || !artifact.contains("name") || !artifact["name"].is_string() ||
+                    !artifact.contains("mime") || !artifact["mime"].is_string() ||
+                    !artifact.contains("text") || !artifact["text"].is_string() ||
+                    artifact["name"].get<std::string>().size() > 120 || artifact["mime"].get<std::string>().size() > 120 ||
+                    artifact["text"].get<std::string>().size() > 240000 ||
+                    artifact["name"].get<std::string>().find_first_of("/\\") != std::string::npos ||
+                    std::any_of(artifact["name"].get<std::string>().begin(), artifact["name"].get<std::string>().end(),
+                        [](unsigned char c) { return c == 0 || c < 32; })) return false;
+                projected["artifact"] = {{"name", artifact["name"]}, {"mime", artifact["mime"]}, {"text", artifact["text"]}};
+            }
+            public_data["presentation"] = projected;
         } else {
             if (ui.value("kind", nlohmann::json()) != "model_picker" ||
                 !ui.contains("models") || !ui["models"].is_array() || ui["models"].size() > 512 ||
