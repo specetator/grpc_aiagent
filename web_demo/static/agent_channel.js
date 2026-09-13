@@ -109,11 +109,21 @@
     card.appendChild(actions); card.appendChild(status);
     const old = bubble.querySelector('.agent-creative-workspace'); if (old) old.remove(); bubble.appendChild(card); return true;
   }
+  function renderReasoningPicker(bubble, ui, sendAction) {
+    if (!Array.isArray(ui.levels) || !ui.levels.every(x => levels.includes(x))) return false;
+    const doc=bubble.ownerDocument, card=doc.createElement('section'); card.className='agent-command-card agent-model-picker';
+    const title=doc.createElement('strong'); title.textContent='选择思考深度'; card.appendChild(title);
+    const current=doc.createElement('div'); current.className='agent-model-current'; current.textContent='当前 · '+(ui.current || 'profile 默认'); card.appendChild(current);
+    const actions=doc.createElement('div'); actions.className='agent-command-actions'; const status=doc.createElement('div'); status.className='agent-model-status';
+    let pending=false; for (const level of ui.levels) { const b=doc.createElement('button'); b.type='button'; b.textContent=(level===ui.current?'✓ ':'')+level; b.disabled=level===ui.current; b.onclick=()=>{ if(pending) return; if(sendAction({kind:'reasoning_set',value:level})!==true){status.textContent='未发送，请检查连接。';return;} pending=true; for(const x of actions.querySelectorAll('button'))x.disabled=true; status.textContent='已发送，等待确认…';}; actions.appendChild(b); }
+    card.appendChild(actions); card.appendChild(status); const old=bubble.querySelector('.agent-model-picker'); if(old)old.remove(); bubble.appendChild(card); return true;
+  }
   function render(bubble, event, sendAction) {
     if (!bubble || !event || event.schema !== 'sparkpush.agent_event.v1' ||
         event.type !== 'assistant_final' || !event.data) return false;
     const ui = event.data.presentation;
     if (ui && ui.kind === 'creative_workspace') return renderCreativeWorkspace(bubble, ui, sendAction);
+    if (ui && ui.kind === 'reasoning_picker') return renderReasoningPicker(bubble, ui, sendAction);
     if (ui && ui.kind === 'command_card') return renderCommands(bubble, ui, sendAction);
     if (!ui || ui.kind !== 'model_picker' || !Array.isArray(ui.models) || ui.models.length > 512 ||
         !validModel(ui.current) || !ui.models.every(validModel)) return false;
