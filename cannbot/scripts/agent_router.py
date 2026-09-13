@@ -193,6 +193,10 @@ class AgentRouter:
             raise ValueError("invalid default Agent or registry size")
         self.adapters, self.store, self.default = adapters, store, default
         self.artifacts = ArtifactStore(store.path.parent / "artifacts")
+        for adapter in self.adapters.values():
+            # Optional capability keeps legacy adapters independent of storage.
+            if hasattr(adapter, "artifact_store"):
+                adapter.artifact_store = self.artifacts
         self.bot_user_id = bot_user_id
         self.bot_agents = {}
         for key,entry in self.entries.items():

@@ -35,6 +35,7 @@ def windows_host():
 class HermesHttpAdapter:
     def __init__(self, config, store):
         self.config, self.store = dict(config), store
+        self.artifact_store = None
         self.namespace='hermes:'+config['id']
         parsed=urlparse(config['base_url'])
         if (parsed.scheme not in {'http','https'} or not parsed.hostname or parsed.username or
@@ -264,6 +265,9 @@ class HermesHttpAdapter:
                 artifact_text='\n'.join(lines)+'\n'
                 text='已生成 technical 剧情 Markdown 导出。'
                 artifact={'name':'technical-story.md','mime':'text/markdown','text':artifact_text[:240000]}
+                if self.artifact_store is not None:
+                    saved=self.artifact_store.put_text(session, artifact['name'], artifact['text'], artifact['mime'])
+                    artifact={**saved, 'text':artifact['text']}
             else:
                 text='technical '+creative[operation]+'面板将在下一阶段开放；当前命令已记录到独立会话。'
             mode=state.get('creative_mode','write')
