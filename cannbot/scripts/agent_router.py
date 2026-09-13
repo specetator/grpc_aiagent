@@ -209,6 +209,11 @@ class AgentRouter:
             raise ValueError("invalid default Agent or registry size")
         self.adapters, self.store, self.default = adapters, store, default
         self.artifacts = ArtifactStore(store.path.parent / "artifacts")
+        # Best-effort startup hygiene; serving traffic never depends on cleanup.
+        try:
+            self.artifacts.purge()
+        except OSError:
+            pass
         for adapter in self.adapters.values():
             # Optional capability keeps legacy adapters independent of storage.
             if hasattr(adapter, "artifact_store"):
