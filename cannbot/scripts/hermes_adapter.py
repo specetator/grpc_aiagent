@@ -256,9 +256,14 @@ class HermesHttpAdapter:
             else:
                 text='technical '+creative[operation]+'面板将在下一阶段开放；当前命令已记录到独立会话。'
             mode=state.get('creative_mode','write')
-            actions=['roleplay','write','scene','character','world','memory']
+            actions=['roleplay','write','scene','character','persona','world','memory','branch','branches','export']
             return agent_event('assistant_final',{'text':text,'creative_state':{'mode':mode},
-                'presentation':{'kind':'command_card','title':'technical 创作工作台 · '+mode,
+                'presentation':{'kind':'creative_workspace','title':'technical 创作工作台 · '+mode,
+                    'state':{'mode':mode,'character':state.get('character',''),'persona':state.get('persona',''),
+                             'scene':state.get('scene',''),'active_branch':state.get('active_branch',''),
+                             'pinned_facts_count':len(state.get('pinned_facts',[])),
+                             'lorebook_count':len(state.get('lorebook',[])),
+                             'branch_count':len(state.get('branches',[]))},
                     'actions':[{'id':key,'label':creative[key],'selected':key==mode} for key in actions]}})
         card=command_card('Hermes 会话操作',['model','new','retry','restart','status','help'])
         if operation in {'list_models','set_model','reset_model'}:
