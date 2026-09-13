@@ -20,6 +20,7 @@ enum class HermesCommandKind {
     kHelp,
     kCann,
     kKnowledge,
+    kCreative,
     kUnknown,
 };
 

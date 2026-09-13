@@ -174,6 +174,17 @@ class HermesHttpAdapter:
     def control(self,request,timeout_s=30):
         session,operation=request['session_id'],request.get('operation')
         state=self._state(session)
+        creative={'roleplay':'剧情跑团','write':'写作协作','scene':'当前场景','character':'角色设定','world':'世界书','memory':'记忆状态','remember':'保存固定事实','forget':'删除固定事实'}
+        if operation in creative:
+            if operation in {'roleplay','write'}:
+                state['creative_mode']=operation
+                self.store.put(self.namespace,session,state)
+                text='已切换 technical 模式：'+creative[operation]+'。后续请求将使用该创作模式。'
+            elif operation=='memory':
+                text='technical 当前模式：'+({'roleplay':'剧情跑团','write':'写作协作'}.get(state.get('creative_mode'),'默认写作'))+'；长期记忆和世界书管理接口已就绪。'
+            else:
+                text='technical '+creative[operation]+'面板将在下一阶段开放；当前命令已记录到独立会话。'
+            return agent_event('assistant_final',{'text':text,'creative_state':{'mode':state.get('creative_mode','write')}})
         card=command_card('Hermes 会话操作',['model','new','retry','restart','status','help'])
         if operation in {'list_models','set_model','reset_model'}:
             catalog=self._catalog(refresh=request.get('refresh') is True)

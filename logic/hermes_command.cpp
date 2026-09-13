@@ -199,6 +199,11 @@ HermesCommand ParseHermesCommand(const std::string& text) {
         result.kind = HermesCommandKind::kCann;
     } else if (token == "kb") {
         result.kind = HermesCommandKind::kKnowledge;
+    } else if (token == "roleplay" || token == "rp" || token == "write" ||
+               token == "scene" || token == "character" || token == "world" ||
+               token == "memory" || token == "remember" || token == "forget") {
+        result.kind = HermesCommandKind::kCreative;
+        result.name = token;
     } else {
         result.kind = HermesCommandKind::kUnknown;
     }
@@ -227,6 +232,8 @@ std::string HermesCommandName(HermesCommandKind kind) {
             return "cann";
         case HermesCommandKind::kKnowledge:
             return "kb";
+        case HermesCommandKind::kCreative:
+            return "creative";
         case HermesCommandKind::kUnknown:
             return "unknown";
         case HermesCommandKind::kNone:
@@ -298,6 +305,9 @@ HermesPromptPlan BuildHermesPromptPlan(
             } else {
                 plan.messages.emplace_back("user", current_text);
             }
+            break;
+        case HermesCommandKind::kCreative:
+            plan.call_model = false;
             break;
     }
 

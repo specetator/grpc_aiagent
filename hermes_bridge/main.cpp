@@ -279,7 +279,10 @@ class HermesBridgeRunner {
             bool ok = true;
             if (!call_model && (command_name == "agent" || command_name == "model" || command_name == "reasoning" ||
                 command_name == "new" || command_name == "retry" || command_name == "restart" || command_name == "status" ||
-                command_name == "help") && command.value("local_error", "").empty()) {
+                command_name == "help" || command_name == "roleplay" || command_name == "write" ||
+                command_name == "scene" || command_name == "character" || command_name == "world" ||
+                command_name == "memory" || command_name == "remember" || command_name == "forget") &&
+                command.value("local_error", "").empty()) {
                 const auto argument = command.value("arguments", "");
                 chat_options.control = {{"operation", command_name}};
                 if (command_name == "agent") {
@@ -304,6 +307,11 @@ class HermesBridgeRunner {
                     chat_options.control["operation"] = "restart_agent";
                 } else if (command_name == "new" && !argument.empty()) {
                     chat_options.control["operation"] = "new_session";
+                } else if (command_name == "roleplay" || command_name == "write" ||
+                           command_name == "scene" || command_name == "character" ||
+                           command_name == "world" || command_name == "memory" ||
+                           command_name == "remember" || command_name == "forget") {
+                    chat_options.control["operation"] = command_name;
                 }
                 chat_options.control["command_seq"] = request.value("message_seq", 0LL);
                 if (!chat_options.model.empty()) {
