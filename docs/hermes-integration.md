@@ -1,8 +1,9 @@
-# Hermes Bot 集成（第一阶段）
+# Agent Bot 集成（Pi 基座）
 
-本阶段把 Windows 上运行的 Hermes Agent 接入 Spark Push 的单聊链路。Hermes
-只负责生成回答，用户鉴权、消息序号、持久化、实时投递和离线补推仍由 Spark
-Push 负责。
+当前 WSL 中的 Agent 基座是 Pi coding agent，不再是 Hermes。`hermes_bridge` 进程名和
+Kafka topic 保持不变，以免改动 Spark 的可靠性边界。Pi 只负责生成回答，用户鉴权、
+消息序号、持久化、实时投递和离线补推仍由 Spark Push 负责。安装与切换步骤见
+[`pi-agent-integration.md`](pi-agent-integration.md)。
 
 ```text
 浏览器/WebSocket
@@ -13,7 +14,7 @@ Comet ── MessageStream ──► Logic
                              ├─ ai_request ──► hermes_bridge
                              │                    │ HTTP POST
                              │                    ▼
-                             │             Windows Hermes
+                             │               WSL Hermes
                              │                    │ /v1/chat/completions
                               │                    ├─ SSE delta ──► ai_delta
                               │                    │                    │
@@ -26,44 +27,39 @@ Comet ── MessageStream ──► Logic
                                   └─ push_single → Job → Comet → WebSocket
 ```
 
-## 1. Windows Hermes API
+## 1. WSL Hermes API
 
-`F:\hermes` 是 Windows 主机上的 Hermes 源码/运行目录，虚拟机中的 Bridge
-不会直接读取这个 Windows 路径；Bridge 只通过 HTTP 访问 Hermes API。
-
-在 Windows Hermes 的环境配置中开启 API Server（具体配置位置以 Hermes 版本为准，
-通常是 `%USERPROFILE%\.hermes\.env`）：
-
-```dotenv
-API_SERVER_ENABLED=true
-API_SERVER_HOST=0.0.0.0
-API_SERVER_PORT=8642
-API_SERVER_KEY=替换为随机长密钥
-```
-
-然后在 `F:\hermes` 按该版本的官方方式启动 Gateway/API Server。Hermes 官方接口
-说明见：<https://hermes-agent.nousresearch.com/docs/user-guide/features/api-server>。
-
-先在 Windows 本机验证：
-
-```powershell
-curl.exe http://127.0.0.1:8642/v1/models `
-  -H "Authorization: Bearer 替换为随机长密钥"
-```
-
-再从本项目所在虚拟机验证。`host.docker.internal` 只在当前虚拟化/容器网络中
-可用时才成立；如果不通，应改成虚拟机能访问的 Windows 主机 IP：
+本机使用 `/home/peco/cppcode/fenbushi/hermes-spark-agent` 中的独立 Hermes 源码，状态目录是
+`/home/peco/.hermes-spark-agent`。它不读取 Windows `F:\hermes`。先完成第三方 provider 配置，
+再启动 API：
 
 ```bash
-curl --noproxy '*' --fail-with-body \
-  http://host.docker.internal:8642/v1/models \
-  -H 'Authorization: Bearer 替换为随机长密钥'
+cd /home/peco/cppcode/fenbushi/11.2-spark_push
+hermes-spark-agent gateway run
 ```
 
-如果 Windows API 只绑定 `127.0.0.1`，虚拟机无法访问。需要让 API 监听可达地址，
-并在 Windows 防火墙中只允许来自虚拟机网段的 TCP 8642；不要把 API 端口直接暴露
-到公网。若网络环境不允许明文 HTTP，可在 Windows/虚拟机侧用受控反向代理终止
-HTTPS，但第一阶段 Bridge 本身只实现本地 HTTP。
+默认监听 `127.0.0.1:8643`，`API_SERVER_KEY` 位于独立 Hermes 的 `.env`。完整布局、模型配置和
+二次开发流程见 [`wsl-hermes-development.md`](wsl-hermes-development.md)。Hermes 官方接口说明见：
+<https://hermes-agent.nousresearch.com/docs/user-guide/features/api-server>。
+
+该接口会进入 Hermes 的完整 Agent loop，并按 API Server 平台启用的 toolsets 使用 Skills、
+工具和子 Agent；它不是第三方模型的透明代理。项目 Agent 与自包含知识包的安装方式见
+[`cannbot-integration.md`](cannbot-integration.md)。第三方模型 endpoint 和密钥配置在 Hermes
+provider 中，Bridge 始终连接 Hermes API。
+
+先在 WSL 验证：
+
+```bash
+curl --fail-with-body http://127.0.0.1:8643/health
+set -a; source /home/peco/.hermes-spark-agent/.env; set +a
+curl --fail-with-body http://127.0.0.1:8643/v1/models \
+  -H "Authorization: Bearer ${API_SERVER_KEY}"
+unset API_SERVER_KEY
+```
+
+Bridge 与 Hermes 都在 WSL 时应保持 loopback 绑定，不需要开放 Windows 防火墙。只有 Bridge
+移入独立容器后，才需要把地址改成容器能访问的宿主机地址，并限制暴露范围。第一阶段 Bridge
+本身只实现本地 HTTP。
 
 ## 2. Spark Push 配置
 
@@ -79,7 +75,7 @@ cp .env.example .env.local
 ```dotenv
 SPARK_PUSH_MYSQL_PASSWORD=本机 MySQL 密码
 SPARK_PUSH_HERMES_ENABLED=true
-SPARK_PUSH_HERMES_BASE_URL=http://host.docker.internal:8642/v1
+SPARK_PUSH_HERMES_BASE_URL=http://127.0.0.1:8643/v1
 SPARK_PUSH_HERMES_API_KEY=与 API_SERVER_KEY 相同
 SPARK_PUSH_HERMES_MODEL=hermes-agent
 SPARK_PUSH_HERMES_STREAMING=true
@@ -183,7 +179,62 @@ curl -sS -X POST http://127.0.0.1:9101/api/session/history \
 历史接口会校验 Bearer Token，并确认登录用户属于目标会话；不能只凭
 `session_id` 查询其他用户的消息。
 
-## 5. 观察与排障
+## 5. 常用命令
+
+Logic 在生成 Agent 请求前解析以下命令；控制卡片走 `/v1/agent/control`，知识检索和
+确认后的 retry 走普通 turn。控制命令文本及其确认回复不进入模型 Prompt：
+
+| 命令 | 行为 |
+|---|---|
+| `/new` | 新建确认卡片；`/new now` 才切换空白 Pi 上下文，别名 `/reset`、`/clear` |
+| `/status` | 查询 Pi 实际模型、思考等级、消息/工具/token 统计 |
+| `/retry` | 重试确认卡片；`/retry now` 重新发送当前 Pi 上下文最后一条用户消息 |
+| `/reasoning`、`/thinking` | 可用思考等级选择卡片；`/reasoning high` 显式设置 |
+| `/cann <问题>` | 强制检索 CANN 知识库 |
+| `/kb <问题>` | 强制检索知识库 |
+| `/kb status` | 只读查看来源、文档数和当前 index generation |
+| `/model` | 可用模型选择卡片（搜索、分页、恢复默认） |
+| `/model provider:model` | 运行时确认后保存当前会话模型 |
+| `/model default` | 恢复 Pi 启动默认模型 |
+| `/help`、`/commands` | 常用命令卡片与帮助；也可点击输入框旁的「/ 命令」 |
+
+`/new` 保留 Spark Push 聊天记录，在 Pi 确认空白上下文后持久化路由边界。确认按钮发送
+`/new now`，也接受 `--yes`、`-y`。`/retry` 不撤销旧答案或工具副作用。
+完整控制协议、会话恢复语义与验证见 [Pi 集成文档第 8 节](pi-agent-integration.md#8-第四批常用命令卡片与真实会话控制2026-09-06)。
+模型选择和上下文边界会通过持久消息恢复，不依赖 Bridge 的进程内缓存。
+
+当前 OpenAI 兼容接口运行 Pi Agent loop、Skills 和工具，命令由平台显式解析并映射到 Pi RPC。
+未在上表中的 slash command 返回明确提示；即时 Stop、审批、后台任务和会话分支等控制
+仍按 Pi Session Worker 方案逐步实现。
+
+`/kb build`、`/kb ingest`、`/kb sync`、来源增删和删除命令会在 Logic 本地拒绝，聊天命令
+不会改变知识库。建库只能在知识工作区通过 `cann-rag` CLI 明确执行。
+
+## 6. CANN RAG 与引用
+
+独立知识工作区为 `/home/peco/cppcode/fenbushi/cann-agent-knowledge`。Hermes 用户插件
+`cann-advisor` 提供 search/get/neighbors/status 四个只读工具；Spark 不直接读取检索索引。
+流式阶段仍只传纯文本增量，结束前 Hermes 额外发出 `hermes.final`，Bridge 以其中的最终文本
+覆盖临时累积内容，并把 `response_metadata.citations` 放入 `ai_reply`。
+
+Logic 只接受 `cannkb.citation.v1`、固定长度 ID、允许的定位类型和严格绑定的
+`cannkb://document/<doc_id>?chunk=<chunk_id>`。最终消息以 `format: markdown` 和
+`citations: [...]` 落库。WebDemo 只对 Hermes 最终消息启用本地固定版本的安全 Markdown
+子集；链接会变成 `knowledge.html`，再使用登录 Token 调用
+`POST /api/knowledge/document`。该接口只接受 catalog ID，不接受路径，并限制原文文件大小。
+
+建库和检查示例：
+
+```bash
+cd /home/peco/cppcode/fenbushi/cann-agent-knowledge
+bin/cann-rag source list
+bin/cann-rag ingest --full
+bin/cann-rag build
+bin/cann-rag verify
+bin/cann-rag eval
+```
+
+## 7. 观察与排障
 
 ```bash
 curl -sS http://127.0.0.1:9101/metrics | rg hermes
@@ -192,8 +243,8 @@ tail -f logs/hermes_bridge.out logs/logic.out
 
 重点检查：
 
-- Windows 本机 `/v1/models` 成功，但虚拟机失败：检查 API 是否监听 `0.0.0.0`、
-  Windows 防火墙、虚拟机到 Windows 的路由和 `SPARK_PUSH_HERMES_BASE_URL`；
+- WSL `/health` 成功但 Bridge 连接失败：检查 Gateway 是否仍在运行、Bridge 是否真的运行在
+  WSL 宿主机，以及 `SPARK_PUSH_HERMES_BASE_URL` 是否为 `http://127.0.0.1:8643/v1`；
 - `Hermes API key is required`：检查 `.env.local` 是否被启动脚本加载；
 - 用户消息有 accepted 但没有 Bot 回答：依次检查 `ai_request`、Bridge 日志、Hermes
   HTTP 响应和 `ai_reply`；如果有最终回答但没有逐字显示，再检查 `ai_delta` topic、
@@ -229,12 +280,16 @@ spark_push_hermes_prompt_messages_{count,sum,max}
 增量（TTFT），第三段是完整答案。若 accepted 很快而首个 delta 仍很慢，瓶颈在 Hermes
 模型推理、工具调用或上下文长度，不在 Kafka 到浏览器的投递链路。
 
-## 6. 当前边界与下一阶段
+若回答中出现“引用无效”或“未包含可验证引用”，检查模型是否原样使用了本轮工具返回的
+`[[CANN_REF:...]]`，并检查 Bridge 是否收到 `hermes.final`。若原文页 401，先回聊天页登录；
+若 404，检查消息中的 generation 是否仍能在当前 catalog 找到对应稳定 ID。
+
+## 8. 当前边界与下一阶段
 
 当前实现明确保留以下边界：Bridge 是单进程 Kafka consumer，HTTP 客户端只支持明文
 HTTP；Bridge 内部仍同步占用一个消费线程处理一次 Hermes 请求，但 HTTP 响应已经按 SSE
 增量转发；历史上下文最多取 50 条且有约 12 KiB 字符预算，尚未加入 AI 并发池、取消请求和跨 Bridge 分布式
 请求状态。增量通道不持久化，最终 `ai_reply` 才是可靠恢复边界。
 
-下一阶段可在不改变单聊最终消息协议的前提下增加：AI 请求独立限流与超时队列、取消请求、持久化请求状态、独立 DLQ/重放工具、流式背压，以及
-Hermes 会话/工具调用能力。
+下一阶段可在不改变单聊最终消息协议的前提下增加：AI 请求独立限流与超时队列、取消请求、
+持久化请求状态、独立 DLQ/重放工具、流式背压、Hermes Sessions/Runs 控制面和工具进度事件转发。

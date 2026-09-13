@@ -1,9 +1,12 @@
 build/
+build-wsl/
 .idea/
 .vscode/
 .run/
 Testing/
 logs/
+__pycache__/
+*.pyc
 *.log
 *.out
 dump.rdb

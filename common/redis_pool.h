@@ -23,6 +23,7 @@ struct RedisConfig {
     int connect_timeout_ms{2000};
     int rw_timeout_ms{2000};
     int idle_timeout_ms{60000};
+    int health_check_interval_ms{30000};
     bool enable_auto_grow{true};
 };
 
@@ -57,7 +58,9 @@ public:
 
 private:
     redisContext* CreateContextUnlocked();
-    redisContext* PopIdleUnlocked();
+    bool PopIdleUnlocked(
+        redisContext** ctx,
+        std::chrono::steady_clock::time_point* last_used);
     void CleanupIdleUnlocked();
     bool Validate(redisContext** ctx);
     void Release(redisContext* ctx);
@@ -77,5 +80,3 @@ private:
 };
 
 }  // namespace sparkpush
-
-

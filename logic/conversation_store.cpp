@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <functional>
 #include <thread>
 
 #include "logging.h"
@@ -105,9 +106,11 @@ bool ConversationStore::AppendMessageHotPath(
     // 每个 Logic 进程首次看到会话时必须查询 MySQL MAX，并通过 Lua 将 Redis
     // 计数器提升到至少该值。即使 Redis 中存在落后的旧 key，也不会再从旧值取号。
     {
-        std::lock_guard<std::mutex> lk(seq_seed_mu_);
-        if (seq_seeded_sessions_.find(session_id) ==
-            seq_seeded_sessions_.end()) {
+        const size_t shard =
+            std::hash<std::string>{}(session_id) % kSeqSeedShardCount;
+        std::lock_guard<std::mutex> lk(seq_seed_mutexes_[shard]);
+        auto& seeded_sessions = seq_seeded_sessions_[shard];
+        if (seeded_sessions.find(session_id) == seeded_sessions.end()) {
             int64_t max_seq = 0;
             std::string seed_err;
             if (!message_dao_->GetMaxMsgSeq(session_id, &max_seq, &seed_err)) {
@@ -121,7 +124,7 @@ bool ConversationStore::AppendMessageHotPath(
                 if (err_msg) *err_msg = "atomic Redis sequence allocation failed";
                 return false;
             }
-            seq_seeded_sessions_.insert(session_id);
+            seeded_sessions.insert(session_id);
         }
     }
 

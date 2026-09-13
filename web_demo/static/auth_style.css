@@ -1,92 +1,203 @@
+/* ==========================================================================
+   Claude Design Tokens & Global Variables
+   Spark Push Project - Claude Minimal Warm Editorial Theme
+   ========================================================================== */
+
 :root {
-  --primary-color: #2563eb;
-  --primary-dark: #1d4ed8;
-  --text-color: #172033;
-  --muted-color: #64748b;
-  --border-color: #e2e8f0;
-  --surface-color: #ffffff;
-  --page-color: #f8fafc;
+  /* --- Claude Warm Palette --- */
+  --bg-color: #faf9f5;             /* Warm Claude canvas */
+  --sidebar-bg: #f4f3ec;           /* Slightly deeper warm beige sidebar */
+  --surface-color: #ffffff;        /* Crisp card / bubble white */
+  --surface-subtle: #fbfbf9;       /* Delicate elevated background */
+
+  /* Primary Terracotta / Clay Accent */
+  --primary-color: #c96442;        /* Claude signature terracotta */
+  --primary-hover: #b85433;        /* Slightly deeper terracotta */
+  --primary-light: #faece7;        /* Soft terracotta wash */
+  --primary-border: #f0cbbd;       /* Soft terracotta outline */
+
+  /* Typography & Slate Grays */
+  --text-primary: #1f1e1d;         /* Deep warm charcoal */
+  --text-color: #2b2a27;           /* Main readable body text */
+  --text-secondary: #605d57;       /* Muted label / secondary */
+  --muted-color: #8c887e;          /* Subdued / captions */
+  --border-color: #e5e3dc;         /* Clean warm border */
+  --border-subtle: #eeece5;        /* Ultra light border */
+
+  /* Chat Bubbles */
+  --bubble-me: #f5ede8;            /* Warm subtle terracotta tint */
+  --bubble-me-text: #2c1a14;       /* Deep rich cocoa */
+  --bubble-me-border: #ebd9d0;     /* Refined border */
+  --bubble-other: #ffffff;         /* Clean elevated white */
+  --bubble-other-text: #242220;    /* Crisp dark */
+  --bubble-other-border: #e6e4dc;  /* Neutral soft border */
+
+  /* Accents & Status */
+  --accent-sage: #4f735c;          /* Muted Claude sage green */
+  --accent-sage-light: #edf3ee;
+  --accent-sand: #e8e4d9;
+  --accent-coral: #d95738;
+  --status-success: #3f704d;
+  --status-success-bg: #edf5ef;
+  --status-error: #c2410c;
+  --status-error-bg: #fdf2e9;
+  --status-warning: #b45309;
+  --status-warning-bg: #fefce8;
+
+  /* Fonts */
+  --font-serif: -apple-system, BlinkMacSystemFont, "Charter", "Georgia", "Cambria", "Times New Roman", serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* Shadows & Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --shadow-subtle: 0 1px 2px rgba(34, 30, 20, 0.04), 0 2px 8px rgba(34, 30, 20, 0.03);
+  --shadow-card: 0 2px 8px rgba(34, 30, 20, 0.05), 0 8px 24px rgba(34, 30, 20, 0.04);
+  --shadow-dropdown: 0 4px 16px rgba(34, 30, 20, 0.08), 0 12px 32px rgba(34, 30, 20, 0.06);
 }
 
-/* 通用工具类 */
+/* Base Resets */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--text-color);
+  background-color: var(--bg-color);
+  margin: 0;
+  padding: 0;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Global Utilities */
 .hidden { display: none !important; }
+.flex-col { display: flex; flex-direction: column; }
+.flex-center { display: flex; align-items: center; justify-content: center; }
 
-*, *::before, *::after { box-sizing: border-box; }
+button, input, textarea, select {
+  font: inherit;
+  color: inherit;
+}
 
-button, input, textarea, select { font: inherit; }
+button {
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
 
-button { transition: background .18s ease, border-color .18s ease, color .18s ease,
-  transform .18s ease, box-shadow .18s ease; }
+button:active {
+  transform: translateY(1px);
+}
 
-button:active { transform: translateY(1px); }
-
-/* 登录表单样式 */
-.form-group { margin-bottom: 16px; }
+/* --- Form Controls --- */
+.form-group {
+  margin-bottom: 14px;
+}
 
 .form-control {
   width: 100%;
-  padding: 11px 13px;
+  padding: 10px 13px;
+  background: var(--surface-color);
   border: 1px solid var(--border-color);
-  border-radius: 10px;
-  box-sizing: border-box;
-  font-size: 14px;
-  color: var(--text-color);
-  background: #fff;
-  transition: border-color .18s ease, box-shadow .18s ease;
+  border-radius: var(--radius-md);
+  font-size: 13.5px;
+  color: var(--text-primary);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
+
 .form-control:focus {
   border-color: var(--primary-color);
   outline: none;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+  box-shadow: 0 0 0 3px rgba(201, 100, 66, 0.14);
 }
 
-.form-control::placeholder { color: #94a3b8; }
+.form-control::placeholder {
+  color: var(--muted-color);
+  font-size: 13px;
+}
 
-.btn-block { width: 100%; padding: 11px 14px; font-size: 14px; }
+/* --- Buttons --- */
+.btn-block {
+  width: 100%;
+  padding: 11px 16px;
+  font-size: 13.5px;
+}
 
 .btn-primary {
-  background: var(--primary-color); 
-  color: #fff; 
-  border: none; 
-  border-radius: 10px;
-  cursor: pointer; 
-  text-align: center;
-  box-shadow: 0 6px 14px rgba(37, 99, 235, .16);
+  background: var(--primary-color);
+  color: #ffffff;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  box-shadow: 0 1px 2px rgba(201, 100, 66, 0.2);
 }
-.btn-primary:hover { background: var(--primary-dark); box-shadow: 0 8px 18px rgba(37, 99, 235, .22); }
 
+.btn-primary:hover {
+  background: var(--primary-hover);
+  box-shadow: 0 3px 8px rgba(201, 100, 66, 0.28);
+}
+
+/* --- Auth Tabs (Pill / Segmented Style) --- */
 .auth-tabs {
-  display: flex; 
+  display: flex;
   margin-bottom: 18px;
+  padding: 3px;
+  background: var(--accent-sand);
   border: 1px solid var(--border-color);
-  border-radius: 10px;
-  overflow: hidden; 
-  background: #f8fafc;
+  border-radius: var(--radius-md);
 }
 
 .auth-tab {
-  flex: 1; 
-  padding: 10px;
-  border: none; 
+  flex: 1;
+  padding: 8px 12px;
+  border: none;
   background: transparent;
-  cursor: pointer; 
-  font-size: 14px;
-  color: var(--muted-color);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  transition: all 0.16s ease;
+}
+
+.auth-tab:hover {
+  color: var(--text-primary);
 }
 
 .auth-tab.active {
-  background: var(--primary-color); 
-  color: #fff; 
-  box-shadow: 0 3px 8px rgba(37, 99, 235, .18);
+  background: var(--surface-color);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(34, 30, 20, 0.08);
 }
 
-.status-text { 
-  margin-top: 10px; 
-  font-size: 12px; 
-  color: var(--muted-color);
-  text-align: center; 
+/* --- Status Messages --- */
+.status-text {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  text-align: center;
   min-height: 18px;
+  line-height: 1.5;
 }
 
-.status-text.error { color: #dc2626; }
-.status-text.success { color: #15803d; }
+.status-text.error {
+  color: var(--status-error);
+  background: var(--status-error-bg);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(194, 65, 12, 0.15);
+}
+
+.status-text.success {
+  color: var(--status-success);
+  background: var(--status-success-bg);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(63, 112, 77, 0.15);
+}

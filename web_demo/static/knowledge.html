@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CANN 知识原文</title>
+  <style>
+    body {
+      margin: 0;
+      background: #faf9f5;
+      color: #201f1d;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    main {
+      max-width: 980px;
+      margin: 40px auto;
+      padding: 0 24px 64px;
+    }
+    .card {
+      background: #ffffff;
+      border: 1px solid #e6e3dc;
+      border-radius: 14px;
+      box-shadow: 0 2px 8px rgba(34, 30, 20, 0.04), 0 8px 24px rgba(34, 30, 20, 0.04);
+      padding: 32px;
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: #201f1d;
+    }
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px 20px;
+      color: #605d57;
+      font-size: 13px;
+      margin-bottom: 22px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid #eeece5;
+    }
+    pre {
+      margin: 0;
+      padding: 22px;
+      background: #1f1e1d;
+      color: #edece6;
+      border-radius: 10px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      line-height: 1.68;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13.5px;
+      overflow: auto;
+    }
+    mark {
+      background: #faece7;
+      color: #c96442;
+      border-bottom: 2px solid #c96442;
+      border-radius: 2px;
+      padding: 1px 3px;
+      font-weight: 500;
+    }
+    a {
+      color: #c96442;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    a:hover { color: #b85433; }
+    .error {
+      color: #c2410c;
+      background: #fdf2e9;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border: 1px solid rgba(194, 65, 12, 0.15);
+      white-space: pre-wrap;
+      font-size: 13px;
+    }
+  </style>
+  <script src="auth.js"></script>
+</head>
+<body>
+  <main><section class="card">
+    <h1 id="title">正在读取 CANN 知识原文…</h1>
+    <div id="meta" class="meta"></div>
+    <p id="status"></p>
+    <pre id="content" hidden></pre>
+  </section></main>
+  <script>
+    'use strict';
+    const DOC = /^doc_[0-9a-f]{24}$/;
+    const CHUNK = /^chk_[0-9a-f]{24}$/;
+    const params = new URLSearchParams(location.search);
+    const docId = params.get('doc_id') || '';
+    const chunkId = params.get('chunk_id') || '';
+    const auth = Auth.get();
+    const title = document.getElementById('title');
+    const status = document.getElementById('status');
+    const content = document.getElementById('content');
+    const meta = document.getElementById('meta');
+
+    function fail(message) {
+      status.className = 'error';
+      status.textContent = message;
+    }
+    function addMeta(label, value) {
+      const item = document.createElement('div');
+      item.textContent = label + '：' + String(value || '—');
+      meta.appendChild(item);
+    }
+    function renderContent(text, chunk) {
+      content.hidden = false;
+      content.replaceChildren();
+      const target = chunk && String(chunk.content || '');
+      const start = target ? text.indexOf(target) : -1;
+      if (start < 0) {
+        content.textContent = text;
+        return;
+      }
+      content.appendChild(document.createTextNode(text.slice(0, start)));
+      const mark = document.createElement('mark');
+      mark.id = 'selected-chunk';
+      mark.textContent = target;
+      content.appendChild(mark);
+      content.appendChild(document.createTextNode(text.slice(start + target.length)));
+      requestAnimationFrame(() => mark.scrollIntoView({block: 'center'}));
+    }
+    if (!auth) {
+      fail('请先回到聊天页面登录，再打开此引用。');
+    } else if (!DOC.test(docId) || (chunkId && !CHUNK.test(chunkId))) {
+      fail('引用 ID 格式无效。');
+    } else {
+      const logicBase = location.protocol + '//' + location.hostname + ':9101';
+      fetch(logicBase + '/api/knowledge/document', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + auth.token},
+        body: JSON.stringify({doc_id: docId, chunk_id: chunkId})
+      }).then(r => r.json()).then(payload => {
+        if (payload.code !== 0) throw new Error(payload.message || '读取失败');
+        const data = payload.data || {};
+        const doc = data.document || {};
+        const chunk = data.chunk || null;
+        title.textContent = doc.title || 'CANN 知识原文';
+        status.textContent = '';
+        addMeta('来源', doc.source_id);
+        addMeta('权威级别', doc.authority);
+        addMeta('版本', doc.source_revision);
+        addMeta('Generation', data.generation);
+        if (chunk && chunk.locator) addMeta('定位', chunk.locator.type + ' ' + chunk.locator.value);
+        if (doc.resource && /^https?:\/\//i.test(doc.resource)) {
+          const item = document.createElement('div');
+          item.appendChild(document.createTextNode('上游资源：'));
+          const link = document.createElement('a');
+          link.href = doc.resource; link.target = '_blank'; link.rel = 'noopener noreferrer';
+          link.textContent = '打开'; item.appendChild(link); meta.appendChild(item);
+        }
+        renderContent(String(doc.content || ''), chunk);
+      }).catch(error => fail('无法读取原文：' + error.message));
+    }
+  </script>
+</body>
+</html>

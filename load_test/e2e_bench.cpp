@@ -22,6 +22,7 @@ struct BenchConfig {
     Config sender;
     Config receiver;
     int connections{8};
+    int receiver_connections{1};
     int messages_per_connection{100};
     int timeout_ms{15000};
 };
@@ -67,6 +68,9 @@ bool ParseArgs(int argc, char** argv, BenchConfig* cfg) {
         } else if (arg == "--messages-per-conn") {
             if (!NextValue(argc, argv, &i, &value) ||
                 !::ParseInt(value, &cfg->messages_per_connection)) return false;
+        } else if (arg == "--receiver-connections") {
+            if (!NextValue(argc, argv, &i, &value) ||
+                !::ParseInt(value, &cfg->receiver_connections)) return false;
         } else if (arg == "--timeout-ms") {
             if (!NextValue(argc, argv, &i, &value) ||
                 !::ParseInt(value, &cfg->timeout_ms)) return false;
@@ -76,7 +80,8 @@ bool ParseArgs(int argc, char** argv, BenchConfig* cfg) {
     }
     return !cfg->sender.account.empty() && !cfg->sender.password.empty() &&
            !cfg->receiver.account.empty() && !cfg->receiver.password.empty() &&
-           cfg->connections > 0 && cfg->messages_per_connection > 0;
+           cfg->connections > 0 && cfg->receiver_connections > 0 &&
+           cfg->messages_per_connection > 0;
 }
 
 void Usage(const char* program) {
@@ -85,6 +90,7 @@ void Usage(const char* program) {
         << " --sender-account A --sender-password P"
            " --receiver-account B --receiver-password P"
            " [--connections 8] [--messages-per-conn 100]"
+           " [--receiver-connections 1]"
            " [--logic-port 9101] [--comet-port 9000] [--timeout-ms 15000]\n";
 }
 
@@ -130,10 +136,16 @@ int main(int argc, char** argv) {
     }
 
     long long receiver_id = 0;
-    int receiver_fd = ConnectAuthenticated(cfg.receiver, &receiver_id);
-    if (receiver_fd < 0) {
-        std::cerr << "接收方连接失败\n";
-        return 1;
+    std::vector<int> receiver_fds;
+    receiver_fds.reserve(cfg.receiver_connections);
+    for (int i = 0; i < cfg.receiver_connections; ++i) {
+        const int receiver_fd = ConnectAuthenticated(cfg.receiver, &receiver_id);
+        if (receiver_fd < 0) {
+            std::cerr << "接收方连接失败: " << i << '\n';
+            for (int open_fd : receiver_fds) close(open_fd);
+            return 1;
+        }
+        receiver_fds.push_back(receiver_fd);
     }
     cfg.sender.to_user_id = receiver_id;
 
@@ -145,13 +157,14 @@ int main(int argc, char** argv) {
         if (fd < 0) {
             std::cerr << "发送方连接建立失败: " << i << '\n';
             for (int open_fd : sender_fds) close(open_fd);
-            close(receiver_fd);
+            for (int open_fd : receiver_fds) close(open_fd);
             return 1;
         }
         sender_fds.push_back(fd);
     }
 
     const int expected = cfg.connections * cfg.messages_per_connection;
+    const int expected_deliveries = expected * cfg.receiver_connections;
     const std::string run_id =
         "e2e-" + std::to_string(std::chrono::system_clock::now()
                                      .time_since_epoch()
@@ -171,43 +184,54 @@ int main(int argc, char** argv) {
     std::vector<double> latencies_ms;
     std::mutex completion_mutex;
     std::condition_variable completion_cv;
-    bool receiver_done = false;
+    int receivers_done = 0;
     auto completion_time = std::chrono::steady_clock::time_point{};
 
-    std::thread receiver([&]() {
-        const auto deadline = std::chrono::steady_clock::now() +
-                              std::chrono::milliseconds(cfg.timeout_ms);
-        while (std::chrono::steady_clock::now() < deadline &&
-               delivered.load() < expected) {
-            std::string payload;
-            if (!ReadServerWebSocketTextFrame(receiver_fd, &payload, 200)) {
-                continue;
-            }
-            try {
-                const auto json = nlohmann::json::parse(payload);
-                const std::string client_id =
-                    json.value("client_msg_id", std::string{});
-                if (client_id.rfind(run_id, 0) != 0) continue;
-                const auto now = std::chrono::steady_clock::now();
-                std::lock_guard<std::mutex> lock(timing_mutex);
-                if (!delivered_ids.insert(client_id).second) continue;
-                auto it = send_times.find(client_id);
-                if (it != send_times.end()) {
-                    latencies_ms.push_back(
-                        std::chrono::duration<double, std::milli>(now - it->second)
-                            .count());
+    std::vector<std::thread> receivers;
+    receivers.reserve(receiver_fds.size());
+    for (size_t receiver_index = 0; receiver_index < receiver_fds.size();
+         ++receiver_index) {
+        receivers.emplace_back([&, receiver_index]() {
+            const int receiver_fd = receiver_fds[receiver_index];
+            int local_delivered = 0;
+            const auto deadline = std::chrono::steady_clock::now() +
+                                  std::chrono::milliseconds(cfg.timeout_ms);
+            while (std::chrono::steady_clock::now() < deadline &&
+                   local_delivered < expected) {
+                std::string payload;
+                if (!ReadServerWebSocketTextFrame(receiver_fd, &payload, 200)) {
+                    continue;
                 }
-                ++delivered;
-            } catch (...) {
+                try {
+                    const auto json = nlohmann::json::parse(payload);
+                    const std::string client_id =
+                        json.value("client_msg_id", std::string{});
+                    if (client_id.rfind(run_id, 0) != 0) continue;
+                    const auto now = std::chrono::steady_clock::now();
+                    std::lock_guard<std::mutex> lock(timing_mutex);
+                    const std::string delivery_id =
+                        client_id + "#" + std::to_string(receiver_index);
+                    if (!delivered_ids.insert(delivery_id).second) continue;
+                    auto it = send_times.find(client_id);
+                    if (it != send_times.end()) {
+                        latencies_ms.push_back(
+                            std::chrono::duration<double, std::milli>(
+                                now - it->second).count());
+                    }
+                    ++local_delivered;
+                    ++delivered;
+                } catch (...) {
+                }
             }
-        }
-        {
-            std::lock_guard<std::mutex> lock(completion_mutex);
-            completion_time = std::chrono::steady_clock::now();
-            receiver_done = true;
-        }
-        completion_cv.notify_one();
-    });
+            {
+                std::lock_guard<std::mutex> lock(completion_mutex);
+                completion_time = std::max(completion_time,
+                                           std::chrono::steady_clock::now());
+                ++receivers_done;
+            }
+            completion_cv.notify_one();
+        });
+    }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     const auto start = std::chrono::steady_clock::now();
@@ -285,9 +309,14 @@ int main(int argc, char** argv) {
     {
         std::unique_lock<std::mutex> lock(completion_mutex);
         completion_cv.wait_for(lock, std::chrono::milliseconds(cfg.timeout_ms),
-                               [&]() { return receiver_done; });
+                               [&]() {
+                                   return receivers_done ==
+                                          cfg.receiver_connections;
+                               });
     }
-    if (receiver.joinable()) receiver.join();
+    for (auto& receiver : receivers) {
+        if (receiver.joinable()) receiver.join();
+    }
     const auto end = completion_time == std::chrono::steady_clock::time_point{}
                          ? std::chrono::steady_clock::now()
                          : completion_time;
@@ -296,12 +325,14 @@ int main(int argc, char** argv) {
         shutdown(fd, SHUT_RDWR);
         close(fd);
     }
-    shutdown(receiver_fd, SHUT_RDWR);
-    close(receiver_fd);
+    for (int receiver_fd : receiver_fds) {
+        shutdown(receiver_fd, SHUT_RDWR);
+        close(receiver_fd);
+    }
 
     const double seconds = std::chrono::duration<double>(end - start).count();
     const double delivery_qps = seconds > 0 ? delivered.load() / seconds : 0.0;
-        std::cout << "E2E_RESULT sent=" << sent.load()
+    std::cout << "E2E_RESULT sent=" << sent.load()
               << " accepted_ack=" << accepted_acks.load()
               << " delivered_ack=" << delivered_acks.load()
               << " delivered=" << delivered.load()
@@ -315,8 +346,8 @@ int main(int argc, char** argv) {
 
     return sent.load() == expected && accepted_acks.load() == expected &&
                    delivered_acks.load() == expected &&
-                   delivered.load() == expected && send_failed.load() == 0 &&
-                   ack_errors.load() == 0
+                   delivered.load() == expected_deliveries &&
+                   send_failed.load() == 0 && ack_errors.load() == 0
                ? 0
                : 1;
 }

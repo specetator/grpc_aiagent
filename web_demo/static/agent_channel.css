@@ -1,0 +1,23 @@
+.agent-model-picker { width: min(390px, 70vw); margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border-color, #e2e8f0); color: var(--text-color, #243047); }
+.agent-model-current { font-size: 12px; color: var(--muted-color, #64748b); margin: 5px 0 12px; overflow-wrap: anywhere; }
+.agent-model-search { box-sizing: border-box; width: 100%; border: 1px solid var(--border-color, #dce3ee); border-radius: 9px; padding: 9px 11px; margin-bottom: 9px; background: #fff; color: var(--text-color, #243047); }
+.agent-model-options { display: grid; gap: 6px; }
+.agent-model-picker button { cursor: pointer; border: 1px solid var(--border-color, #dce3ee); border-radius: 9px; background: #fff; color: var(--text-color, #334155); padding: 8px 10px; font: inherit; }
+.agent-model-picker button:hover:not(:disabled) { border-color: var(--primary-color, #818cf8); background: var(--primary-light, #f5f5ff); }
+.agent-model-picker button:focus-visible, .agent-model-search:focus-visible { outline: 2px solid var(--primary-color, #6366f1); outline-offset: 2px; }
+.agent-model-picker button:disabled { cursor: default; opacity: .55; }
+.agent-model-picker .agent-model-option { text-align: left; display: flex; flex-direction: column; gap: 2px; overflow-wrap: anywhere; }
+.agent-model-picker .agent-model-option.selected { opacity: 1; border-color: var(--primary-border, #a5b4fc); background: var(--primary-light, #eef2ff); color: var(--primary-color, #4338ca); }
+.agent-model-name { font-size: 13px; font-weight: 600; }
+.agent-model-option small { color: var(--muted-color, #64748b); font-size: 11px; }
+.agent-model-navigation, .agent-model-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; font-size: 12px; }
+.agent-model-actions button { flex: 1; }
+.agent-model-status, .agent-model-empty { font-size: 12px; color: var(--muted-color, #64748b); margin-top: 9px; }
+
+.agent-command-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.agent-command-actions .selected { background: var(--primary-light, #eef2ff); opacity: 1; border-color: var(--primary-color, #818cf8); }
+#agent-commands-btn { flex-shrink: 0; align-self: flex-end; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border-color, #dce3ee); background: white; color: var(--text-color, #334155); cursor: pointer; }
+
+.agent-stream-progress { font-size: 12px; color: var(--muted-color, #64748b); margin: 6px 0; overflow-wrap: anywhere; }
+
+.agent-model-picker [hidden] { display: none !important; }

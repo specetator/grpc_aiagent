@@ -1,0 +1,207 @@
+{
+  "schema_version": 1,
+  "description": "Curated truth sources packaged for the Spark Push Pi knowledge skill.",
+  "sources": [
+    {
+      "id": "project-overview",
+      "path": "README.md",
+      "authority": "canonical",
+      "topics": ["architecture", "startup", "reliability", "ai-integration"]
+    },
+    {
+      "id": "reliability-design",
+      "path": "docs/reliability-optimization.md",
+      "authority": "canonical",
+      "topics": ["ack", "cursor", "deduplication", "reconnect", "metrics"]
+    },
+    {
+      "id": "agent-integration",
+      "path": "docs/hermes-integration.md",
+      "authority": "canonical",
+      "topics": ["hermes", "openai-compatible", "streaming", "conversation"]
+    },
+    {
+      "id": "pi-agent-integration",
+      "path": "docs/pi-agent-integration.md",
+      "authority": "canonical",
+      "topics": ["pi", "agent", "gateway", "rag", "skills"]
+    },
+    {
+      "id": "multi-agent-integration",
+      "path": "docs/multi-agent-integration.md",
+      "authority": "canonical",
+      "topics": ["agent", "registry", "isolation", "hermes", "windows", "routing"]
+    },
+    {
+      "id": "multi-agent-router",
+      "path": "cannbot/scripts/agent_router.py",
+      "authority": "code",
+      "topics": ["agent", "ownership", "session", "routing"]
+    },
+    {
+      "id": "pi-rpc-gateway",
+      "path": "cannbot/scripts/pi_gateway.py",
+      "authority": "code",
+      "topics": ["pi", "rpc", "session", "lifecycle", "streaming"]
+    },
+    {
+      "id": "agent-sse-parser",
+      "path": "hermes_bridge/sse_parser.cpp",
+      "authority": "code",
+      "topics": ["pi", "hermes", "sse", "terminal-state", "errors"]
+    },
+    {
+      "id": "agent-final-reply-persistence",
+      "path": "logic/hermes_reply.cpp",
+      "authority": "code",
+      "topics": ["pi", "reply", "persistence", "idempotency", "routing"]
+    },
+    {
+      "id": "kafka-consumer-failure-handling",
+      "path": "common/kafka_consumer.cpp",
+      "authority": "code",
+      "topics": ["kafka", "dead-letter", "retry", "commit", "recovery"]
+    },
+    {
+      "id": "agent-event-and-adapter-port",
+      "path": "cannbot/scripts/agent_events.py",
+      "authority": "code",
+      "topics": ["agent-adapter", "agent-events", "model-catalog"]
+    },
+    {
+      "id": "agent-event-validation",
+      "path": "common/agent_event.h",
+      "authority": "code",
+      "topics": ["agent-events", "validation", "model-picker"]
+    },
+    {
+      "id": "im-agent-channel-presentation",
+      "path": "web_demo/static/agent_channel.js",
+      "authority": "code",
+      "topics": ["channel-adapter", "model-picker", "actions"]
+    },
+    {
+      "id": "pi-im-architecture-review-2026-09-06",
+      "path": "docs/pi-im-architecture-review.md",
+      "authority": "snapshot",
+      "topics": ["pi", "architecture-review", "agent-events", "session-routing", "queue", "security", "attachments"]
+    },
+    {
+      "id": "cannbot-integration",
+      "path": "docs/cannbot-integration.md",
+      "authority": "canonical",
+      "topics": ["cannbot", "hermes", "skills", "knowledge-maintenance"]
+    },
+    {
+      "id": "wsl-hermes-development",
+      "path": "docs/wsl-hermes-development.md",
+      "authority": "canonical",
+      "topics": ["hermes", "wsl", "development", "provider", "skills"]
+    },
+    {
+      "id": "user-center",
+      "path": "docs/user-center.md",
+      "authority": "canonical",
+      "topics": ["authentication", "authorization", "admin", "audit"]
+    },
+    {
+      "id": "project-evolution",
+      "path": "docs/interview-project-evolution.md",
+      "authority": "historical",
+      "topics": ["evolution", "tradeoff", "interview"]
+    },
+    {
+      "id": "performance-baseline",
+      "path": "docs/performance-report-2026-08-09.md",
+      "authority": "snapshot",
+      "topics": ["performance", "benchmark", "capacity"]
+    },
+    {
+      "id": "operations",
+      "path": "scripts/00_prepare_and_run.md",
+      "authority": "canonical",
+      "topics": ["build", "run", "verification", "troubleshooting"]
+    },
+    {
+      "id": "wire-contract",
+      "path": "proto/spark_push.proto",
+      "authority": "code",
+      "topics": ["grpc", "message", "ack", "sync", "push-stream"]
+    },
+    {
+      "id": "project-agent-contract",
+      "path": "AGENTS.md",
+      "authority": "canonical",
+      "topics": ["agent", "constraints", "workflow", "hermes"]
+    },
+    {
+      "id": "logic-message-orchestration",
+      "path": "logic/grpc_service.cpp",
+      "authority": "code",
+      "topics": ["logic", "message", "ack", "hermes", "persistence"]
+    },
+    {
+      "id": "hermes-command-semantics",
+      "path": "logic/hermes_command.cpp",
+      "authority": "code",
+      "topics": ["hermes", "command", "conversation", "prompt-budget"]
+    },
+    {
+      "id": "comet-delivery",
+      "path": "comet/comet_server.cpp",
+      "authority": "code",
+      "topics": ["comet", "websocket", "delivery", "reconnect"]
+    },
+    {
+      "id": "job-persistence-delivery",
+      "path": "job/service.cpp",
+      "authority": "code",
+      "topics": ["job", "kafka", "persistence", "delivery"]
+    },
+    {
+      "id": "hermes-http-transport",
+      "path": "hermes_bridge/hermes_client.cpp",
+      "authority": "code",
+      "topics": ["hermes", "http", "sse", "openai-compatible"]
+    },
+    {
+      "id": "hermes-bridge-runtime",
+      "path": "hermes_bridge/main.cpp",
+      "authority": "code",
+      "topics": ["hermes", "kafka", "streaming", "runtime"]
+    },
+    {
+      "id": "hermes-wsl-migration",
+      "path": "docs/hermes-wsl-migration.md",
+      "authority": "snapshot",
+      "topics": [
+        "hermes",
+        "wsl",
+        "migration",
+        "performance"
+      ]
+    },
+    {
+      "id": "hermes-agent-adapter",
+      "path": "cannbot/scripts/hermes_adapter.py",
+      "authority": "code",
+      "topics": [
+        "hermes",
+        "model",
+        "session",
+        "streaming"
+      ]
+    },
+    {
+      "id": "windows-agent-transport",
+      "path": "cannbot/scripts/windows_agent_transport.py",
+      "authority": "code",
+      "topics": [
+        "hermes",
+        "windows",
+        "performance",
+        "isolation"
+      ]
+    }
+  ]
+}

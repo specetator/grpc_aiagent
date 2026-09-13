@@ -179,6 +179,16 @@ class StaticFileHandler {
 
     resp->setStatusCode(HttpResponse::k200Ok);
     resp->setContentType(GuessContentType(full_path));
+    // Demo 页面包含内嵌业务脚本，更新源码后不能让浏览器继续使用旧的
+    // index.html/auth.js；否则认证状态机修复可能要等浏览器缓存自然失效。
+    const bool is_html = full_path.size() >= 5 &&
+                         full_path.substr(full_path.size() - 5) == ".html";
+    const bool is_js = full_path.size() >= 3 &&
+                       full_path.substr(full_path.size() - 3) == ".js";
+    if (is_html || is_js) {
+      resp->addHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+      resp->addHeader("Pragma", "no-cache");
+    }
     if (req.method() != HttpRequest::kHead) {
       resp->setBody(content);
     }
@@ -228,5 +238,4 @@ int main(int argc, char* argv[]) {
 
   return 0;
 }
-
 

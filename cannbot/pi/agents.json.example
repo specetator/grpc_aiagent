@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "default_agent": "pi",
+  "bot_user_id": 900000000001,
+  "agents": [
+    {"id": "pi", "name": "Pi Agent", "runtime": "pi_rpc", "owner_user_ids": [], "bot_user_id": 900000000001},
+    {
+      "id": "hermes-technical",
+      "bot_user_id": 900000000101,
+      "name": "Hermes · technical",
+      "runtime": "hermes_http",
+      "owner_user_ids": [3],
+      "profile": "technical",
+      "base_url": "http://127.0.0.1:8644/v1",
+      "transport": "windows_stdio",
+      "windows_python": "/mnt/f/hermes/hermes-agent/venv/Scripts/python.exe",
+      "expected_model": "technical",
+      "credential_env_file": "/mnt/f/hermes/profiles/technical/.env",
+      "credential_env_key": "API_SERVER_KEY"
+    }
+  ]
+}

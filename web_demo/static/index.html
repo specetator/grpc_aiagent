@@ -6,18 +6,8 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
   <link rel="stylesheet" href="auth_style.css">
   <style>
-    :root {
-      --primary-color: #1976d2;
-      --bg-color: #f5f7fa;
-      --sidebar-bg: #ffffff;
-      --border-color: #e0e0e0;
-      --bubble-me: #e3f2fd; /* 我发的消息背景色 */
-      --bubble-other: #ffffff; /* 对方发的消息背景色 */
-      --text-color: #333;
-    }
-
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-family: var(--font-sans);
       margin: 0;
       padding: 0;
       display: flex;
@@ -27,35 +17,131 @@
       overflow: hidden;
     }
 
-    /* 通用工具类 */
-    .hidden { display: none !important; }
-    .flex-col { display: flex; flex-direction: column; }
-    .flex-center { display: flex; align-items: center; justify-content: center; }
-    
-    /* --- 侧边栏区域 --- */
+    /* --- 侧边栏区域 (Claude Minimal Warm Sidebar) --- */
     #sidebar {
-      width: 300px;
+      width: 320px;
       background: var(--sidebar-bg);
       border-right: 1px solid var(--border-color);
       display: flex;
       flex-direction: column;
       z-index: 10;
+      box-shadow: 1px 0 0 rgba(0, 0, 0, 0.02);
     }
 
     .sidebar-header {
-      padding: 20px;
+      padding: 22px 22px 18px;
       border-bottom: 1px solid var(--border-color);
+      background: transparent;
     }
-    .sidebar-header h2 { margin: 0; font-size: 20px; color: var(--primary-color); }
+    .sidebar-header h2 {
+      margin: 0;
+      font-size: 19px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .brand-icon {
+      width: 30px;
+      height: 30px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      color: var(--primary-color);
+      background: var(--primary-light);
+      border: 1px solid var(--primary-border);
+      font-size: 16px;
+    }
+    .sidebar-subtitle {
+      font-size: 11.5px;
+      color: var(--muted-color);
+      margin-top: 6px;
+      letter-spacing: 0.01em;
+    }
 
-    /* 登录面板 (默认显示) */
+    /* 登录面板 */
     #auth-panel {
-      padding: 20px;
+      padding: 24px 22px;
       flex: 1;
       overflow-y: auto;
     }
-    
-    /* 登录后面板 (默认隐藏) */
+    .auth-intro { margin: 2px 0 20px; }
+    .auth-intro .eyebrow {
+      color: var(--primary-color);
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+    .auth-intro h3 {
+      margin: 6px 0 5px;
+      font-size: 22px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.025em;
+    }
+    .auth-intro p {
+      margin: 0;
+      color: var(--text-secondary);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .quick-links {
+      margin-top: 26px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border-color);
+    }
+    .quick-links-title {
+      margin-bottom: 10px;
+      color: var(--muted-color);
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .quick-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      margin: 4px 0;
+      color: var(--text-color) !important;
+      text-decoration: none;
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      background: transparent;
+      transition: all 0.16s ease;
+    }
+    .quick-link:hover {
+      background: var(--surface-color);
+      border-color: var(--border-color);
+      transform: translateX(2px);
+      box-shadow: var(--shadow-subtle);
+    }
+    .quick-link.admin {
+      color: var(--primary-color) !important;
+      background: var(--primary-light);
+      border-color: var(--primary-border);
+    }
+    .quick-icon { width: 22px; text-align: center; font-size: 15px; }
+    .quick-link-label { flex: 1; font-size: 13px; font-weight: 500; }
+    .quick-arrow { color: var(--muted-color); font-size: 15px; }
+    .demo-note {
+      margin-top: 14px;
+      padding: 10px 12px;
+      color: var(--text-secondary);
+      background: var(--surface-color);
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
+      font-size: 11.5px;
+      line-height: 1.55;
+    }
+
+    /* 登录后面板 (导航与会话) */
     #nav-panel {
       flex: 1;
       display: flex;
@@ -63,88 +149,213 @@
       overflow: hidden;
     }
 
-    /* 用户信息条 */
-    .user-profile-bar {
-      padding: 15px;
-      background: #f9f9f9;
-      border-top: 1px solid var(--border-color);
+    .nav-search-box {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--surface-color);
+    }
+    .tip-banner {
+      font-size: 11.5px;
+      color: #92400e;
+      background: #fefce8;
+      border: 1px solid #fef08a;
+      padding: 8px 10px;
+      border-radius: var(--radius-sm);
+      margin-bottom: 10px;
+      line-height: 1.45;
+    }
+    .hermes-trigger-btn {
+      width: 100%;
+      margin-top: 8px;
+      padding: 8px 10px;
+      border: 1px solid var(--primary-border);
+      border-radius: var(--radius-md);
+      background: var(--primary-light);
+      color: var(--primary-hover);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      transition: all 0.16s ease;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      justify-content: center;
+      gap: 5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      box-sizing: border-box;
     }
-    .user-info { font-size: 14px; font-weight: bold; color: #555; }
-    .logout-btn {
-      font-size: 12px;
-      color: #ef5350;
-      cursor: pointer;
+    .hermes-trigger-btn:hover {
+      background: #f5dfd6;
+      border-color: #e5b3a1;
+    }
+
+    .session-list-header {
+      padding: 12px 16px 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .session-list-header span {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted-color);
+    }
+    .refresh-link {
       background: none;
       border: none;
-      padding: 4px 8px;
+      color: var(--primary-color);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
     }
-    .logout-btn:hover { background: #ffebee; border-radius: 4px; }
+    .refresh-link:hover {
+      background: var(--primary-light);
+    }
 
-    /* 会话列表 */
+    /* 会话列表容器 */
     .session-list-container {
       flex: 1;
       overflow-y: auto;
-      padding: 10px;
+      padding: 8px 12px;
     }
     .session-item {
-      padding: 12px;
-      margin-bottom: 8px;
-      background: #fff;
+      padding: 11px 13px;
+      margin-bottom: 6px;
+      background: transparent;
       border: 1px solid transparent;
-      border-radius: 8px;
+      border-radius: var(--radius-md);
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
     }
-    .session-item:hover { background: #f0f7ff; }
+    .session-item:hover {
+      background: var(--surface-color);
+      border-color: var(--border-subtle);
+    }
     .session-item.active {
-      background: #e3f2fd;
-      border-color: #bbdefb;
+      background: var(--surface-color);
+      border-color: var(--border-color);
+      box-shadow: var(--shadow-subtle);
     }
     .avatar-placeholder {
       width: 36px;
       height: 36px;
-      background: #bdbdbd;
+      background: var(--accent-sand);
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #fff;
-      font-size: 12px;
+      color: var(--text-secondary);
+      font-size: 11px;
+      font-weight: 600;
       flex-shrink: 0;
+      border: 1px solid var(--border-color);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      padding: 0 2px;
+      user-select: none;
+    }
+    .session-item.active .avatar-placeholder {
+      background: var(--primary-light);
+      color: var(--primary-color);
+      border-color: var(--primary-border);
     }
     .session-info {
       flex: 1;
       overflow: hidden;
     }
-    .session-name { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
-    .session-preview { font-size: 12px; color: #999; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .session-name {
+      font-size: 13.5px;
+      font-weight: 500;
+      color: var(--text-primary);
+      margin-bottom: 2px;
+    }
+    .session-preview {
+      font-size: 12px;
+      color: var(--muted-color);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
 
-    /* 登录表单样式移至 auth_style.css */
+    /* 用户信息条 (底栏) */
+    .user-profile-bar {
+      padding: 14px 16px;
+      background: var(--surface-color);
+      border-top: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .user-info {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .user-id-badge {
+      font-size: 11px;
+      color: var(--muted-color);
+      font-family: var(--font-mono);
+    }
+    .logout-btn {
+      font-size: 12px;
+      color: var(--status-error);
+      cursor: pointer;
+      background: none;
+      border: 1px solid transparent;
+      padding: 5px 10px;
+      border-radius: var(--radius-sm);
+      transition: all 0.16s ease;
+    }
+    .logout-btn:hover {
+      background: var(--status-error-bg);
+      border-color: rgba(194, 65, 12, 0.2);
+    }
 
-    /* --- 主聊天区域 --- */
+    /* --- 主聊天区域 (Claude Warm Minimal Stage) --- */
     #main {
       flex: 1;
       display: flex;
       flex-direction: column;
-      background: #fff;
+      background: var(--bg-color);
+      position: relative;
     }
-    
-    /* 空状态 */
+
+    /* 空状态 (Empty State) */
     #empty-state {
       flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      color: #aaa;
+      color: var(--muted-color);
+      background: radial-gradient(circle at 50% 40%, rgba(201, 100, 66, 0.04), transparent 45%), var(--bg-color);
     }
-    #empty-state h3 { color: #888; margin-bottom: 10px; }
+    #empty-state .empty-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.9;
+    }
+    #empty-state h3 {
+      color: var(--text-primary);
+      font-size: 20px;
+      font-weight: 600;
+      margin: 0 0 8px;
+      letter-spacing: -0.02em;
+    }
+    #empty-state p {
+      color: var(--text-secondary);
+      font-size: 13.5px;
+      margin: 0;
+    }
 
     /* 聊天窗口 */
     #chat-window {
@@ -153,42 +364,66 @@
       flex-direction: column;
       height: 100%;
     }
-    
+
     .chat-header {
-      height: 60px;
+      height: 64px;
       border-bottom: 1px solid var(--border-color);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 20px;
-      background: #fff;
+      padding: 0 26px;
+      background: var(--surface-color);
     }
-    .chat-title { font-size: 16px; font-weight: bold; }
+    .chat-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.015em;
+    }
+    .chat-session-badge {
+      font-size: 11px;
+      color: var(--muted-color);
+      font-family: var(--font-mono);
+      margin-top: 2px;
+    }
+    .chat-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
     .chat-actions button {
-      border: 1px solid #ddd;
-      background: #fff;
-      padding: 4px 10px;
-      border-radius: 4px;
+      border: 1px solid var(--border-color);
+      background: var(--surface-color);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
       cursor: pointer;
-      font-size: 12px;
-      color: #666;
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      font-weight: 500;
+      transition: all 0.16s ease;
     }
-    .chat-actions button:hover { background: #f5f5f5; }
+    .chat-actions button:hover {
+      background: var(--bg-color);
+      color: var(--text-primary);
+      border-color: #d1cfc7;
+    }
 
+    /* 消息流区域 */
     #messages {
       flex: 1;
-      padding: 20px;
+      padding: 26px 32px;
       overflow-y: auto;
       background: var(--bg-color);
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 16px;
     }
 
     .msg-row {
       display: flex;
-      gap: 10px;
-      max-width: 70%;
+      gap: 12px;
+      max-width: 76%;
+      align-items: flex-start;
     }
     .msg-row.me {
       align-self: flex-end;
@@ -197,14 +432,135 @@
     .msg-row.other {
       align-self: flex-start;
     }
+
+    .msg-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--accent-sand);
+      border: 1px solid var(--border-color);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+    .msg-row.me .msg-avatar {
+      background: var(--primary-light);
+      color: var(--primary-color);
+      border-color: var(--primary-border);
+    }
+
+    .msg-content-wrapper {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+    .msg-name {
+      font-size: 11.5px;
+      color: var(--muted-color);
+      margin-bottom: 5px;
+      font-weight: 500;
+    }
+    .msg-row.me .msg-name {
+      text-align: right;
+    }
+
+    .msg-bubble {
+      padding: 12px 16px;
+      border-radius: var(--radius-lg);
+      font-size: 14px;
+      line-height: 1.6;
+      word-wrap: break-word;
+      position: relative;
+      box-shadow: var(--shadow-subtle);
+    }
+    .msg-row.me .msg-bubble {
+      background: var(--bubble-me);
+      color: var(--bubble-me-text);
+      border: 1px solid var(--bubble-me-border);
+      border-top-right-radius: 4px;
+    }
+    .msg-row.other .msg-bubble {
+      background: var(--bubble-other);
+      color: var(--bubble-other-text);
+      border: 1px solid var(--bubble-other-border);
+      border-top-left-radius: 4px;
+    }
+
+    .msg-status {
+      margin-top: 4px;
+      color: var(--muted-color);
+      font-size: 11px;
+      text-align: right;
+      font-family: var(--font-mono);
+    }
+    .msg-row.other .msg-status {
+      text-align: left;
+    }
+
+    /* Claude / Hermes Markdown 样式 */
+    .msg-bubble[data-safe-markdown-version] {
+      white-space: normal;
+      line-height: 1.65;
+    }
+    .msg-bubble[data-safe-markdown-version] p {
+      margin: 0 0 10px;
+    }
+    .msg-bubble[data-safe-markdown-version] p:last-child {
+      margin-bottom: 0;
+    }
+    .msg-bubble[data-safe-markdown-version] h1,
+    .msg-bubble[data-safe-markdown-version] h2,
+    .msg-bubble[data-safe-markdown-version] h3,
+    .msg-bubble[data-safe-markdown-version] h4 {
+      margin: 14px 0 8px;
+      font-size: 1.05em;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .msg-bubble[data-safe-markdown-version] a {
+      color: var(--primary-color);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .msg-bubble[data-safe-markdown-version] code {
+      background: rgba(34, 30, 20, 0.06);
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      padding: 2px 5px;
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+    }
+    .msg-bubble[data-safe-markdown-version] pre {
+      overflow: auto;
+      background: #1f1e1d;
+      color: #edece6;
+      padding: 14px 16px;
+      border-radius: var(--radius-md);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.55;
+      margin: 10px 0;
+    }
+    .msg-bubble[data-safe-markdown-version] pre code {
+      background: transparent;
+      padding: 0;
+      color: inherit;
+      border-radius: 0;
+    }
+
+    /* Hermes 流式打字与思考 */
     .msg-row.hermes-streaming .msg-bubble::after {
       content: '▌';
       margin-left: 2px;
-      color: #7c3aed;
+      color: var(--primary-color);
       animation: hermes-caret 0.9s steps(1) infinite;
     }
     .msg-row.hermes-thinking .msg-bubble {
-      color: #64748b;
+      color: var(--text-secondary);
       font-style: italic;
     }
     .msg-row.hermes-thinking .msg-bubble::before {
@@ -212,109 +568,78 @@
       display: inline-block;
       margin-right: 7px;
       letter-spacing: 3px;
-      color: #7c3aed;
+      color: var(--primary-color);
       animation: hermes-thinking 1.1s ease-in-out infinite;
     }
-    .msg-status {
-      margin-top: 3px;
-      color: #94a3b8;
-      font-size: 10px;
-      text-align: right;
-    }
-    .msg-row.other .msg-status { text-align: left; }
     @keyframes hermes-thinking {
-      0%, 100% { opacity: .35; transform: translateY(0); }
+      0%, 100% { opacity: 0.35; transform: translateY(0); }
       50% { opacity: 1; transform: translateY(-1px); }
     }
     @keyframes hermes-caret {
       50% { opacity: 0; }
     }
-    .msg-avatar {
-      width: 36px;
-      height: 36px;
-      border-radius: 4px;
-      background: #ccc;
-      flex-shrink: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      color: #fff;
-    }
-    .msg-content-wrapper {
-      display: flex;
-      flex-direction: column;
-    }
-    .msg-name {
-      font-size: 12px;
-      color: #999;
-      margin-bottom: 4px;
-    }
-    .msg-row.me .msg-name { text-align: right; }
 
-    .msg-bubble {
-      padding: 10px 14px;
-      border-radius: 8px;
-      font-size: 14px;
-      line-height: 1.5;
-      word-wrap: break-word;
-      position: relative;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    }
-    .msg-row.me .msg-bubble {
-      background: var(--bubble-me);
-      color: #0d47a1;
-      border-top-right-radius: 2px;
-    }
-    .msg-row.other .msg-bubble {
-      background: var(--bubble-other);
-      border: 1px solid #e6e6e6;
-      color: #333;
-      border-top-left-radius: 2px;
+    /* 系统消息 */
+    .msg-system {
+      align-self: center;
+      background: var(--surface-color);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      font-size: 12px;
+      padding: 5px 14px;
+      border-radius: 999px;
+      margin: 12px 0;
+      box-shadow: var(--shadow-subtle);
     }
 
+    /* 输入栏 */
     #input-area {
-      padding: 15px;
-      background: #fff;
+      padding: 16px 24px;
+      background: var(--surface-color);
       border-top: 1px solid var(--border-color);
       display: flex;
-      gap: 10px;
+      gap: 12px;
+      align-items: center;
     }
     #msg-text {
       flex: 1;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
+      padding: 11px 16px;
+      border: 1px solid var(--border-color);
+      background: var(--surface-subtle);
+      border-radius: var(--radius-md);
       font-size: 14px;
+      color: var(--text-primary);
       outline: none;
+      transition: all 0.18s ease;
     }
-    #msg-text:focus { border-color: var(--primary-color); }
+    #msg-text:focus {
+      background: var(--surface-color);
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(201, 100, 66, 0.14);
+    }
     #send-btn {
       padding: 0 24px;
+      height: 42px;
       background: var(--primary-color);
       color: #fff;
       border: none;
-      border-radius: 6px;
+      border-radius: var(--radius-md);
       cursor: pointer;
-      font-weight: bold;
+      font-weight: 500;
+      font-size: 14px;
+      letter-spacing: -0.01em;
+      box-shadow: 0 1px 3px rgba(201, 100, 66, 0.25);
+      transition: all 0.18s ease;
     }
-    #send-btn:hover { background: #1565c0; }
-    
-    /* 模拟系统消息 */
-    .msg-system {
-      align-self: center;
-      background: rgba(0,0,0,0.1);
-      color: #666;
-      font-size: 12px;
-      padding: 4px 12px;
-      border-radius: 100px;
-      margin: 10px 0;
+    #send-btn:hover {
+      background: var(--primary-hover);
+      box-shadow: 0 4px 10px rgba(201, 100, 66, 0.32);
     }
-    
-    /* Toast Notification */
+
+    /* Toast 提示 */
     #toast-container {
       position: fixed;
-      top: 20px;
+      top: 22px;
       left: 50%;
       transform: translateX(-50%);
       z-index: 9999;
@@ -324,145 +649,40 @@
       pointer-events: none;
     }
     .toast {
-      background: rgba(50, 50, 50, 0.9);
-      color: #fff;
+      background: #1f1e1d;
+      color: #edece6;
       padding: 10px 20px;
-      border-radius: 4px;
-      font-size: 14px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-      animation: toast-in 0.3s ease-out forwards;
+      border-radius: var(--radius-md);
+      font-size: 13.5px;
+      box-shadow: var(--shadow-dropdown);
+      animation: toast-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+      border: 1px solid rgba(255, 255, 255, 0.08);
     }
     @keyframes toast-in {
-      from { opacity: 0; transform: translateY(-20px); }
+      from { opacity: 0; transform: translateY(-16px); }
       to { opacity: 1; transform: translateY(0); }
     }
     @keyframes toast-out {
       from { opacity: 1; transform: translateY(0); }
-      to { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 0; transform: translateY(-16px); }
     }
 
-    /* --- 视觉升级：统一品牌、层次和移动端布局 --- */
-    body {
-      background: #eef3f9;
-      color: #172033;
-    }
-    #sidebar {
-      width: 326px;
-      background: rgba(255,255,255,.96);
-      border-right-color: #dce5f0;
-      box-shadow: 10px 0 28px rgba(30, 64, 105, .06);
-    }
-    .sidebar-header {
-      padding: 24px 24px 22px;
-      color: #fff;
-      border-bottom: 0;
-      background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 56%, #38bdf8 100%);
-    }
-    .sidebar-header h2 {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: #fff;
-      letter-spacing: -.02em;
-    }
-    .brand-icon {
-      width: 34px;
-      height: 34px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 11px;
-      color: #1d4ed8;
-      background: rgba(255,255,255,.94);
-      box-shadow: 0 8px 18px rgba(15, 23, 42, .14);
-      font-size: 19px;
-    }
-    .sidebar-subtitle { color: rgba(255,255,255,.78) !important; }
-    #auth-panel { padding: 28px 24px; }
-    .auth-intro { margin: 2px 0 22px; }
-    .auth-intro .eyebrow {
-      color: #2563eb;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: .12em;
-      text-transform: uppercase;
-    }
-    .auth-intro h3 { margin: 7px 0 5px; font-size: 24px; letter-spacing: -.03em; }
-    .auth-intro p { margin: 0; color: #64748b; font-size: 13px; line-height: 1.6; }
-    .quick-links {
-      margin-top: 30px;
-      padding-top: 18px;
-      border-top: 1px solid #e7edf5;
-    }
-    .quick-links-title {
-      margin-bottom: 10px;
-      color: #64748b;
-      font-size: 11px;
-      font-weight: 700;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-    }
-    .quick-link {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 11px;
-      margin: 5px 0;
-      color: #334155 !important;
-      text-decoration: none;
-      border: 1px solid transparent;
-      border-radius: 10px;
-      transition: background .18s ease, border-color .18s ease, transform .18s ease;
-    }
-    .quick-link:hover { background: #f1f5ff; border-color: #dbe7ff; transform: translateX(2px); }
-    .quick-link.admin { color: #7c3aed !important; background: #faf5ff; border-color: #ede9fe; }
-    .quick-icon { width: 24px; text-align: center; font-size: 16px; }
-    .quick-link-label { flex: 1; font-size: 13px; font-weight: 600; }
-    .quick-arrow { color: #94a3b8; font-size: 16px; }
-    .demo-note {
-      margin-top: 16px;
-      padding: 10px 11px;
-      color: #64748b;
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      font-size: 11px;
-      line-height: 1.55;
-    }
-    .session-list-container { padding: 12px; }
-    .session-item { border-color: #edf2f7; box-shadow: 0 2px 7px rgba(15,23,42,.03); }
-    .session-item.active { box-shadow: 0 5px 14px rgba(37,99,235,.10); }
-    .user-profile-bar { padding: 14px 18px; background: #f8fafc; border-top-color: #e2e8f0; }
-    .user-profile-bar .avatar-placeholder { box-shadow: 0 3px 8px rgba(34,197,94,.24); }
-    #main { background: #f8fafc; }
-    #empty-state {
-      background: radial-gradient(circle at 50% 35%, rgba(219,234,254,.64), transparent 38%), #f8fafc;
-    }
-    #empty-state h3 { color: #1e3a8a; font-size: 21px; }
-    #empty-state p { color: #64748b; }
-    .chat-header { height: 70px; padding: 0 26px; background: rgba(255,255,255,.96); border-bottom-color: #e2e8f0; }
-    .chat-title { color: #172033; font-size: 17px; }
-    #messages { padding: 24px 28px; background: linear-gradient(180deg, #f8fafc 0%, #eef4fb 100%); }
-    .msg-bubble { border-radius: 12px !important; box-shadow: 0 3px 10px rgba(15,23,42,.05); }
-    .msg-row.me .msg-bubble { background: linear-gradient(135deg, #dbeafe, #e0f2fe); color: #1e3a8a; }
-    #input-area { padding: 18px 24px; background: rgba(255,255,255,.96); border-top-color: #e2e8f0; }
-    #msg-text { padding: 12px 14px; border-color: #dbe3ee; border-radius: 10px; }
-    #send-btn { min-width: 82px; border-radius: 10px; box-shadow: 0 6px 14px rgba(37,99,235,.18); }
-    .toast { border-radius: 10px; padding: 11px 18px; box-shadow: 0 10px 24px rgba(15,23,42,.18); }
     @media (max-width: 760px) {
       body { height: auto; min-height: 100vh; overflow: auto; flex-direction: column; }
-      #sidebar { width: 100%; min-height: auto; max-height: none; border-right: 0; border-bottom: 1px solid #dce5f0; }
-      #auth-panel { padding: 22px 20px 26px; }
-      #nav-panel { min-height: 330px; }
-      #main { min-height: 560px; }
-      #messages { padding: 18px 14px; }
+      #sidebar { width: 100%; border-right: 0; border-bottom: 1px solid var(--border-color); }
+      #auth-panel { padding: 20px; }
+      #nav-panel { min-height: 340px; }
+      #main { min-height: 540px; }
+      #messages { padding: 18px 16px; }
       .msg-row { max-width: 88%; }
       .chat-header { padding: 0 16px; }
-      .chat-actions button { padding: 5px 7px; }
-      #input-area { padding: 12px; }
+      #input-area { padding: 12px 16px; }
     }
   </style>
   <script src="auth.js"></script>
+  <script src="safe_markdown.js"></script>
+  <script src="agent_channel.js"></script>
+  <link rel="stylesheet" href="agent_channel.css">
 </head>
 <body>
   <div id="toast-container"></div>
@@ -470,7 +690,7 @@
   <div id="sidebar">
     <div class="sidebar-header">
       <h2><span class="brand-icon">⚡</span> Spark Push</h2>
-      <div class="sidebar-subtitle" style="font-size:12px;color:#999;margin-top:7px;">分布式实时消息演示 · Single Chat</div>
+      <div class="sidebar-subtitle">分布式实时推送系统 · Single Chat</div>
     </div>
 
     <!-- 1. 未登录状态：显示登录/注册 -->
@@ -496,7 +716,7 @@
       <button id="login-btn" class="btn-primary btn-block">立即登录</button>
       <button id="register-btn" class="btn-primary btn-block hidden">注册并自动登录</button>
       <div id="login-status" class="status-text"></div>
-      
+
       <div class="quick-links">
          <div class="quick-links-title">体验其他能力</div>
          <a class="quick-link" href="chatroom.html">
@@ -515,41 +735,41 @@
     <!-- 2. 已登录状态：显示会话列表 + 底部个人信息 -->
     <div id="nav-panel" class="hidden">
       <!-- 搜索/新建会话区域 -->
-      <div style="padding:10px; border-bottom:1px solid #eee;">
-        <div style="font-size:11px;color:#e65100;background:#fff3e0;padding:6px 8px;border-radius:4px;margin-bottom:8px;line-height:1.4;">
-          <b>单聊必看：</b>请用两个浏览器窗口分别登录两个账号，记下左侧绿色栏的 <b>数字 ID</b>（不是账号名）。
-          在下方输入<strong>对方的数字 ID</strong>后点「私聊」，再发消息。
+      <div class="nav-search-box">
+        <div class="tip-banner">
+          <b>快速开始：</b>开两个浏览器窗口分别登录两个账号，查看左下方 ID，输入对方的<b>数字 ID</b>点「私聊」即可。
         </div>
-        <div style="display:flex; gap:5px;">
-          <input id="to-user" class="form-control" style="padding:6px;" placeholder="对方数字 UserID，如 4" />
-          <button id="start-chat-btn" class="btn-primary" style="padding:6px 12px;">私聊</button>
+        <div style="display:flex; gap:6px;">
+          <input id="to-user" class="form-control" placeholder="对方数字 UserID，如 4" />
+          <button id="start-chat-btn" class="btn-primary" style="padding:0 14px; white-space:nowrap;">私聊</button>
         </div>
-        <button id="start-hermes-btn" type="button" style="width:100%;margin-top:7px;padding:7px 10px;border:1px solid #c7d2fe;border-radius:7px;background:#eef2ff;color:#3730a3;cursor:pointer;font-size:12px;">
-          🤖 与 Hermes Bot 对话（ID 900000000001）
+        <button id="start-hermes-btn" type="button" class="hermes-trigger-btn">
+          <span>✨</span> 与 Pi Agent 对话（ID 900000000001）
         </button>
+        <button id="agent-directory-btn" type="button" class="hermes-trigger-btn">🤖 打开其他 Agent 对话</button>
       </div>
-      
+
       <!-- 按钮组 -->
-      <div style="padding:0 10px 10px 10px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center;">
-         <span style="font-size:12px;color:#999;">最近会话</span>
-         <button id="refresh-sessions-btn" style="background:none;border:none;color:#1976d2;cursor:pointer;font-size:12px;">刷新</button>
+      <div class="session-list-header">
+         <span>最近会话</span>
+         <button id="refresh-sessions-btn" class="refresh-link">刷新</button>
       </div>
 
       <!-- 列表容器 -->
       <div id="session-list" class="session-list-container">
-        <div style="text-align:center; color:#999; font-size:12px; margin-top:20px;">
-            暂无历史会话<br>请在上方输入 ID 发起聊天
+        <div style="text-align:center; color:var(--muted-color); font-size:12px; margin-top:28px; line-height: 1.6;">
+            暂无历史会话<br>在上方输入对方 ID 开启畅聊
         </div>
       </div>
 
       <!-- 底部个人信息 -->
       <div class="user-profile-bar">
-           <div class="flex-center" style="gap:8px;">
-           <div class="avatar-placeholder" style="background:#4caf50;">Me</div>
-           <div class="flex-col">
-             <span id="my-user-name" class="user-info">当前用户</span>
-             <span id="my-user-id" style="font-size:11px; color:#64748b;">ID: -</span>
-           </div>
+        <div class="flex-center" style="gap:10px;">
+          <div class="avatar-placeholder" style="background:var(--accent-sage-light); color:var(--accent-sage); border-color:rgba(79,115,92,0.2);">Me</div>
+          <div class="flex-col">
+            <span id="my-user-name" class="user-info">当前用户</span>
+            <span id="my-user-id" class="user-id-badge">ID: -</span>
+          </div>
         </div>
         <button class="logout-btn" onclick="doLogout()">退出</button>
       </div>
@@ -560,9 +780,9 @@
   <div id="main">
     <!-- 状态 A: 未选择会话 -->
     <div id="empty-state">
-      <div style="font-size:60px; margin-bottom:20px;">👋</div>
-      <h3>欢迎使用 Spark Push</h3>
-      <p style="font-size:14px;">请在左侧选择一个联系人开始聊天</p>
+      <div class="empty-icon">☕</div>
+      <h3>开始使用 Spark Push</h3>
+      <p>从左侧选择联系人，或输入 UserID 发起即时单聊</p>
     </div>
 
     <!-- 状态 B: 聊天窗口 -->
@@ -570,10 +790,10 @@
       <div class="chat-header">
         <div class="flex-col">
            <span class="chat-title" id="chat-title">与 User ... 聊天中</span>
-           <span style="font-size:11px; color:#999;">Session ID: <span id="session-id-disp">-</span></span>
+           <span class="chat-session-badge">Session: <span id="session-id-disp">-</span></span>
         </div>
         <div class="chat-actions">
-          <span style="font-size:12px; margin-right:8px; color:#666;">未读: <span id="unread-count">0</span></span>
+          <span style="font-size:12px; margin-right:6px; color:var(--muted-color);">未读: <span id="unread-count" style="font-weight:600; color:var(--primary-color);">0</span></span>
           <button id="mark-read-btn">标记已读</button>
           <button id="load-more-btn">拉取更多历史</button>
         </div>
@@ -585,6 +805,7 @@
 
       <div id="input-area">
         <input id="msg-text" placeholder="输入消息... (Enter 发送)" />
+        <button id="agent-commands-btn" type="button" title="Agent 常用命令" aria-label="Agent 常用命令">/ 命令</button>
         <button id="send-btn">发送</button>
       </div>
     </div>
@@ -599,6 +820,10 @@
     let currentSessionId = null; // 当前选中的会话ID
     let currentPeerId = null;    // 当前聊天的对象ID
     const hermesBotUserId = 900000000001;
+    const agentContacts = new Map([[hermesBotUserId, 'Pi Agent'], [900000000101, 'Hermes · technical']]);
+    const conversationDrafts = new Map();
+    const isAgentPeer = id => agentContacts.has(Number(id));
+    const agentName = id => agentContacts.get(Number(id)) || 'AI Agent';
     let lastHistorySeq = 0;      // 历史消息最大seq，用于标记已读
     // 单聊历史分页状态
     let historyAnchorSeq = 0;    // 当前已加载历史中最早一条的 msg_seq
@@ -614,6 +839,9 @@
     // 历史、实时和乐观消息共用一套身份索引，避免同一条消息被渲染两次。
     // key 可能是服务端 msg_id，也可能是客户端 client_msg_id；两者都登记。
     const renderedMessageRows = new Map();
+    const agentModelActions = new Map();
+    const agentModelResults = new Map();
+    let agentModelActionOrder = 0;
     const messageDeliveryStates = new Map();
     let chatViewGeneration = 0;
     // Hermes 增量只在当前窗口展示，最终 single_chat 消息到达后替换它；
@@ -624,6 +852,7 @@
     let reconnectAttempt = 0;
     let wsGeneration = 0;
     let wasConnected = false;
+    let authValidationInFlight = null;
     let sessionListRequestId = 0;
     let currentAuthMode = 'login';
 
@@ -655,9 +884,14 @@
       }
     }
 
-    function doLogout() {
+    function doLogout(statusMessage) {
       Auth.clear(); // 清除本地缓存
-      if (ws) ws.close();
+      // 先让旧连接回调失效，再关闭连接，避免 onclose 再次安排重连。
+      ++wsGeneration;
+      if (ws) {
+        ws.onclose = null;
+        ws.close();
+      }
       if (reconnectTimer) {
         clearTimeout(reconnectTimer);
         reconnectTimer = null;
@@ -671,23 +905,87 @@
       currentPeerId = null;
       ws = null;
       wasConnected = false;
+      reconnectAttempt = 0;
       pendingCursorSync.clear();
       document.getElementById('messages').innerHTML = '';
       renderedMessageRows.clear();
+      agentModelActions.clear(); agentModelResults.clear();
       messageDeliveryStates.clear();
       hermesStreamStates.clear();
       pendingLiveMessages = [];
       historyReady = false;
+      document.getElementById('login-status').textContent = statusMessage || '';
       updateUIState();
     }
 
+    // Redis 重启、管理员撤销 Token 或 Token 过期后，旧版本前端会一直拿着
+    // 无效凭证重连，用户只能手动清理 localStorage。启动时先用一个受保护的
+    // HTTP API 校验本地会话；连接过程中连续握手失败也走同一条路径。
+    async function validateSavedSession(savedSession) {
+      if (authValidationInFlight) return authValidationInFlight;
+
+      authValidationInFlight = (async () => {
+        const userId = Number(savedSession && savedSession.user_id);
+        const savedToken = savedSession && savedSession.token;
+        if (!Number.isSafeInteger(userId) || userId <= 0 || !savedToken) {
+          doLogout('本地登录状态无效，请重新登录');
+          return false;
+        }
+
+        try {
+          const resp = await fetch(logicBase + '/api/session/list_single', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + savedToken
+            },
+            body: JSON.stringify({ user_id: userId })
+          });
+          let data = null;
+          try { data = await resp.json(); } catch (_) {}
+
+          if (!resp.ok || !data || data.code !== 0) {
+            const authFailed = resp.status === 401 || resp.status === 403 ||
+              (data && /token|登录|disabled|deleted|失效|expired/i.test(data.message || ''));
+            if (authFailed) {
+              doLogout('登录状态已失效，请重新登录');
+            } else {
+              doLogout('无法验证登录状态，请确认服务已启动后重新登录');
+            }
+            return false;
+          }
+
+          currentUserId = userId;
+          currentUserName = savedSession.name || ('用户 ' + userId);
+          token = savedToken;
+          reconnectAttempt = 0;
+          connectWebSocket();
+          updateUIState();
+          return true;
+        } catch (e) {
+          doLogout('无法连接 Logic 服务，请确认 start_demo.sh 已成功启动');
+          return false;
+        }
+      })();
+
+      try {
+        return await authValidationInFlight;
+      } finally {
+        authValidationInFlight = null;
+      }
+    }
+
     function showChatWindow(peerId, sessionId) {
+      if (currentSessionId)
+        conversationDrafts.set(String(currentSessionId), document.getElementById('msg-text').value);
+      document.getElementById('msg-text').value = conversationDrafts.get(String(sessionId)) || '';
       const viewGeneration = ++chatViewGeneration;
       currentPeerId = peerId;
       currentSessionId = sessionId;
       if (historyRequestController) historyRequestController.abort();
       hermesStreamStates.clear();
       renderedMessageRows.clear();
+      agentModelActions.clear(); agentModelResults.clear();
       messageDeliveryStates.clear();
       pendingLiveMessages = [];
       // 重置历史分页状态
@@ -696,22 +994,30 @@
       historyLoading = false;
       historyReady = false;
       lastHistorySeq = 0;
-      
+
       document.getElementById('empty-state').classList.add('hidden');
       document.getElementById('chat-window').classList.remove('hidden');
-      
-      document.getElementById('chat-title').textContent = Number(peerId) === hermesBotUserId
-        ? '与 Hermes Bot 对话中'
+
+      document.getElementById('chat-title').textContent = isAgentPeer(peerId)
+        ? '与 ' + agentName(peerId) + ' 对话中'
         : '与用户 ' + peerId + ' 聊天中';
       document.getElementById('session-id-disp').textContent = sessionId;
-      
+      const messageInput = document.getElementById('msg-text');
+      if (isAgentPeer(peerId)) {
+        messageInput.placeholder = '输入 CANN 问题，或使用 /cann、/kb';
+        messageInput.title = '/agent · /cann · /kb · /kb status · /new · /retry · /model · /help';
+      } else {
+        messageInput.placeholder = '输入消息... (Enter 发送)';
+        messageInput.title = '';
+      }
+
       // 清空当前消息框并加载历史（首次）
       document.getElementById('messages').innerHTML = '';
       loadHistory(true, viewGeneration, sessionId);
-      
+
       // 刷新未读数
       refreshUnread();
-      
+
       // 高亮左侧列表项
       document.querySelectorAll('.session-item').forEach(el => {
          if(el.dataset.sid === sessionId) el.classList.add('active');
@@ -720,12 +1026,21 @@
     }
 
     // --- 消息渲染逻辑 ---
+    function renderBubbleContent(bubble, text, format) {
+      if (format === 'markdown' && window.SparkSafeMarkdown) {
+        SparkSafeMarkdown.render(bubble, String(text || ''));
+      } else {
+        bubble.removeAttribute('data-safe-markdown-version');
+        bubble.textContent = text;
+      }
+    }
+
     function appendMsgRow(text, isMe, senderId, timeStr, options) {
       const msgsDiv = document.getElementById('messages');
       const opts = options || {};
       const prepend = !!opts.prepend;
       const keepScroll = !!opts.keepScroll;
-      
+
       const row = document.createElement('div');
       row.className = 'msg-row ' + (isMe ? 'me' : 'other');
       if (opts.messageId) row.dataset.messageId = String(opts.messageId);
@@ -734,17 +1049,17 @@
         row.dataset.messageSeq = String(opts.messageSeq);
       }
       if (opts.optimistic) row.dataset.optimistic = 'true';
-      
+
       // 头像
       const avatar = document.createElement('div');
       avatar.className = 'msg-avatar';
       avatar.textContent = isMe ? 'Me' : 'Ta';
       if (isMe) avatar.style.background = '#4caf50';
-      
+
       // 内容包裹
       const wrapper = document.createElement('div');
       wrapper.className = 'msg-content-wrapper';
-      
+
       // 名字 + 时间
       const name = document.createElement('div');
       name.className = 'msg-name';
@@ -752,23 +1067,23 @@
       const displayTime = timeStr || new Date().toLocaleTimeString();
       name.textContent = (senderId || (isMe ? currentUserId : '未知')) +
         ' ' + displayTime;
-      
+
       // 气泡
       const bubble = document.createElement('div');
       bubble.className = 'msg-bubble';
-      bubble.textContent = text;
+      renderBubbleContent(bubble, text, opts.format);
 
       const status = document.createElement('span');
       status.className = 'msg-status';
       status.textContent = opts.statusText || '';
-      
+
       wrapper.appendChild(name);
       wrapper.appendChild(bubble);
       wrapper.appendChild(status);
-      
+
       row.appendChild(avatar);
       row.appendChild(wrapper);
-      
+
       if (prepend && msgsDiv.firstChild) {
         msgsDiv.insertBefore(row, msgsDiv.firstChild);
       } else {
@@ -840,7 +1155,7 @@
       }
     }
 
-    function updateExistingMessageRow(row, text, isMe, senderId, timeStr) {
+    function updateExistingMessageRow(row, text, isMe, senderId, timeStr, options) {
       if (!row) return;
       row.classList.toggle('me', !!isMe);
       row.classList.toggle('other', !isMe);
@@ -850,7 +1165,9 @@
         avatar.style.background = isMe ? '#4caf50' : '';
       }
       const bubble = row.querySelector('.msg-bubble');
-      if (bubble && text !== undefined) bubble.textContent = text;
+      if (bubble && text !== undefined) {
+        renderBubbleContent(bubble, text, options && options.format);
+      }
       const name = row.querySelector('.msg-name');
       if (name) {
         const displayTime = timeStr || new Date().toLocaleTimeString();
@@ -864,9 +1181,10 @@
       const existing = findRenderedMessageRow(message);
       if (existing) {
         // 服务端消息到达时，用权威内容替换乐观气泡，并把 msg_id 也登记起来。
-        updateExistingMessageRow(existing, text, isMe, senderId, timeStr);
+        updateExistingMessageRow(existing, text, isMe, senderId, timeStr, options);
         rememberRenderedMessage(message, existing);
         applyMessageDeliveryState(message, existing);
+        renderAgentPresentation(existing, message);
         return existing;
       }
       const opts = options || {};
@@ -878,11 +1196,87 @@
         messageSeq: message && message.msg_seq,
         optimistic: !!opts.optimistic,
         deferScroll: !!opts.deferScroll,
-        statusText: opts.statusText || ''
+        statusText: opts.statusText || '',
+        format: opts.format
       });
       rememberRenderedMessage(message, row);
       applyMessageDeliveryState(message, row);
+      renderAgentPresentation(row, message);
       return row;
+    }
+
+    function updateAgentModelCards() {
+      const sid = String(currentSessionId || '');
+      for (const card of document.querySelectorAll('#messages .agent-model-picker')) {
+        if (!card.applyModelState || card.dataset.agentSession !== sid) continue;
+        const candidates = [...agentModelActions.values()].filter(item =>
+          item.session === sid && item.source === card.dataset.agentCard);
+        candidates.sort((a, b) => b.seq - a.seq || b.order - a.order);
+        const action = candidates[0];
+        if (!action) continue;
+        const result = agentModelResults.get(sid + ':' + action.clientId);
+        if (!result) { card.applyModelState({pending: true}); continue; }
+        const matches = action.kind === 'reset_model' || (result.model &&
+          result.model.provider === action.provider && result.model.id === action.modelId);
+        card.applyModelState({ok: result.ok === true && matches, model: result.model});
+      }
+    }
+
+    function trackAgentModelMessage(message, sender, sessionId, meta) {
+      const clientId = String(message.client_msg_id || '');
+      const action = meta.agent_action;
+      if (sender === Number(currentUserId) && clientId && action &&
+          ['select_model', 'reset_model'].includes(action.kind) &&
+          typeof action.source_card === 'string' && action.source_card.length <= 128 &&
+          SparkAgentChannel.commandForAction(action) === meta.text) {
+        const key = sessionId + ':' + clientId;
+        const previous = agentModelActions.get(key);
+        agentModelActions.set(key, {session: sessionId, clientId, source: action.source_card,
+          kind: action.kind, provider: action.provider, modelId: action.modelId,
+          seq: Number(message.msg_seq) > 0 ? Number(message.msg_seq) : Number.MAX_SAFE_INTEGER,
+          order: previous ? previous.order : ++agentModelActionOrder});
+      }
+      const result = meta.agent_command_result;
+      if (isAgentPeer(sender) && sender === Number(currentPeerId) &&
+          sessionId === buildSingleSessionId(currentUserId, sender) && clientId.startsWith('hermes:') && result &&
+          result.command === 'model' && typeof result.client_msg_id === 'string' &&
+          result.client_msg_id.length > 0 && result.client_msg_id.length <= 128 &&
+          typeof result.ok === 'boolean' && (!result.ok || SparkAgentChannel.validModel(result.model))) {
+        agentModelResults.set(sessionId + ':' + result.client_msg_id, result);
+      }
+      for (const map of [agentModelActions, agentModelResults])
+        if (map.size > 2000) map.delete(map.keys().next().value);
+      updateAgentModelCards();
+    }
+
+    function renderAgentPresentation(row, message) {
+      const sender = Number(message.sender_id === undefined ? message.from_user_id : message.sender_id);
+      const sessionId = String(message.session_id || '');
+      const meta = getMsgContentMeta(message);
+      trackAgentModelMessage(message, sender, sessionId, meta);
+      if (!isAgentPeer(sender) || !String(message.client_msg_id || '').startsWith('hermes:')) return;
+      const event = meta.agent_event;
+      const sourceCard = String(message.msg_id || message.client_msg_id || '');
+      for (const item of event?.data?.presentation?.actions || []) {
+        if (item.id === 'agent_open' && SparkAgentChannel.validAgentContact(item.value))
+          agentContacts.set(Number(item.value), item.label);
+      }
+      SparkAgentChannel.render(row.querySelector('.msg-bubble'), event, action => {
+        if (sessionId !== String(currentSessionId || '') || !isAgentPeer(currentPeerId)) return false;
+        if (action.kind === 'agent_open' && SparkAgentChannel.validAgentContact(action.value)) {
+          const peer = Number(action.value);
+          if (peer === Number(currentUserId)) return false;
+          agentContacts.set(peer, action.label);
+          showChatWindow(peer, buildSingleSessionId(currentUserId, peer));
+          return true;
+        }
+        const command = SparkAgentChannel.commandForAction(action);
+        if (!command) return false;
+        return sendMsg(command, {...action, source_card: sourceCard});
+      });
+      const card = row.querySelector('.agent-model-picker');
+      if (card) { card.dataset.agentSession = sessionId; card.dataset.agentCard = sourceCard; }
+      updateAgentModelCards();
     }
 
     function appendSystemMsg(text) {
@@ -895,14 +1289,14 @@
     }
 
     // --- 核心业务逻辑 (复用原有逻辑，适配新UI) ---
-    
+
     // 1. 登录/注册
     async function doLoginOrRegister(mode) {
       const account = document.getElementById('account').value.trim();
       const passwordRaw = document.getElementById('password').value;
       const nickname = document.getElementById('nickname').value.trim();
       const statusEl = document.getElementById('login-status');
-      
+
       if (!account || !passwordRaw) {
         statusEl.textContent = '请输入账号和密码';
         return;
@@ -927,26 +1321,26 @@
           body: JSON.stringify(body)
         });
         const data = await resp.json();
-        
+
         if (data.code !== 0) {
           statusEl.textContent = data.message;
           return;
         }
-        
+
         // 成功
         currentUserId = data.data.user_id;
         token = data.data.token;
         currentUserName = data.data.name || nickname || ('用户 ' + currentUserId);
         // 缓存本地
         Auth.set(currentUserId, token, currentUserName);
-        
+
         statusEl.textContent = '';
-        
+
         // 连接 WebSocket
         connectWebSocket();
         // 切换 UI
         updateUIState();
-        
+
       } catch (e) {
         statusEl.textContent = '网络异常: ' + e;
       }
@@ -1025,13 +1419,14 @@
       }
 
       const text = getMsgText(obj);
+      const contentMeta = getMsgContentMeta(obj);
       let timeStr = '';
       if (obj.client_msg_id && /^\d+$/.test(String(obj.client_msg_id))) {
         timeStr = new Date(parseInt(obj.client_msg_id, 10)).toLocaleTimeString();
       }
 
       const clientMsgId = String(obj.client_msg_id || '');
-      const isHermesFinal = Number(obj.from_user_id) === hermesBotUserId &&
+      const isHermesFinal = isAgentPeer(obj.from_user_id) &&
         clientMsgId.startsWith('hermes:');
       if (isHermesFinal) {
         const requestId = clientMsgId.slice('hermes:'.length);
@@ -1044,15 +1439,21 @@
         if (state) {
           // 最终消息是权威落库结果，覆盖尚未刷新的增量缓冲。
           state.pendingText = '';
-          updateExistingMessageRow(state.row, text, false, 'Hermes', timeStr);
+          updateExistingMessageRow(state.row, text, false, agentName(obj.from_user_id), timeStr, {
+            format: contentMeta.format === 'markdown' ? 'markdown' : undefined
+          });
           state.row.classList.remove('hermes-streaming', 'hermes-thinking');
+          state.progressNode?.remove();
           hermesStreamStates.delete(requestId);
           rememberRenderedMessage(obj, state.row);
+          renderAgentPresentation(state.row, obj);
           return;
         }
       }
 
-      const row = renderMessageOnce(obj, text, isMe, senderDisplayName, timeStr);
+      const row = renderMessageOnce(obj, text, isMe, senderDisplayName, timeStr, {
+        format: isHermesFinal && contentMeta.format === 'markdown' ? 'markdown' : undefined
+      });
       if (isMe) setMessageDeliveryState(obj, '已送达');
       return row;
     }
@@ -1067,7 +1468,7 @@
     function handleWebSocketMessage(obj) {
       if (obj.type === 'accepted_ack') {
         setMessageDeliveryState(obj, '已接收');
-        if (Number(currentPeerId) === hermesBotUserId &&
+        if (isAgentPeer(currentPeerId) &&
             String(obj.session_id || '') === String(currentSessionId || '')) {
           handleHermesAccepted(obj);
         }
@@ -1078,7 +1479,14 @@
       } else if (obj.type === 'ack') {
         // 兼容 chatroom_join/leave 等控制 ACK。
       } else if (obj.type === 'error') {
-        if (obj.client_msg_id) setMessageDeliveryState(obj, '发送失败');
+        if (obj.client_msg_id) {
+          setMessageDeliveryState(obj, '发送失败');
+          const key = String(obj.session_id || currentSessionId || '') + ':' + obj.client_msg_id;
+          if (agentModelActions.has(key)) {
+            agentModelResults.set(key, {ok: false});
+            updateAgentModelCards();
+          }
+        }
         showToast('发送失败: ' + (obj.message || 'unknown'));
         if (currentSessionId) {
           appendSystemMsg('服务端错误: ' + (obj.message || '请求失败'));
@@ -1157,6 +1565,15 @@
       socket.onclose = () => {
         if (socketGeneration !== wsGeneration) return;
         ws = null;
+        // 握手阶段被 Logic 拒绝时，浏览器只暴露 close，不暴露服务端的 401
+        // 原因。连续失败后主动验证 HTTP Token，失效就清理本地会话并显示登录框。
+        if (reconnectAttempt >= 2) {
+          const savedSession = Auth.get();
+          if (savedSession) {
+            validateSavedSession(savedSession);
+            return;
+          }
+        }
         scheduleWebSocketReconnect();
       };
     }
@@ -1196,23 +1613,26 @@
         container.appendChild(empty);
         return;
       }
-      
+
       list.forEach(s => {
         const div = document.createElement('div');
         div.className = 'session-item';
         if (String(s.session_id) === String(currentSessionId)) div.classList.add('active');
         div.dataset.sid = s.session_id;
-        
-        const isHermes = Number(s.peer_user_id) === hermesBotUserId;
+
+        const isHermes = isAgentPeer(s.peer_user_id);
         const avatar = document.createElement('div');
         avatar.className = 'avatar-placeholder';
         avatar.style.background = isHermes ? '#7c3aed' : '#90caf9';
-        avatar.textContent = isHermes ? '🤖' : String(s.peer_user_id || '');
+        const rawUid = String(s.peer_user_id || '');
+        // 若 UserID 较长（如 9000000010），取后 4 位或短字符展示，防止圆形头像数字溢出
+        avatar.textContent = isHermes ? '🤖' : (rawUid.length > 4 ? rawUid.slice(-4) : rawUid);
+        avatar.title = rawUid;
         const info = document.createElement('div');
         info.className = 'session-info';
         const name = document.createElement('div');
         name.className = 'session-name';
-        name.textContent = isHermes ? 'Hermes Bot' : '用户 ' + s.peer_user_id;
+        name.textContent = isHermes ? agentName(s.peer_user_id) : '用户 ' + s.peer_user_id;
         const preview = document.createElement('div');
         preview.className = 'session-preview';
         preview.textContent = '会话 ID: ' + String(s.session_id || '');
@@ -1227,9 +1647,19 @@
       });
     }
 
+    // Elapsed display is local, not a claim that the backend is alive.
+    setInterval(() => {
+      for (const state of hermesStreamStates.values()) {
+        const elapsed = Math.floor((Date.now() - state.startedAt) / 1000);
+        const quiet = Math.floor((Date.now() - state.lastActivity) / 1000);
+        state.progressNode.textContent = state.progressText + ' · 等待 ' + elapsed + ' 秒' +
+          (quiet >= 30 ? ' · ' + quiet + ' 秒未收到新进度' : '');
+      }
+    }, 1000);
+
     function createHermesStreamState(requestId, thinking) {
-      const row = appendMsgRow(thinking ? 'Hermes 正在思考…' : '', false,
-        'Hermes');
+      const row = appendMsgRow(thinking ? agentName(currentPeerId) + ' 正在思考…' : '', false,
+        agentName(currentPeerId));
       row.classList.add('hermes-streaming');
       if (thinking) row.classList.add('hermes-thinking');
       const state = {
@@ -1241,6 +1671,13 @@
         thinking: !!thinking,
         autoScroll: true
       };
+      const progress = document.createElement('div');
+      progress.className = 'agent-stream-progress'; progress.setAttribute('role', 'status');
+      progress.setAttribute('aria-live', 'polite');
+      row.querySelector('.msg-bubble').after(progress);
+      state.progressNode = progress; state.startedAt = Date.now(); state.lastActivity = Date.now();
+      state.progressText = '请求已接收，等待 Agent 处理';
+      progress.textContent = state.progressText;
       hermesStreamStates.set(requestId, state);
       return state;
     }
@@ -1289,6 +1726,13 @@
 
        let state = hermesStreamStates.get(requestId);
        if (!state) state = createHermesStreamState(requestId, false);
+       state.lastActivity = Date.now();
+       if (obj.progress === true) {
+         state.progressText = delta;
+         state.progressNode.textContent = delta;
+         return;
+       }
+       state.progressText = '正在生成回答';
        if (state.thinking) {
          state.thinking = false;
          state.row.classList.remove('hermes-thinking');
@@ -1300,14 +1744,14 @@
        state.pendingText += delta;
        scheduleHermesStreamFlush(requestId, state);
     }
-    
+
     // 4. 开启新会话 (build ID)
     function buildSingleSessionId(u1, u2) {
        const a = Number(u1); const b = Number(u2);
        if(!a || !b) return null;
        return 's_' + Math.min(a,b) + '_' + Math.max(a,b);
     }
-    
+
     // 5. 历史记录（支持分页 / 滚动加载）
     async function loadHistory(isInitial,
                                viewGeneration = chatViewGeneration,
@@ -1369,7 +1813,7 @@
            lastHistorySeq = Math.max(lastHistorySeq, m.msg_seq || 0);
            const isMe = Number(m.sender_id) === Number(currentUserId);
            const text = getMsgText(m);
-           
+
            // 尝试解析 sender name
            let displayName = 'User ' + m.sender_id;
            try {
@@ -1380,11 +1824,15 @@
            } catch(e){}
 
            const timeStr = m.timestamp_ms ? new Date(m.timestamp_ms).toLocaleTimeString() : '';
-           
-           renderMessageOnce(m, text, isMe, displayName, timeStr, {
+
+           // History API omits top-level session_id. Bind card actions to the
+           // authenticated query's session, never the currently selected peer.
+           renderMessageOnce({...m, session_id: requestedSessionId}, text, isMe, displayName, timeStr, {
              prepend: !isInitial,
              keepScroll: !isInitial,
-             deferScroll: true
+             deferScroll: true,
+             format: isAgentPeer(m.sender_id) &&
+               getMsgContentMeta(m).format === 'markdown' ? 'markdown' : undefined
            });
          });
          transientNodes.forEach(node => container.appendChild(node));
@@ -1429,8 +1877,9 @@
     }
 
     // 6. 发送消息
-    function sendMsg() {
-       const text = document.getElementById('msg-text').value.trim();
+    function sendMsg(commandText, agentAction) {
+       const fromAction = typeof commandText === 'string';
+       const text = fromAction ? commandText : document.getElementById('msg-text').value.trim();
        if (!text) return;
 
        const peerId = Number(currentPeerId);
@@ -1440,12 +1889,12 @@
          appendSystemMsg('发送失败：未选择有效聊天对象（需要对方数字 ID，不是账号名）');
          return;
        }
-       
+
        if (!ws || ws.readyState !== WebSocket.OPEN) {
          appendSystemMsg('WebSocket 未连接，无法发送');
          return;
        }
-       
+
        const payload = {
          type: 'single_chat',
          to_user_id: peerId,
@@ -1453,6 +1902,13 @@
            Math.random().toString(36).slice(2, 8),
          content: { text }
        };
+       if (agentAction && isAgentPeer(peerId) &&
+           SparkAgentChannel.commandForAction(agentAction) === text) {
+         const {kind, value, provider, modelId, source_card} = agentAction;
+         payload.content.agent_action = {kind, value, provider, modelId};
+         if (typeof source_card === 'string' && source_card.length <= 128)
+           payload.content.agent_action.source_card = source_card;
+       }
        try {
          if (ws.bufferedAmount > 1024 * 1024) {
            appendSystemMsg('发送队列繁忙，请稍后重试');
@@ -1464,13 +1920,14 @@
          scheduleWebSocketReconnect();
          return;
        }
-       
+
        // 乐观更新 UI
-       renderMessageOnce(payload, text, true, currentUserId, '', {
+       renderMessageOnce({...payload, session_id: currentSessionId, from_user_id: currentUserId}, SparkAgentChannel.displayAction(payload.content) || text, true, currentUserId, '', {
          optimistic: true,
          statusText: '发送中'
        });
-       document.getElementById('msg-text').value = '';
+       if (!fromAction) document.getElementById('msg-text').value = '';
+       return true;
     }
 
     document.getElementById('start-hermes-btn').onclick = () => {
@@ -1479,16 +1936,40 @@
         buildSingleSessionId(currentUserId, hermesBotUserId));
     };
 
+    document.getElementById('agent-directory-btn').onclick = async () => {
+      if (!currentUserId) return;
+      if (!isAgentPeer(currentPeerId))
+        showChatWindow(hermesBotUserId, buildSingleSessionId(currentUserId, hermesBotUserId));
+      const sid = currentSessionId;
+      for (let attempt = 0; attempt < 100 && !historyReady && sid === currentSessionId; ++attempt)
+        await new Promise(resolve => setTimeout(resolve, 50));
+      if (sid === currentSessionId && historyReady) sendMsg('/agent', {kind: 'agent'});
+    };
+
     // 辅助：解析消息内容
+    function getMsgContentMeta(obj) {
+       if (!obj || obj.content === undefined || obj.content === null) return {};
+       try {
+         const outer = typeof obj.content === 'string' ? JSON.parse(obj.content) : obj.content;
+         if (!outer || typeof outer !== 'object') return {};
+         if (outer.content && typeof outer.content === 'object') return outer.content;
+         return outer;
+       } catch (_) {
+         return {};
+       }
+    }
+
     function getMsgText(obj) {
        if (!obj.content) return '[空]';
+       const actionText = SparkAgentChannel.displayAction(getMsgContentMeta(obj));
+       if (actionText) return actionText;
        try {
          // 兼容 content 是 string 或 object
          const c = (typeof obj.content === 'string') ? JSON.parse(obj.content) : obj.content;
-         
+
          // 1. 直接包含 text (如 HTTP 发送的消息)
          if (c.text) return c.text;
-         
+
          // 2. 嵌套结构 (如 WebSocket 上行存库后的数据，外层包裹了 msg_id 等)
          if (c.content) {
             // 可能是 {content: {text: "..."}}
@@ -1496,13 +1977,13 @@
             // 可能是 {content: "..."}
             if (typeof c.content === 'string') return c.content;
          }
-         
+
          return JSON.stringify(c);
        } catch(e) {
          return String(obj.content);
        }
     }
-    
+
     // 辅助：刷新未读 / 标记已读
     async function refreshUnread() {
       if(!currentSessionId || !currentUserId || !token) return;
@@ -1559,7 +2040,7 @@
       div.className = 'toast';
       div.textContent = msg;
       container.appendChild(div);
-      
+
       // Auto remove
       setTimeout(() => {
         div.style.animation = 'toast-out 0.3s ease-in forwards';
@@ -1578,7 +2059,7 @@
          const regBtn = document.getElementById('register-btn');
          const logBtn = document.getElementById('login-btn');
          const nickGroup = document.getElementById('nickname-group');
-         
+
          if(mode === 'login') {
             regBtn.classList.add('hidden');
             logBtn.classList.remove('hidden');
@@ -1616,9 +2097,13 @@
        if (!sid) return alert('无法构造会话，请检查双方 UserID');
        showChatWindow(peer, sid);
     };
-    
+
     document.getElementById('refresh-sessions-btn').onclick = loadSingleSessionList;
     document.getElementById('send-btn').onclick = sendMsg;
+    document.getElementById('agent-commands-btn').onclick = () => {
+      if (!isAgentPeer(currentPeerId)) { showToast('请先打开 Agent 会话'); return; }
+      sendMsg('/help', {kind: 'help'});
+    };
     document.getElementById('msg-text').onkeydown = (e) => { if(e.key==='Enter') sendMsg(); };
 
     // 点击“拉取更多历史”按钮时，向前分页加载
@@ -1633,17 +2118,14 @@
       }
     });
 
-    // 初始化
+    // 初始化：不要直接相信 localStorage 中的身份；先通过 Logic 校验 Token。
     const savedSession = Auth.get();
     if (savedSession) {
-      // LocalStorage 存的是字符串，后端 API 强校验 user_id 为 number (int64)
-      currentUserId = Number(savedSession.user_id);
-      currentUserName = savedSession.name || ('用户 ' + currentUserId);
-      token = savedSession.token;
-      connectWebSocket();
-      // 可以在这里校验 Token 有效性，如果 WS 连接立刻断开或返回 Auth 错误则需处理
+      document.getElementById('login-status').textContent = '正在验证登录状态...';
+      validateSavedSession(savedSession);
+    } else {
+      updateUIState();
     }
-    updateUIState();
   </script>
 </body>
 </html>

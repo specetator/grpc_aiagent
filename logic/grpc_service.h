@@ -4,6 +4,7 @@
 #include <nlohmann/json.hpp>
 
 #include <memory>
+#include <map>
 #include <mutex>
 #include <chrono>
 #include <deque>
@@ -13,6 +14,7 @@
 
 #include "conversation_store.h"
 #include "group_dao.h"
+#include "hermes_command.h"
 #include "kafka_producer.h"
 #include "redis_store.h"
 #include "rate_limiter.h"
@@ -33,7 +35,8 @@ class LogicServiceImpl final : public sparkpush::LogicService::Service {
                      const RateLimitConfig& rate_limit,
                      int persist_kafka_timeout_ms,
                      KafkaProducer* hermes_request_producer,
-                     bool hermes_enabled, int64_t hermes_bot_user_id);
+                     bool hermes_enabled, int64_t hermes_bot_user_id,
+                     std::map<int64_t, std::string> agent_bot_users = {});
 
     ::grpc::Status VerifyToken(
         ::grpc::ServerContext* context,
@@ -107,8 +110,8 @@ class LogicServiceImpl final : public sparkpush::LogicService::Service {
     bool PersistToTopic(const Message& message, const std::string& scene,
                         int64_t user1, int64_t user2, int64_t room_id,
                         std::string* err);
-    bool BuildHermesMessages(const Message& current,
-                             nlohmann::json* messages, std::string* err);
+    bool BuildHermesRequest(const Message& current, nlohmann::json* request,
+                            std::string* err);
     bool EnqueueHermesRequest(const Message& current, std::string* err);
     void RememberHermesMessage(const Message& message);
     bool IsHermesStreamCompleted(const std::string& request_id);
@@ -129,6 +132,7 @@ class LogicServiceImpl final : public sparkpush::LogicService::Service {
     int persist_kafka_timeout_ms_{5000};
     bool hermes_enabled_{false};
     int64_t hermes_bot_user_id_{0};
+    std::map<int64_t, std::string> agent_bot_users_;
     struct UserCacheEntry {
         User user;
         std::chrono::steady_clock::time_point expires_at;

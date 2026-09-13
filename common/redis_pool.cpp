@@ -1,6 +1,7 @@
 #include "redis_pool.h"
 
 #include "logging.h"
+#include "metrics.h"
 
 #include <algorithm>
 
@@ -108,6 +109,8 @@ bool RedisConnectionPool::Init(const RedisConfig& cfg) {
         }
         idle_.push_back({ctx, std::chrono::steady_clock::now()});
         ++total_conns_;
+        MetricsRegistry::Instance().Increment(
+            "spark_push_redis_pool_connections_created_total");
     }
     stopping_ = false;
     return true;
@@ -117,11 +120,16 @@ bool RedisConnectionPool::Init(const RedisConfig& cfg) {
 RedisConnGuard RedisConnectionPool::Acquire(int timeout_ms) {
     std::unique_lock<std::mutex> lock(mutex_);
     redisContext* ctx = nullptr;
+    std::chrono::steady_clock::time_point last_used{};
+    bool needs_validation = false;
     auto wait_timeout = std::chrono::milliseconds(timeout_ms);
 
     while (!stopping_) {
-        ctx = PopIdleUnlocked();
-        if (ctx) {
+        if (PopIdleUnlocked(&ctx, &last_used)) {
+            needs_validation = cfg_.health_check_interval_ms > 0 &&
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now() - last_used).count() >=
+                    cfg_.health_check_interval_ms;
             break;
         }
 
@@ -129,6 +137,9 @@ RedisConnGuard RedisConnectionPool::Acquire(int timeout_ms) {
             ctx = CreateContextUnlocked();
             if (ctx) {
                 ++total_conns_;
+                needs_validation = false;
+                MetricsRegistry::Instance().Increment(
+                    "spark_push_redis_pool_connections_created_total");
                 break;
             }
         }
@@ -136,9 +147,13 @@ RedisConnGuard RedisConnectionPool::Acquire(int timeout_ms) {
         if (timeout_ms < 0) {
             cv_.wait(lock);
         } else if (timeout_ms == 0) {
+            MetricsRegistry::Instance().Increment(
+                "spark_push_redis_pool_acquire_timeout_total");
             return RedisConnGuard(*this, nullptr);
         } else {
             if (cv_.wait_for(lock, wait_timeout) == std::cv_status::timeout) {
+                MetricsRegistry::Instance().Increment(
+                    "spark_push_redis_pool_acquire_timeout_total");
                 return RedisConnGuard(*this, nullptr);
             }
         }
@@ -149,7 +164,16 @@ RedisConnGuard RedisConnectionPool::Acquire(int timeout_ms) {
             return RedisConnGuard(*this, nullptr);
         }
         lock.unlock();
-        if (Validate(&ctx)) {
+        bool valid = true;
+        if (needs_validation) {
+            MetricsRegistry::Instance().Increment(
+                "spark_push_redis_pool_health_check_total");
+            valid = Validate(&ctx);
+            MetricsRegistry::Instance().Increment(
+                valid ? "spark_push_redis_pool_health_check_success_total"
+                      : "spark_push_redis_pool_health_check_failed_total");
+        }
+        if (valid) {
             return RedisConnGuard(*this, ctx);
         }
         {
@@ -159,25 +183,38 @@ RedisConnGuard RedisConnectionPool::Acquire(int timeout_ms) {
             }
         }
         lock.lock();
-        ctx = PopIdleUnlocked();
+        needs_validation = false;
+        if (PopIdleUnlocked(&ctx, &last_used)) {
+            needs_validation = cfg_.health_check_interval_ms > 0 &&
+                std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::steady_clock::now() - last_used).count() >=
+                    cfg_.health_check_interval_ms;
+        }
         if (!ctx && cfg_.enable_auto_grow && total_conns_ < cfg_.max_pool_size) {
             ctx = CreateContextUnlocked();
             if (ctx) {
                 ++total_conns_;
+                MetricsRegistry::Instance().Increment(
+                    "spark_push_redis_pool_connections_created_total");
             }
         }
     }
 }
 
 // 弹出一个空闲连接，清理过期连接后再返回。
-redisContext* RedisConnectionPool::PopIdleUnlocked() {
+bool RedisConnectionPool::PopIdleUnlocked(
+    redisContext** ctx,
+    std::chrono::steady_clock::time_point* last_used) {
+    if (!ctx || !last_used) return false;
+    *ctx = nullptr;
     CleanupIdleUnlocked();
     if (idle_.empty()) {
-        return nullptr;
+        return false;
     }
-    redisContext* ctx = idle_.front().ctx;
+    *ctx = idle_.front().ctx;
+    *last_used = idle_.front().last_used;
     idle_.pop_front();
-    return ctx;
+    return *ctx != nullptr;
 }
 
 // 清理超过空闲时间的连接，保留最小池大小。
@@ -199,6 +236,8 @@ void RedisConnectionPool::CleanupIdleUnlocked() {
         redisFree(entry.ctx);
         idle_.pop_front();
         --total_conns_;
+        MetricsRegistry::Instance().Increment(
+            "spark_push_redis_pool_idle_closed_total");
     }
 }
 
@@ -234,6 +273,15 @@ void RedisConnectionPool::Release(redisContext* ctx) {
                 --total_conns_;
             }
         }
+        return;
+    }
+    // 业务命令已发现 I/O 错误时，不把断链连接放回池中反复失败。
+    if (!ctx || ctx->err != 0) {
+        if (ctx) redisFree(ctx);
+        if (total_conns_ > 0) --total_conns_;
+        MetricsRegistry::Instance().Increment(
+            "spark_push_redis_pool_connections_discarded_total");
+        cv_.notify_one();
         return;
     }
     idle_.push_back({ctx, std::chrono::steady_clock::now()});

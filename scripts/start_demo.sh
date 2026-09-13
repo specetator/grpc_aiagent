@@ -11,6 +11,7 @@ cd "$ROOT"
 ENV_FILE="${SPARK_PUSH_ENV_FILE:-$ROOT/.env.local}"
 BUILD_DIR="${SPARK_PUSH_BUILD_DIR:-$ROOT/build}"
 BUILD_JOBS="${SPARK_PUSH_BUILD_JOBS:-$(nproc 2>/dev/null || echo 4)}"
+ACCESS_IP="${SPARK_PUSH_ACCESS_IP:-}"
 FOREGROUND=0
 SKIP_BUILD=0
 SKIP_DEPS=0
@@ -28,8 +29,9 @@ usage() {
 环境变量：
   SPARK_PUSH_ENV_FILE   环境文件路径，默认 .env.local
   SPARK_PUSH_BUILD_JOBS 编译并行度，默认 nproc
-  SPARK_PUSH_HERMES_ENABLED=true 时额外启动 Hermes Bridge；同时需要
-  SPARK_PUSH_HERMES_BASE_URL、SPARK_PUSH_HERMES_API_KEY
+  SPARK_PUSH_ACCESS_IP  Windows/局域网访问用的虚拟机 IP；默认自动检测
+  SPARK_PUSH_HERMES_ENABLED=true 时额外启动 hermes_bridge（现对接 Pi Agent）；
+  同时需要 SPARK_PUSH_HERMES_BASE_URL、SPARK_PUSH_HERMES_API_KEY
 EOF
 }
 
@@ -61,6 +63,9 @@ elif [[ -z "${SPARK_PUSH_MYSQL_PASSWORD:-}" ]]; then
 else
   echo "未找到 $ENV_FILE，使用当前 shell 注入的环境变量"
 fi
+
+# 允许把访问地址写进 .env.local；命令行环境变量仍然可以在未配置时提供默认值。
+ACCESS_IP="${ACCESS_IP:-${SPARK_PUSH_ACCESS_IP:-}}"
 
 if [[ -z "${SPARK_PUSH_MYSQL_PASSWORD:-}" ||
       "${SPARK_PUSH_MYSQL_PASSWORD}" == "replace-with-a-local-password" ]]; then
@@ -157,7 +162,7 @@ prepare_dependencies() {
   echo "[2/5] 初始化 Kafka topics..."
   local topic
   for topic in push_single push_group push_to_comet broadcast_task persist_message \
-      ai_request ai_delta ai_reply; do
+      ai_request ai_delta ai_reply ai_request.dlq ai_reply.dlq persist_message.dlq; do
     docker exec spark-kafka /opt/kafka/bin/kafka-topics.sh \
       --bootstrap-server 127.0.0.1:29092 \
       --create --if-not-exists --topic "$topic" \
@@ -206,7 +211,10 @@ start_process() {
   local name="$1"
   local logfile="$2"
   shift 2
-  nohup "$@" </dev/null >>"$logfile" 2>&1 &
+  # nohup 只忽略 SIGHUP；在某些终端/任务执行器中，父会话结束时仍会
+  # 回收同一进程组。setsid 让 Demo 服务拥有独立 session，脚本返回后
+  # 仍能稳定提供 9010/9101/9000 等端口。
+  nohup setsid "$@" </dev/null >>"$logfile" 2>&1 &
   local pid=$!
   printf '%s\n' "$pid" >"$ROOT/.run/${name}.pid"
   sleep 0.5
@@ -255,6 +263,33 @@ wait_metric() {
   return 1
 }
 
+detect_access_ip() {
+  local detected=""
+  # 优先使用默认路由对应的源地址，避免把 docker0/bridge 地址打印给用户。
+  if command -v ip >/dev/null 2>&1; then
+    detected="$(ip -4 route get 1.1.1.1 2>/dev/null |
+      sed -n 's/.* src \([0-9.][0-9.]*\).*/\1/p' | head -n 1)"
+  fi
+  if [[ "$detected" =~ ^127\. || "$detected" == "0.0.0.0" ]]; then
+    detected=""
+  fi
+  if [[ -z "$detected" ]]; then
+    detected="$(hostname -I 2>/dev/null | tr ' ' '\n' |
+      awk '/^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$/ && $1 !~ /^127\./ {print; exit}')"
+  fi
+  printf '%s\n' "$detected"
+}
+
+check_windows_access() {
+  [[ -z "$ACCESS_IP" || "$ACCESS_IP" == 127.* ]] && return 0
+  local url="http://${ACCESS_IP}:9010/index.html"
+  if curl --noproxy '*' -fsS --max-time 3 "$url" >/dev/null 2>&1; then
+    echo "Windows 访问链路已验证：$url"
+  else
+    echo "警告：本机无法通过 $ACCESS_IP 回环访问 WebDemo；请检查监听地址或 Ubuntu 防火墙" >&2
+  fi
+}
+
 start_services() {
   mkdir -p "$ROOT/logs" "$ROOT/.run"
   stop_old_processes
@@ -275,7 +310,7 @@ start_services() {
     start_process hermes_bridge "$ROOT/logs/hermes_bridge.out" \
       "$BUILD_DIR/hermes_bridge/hermes_bridge" \
       --config "$ROOT/conf/hermes_bridge.conf"
-    echo "Hermes Bridge 已启动（SSE 流式 /v1/chat/completions，最终消息仍落库）"
+    echo "Agent Bridge 已启动（对接 Pi Agent SSE /v1/chat/completions，最终消息仍落库）"
   fi
 
   start_process comet_server "$ROOT/logs/comet.out" \
@@ -304,17 +339,30 @@ start_services() {
     --doc-root "$ROOT/web_demo/static"
   wait_port 9010 WebDemo
 
+  if [[ -z "$ACCESS_IP" ]]; then
+    ACCESS_IP="$(detect_access_ip)"
+  fi
+  check_windows_access
+
   echo
   echo "项目已启动："
   echo "  浏览器：http://127.0.0.1:9010/index.html"
+  if [[ -n "$ACCESS_IP" ]]; then
+    echo "  Windows/局域网浏览器：http://${ACCESS_IP}:9010/index.html"
+    echo "  Windows 依赖检查：Logic http://${ACCESS_IP}:9101，WebSocket ws://${ACCESS_IP}:9000/ws"
+  else
+    echo "  未能自动识别虚拟机 IP；执行 hostname -I 后，用其中的网卡 IP 访问 9010"
+  fi
   echo "  Logic metrics：http://127.0.0.1:9101/metrics"
   echo "  Job metrics：http://127.0.0.1:9202/metrics"
   echo "  Comet metrics：http://127.0.0.1:9203/metrics"
   if hermes_enabled; then
-    echo "  Hermes Bot：900000000001（在单聊页面输入该用户 ID）"
-    echo "  Hermes Bridge 日志：$ROOT/logs/hermes_bridge.out"
+    echo "  Pi Agent Bot：900000000001（在单聊页面输入该用户 ID）"
+    echo "  Agent Bridge 日志：$ROOT/logs/hermes_bridge.out"
+    echo "  Pi Gateway 日志：$ROOT/logs/pi_gateway.out"
   fi
-  echo "  停止服务：bash scripts/stop_demo.sh"
+  echo "  停止完整栈：./scripts/sparkctl.sh down"
+  echo "  仅停止 Spark 业务：bash scripts/stop_demo.sh"
   echo
 }
 

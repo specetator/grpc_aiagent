@@ -8,8 +8,22 @@
 #include <chrono>
 #include <thread>
 #include <vector>
+#include <nlohmann/json.hpp>
 
 namespace sparkpush {
+namespace {
+// Kafka records may contain invalid UTF-8 or binary data; retain exact bytes.
+std::string Hex(const std::string& bytes) {
+    static constexpr char digits[] = "0123456789abcdef";
+    std::string result;
+    result.reserve(bytes.size() * 2);
+    for (unsigned char c : bytes) {
+        result += digits[c >> 4];
+        result += digits[c & 15];
+    }
+    return result;
+}
+}
 
 // 析构时主动停止消费，确保后台线程退出。
 KafkaConsumer::~KafkaConsumer() {
@@ -22,29 +36,45 @@ bool KafkaConsumer::Init(const std::string& brokers,
                          const std::string& topic,
                          std::function<bool(const std::string&, const std::string&)> callback,
                          const Options& options) {
+    if (thread_.joinable() || consumer_) return false;
+    dead_letter_producer_.reset();
+    failed_ = false;
     topic_ = topic;
+    group_id_ = group_id;
     callback_ = std::move(callback);
     options_ = options;
+    if (!options_.dead_letter_topic.empty()) {
+        if (options_.enable_auto_commit || options_.dead_letter_timeout_ms <= 0 ||
+            options_.dead_letter_topic == topic_) return false;
+        dead_letter_producer_ = std::make_unique<KafkaProducer>();
+        if (!dead_letter_producer_->Init(brokers, options_.dead_letter_topic))
+            return false;
+    }
 
     std::string errstr;
     // 创建全局配置
     RdKafka::Conf* conf = RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL);
-    conf->set("bootstrap.servers", brokers, errstr);
-    conf->set("group.id", group_id, errstr);
-    conf->set("enable.partition.eof", "false", errstr);
-    conf->set("auto.offset.reset", options_.auto_offset_reset, errstr);
-    conf->set("enable.auto.commit",
-              options_.enable_auto_commit ? "true" : "false",
-              errstr);
-    conf->set("auto.commit.interval.ms",
-              std::to_string(options_.auto_commit_interval_ms),
-              errstr);
-    conf->set("max.poll.interval.ms",
-              std::to_string(options_.max_poll_interval_ms),
-              errstr);
-    conf->set("session.timeout.ms",
-              std::to_string(options_.session_timeout_ms),
-              errstr);
+    bool config_ok = true;
+    auto set_config = [&](const std::string& key, const std::string& value) {
+        if (conf->set(key, value, errstr) != RdKafka::Conf::CONF_OK) {
+            config_ok = false;
+            LOG_ERROR << "KafkaConsumer rejected config key=" << key;
+        }
+    };
+    set_config("bootstrap.servers", brokers);
+    set_config("group.id", group_id);
+    set_config("enable.partition.eof", "false");
+    set_config("auto.offset.reset", options_.auto_offset_reset);
+    set_config("enable.auto.commit", options_.enable_auto_commit ? "true" : "false");
+    if (dead_letter_producer_)
+        set_config("enable.auto.offset.store", "false");
+    set_config("auto.commit.interval.ms", std::to_string(options_.auto_commit_interval_ms));
+    set_config("max.poll.interval.ms", std::to_string(options_.max_poll_interval_ms));
+    set_config("session.timeout.ms", std::to_string(options_.session_timeout_ms));
+    if (!config_ok) {
+        delete conf;
+        return false;
+    }
 
     consumer_.reset(RdKafka::KafkaConsumer::create(conf, errstr));
     delete conf;
@@ -65,7 +95,7 @@ bool KafkaConsumer::Init(const std::string& brokers,
 
 // 启动消费线程，避免重复启动。
 void KafkaConsumer::Start() {
-    if (running_) {
+    if (running_ || thread_.joinable() || failed_ || !consumer_) {
         return;
     }
     running_ = true;
@@ -74,9 +104,6 @@ void KafkaConsumer::Start() {
 
 // 停止消费并释放底层 consumer 资源。
 void KafkaConsumer::Stop() {
-    if (!running_) {
-        return;
-    }
     running_ = false;
     if (thread_.joinable()) {
         thread_.join();
@@ -97,6 +124,11 @@ void KafkaConsumer::Loop() {
         }
         HandleMessage(msg.get());
     }
+    if (failed_) {
+        // Release assignment promptly so a replacement can replay the record.
+        consumer_->close();
+        consumer_.reset();
+    }
 }
 
 // 按错误码分类处理 Kafka 消息，确保业务回调后再提交位点。
@@ -116,12 +148,19 @@ void KafkaConsumer::HandleMessage(RdKafka::Message* message) {
             if (message->key()) {
                 key = *message->key();
             }
-            std::string value(static_cast<const char*>(message->payload()),
-                              message->len());
+            std::string value;
+            if (message->len())
+                value.assign(static_cast<const char*>(message->payload()), message->len());
             bool handled = !callback_;
             const int attempts = std::max(1, options_.max_processing_attempts);
             for (int attempt = 1; callback_ && attempt <= attempts; ++attempt) {
-                handled = callback_(key, value);
+                try {
+                    handled = callback_(key, value);
+                } catch (...) {
+                    // Exception text can contain message bodies/credentials.
+                    LOG_ERROR << "Kafka business callback threw topic=" << topic_;
+                    handled = false;
+                }
                 if (handled) {
                     break;
                 }
@@ -137,20 +176,62 @@ void KafkaConsumer::HandleMessage(RdKafka::Message* message) {
             }
 
             if (!handled) {
-                // 当前项目没有独立 DLQ topic，至少保留不含正文的审计日志，
-                // 避免毒消息永久阻塞整个分区。
-                LOG_ERROR << "[DLQ][KafkaConsumer] processing exhausted topic="
+                LOG_ERROR << "Kafka processing exhausted topic="
                           << message->topic_name()
                           << " partition=" << message->partition()
                           << " offset=" << message->offset();
+                if (dead_letter_producer_) {
+                    try {
+                        const auto id = nlohmann::json::array(
+                            {group_id_, topic_, message->partition(), message->offset()}).dump();
+                        nlohmann::json failure = {
+                            {"schema", "sparkpush.dead_letter.v1"}, {"id", id},
+                            {"consumer_group", group_id_}, {"topic", topic_},
+                            {"partition", message->partition()}, {"offset", message->offset()},
+                            {"timestamp_ms", timestamp.timestamp},
+                            {"key_is_null", message->key() == nullptr},
+                            {"payload_is_null", message->payload() == nullptr},
+                            {"key_hex", Hex(key)}, {"payload_hex", Hex(value)},
+                            {"attempts", attempts}, {"reason", "processing_exhausted"}};
+                        if (options_.failure_recovery) {
+                            auto recovery = options_.failure_recovery(key, value);
+                            if (!recovery.topic.empty()) {
+                                failure["recovery"] = {{"topic", recovery.topic},
+                                    {"key_hex", Hex(recovery.key)},
+                                    {"payload_hex", Hex(recovery.payload)}};
+                            }
+                        }
+                        handled = dead_letter_producer_->SendAndWait(
+                            id, failure.dump(), options_.dead_letter_timeout_ms);
+                    } catch (...) {
+                        handled = false;
+                    }
+                    if (!handled) {
+                        failed_ = true;
+                        running_ = false;
+                        MetricsRegistry::Instance().Set(
+                            "spark_push_kafka_consumer_failed_" + topic_, 1);
+                        LOG_ERROR << "Kafka consumer halted: DLQ unconfirmed topic=" << topic_;
+                        return;
+                    }
+                    MetricsRegistry::Instance().Increment(
+                        "spark_push_kafka_dead_letters_total_" + topic_);
+                }
             }
 
-            // 回调完成（成功或已记录死信）后再同步提交，避免任务刚入线程池就前移位点。
+            // Durable mode requires business success or confirmed DLQ delivery.
+            // Other consumers retain their existing best-effort failure policy.
             if (!options_.enable_auto_commit && consumer_) {
                 RdKafka::ErrorCode commit_err = consumer_->commitSync(message);
                 if (commit_err != RdKafka::ERR_NO_ERROR) {
                     LOG_ERROR << "Kafka offset commit failed: "
                               << RdKafka::err2str(commit_err);
+                    if (dead_letter_producer_) {
+                        failed_ = true;
+                        running_ = false;
+                        MetricsRegistry::Instance().Set(
+                            "spark_push_kafka_consumer_failed_" + topic_, 1);
+                    }
                 }
             }
             break;

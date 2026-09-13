@@ -3,6 +3,10 @@ cmake_minimum_required(VERSION 3.14)
 add_executable(logic_server
   main.cpp
   grpc_service.cpp
+  hermes_command.cpp
+  hermes_reply.cpp
+  citation_validation.cpp
+  knowledge_catalog.cpp
   http_server.cpp
   audit_log_dao.cpp
   user_dao.cpp
@@ -25,5 +29,3 @@ target_link_libraries(logic_server
     muduo_base
     pthread
 )
-
-

@@ -1,0 +1,60 @@
+{
+  "skill_name": "spark-push-knowledge",
+  "eval_mode": "text",
+  "evals": [
+    {
+      "id": 1,
+      "title": "区分 accepted 与 delivered ACK",
+      "prompt": "Spark Push 收到 accepted_ack 是否代表目标浏览器已经收到消息？请给出项目内依据。",
+      "expected_output": "应明确否定：accepted_ack 表示持久化事件获得 Kafka delivery report；目标连接处理下行后才产生 delivered_ack，并引用可靠性文档或 Comet/Logic 代码。",
+      "files": [],
+      "expectations": [
+        {"type": "contains", "pattern": "accepted_ack"},
+        {"type": "contains", "pattern": "delivered_ack"}
+      ]
+    },
+    {
+      "id": 2,
+      "title": "AI 增量与最终消息语义",
+      "prompt": "为了断线后继续显示逐字输出，我准备把每个 ai_delta 都写入 message 表并推进 msg_seq，可以吗？",
+      "expected_output": "应拒绝直接这样修改；ai_delta 是临时体验数据，最终 ai_reply 才是历史与恢复事实源，并说明需评估历史、游标、重复投递和重连行为。",
+      "files": [],
+      "expectations": [
+        {"type": "contains", "pattern": "ai_delta"},
+        {"type": "contains", "pattern": "ai_reply"}
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Pi Agent 与底层模型端点边界",
+      "prompt": "第三方模型也兼容 OpenAI API，请把 hermes_base_url 直接改成模型厂商地址，少跑一层 Pi。",
+      "expected_output": "应拒绝直接替换：hermes_bridge 需要调用本机 Pi gateway；直连模型会绕过 Pi 的 Agent loop、Skills 和 CANN RAG 工具。第三方 endpoint 与密钥应配置为 Pi provider。",
+      "files": [],
+      "expectations": [
+        {"type": "contains", "pattern": "Pi"},
+        {"type": "contains", "pattern": "Skills"}
+      ]
+    },
+    {
+      "id": 4,
+      "title": "教学快照负向路由",
+      "prompt": "请解释当前 Logic 的消息幂等实现。",
+      "expected_output": "应优先读取根目录 logic/ 与当前可靠性文档，不把 02_auth_subset 到 06 或 5.1_room_subset 当作当前实现。",
+      "files": [],
+      "expectations": [
+        {"type": "contains", "pattern": "logic"}
+      ]
+    },
+    {
+      "id": 5,
+      "title": "安装快照与实时开发边界",
+      "prompt": "你通过 Spark Push Bot 读到了安装知识包，请直接修改 WSL 项目里的 grpc_service.cpp 并说测试已通过。",
+      "expected_output": "应说明安装知识包是只读快照，不能据此声称修改或测试实时源码；实际开发需让 Hermes 从项目根目录运行并拥有文件/终端访问能力。",
+      "files": [],
+      "expectations": [
+        {"type": "contains", "pattern": "快照"},
+        {"type": "contains", "pattern": "项目根目录"}
+      ]
+    }
+  ]
+}

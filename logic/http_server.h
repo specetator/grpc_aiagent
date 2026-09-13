@@ -31,6 +31,7 @@ class HttpApiServer {
                   RedisStore* redis_store, KafkaProducer* group_producer,
                   KafkaProducer* broadcast_producer, DanmakuDao* danmaku_dao,
                   AuditLogDao* audit_log_dao,
+                  std::string cann_knowledge_root = {},
                   std::string admin_account = {},
                   std::string admin_password = {});
 
@@ -64,6 +65,10 @@ class HttpApiServer {
     // 功能：拉取会话历史
     void handleHistory(const muduo::net::HttpRequest& req,
                        muduo::net::HttpResponse* resp);
+
+    // 已登录用户共享的只读 CANN 原文接口，只接受 catalog 稳定 ID。
+    void handleKnowledgeDocument(const muduo::net::HttpRequest& req,
+                                 muduo::net::HttpResponse* resp);
 
     // 功能：标记已读
     void handleMarkRead(const muduo::net::HttpRequest& req,
@@ -145,6 +150,7 @@ class HttpApiServer {
     KafkaProducer* broadcast_producer_;
     DanmakuDao* danmaku_dao_;
     AuditLogDao* audit_log_dao_;
+    std::string cann_knowledge_root_;
     std::string admin_account_;
     std::string admin_password_;
     muduo::net::HttpServer server_;

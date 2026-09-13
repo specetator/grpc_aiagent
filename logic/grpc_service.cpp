@@ -4,6 +4,8 @@
 #include <algorithm>
 #include <nlohmann/json.hpp>
 
+#include "citation_validation.h"
+#include "hermes_reply.h"
 #include "logging.h"
 #include "metrics.h"
 
@@ -28,6 +30,40 @@ std::string ExtractTextFromContentJson(const std::string& content_json) {
     return {};
 }
 
+void ExtractHermesEntryMetadata(const std::string& content_json,
+                                HermesConversationEntry* entry) {
+    if (!entry || !entry->assistant || content_json.empty()) return;
+    try {
+        const auto value = nlohmann::json::parse(content_json);
+        if (!value.is_object() || !value.contains("content") ||
+            !value.at("content").is_object()) {
+            return;
+        }
+        const auto& content = value.at("content");
+        if (content.contains("hermes_context_start_seq") && content["hermes_context_start_seq"].is_number_integer()) {
+            entry->context_start_seq = content["hermes_context_start_seq"].get<int64_t>();
+            entry->has_context_state = entry->context_start_seq >= 0;
+        }
+        entry->command_reply =
+            content.value("source", "") == "hermes_command";
+        // Compatibility only for the exact successful legacy /new reply.
+        // New cards and failed/preview commands never infer a boundary from text.
+        entry->legacy_new_confirmation = entry->command_reply && !entry->has_context_state &&
+            !content.contains("agent_event") && content.value("hermes_command", "") == "new" &&
+            entry->text.rfind("已开启新的 Pi Agent 上下文。", 0) == 0;
+        if (content.value("hermes_model_state_confirmed", true) &&
+            content.contains("hermes_model_override") &&
+            content.at("hermes_model_override").is_boolean()) {
+            entry->has_model_state = true;
+            entry->model_override =
+                content.at("hermes_model_override").get<bool>();
+            entry->model = content.value("hermes_model", "");
+            entry->provider = content.value("hermes_provider", "");
+        }
+    } catch (const nlohmann::json::exception&) {
+    }
+}
+
 }  // namespace
 
 // 构造：初始化逻辑服务依赖；持久化由独立 Kafka topic 承担。
@@ -42,7 +78,8 @@ LogicServiceImpl::LogicServiceImpl(ConversationStore* store,
                                    int persist_kafka_timeout_ms,
                                    KafkaProducer* hermes_request_producer,
                                    bool hermes_enabled,
-                                   int64_t hermes_bot_user_id)
+                                   int64_t hermes_bot_user_id,
+                                   std::map<int64_t, std::string> agent_bot_users)
     : store_(store),
       group_member_dao_(group_member_dao),
       user_dao_(user_dao),
@@ -55,7 +92,9 @@ LogicServiceImpl::LogicServiceImpl(ConversationStore* store,
       rate_limiter_(rate_limit),
       persist_kafka_timeout_ms_(persist_kafka_timeout_ms),
       hermes_enabled_(hermes_enabled),
-      hermes_bot_user_id_(hermes_bot_user_id) {}
+      hermes_bot_user_id_(hermes_bot_user_id), agent_bot_users_(std::move(agent_bot_users)) {
+    agent_bot_users_[hermes_bot_user_id] = kHermesBotName;
+}
 
 // 工具：填充错误码与信息
 void LogicServiceImpl::SetError(ErrorInfo* e, int code,
@@ -125,7 +164,7 @@ bool LogicServiceImpl::GetActiveUser(int64_t user_id, User* user,
     // Token 只是 Redis 中的会话凭证，最终用户状态仍以 MySQL 为准。
     // 这样管理员禁用/软删除后，旧 token 即使因缓存或连接尚未断开，也不能再次
     // 完成新的 WebSocket 鉴权。
-    if (!user_dao_ || uid == kAdminUserId || uid == hermes_bot_user_id_) {
+    if (!user_dao_ || uid == kAdminUserId || agent_bot_users_.count(uid)) {
         SetError(response->mutable_error(), 403, "user token is not allowed");
         return ::grpc::Status::OK;
     }
@@ -253,14 +292,20 @@ bool LogicServiceImpl::MarkHermesDeltaSeen(const std::string& delta_id) {
     return false;
 }
 
-bool LogicServiceImpl::BuildHermesMessages(const Message& current,
-                                           nlohmann::json* messages,
-                                           std::string* err) {
-    if (!messages) {
-        if (err) *err = "Hermes messages output is null";
+bool LogicServiceImpl::BuildHermesRequest(const Message& current,
+                                          nlohmann::json* request,
+                                          std::string* err) {
+    if (!request) {
+        if (err) *err = "Hermes request output is null";
         return false;
     }
-    *messages = nlohmann::json::array();
+    int64_t bot_user_id = 0;
+    for (const auto& bot : agent_bot_users_) {
+        const auto expected = "s_" + std::to_string(std::min(current.sender_id, bot.first)) + "_" +
+                              std::to_string(std::max(current.sender_id, bot.first));
+        if (current.session_id == expected) { bot_user_id = bot.first; break; }
+    }
+    if (!bot_user_id) { if (err) *err = "invalid Agent conversation"; return false; }
 
     // ConversationStore::GetHistory 已将 MessageDao 的倒序查询翻转为
     // msg_seq 升序。按这个顺序交给 Hermes，保证多轮上下文与会话顺序一致。
@@ -318,46 +363,63 @@ bool LogicServiceImpl::BuildHermesMessages(const Message& current,
         history.erase(history.begin(), history.end() - 50);
     }
 
-    const std::string current_text =
-        ExtractTextFromContentJson(current.content_json);
+    const std::string current_text = ExtractTextFromContentJson(current.content_json);
     if (current_text.empty()) {
         if (err) *err = "Hermes only supports text messages in first stage";
         return false;
     }
 
-    // Hermes 的首 token 延迟会受到 prompt 长度明显影响。保留最近轮次，
-    // 同时设置包含当前输入在内的字节预算，避免一个长期会话把几十页历史
-    // 重新送给模型。单条超长消息仍保留，避免用户看到“输入被静默丢弃”。
-    constexpr size_t kMaxHermesPromptChars = 12 * 1024;
-    std::vector<std::pair<std::string, std::string>> prompt_items;
-    size_t prompt_chars = 0;
-    const size_t history_budget = current_text.size() >= kMaxHermesPromptChars
-                                      ? 0
-                                      : kMaxHermesPromptChars - current_text.size();
-    for (auto it = history.rbegin(); it != history.rend(); ++it) {
-        if (history_budget == 0) break;
-        const std::string text = ExtractTextFromContentJson(it->content_json);
-        if (text.empty()) continue;
-        if (!prompt_items.empty() &&
-            prompt_chars + text.size() > history_budget) {
-            break;
-        }
-        prompt_items.emplace_back(
-            it->sender_id == hermes_bot_user_id_ ? "assistant" : "user",
-            text);
-        prompt_chars += text.size();
-    }
-    std::reverse(prompt_items.begin(), prompt_items.end());
-    prompt_chars += current_text.size();
-    MetricsRegistry::Instance().Observe("spark_push_hermes_prompt_chars",
-                                        static_cast<int64_t>(prompt_chars));
-    MetricsRegistry::Instance().Observe("spark_push_hermes_prompt_messages",
-                                        static_cast<int64_t>(prompt_items.size() + 1));
-    for (const auto& item : prompt_items) {
-        (*messages).push_back({{"role", item.first}, {"content", item.second}});
+    std::vector<HermesConversationEntry> entries;
+    entries.reserve(history.size());
+    for (const auto& item : history) {
+        HermesConversationEntry entry;
+        entry.msg_seq = item.msg_seq;
+        entry.assistant = item.sender_id == bot_user_id;
+        entry.text = ExtractTextFromContentJson(item.content_json);
+        ExtractHermesEntryMetadata(item.content_json, &entry);
+        entries.push_back(std::move(entry));
     }
 
-    (*messages).push_back({{"role", "user"}, {"content", current_text}});
+    // 命令规划器负责过滤本地命令、建立 /new 边界、重写 /retry 上下文，
+    // 并在约 12 KiB 的预算内保留最近对话。
+    const HermesPromptPlan plan =
+        BuildHermesPromptPlan(entries, current_text, current.msg_seq);
+    MetricsRegistry::Instance().Observe("spark_push_hermes_prompt_chars",
+                                        static_cast<int64_t>(plan.prompt_chars));
+    MetricsRegistry::Instance().Observe("spark_push_hermes_prompt_messages",
+                                        static_cast<int64_t>(plan.messages.size()));
+
+    *request = {
+        {"request_id", current.msg_id},
+        {"message_seq", current.msg_seq},
+        {"session_id", current.session_id},
+        {"user_id", current.sender_id},
+        {"bot_user_id", bot_user_id},
+        {"client_msg_id", current.client_msg_id},
+        {"messages", nlohmann::json::array()},
+        {"call_model", plan.call_model},
+        {"force_knowledge_retrieval", plan.force_knowledge_retrieval},
+        {"model_override", plan.model_override},
+        {"context_start_seq", plan.context_start_seq},
+        {"context_message_count", plan.context_message_count},
+        {"prompt_chars", plan.prompt_chars},
+    };
+    for (const auto& item : plan.messages) {
+        (*request)["messages"].push_back(
+            {{"role", item.first}, {"content", item.second}});
+    }
+    if (plan.model_override) {
+        (*request)["model"] = plan.model;
+        if (!plan.provider.empty()) (*request)["provider"] = plan.provider;
+    }
+    if (plan.command.kind != HermesCommandKind::kNone) {
+        (*request)["command"] = {
+            {"name", HermesCommandName(plan.command.kind)},
+            {"input_name", plan.command.name},
+            {"arguments", plan.command.arguments},
+            {"local_error", plan.local_error},
+        };
+    }
     return true;
 }
 
@@ -367,17 +429,8 @@ bool LogicServiceImpl::EnqueueHermesRequest(const Message& current,
         if (err) *err = "Hermes request Kafka producer not initialized";
         return false;
     }
-    nlohmann::json request = {
-        {"request_id", current.msg_id},
-        {"session_id", current.session_id},
-        {"user_id", current.sender_id},
-        {"bot_user_id", hermes_bot_user_id_},
-        {"client_msg_id", current.client_msg_id},
-        {"messages", nlohmann::json::array()},
-    };
-    if (!BuildHermesMessages(current, &request["messages"], err)) {
-        return false;
-    }
+    nlohmann::json request;
+    if (!BuildHermesRequest(current, &request, err)) return false;
     const std::string payload = request.dump();
     if (!hermes_request_producer_->SendAndWait(
             current.session_id, payload, persist_kafka_timeout_ms_)) {
@@ -450,7 +503,7 @@ void LogicServiceImpl::HandleUpstreamMessage(
         if (single_u1 > single_u2) std::swap(single_u1, single_u2);
         session_id = "s_" + std::to_string(single_u1) + "_" +
                      std::to_string(single_u2);
-        hermes_target = to_user == hermes_bot_user_id_;
+        hermes_target = agent_bot_users_.count(to_user) != 0;
         if (hermes_target) {
             if (!hermes_enabled_ || !hermes_request_producer_) {
                 SetError(response->mutable_error(), 503,
@@ -459,7 +512,7 @@ void LogicServiceImpl::HandleUpstreamMessage(
             }
             User bot;
             std::string bot_error;
-            if (!GetActiveUser(hermes_bot_user_id_, &bot, &bot_error)) {
+            if (!GetActiveUser(to_user, &bot, &bot_error)) {
                 SetError(response->mutable_error(), 503,
                          "Hermes Bot is disabled or unavailable");
                 return;
@@ -662,107 +715,50 @@ void LogicServiceImpl::HandleUpstreamMessage(
 
 bool LogicServiceImpl::HandleHermesReply(const std::string& payload,
                                          const std::string& kafka_key) {
-    nlohmann::json reply;
-    try {
-        reply = nlohmann::json::parse(payload);
-    } catch (const nlohmann::json::exception& e) {
-        LOG_ERROR << "Discard malformed Hermes reply key=" << kafka_key
-                  << ": " << e.what();
-        MetricsRegistry::Instance().Increment("spark_push_hermes_errors_total");
-        // Poison message 不应阻塞整个 ai_reply 分区；具体内容已写入日志，
-        // 正常请求仍由后续消息继续处理。
-        return true;
-    }
-
-    const std::string request_id = reply.value("request_id", "");
-    const int64_t user_id = reply.value("user_id", 0LL);
-    const int64_t bot_user_id =
-        reply.value("bot_user_id", hermes_bot_user_id_);
-    std::string session_id = reply.value("session_id", "");
-    if (request_id.empty() || user_id <= 0 ||
-        bot_user_id != hermes_bot_user_id_) {
-        LOG_ERROR << "Discard invalid Hermes reply key=" << kafka_key
-                  << ", request_id=" << request_id
-                  << ", user_id=" << std::to_string(user_id)
-                  << ", bot_user_id=" << std::to_string(bot_user_id);
-        MetricsRegistry::Instance().Increment("spark_push_hermes_errors_total");
-        return true;
-    }
-    if (session_id.empty()) {
-        int64_t u1 = std::min(user_id, hermes_bot_user_id_);
-        int64_t u2 = std::max(user_id, hermes_bot_user_id_);
-        session_id = "s_" + std::to_string(u1) + "_" + std::to_string(u2);
-    }
-
-    const bool ok = reply.value("ok", false);
-    std::string text = reply.value("text", "");
-    if (text.empty()) {
-        const std::string bridge_error = reply.value("error", "");
-        text = ok ? "Hermes 返回了空消息"
-                  : "Hermes 暂时不可用" +
-                        (bridge_error.empty() ? "" : "：" + bridge_error);
-    }
-
-    nlohmann::json content = {
-        {"type", "single_chat"},
-        {"session_id", session_id},
-        {"from_user_id", hermes_bot_user_id_},
-        {"to_user_id", user_id},
-        {"client_msg_id", "hermes:" + request_id},
-        {"sender", {{"uid", hermes_bot_user_id_},
-                     {"name", kHermesBotName}}},
-        {"content", {{"text", text}, {"source", "hermes"}}},
-    };
-
-    const int64_t now_ms =
-        std::chrono::duration_cast<std::chrono::milliseconds>(
-            std::chrono::system_clock::now().time_since_epoch())
-            .count();
-    Message message;
-    bool is_new = false;
+    (void)kafka_key;
+    PreparedHermesReply reply;
     std::string err;
-    if (!store_ ||
-        !store_->AppendMessageHotPath(
-            session_id, hermes_bot_user_id_, "text", content.dump(), now_ms,
-            "hermes:" + request_id, &message, &is_new, &err)) {
-        LOG_ERROR << "Append Hermes reply failed request_id=" << request_id
-                  << ": " << err;
+    const auto envelope = nlohmann::json::parse(payload, nullptr, false);
+    if (!envelope.is_object() || !envelope.contains("bot_user_id") ||
+        !envelope["bot_user_id"].is_number_integer()) return false;
+    const auto bot_user_id = envelope["bot_user_id"].get<int64_t>();
+    const auto bot = agent_bot_users_.find(bot_user_id);
+    if (bot == agent_bot_users_.end()) return false;
+    if (!PrepareHermesReply(payload, bot_user_id, bot->second, &reply, &err)) {
+        LOG_ERROR << "Reject Hermes reply: " << err;
+        MetricsRegistry::Instance().Increment("spark_push_hermes_errors_total");
+        return false;  // durable ai_reply DLQ after bounded retries
+    }
+    const auto& request_id = reply.request_id;
+    const auto user_id = reply.user_id;
+    const bool ok = reply.ok;
+    if (!reply.citation_warning.empty()) {
+        MetricsRegistry::Instance().Increment("spark_push_hermes_citations_rejected_total");
+    }
+    Message message = reply.message;
+    bool is_new = false;
+    const int64_t user1 = std::min(user_id, bot_user_id);
+    const int64_t user2 = std::max(user_id, bot_user_id);
+    if (!PersistHermesReply(&message, &is_new,
+            [this, &err](Message* msg, bool* fresh) {
+                return store_ && store_->AppendMessageHotPath(
+                    msg->session_id, msg->sender_id, msg->msg_type, msg->content_json,
+                    msg->timestamp_ms, msg->client_msg_id, msg, fresh, &err);
+            },
+            [this, user1, user2, &err](const Message& msg) {
+                return PersistToTopic(msg, "single", user1, user2, 0, &err);
+            })) {
+        LOG_ERROR << "Persist Hermes reply failed request_id=" << request_id << ": " << err;
         MetricsRegistry::Instance().Increment("spark_push_hermes_errors_total");
         return false;
     }
     if (!is_new) {
-        MarkHermesStreamCompleted(request_id);
-        RememberHermesMessage(message);
-        MetricsRegistry::Instance().Increment(
-            "spark_push_hermes_duplicate_replies_total");
-        return true;
+        MetricsRegistry::Instance().Increment("spark_push_hermes_duplicate_replies_total");
     }
-
-    // 先标记完成，再投递最终消息；如果 ai_delta 因 Kafka topic 分离而晚到，
-    // Logic 会丢弃它，客户端最终以这条持久化消息为准。
+    // Only Kafka persistence confirmation closes the ephemeral stream and
+    // exposes this answer to future Agent context. Job persists asynchronously.
     MarkHermesStreamCompleted(request_id);
-
-    try {
-        auto enriched = nlohmann::json::parse(message.content_json);
-        enriched["msg_id"] = message.msg_id;
-        enriched["msg_seq"] = message.msg_seq;
-        enriched["create_time"] = message.timestamp_ms;
-        message.content_json = enriched.dump();
-    } catch (const nlohmann::json::exception& e) {
-        LOG_ERROR << "Serialize Hermes reply content failed request_id="
-                  << request_id << ": " << e.what();
-        return false;
-    }
     RememberHermesMessage(message);
-
-    const int64_t user1 = std::min(user_id, hermes_bot_user_id_);
-    const int64_t user2 = std::max(user_id, hermes_bot_user_id_);
-    if (!PersistToTopic(message, "single", user1, user2, 0, &err)) {
-        LOG_ERROR << "Persist Hermes reply failed request_id=" << request_id
-                  << ": " << err;
-        MetricsRegistry::Instance().Increment("spark_push_hermes_errors_total");
-        return false;
-    }
 
     std::vector<std::string> comets;
     if (!redis_store_ || !redis_store_->GetUserRoutes(user_id, &comets)) {
@@ -815,7 +811,7 @@ bool LogicServiceImpl::HandleHermesDelta(const std::string& payload,
     const std::string text = delta.value("delta", "");
     const int delta_index = delta.value("delta_index", -1);
     if (request_id.empty() || user_id <= 0 ||
-        bot_user_id != hermes_bot_user_id_ || text.empty() || delta_index < 0) {
+        !agent_bot_users_.count(bot_user_id) || text.empty() || delta_index < 0) {
         MetricsRegistry::Instance().Increment(
             "spark_push_hermes_stream_delta_errors_total");
         return true;
@@ -831,12 +827,10 @@ bool LogicServiceImpl::HandleHermesDelta(const std::string& payload,
     }
 
     std::string session_id = delta.value("session_id", "");
-    if (session_id.empty()) {
-        const int64_t user1 = std::min(user_id, hermes_bot_user_id_);
-        const int64_t user2 = std::max(user_id, hermes_bot_user_id_);
-        session_id = "s_" + std::to_string(user1) + "_" +
-                     std::to_string(user2);
-    }
+    const auto expected_session = "s_" + std::to_string(std::min(user_id, bot_user_id)) + "_" +
+                                  std::to_string(std::max(user_id, bot_user_id));
+    if (session_id.empty()) session_id = expected_session;
+    if (session_id != expected_session) return true;
     std::vector<std::string> comets;
     if (!redis_store_ || !redis_store_->GetUserRoutes(user_id, &comets)) {
         LOG_ERROR << "Get Hermes delta recipient routes failed user_id="
@@ -857,10 +851,11 @@ bool LogicServiceImpl::HandleHermesDelta(const std::string& payload,
         {"type", "hermes_delta"},
         {"request_id", request_id},
         {"session_id", session_id},
-        {"from_user_id", hermes_bot_user_id_},
+        {"from_user_id", bot_user_id},
         {"to_user_id", user_id},
         {"delta_index", delta_index},
         {"delta", text},
+        {"progress", delta.value("progress", nlohmann::json()) == true},
         {"source", "hermes"},
     };
 
@@ -868,7 +863,7 @@ bool LogicServiceImpl::HandleHermesDelta(const std::string& payload,
     message.set_msg_id(delta_id);
     message.set_session_id(session_id);
     message.set_msg_seq(0);  // 增量不进入历史游标。
-    message.set_sender_id(hermes_bot_user_id_);
+    message.set_sender_id(bot_user_id);
     message.set_timestamp_ms(now_ms);
     message.set_msg_type("hermes_delta");
     message.set_content_json(content.dump());

@@ -7,35 +7,51 @@
   <link rel="stylesheet" href="auth_style.css">
   <style>
     :root {
-      --primary-color: #1976d2;
+      --primary-color: #c96442;
+      --primary-hover: #b85433;
     }
     body {
       margin: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background: #0a0a0a;
-      color: #fff;
+      font-family: var(--font-sans);
+      background: #181716;
+      color: #edece6;
       display: flex;
       flex-direction: column;
       height: 100vh;
     }
     header {
-      padding: 12px 24px;
-      background: #1a1a1a;
-      border-bottom: 1px solid #333;
+      padding: 14px 28px;
+      background: #201f1d;
+      border-bottom: 1px solid #2e2c28;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
-    header h2 { margin: 0; font-size: 18px; color: #4fc3f7; }
-    header a { color: #888; text-decoration: none; font-size: 14px; }
-    header a:hover { color: #fff; }
+    header h2 {
+      margin: 0;
+      font-size: 18px;
+      color: #edece6;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    header h2 span { color: var(--primary-color); }
+    header a {
+      color: #9c978b;
+      text-decoration: none;
+      font-size: 13.5px;
+      transition: color 0.16s ease;
+    }
+    header a:hover { color: #edece6; }
 
     #main {
       flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 20px;
+      padding: 24px 20px;
     }
 
     #video-wrap {
@@ -43,9 +59,10 @@
       width: 960px;
       max-width: 100%;
       background: #000;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-      border-radius: 4px;
+      box-shadow: 0 12px 36px rgba(0,0,0,0.55);
+      border-radius: var(--radius-lg);
       overflow: hidden;
+      border: 1px solid #2e2c28;
     }
     video { width: 100%; display: block; }
     #danmaku-layer {
@@ -73,14 +90,15 @@
     .controls-container {
       width: 960px;
       max-width: 100%;
-      margin-top: 16px;
-      background: #1f1f1f;
-      padding: 16px;
-      border-radius: 6px;
+      margin-top: 18px;
+      background: #201f1d;
+      border: 1px solid #2e2c28;
+      padding: 14px 18px;
+      border-radius: var(--radius-md);
       box-sizing: border-box;
       display: flex;
       align-items: center;
-      min-height: 70px;
+      min-height: 64px;
     }
 
     /* 登录前 */
@@ -89,6 +107,9 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      color: #9c978b;
+      font-size: 13.5px;
+      gap: 12px;
     }
 
     /* 登录后 */
@@ -100,12 +121,14 @@
     }
     #dm-input { 
       flex: 1; 
-      background: #2b2b2b;
-      border: 1px solid #444;
-      color: #fff;
-      padding: 10px 12px;
-      border-radius: 6px;
+      background: #181716;
+      border: 1px solid #3d3a35;
+      color: #edece6;
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
       outline: none;
+      font-size: 13.5px;
+      transition: border-color 0.16s ease;
     }
     #dm-input:focus { border-color: var(--primary-color); }
     
@@ -116,68 +139,83 @@
       background: var(--primary-color);
       color: #fff;
       border: none;
-      padding: 8px 20px;
-      border-radius: 6px;
+      padding: 9px 20px;
+      border-radius: var(--radius-md);
       cursor: pointer;
       font-weight: 500;
-      font-size: 14px;
+      font-size: 13.5px;
+      letter-spacing: -0.01em;
+      transition: background 0.16s ease;
     }
-    .btn:hover { background: #1565c0; }
+    .btn:hover { background: var(--primary-hover); }
     
     /* Modal Styles */
     .modal-overlay {
       position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0,0,0,0.7);
+      background: rgba(18, 17, 16, 0.65);
+      backdrop-filter: blur(4px);
       z-index: 1000;
       display: flex; justify-content: center; align-items: center;
     }
     .modal {
-      background: #fff;
-      color: #333;
-      width: 360px;
-      border-radius: 8px;
+      background: var(--surface-color);
+      color: var(--text-color);
+      width: 380px;
+      border-radius: var(--radius-lg);
       overflow: hidden;
-      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.3);
+      border: 1px solid var(--border-color);
     }
     .modal-header {
       padding: 0;
       display: flex;
-      border-bottom: 1px solid #eee;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--sidebar-bg);
     }
     .modal-tab {
       flex: 1;
-      padding: 15px;
+      padding: 13px;
       text-align: center;
       cursor: pointer;
-      background: #f5f5f5;
-      font-weight: bold;
-      color: #666;
+      font-weight: 600;
+      font-size: 13.5px;
+      color: var(--text-secondary);
+      border-bottom: 2px solid transparent;
+      transition: all 0.16s ease;
     }
     .modal-tab.active {
-      background: #fff;
+      background: var(--surface-color);
       color: var(--primary-color);
-      border-top: 3px solid var(--primary-color);
+      border-bottom-color: var(--primary-color);
     }
-    .modal-body { padding: 25px; }
+    .modal-body { padding: 24px; }
     .form-group { margin-bottom: 15px; }
     .form-input {
       width: 100%;
-      padding: 10px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
+      padding: 10px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: var(--radius-md);
       box-sizing: border-box;
-      font-size: 14px;
+      font-size: 13.5px;
+      color: var(--text-primary);
     }
-    .form-input:focus { border-color: var(--primary-color); outline: none; }
-    .btn-block { width: 100%; padding: 12px; font-size: 16px; margin-top: 10px; }
+    .form-input:focus {
+      border-color: var(--primary-color);
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(201, 100, 66, 0.14);
+    }
+    .btn-block { width: 100%; padding: 11px; font-size: 14px; margin-top: 10px; }
     .close-modal {
       position: absolute;
-      top: 20px; right: 20px;
-      color: #fff;
-      font-size: 30px;
+      top: 20px; right: 24px;
+      color: #edece6;
+      font-size: 28px;
       cursor: pointer;
       line-height: 1;
+      opacity: 0.7;
     }
+    .close-modal:hover { opacity: 1; }
+  </style>
   </style>
   <script src="auth.js"></script>
 </head>

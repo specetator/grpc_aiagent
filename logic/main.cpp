@@ -146,6 +146,14 @@ int RunLogic(const Config& cfg) {
         return 1;
     }
     AuditLogDao audit_log_dao(&mysql_pool);
+    for (const auto& bot : cfg.agent_bot_users) {
+        if (bot.first == cfg.hermes_bot_user_id) continue;
+        if (!user_dao.EnsureHermesBotUser(bot.first, "agent_bot_" + std::to_string(bot.first),
+                                        bot.second, &hermes_user_err)) {
+            LOG_ERROR << "Failed to ensure Agent contact: " << hermes_user_err;
+            return 1;
+        }
+    }
     std::string audit_schema_err;
     if (!audit_log_dao.EnsureSchema(&audit_schema_err)) {
         LOG_ERROR << "Failed to ensure audit log schema: " << audit_schema_err;
@@ -179,6 +187,7 @@ int RunLogic(const Config& cfg) {
     rc.connect_timeout_ms = cfg.redis_connect_timeout_ms;
     rc.rw_timeout_ms = cfg.redis_rw_timeout_ms;
     rc.idle_timeout_ms = cfg.redis_idle_timeout_ms;
+    rc.health_check_interval_ms = cfg.redis_health_check_interval_ms;
     if (!redis_pool.Init(rc)) {
         LOG_ERROR << "Failed to init Redis pool";
         return 1;
@@ -197,7 +206,7 @@ int RunLogic(const Config& cfg) {
         &group_producer, &broadcast_producer, &persist_producer, &redis_store,
         cfg.rate_limit, cfg.persist_kafka_timeout_ms,
         cfg.hermes_enabled ? &hermes_request_producer : nullptr,
-        cfg.hermes_enabled, cfg.hermes_bot_user_id);
+        cfg.hermes_enabled, cfg.hermes_bot_user_id, cfg.agent_bot_users);
 
     KafkaConsumer hermes_reply_consumer;
     KafkaConsumer hermes_delta_consumer;
@@ -206,6 +215,7 @@ int RunLogic(const Config& cfg) {
         hermes_consumer_options.enable_auto_commit = false;
         hermes_consumer_options.auto_offset_reset = "earliest";
         hermes_consumer_options.max_processing_attempts = 3;
+        hermes_consumer_options.dead_letter_topic = cfg.kafka_ai_reply_topic + ".dlq";
         if (!hermes_reply_consumer.Init(
                 cfg.kafka_brokers,
                 cfg.kafka_consumer_group + "_hermes_reply",
@@ -217,6 +227,8 @@ int RunLogic(const Config& cfg) {
             LOG_ERROR << "Failed to initialize Kafka Hermes reply consumer";
             return 1;
         }
+        // ai_delta is ephemeral; it must not use the durable reply DLQ.
+        hermes_consumer_options.dead_letter_topic.clear();
         if (!hermes_delta_consumer.Init(
                 cfg.kafka_brokers,
                 cfg.kafka_consumer_group + "_hermes_delta",
@@ -241,7 +253,8 @@ int RunLogic(const Config& cfg) {
     HttpApiServer httpServer(&loop, httpAddr, &conversation_store, &user_dao,
                              &group_dao, &group_member_dao, &redis_store,
                              &group_producer, &broadcast_producer, &danmaku_dao,
-                             &audit_log_dao, cfg.admin_account,
+                             &audit_log_dao, cfg.cann_knowledge_root,
+                             cfg.admin_account,
                              cfg.admin_password);
     httpServer.start();
     LOG_INFO << "Logic HTTP server listening on port "

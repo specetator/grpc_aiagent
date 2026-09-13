@@ -1,9 +1,11 @@
 # Spark Push：从教学 Demo 到工程化实时消息系统
 
 > 用途：简历项目描述、面试自我介绍和技术追问复盘。
-> 对比基线：原仓库 `origin/master` 的本地快照，commit `addc175`。
+> 对比基线：原始语雀学习文档与原仓库远端 `source/master`；本地快照 commit 为 `addc175`。
 > 当前版本：上述基线叠加本仓库工作区中的工程化改造。
 > 结论先行：这是一个“基于原始 Demo 做深度二次开发”的项目，不应包装成全部从零原创；真正有价值的是发现问题、定义语义、完成改造并用测试证明结果的过程。
+
+原始资料：[语雀学习文档](https://www.yuque.com/linuxer/vhnzb2/dg193t3kaac4mvey)；[教学项目仓库](http://gitlab.0voice.com/2510_vip/11.2-spark_push.git)。
 
 ## 1. 面试时如何给项目定性
 
@@ -41,7 +43,203 @@
 | AI 扩展 | 无 | Hermes Bot、异步 Kafka 编排、SSE 增量、最终消息回归普通单聊 | 复用 IM 可靠链路，不为 AI 另造一套消息系统 |
 | 工程化 | 手工准备依赖和逐进程启动 | Docker Compose、一键启停、ready 检查、CTest、CI | 降低演示和回归成本 |
 
-## 3. 从最开始构建项目的完整演进顺序
+## 3. 五段式项目演进主线
+
+这一节是整份文档的主干。无论写简历、做项目复盘还是回答面试题，都按下面的因果链展开：
+
+```text
+原始实现
+   ↓ 先肯定已有架构和能力
+发现问题
+   ↓ 用故障窗口、源码和测试说明问题真实存在
+技术优化
+   ↓ 解释协议、状态、存储和性能上的取舍
+功能扩展
+   ↓ 说明可靠底座如何支撑用户中心、前端和 AI
+面试讲法
+   ↓ 用结果、证据和边界收口
+```
+
+### 3.1 原始实现：先承认 Demo 已经解决了什么
+
+原始项目不是一个只有页面的简单聊天室。它已经完成了分布式实时消息系统的基本骨架：
+
+```text
+Client
+  ├─ HTTP 登录/历史查询 ───────────────► Logic
+  └─ WebSocket 长连接 ─► Comet ─gRPC─► Logic
+                                           │
+                                           ├─ MySQL：用户、会话、消息、已读状态
+                                           ├─ Redis：Token、用户路由、房间路由
+                                           └─ Kafka：push_to_comet / broadcast_task
+                                                          │
+                                                          ▼
+                                                         Job
+                                                          │ Unary gRPC
+                                                          ▼
+                                                        Comet
+                                                          │ WebSocket
+                                                          ▼
+                                                        Client
+```
+
+原始实现中各模块的价值是：
+
+| 模块 | 原始职责 | 设计价值 |
+|---|---|---|
+| Comet | Muduo WebSocket、鉴权、心跳、连接表、房间本机 fanout | 把高连接数和业务计算解耦 |
+| Logic | 登录、会话、消息落库、路由查询、Kafka 生产 | 统一业务规则和消息生成 |
+| Job | 消费 Kafka，通过 gRPC 下发 Comet | 削峰并隔离 Logic 与慢下游 |
+| Redis | Token、`user -> comet`、`room -> comet` | 支撑多端在线和跨节点路由 |
+| MySQL | 用户、会话、消息、已读游标、群组和弹幕 | 保存长期业务事实 |
+| Kafka | 实时推送任务与广播任务 | 解耦生产、消费和故障恢复 |
+
+原始 Demo 已支持单聊、聊天室、广播、弹幕、历史消息和未读水位。尤其是聊天室的两级 fanout 值得保留：Logic 只把消息发到房间有用户在线的 Comet，Comet 再在本机连接表中展开，避免 Logic 对大房间逐用户 fanout。
+
+因此二次开发的起点不是推翻架构，而是追问：这条链路在并发、崩溃、重试、断线和慢依赖出现时，消息语义是否仍然成立？
+
+### 3.2 发现问题：从“功能可演示”走向“故障后可解释”
+
+我先沿一条消息逐段检查完成条件，而不是直接增加中间件。最终归纳出下面十类问题。
+
+| 问题 | 原始实现/现象 | 真实风险 | 发现依据 |
+|---|---|---|---|
+| ACK 语义模糊 | 上行只有一次笼统回复 | 无法区分“系统已受理”和“目标已投递”，失败后不知道该不该重试 | 对照上行回复、Kafka 生产和 Comet 下发三个时间点 |
+| 会话序号竞态 | MySQL 先 `UPDATE last_msg_seq+1`，再独立 `SELECT` | 并发请求可能读到相同的新值，产生重复 `msg_seq` | 检查原版 `SessionDao::AllocateMessageSeq` 的两个独立语句 |
+| Kafka 位点过早 | Job callback 只把 Unary RPC 放入线程池，callback 返回后 consumer `commitAsync` | Job 崩溃时 offset 已前移、内存任务尚未完成，消息可能丢失 | 对照原版 `JobRunner::HandleMessage` 与 `KafkaConsumer::HandleMessage` |
+| Logic 崩溃窗口 | 同步落 MySQL、发送实时 Kafka、返回客户端分散在多个步骤 | 任一步骤失败都可能出现“已落库未推送”或“已回复但缺少可重放事件” | 枚举每一步之后进程崩溃的结果 |
+| 断线不可自愈 | 只有历史查询和 `read_seq`，没有缺口协议与目标投递游标 | 客户端短暂断网可能漏消息；用 read 水位补推又会重复发送未读消息 | 检查原版 proto 中没有 `SyncMessages/SyncOffline/MarkDelivered` |
+| 下行缺少背压 | 每条 Kafka 消息创建一次 Unary 调用，线程池异步掩盖下游变慢 | 慢 Comet 会积压内存任务；任务入队不等于投递成功 | 分析 Job 线程池、RPC 完成和 offset 的先后关系 |
+| 场景互相干扰 | 单聊、群聊共用推送 topic 和资源，广播也会占用 Job 能力 | 广播或大群峰值可能拖高单聊尾延迟 | 对照 topic、消费组和 worker 的资源边界 |
+| 安全与运营不足 | 密码直接写入 `password_hash` 字段，Token/状态/审计为教学实现 | 数据泄露后无法抵抗离线破解，也无法封禁、撤销和追责 | 检查原版用户 DAO 与 HTTP 登录逻辑 |
+| 前端状态竞态 | 历史 HTTP、实时 WebSocket、乐观消息分别渲染 | 重复气泡、顺序跳动、切换会话后旧请求污染当前页面 | 实际复现 Hermes 对话中历史和实时内容交错 |
+| 可运维性不足 | 手工启多个服务，主要依赖日志观察 | 环境难复现，无法量化 lag、延迟、重复和丢失 | 实际搭建和排障过程 |
+
+问题定位中最关键的认识是：
+
+```text
+任务进入线程池 ≠ RPC 完成
+Kafka produce 入本地队列 ≠ broker 已确认
+Comet 调用 conn->send() ≠ 浏览器已处理
+浏览器收到消息 ≠ 用户已读
+实时投递成功 ≠ MySQL 已完成最终落库
+```
+
+如果不先区分这些事实，后续所有“消息不丢”“已送达”和“高性能”都只是模糊口号。
+
+### 3.3 技术优化：围绕消息状态机逐层补齐
+
+技术改造不是若干互不相关的功能，而是由同一个消息状态机推导出来的。
+
+#### 第一步：重新定义消息完成语义
+
+我把消息状态拆成：
+
+```text
+accepted：消息已经越过可重放的持久化边界
+delivered：目标 Comet 已把消息交给在线 WebSocket 连接发送队列
+read：客户端上报用户已读水位
+stored：持久化消费者已将消息幂等写入 MySQL
+```
+
+协议增加 `accepted_ack` 和 `delivered_ack`。`accepted_ack` 以 `persist_message` 获得 Kafka delivery report 为边界；`delivered_ack` 以 Job 收到目标 Comet 对同一 `request_id` 的成功 reply 为边界。当前 delivered 是服务端投递，不冒充客户端确认或已读。
+
+#### 第二步：修复序号与端到端幂等
+
+把 MySQL 热行上的两步取号改为 Redis Lua，单次原子完成：
+
+1. 用 MySQL `MAX(msg_seq)` 校准 Redis floor；
+2. 按 `session_id + sender_id + client_msg_id` 检查客户端重试；
+3. 新消息执行 `INCR` 分配会话内序号；
+4. 单调推进 `session:last_seq` 并设置去重 TTL。
+
+不同故障层使用不同幂等键：客户端重试使用 `client_msg_id`，Job/Comet 流重放使用 `request_id`，最终 MySQL 使用 `(session_id,msg_seq)` 唯一约束并比较完整字段。这里追求的是至少一次链路上的业务幂等，不宣称分布式 exactly-once。
+
+#### 第三步：把可靠事件和 MySQL 写入解耦
+
+Logic 不再把本地线程池任务当成可靠持久化，而是先把 `PersistMessageRequest` 写入持久化 Kafka topic，并等待 broker delivery report。Job 的独立 persist consumer 幂等写 MySQL，业务完成后才同步提交 offset。
+
+```text
+Kafka 至少一次事件
+  + Redis/client_msg_id 热路径幂等
+  + MySQL 唯一键与字段比对
+  = 可重放的最终一致持久化
+```
+
+当前事实源选择更接近“Kafka durable event”。如果未来要求 MySQL 事务是唯一事实源，则应切换为业务行与 outbox 行同事务提交，再由 relay 发布 Kafka，而不是把两种方案混为一谈。
+
+#### 第四步：长连接流、背压和正确提交位点
+
+Comet→Logic 增加 `MessageStream`，Job→每个 Comet 复用一条双向 `PushStream`。下行流包含：
+
+- 有界队列，满时拒绝而不是无限占内存；
+- writer 串行写、reader 按 `request_id` 匹配 reply；
+- deadline、指数退避重连和 Unary fallback；
+- Comet 最近请求 ID 去重；
+- 收到对应 reply 后，本条 Kafka 消息才允许提交位点。
+
+这里不错误宣称 Unary 每条都新建 TCP；gRPC Channel 本身会复用 HTTP/2 连接。Streaming 的价值是减少逐调用状态开销，并把应用层排队、逐条应答、重连和背压统一到一条可观测的流中。
+
+#### 第五步：缺口补偿和离线补推
+
+客户端为每个 session 维护连续 `msg_seq`：小于等于当前水位时去重，等于 `last+1` 时推进，大于 `last+1` 时调用 `SyncMessages` 分页补洞。服务端另存每用户、每会话的 `delivered_seq`；重新鉴权后调用 `SyncOffline`，补推大于投递水位的消息。
+
+`delivered_seq` 与 `read_seq` 必须分离。用户可以收到但没有阅读；如果用 `read_seq` 做重连补推，每次重连都会重复发送全部未读消息。
+
+#### 第六步：场景隔离、可观测性和验证闭环
+
+单聊、群聊、广播、持久化拆分 topic 和 consumer group；入口按 sender、room、scope 使用独立令牌桶，避免广播制造单聊队头阻塞。Logic、Job、Comet 输出 Prometheus text metrics，记录 Kafka lag、投递延迟、重连、重复、丢失、限流和持久化结果。
+
+验证口径从“发送端 socket write 成功”升级为独立发送端与接收端的 E2E：
+
+```text
+sent == accepted_ack == delivered_ack == receiver_delivered
+send_failed == 0
+ack_errors == 0
+```
+
+本机 8 连接 × 100 条回归得到 800/800/800/800，实际接收 QPS 535.5 msg/s；p50 753.8ms、p95 1411.1ms、p99 1469.0ms。这个数字只代表本机回归，并暴露队列平台区的尾延迟，不能外推为生产集群容量。
+
+### 3.4 功能扩展：让可靠底座产生业务价值
+
+功能扩展建立在可靠消息链路之上，并明确哪些是原 Demo 已有能力、哪些是二次开发。
+
+| 能力 | 归属 | 当前实现重点 |
+|---|---|---|
+| 单聊、聊天室、广播、弹幕、历史 | 原 Demo 已有，当前继续完善 | 不把课程原有功能包装成个人原创 |
+| 用户中心与管理员端 | 二次开发 | PBKDF2、CSPRNG Token、active/disabled/deleted、软删除、批量撤销、审计日志和管理 API/UI |
+| 前端可靠状态 | 二次开发 | 乐观消息、发送中/已接收/已送达、统一去重、历史屏障、重连、缺口同步、安全 DOM |
+| Hermes AI Bot | 二次开发 | 固定 Bot、独立 Bridge、Kafka 异步编排、多轮历史、SSE delta、final reply 回归普通单聊 |
+| 工程化交付 | 二次开发 | Docker Compose、一键启停、ready 检查、CTest、CI、Windows 主机访问 |
+
+Hermes 接入没有直接放进 Logic 同步调用。用户输入先作为普通消息越过 accepted 边界，再写 `ai_request`；Bridge 调用 Windows Hermes `/v1/chat/completions`，增量经 `ai_delta` 提升首字体验，最终 `ai_reply` 重新进入普通单聊的序号、持久化、推送和离线恢复链路。
+
+临时 delta 不落库，因为它只是展示过程；最终回答才是可靠事实。这样即使生成时断线，用户重连后仍能通过普通历史和游标恢复完整回答，也不会把半截文本污染消息表。
+
+用户中心同样体现了数据分层：MySQL 是用户主数据，Redis 只保存 Token 和在线态；删除采用软删除，避免历史消息中的 sender 引用失效；禁用和删除伴随 Token 批量撤销，管理员操作写追加式审计日志。
+
+### 3.5 面试讲法：用问题、决策、证据和边界形成闭环
+
+推荐回答顺序不是罗列技术栈，而是四句话一个闭环：
+
+1. **背景**：原 Demo 已有 Comet/Logic/Job 和完整实时链路，我负责二次工程化；
+2. **问题**：ACK、offset、序号和断线恢复缺少严格语义，异步线程池还扩大了崩溃窗口；
+3. **决策**：定义 accepted/delivered/read，增加 Redis Lua 幂等序号、持久化 topic、PushStream、游标补偿和场景隔离；
+4. **证据与边界**：用 E2E、数据库复核和 Redis 故障注入证明结果，同时说明 delivered 不是已读、本机数据不能外推生产。
+
+一句话讲法：
+
+> 我基于 C++ 实时推送教学 Demo 做深度二次工程化，重点不是增加页面，而是重新定义消息系统在重试、崩溃和断线场景下的完成语义；我实现了双阶段 ACK、幂等序号、Kafka 可重放持久化、gRPC 双向流、缺口与离线补偿，再以 E2E 和故障注入闭环，最后在这套可靠底座上补了用户中心和 Hermes AI Bot。
+
+面试中应主动区分三类贡献：
+
+- **继承并理解**：三进程架构、WebSocket/gRPC/Kafka/Redis/MySQL、单聊/房间/广播/弹幕；
+- **分析并改造**：ACK、offset、幂等、序号、流式下发、背压、游标、限流、指标和测试；
+- **独立扩展**：用户中心、管理员端、前端状态机、Hermes Bridge、SSE 和工程化脚本。
+
+这种表达既不会掩盖教学项目基线，也能把个人工作落实到可以继续追问的源码、故障窗口和测试结果。
+
+## 4. 从最开始构建项目的完整演进顺序
 
 下面的顺序适合面试讲述。前五阶段描述原 Demo 已经具备的基础，后续阶段是二次工程化工作的重点。
 
@@ -363,7 +561,7 @@ ack_errors == 0
 
 当前 Bridge 仍是单进程同步消费，一次长回答可能阻塞同 partition 后续 AI 请求；下一步应增加有界并发 worker、每会话保序、取消请求、持久化请求状态和 AI 专用 DLQ。
 
-## 4. 一条消息现在到底怎样走
+## 5. 一条消息现在到底怎样走
 
 面试时可以沿下面这条路径讲源码：
 
@@ -382,7 +580,7 @@ ack_errors == 0
 
 这条链路中 Kafka 实时投递和持久化是两个 topic，因此顺序不保证完全同步；协议通过 accepted、delivered、stored 的不同事实和幂等来容纳这种异步性。
 
-## 5. 两分钟面试介绍稿
+## 6. 两分钟面试介绍稿
 
 > 这个项目是一个 C++17 的分布式实时消息系统。我不是把原始教学 Demo 直接写进简历，而是在它的 Comet、Logic、Job 三进程架构上做了完整二次工程化。Comet 基于 Muduo 管 WebSocket 长连接，Logic 负责鉴权、会话序号、路由和 Kafka 生产，Job 消费 Kafka 并通过 gRPC 把消息投递到对应 Comet；Redis 保存 Token、在线路由和热游标，MySQL 保存用户、会话和消息。
 >
@@ -392,7 +590,7 @@ ack_errors == 0
 >
 > 后面我又补了 PBKDF2、随机 Token、用户禁用和软删除、Token 批量撤销、审计日志与管理端，并把 Windows 上的 Hermes 作为 Bot 通过独立 Bridge 接入。AI 增量只负责在线体验，最终回答仍回到普通单聊持久化链路，所以不会破坏历史和离线恢复语义。
 
-## 6. 简历写法
+## 7. 简历写法
 
 ### 项目标题
 
@@ -413,53 +611,53 @@ ack_errors == 0
 
 - 将教学账号模块升级为用户中心雏形：PBKDF2 加盐哈希、CSPRNG Token、active/disabled/deleted 状态机、软删除、Token 反向索引批量撤销、管理员 API 和追加式审计日志，并接入 Hermes Bot 异步消息链路与 SSE 增量回复。
 
-## 7. 高频追问与回答
+## 8. 高频追问与回答
 
-### 7.1 为什么需要两个 ACK？
+### 8.1 为什么需要两个 ACK？
 
 因为一个 ACK 无法同时表达可靠受理和在线投递。accepted 的恢复依据是 Kafka 持久化事件；delivered 的依据是目标 Comet 已把消息交给在线连接发送队列。两者失败处理不同，read 又是更上层的用户行为，不能混为一谈。
 
-### 7.2 delivered_ack 会不会说得太满？
+### 8.2 delivered_ack 会不会说得太满？
 
 会，所以要主动限定：当前 delivered 是 server-side delivered，不是 TCP 对端确认或用户已读。更严格的实现应由客户端收到消息后回协议 ACK，再单独产生 read receipt。
 
-### 7.3 为什么 Redis 分配序号，MySQL 还保留 last_msg_seq？
+### 8.3 为什么 Redis 分配序号，MySQL 还保留 last_msg_seq？
 
 Redis 是低延迟热路径，MySQL 是长期事实源。首次访问会话时用 MySQL `MAX(msg_seq)` 校准 Redis floor，防止 Redis 恢复后回退；持久化再用 `GREATEST` 单调推进 MySQL 水位。两者不是双主，而是热路径与最终事实分工。
 
-### 7.4 Redis Lua 就能保证全局有序吗？
+### 8.4 Redis Lua 就能保证全局有序吗？
 
 它保证同一个 Redis 主节点上、同一 session key 的原子递增，不保证跨 session 全局顺序。项目需要的是会话内顺序。Redis Cluster 部署时相关 key 需要使用相同 hash tag，主从切换仍需结合持久化和故障策略评估是否丢最近写。
 
-### 7.5 为什么不用 Kafka exactly-once？
+### 8.5 为什么不用 Kafka exactly-once？
 
 Kafka EOS 主要覆盖 Kafka 内 consume-transform-produce 事务，不能自动把外部 MySQL 写入同一事务。这里采用至少一次消费加业务幂等；若 MySQL 是主事实源，则进一步使用事务 Outbox 和 relay。
 
-### 7.6 Job 为什么不能提交任务后就 commit offset？
+### 8.6 Job 为什么不能提交任务后就 commit offset？
 
 因为线程池接受任务只说明任务在进程内存里。进程崩溃后任务消失，但 offset 可能已经前移。当前回调必须等 PushStream reply 或持久化成功后返回，再同步提交；重试耗尽后记录 DLQ 审计，这是当前明确边界。
 
-### 7.7 gRPC 本来就是 HTTP/2 长连接，为什么 Streaming 还有价值？
+### 8.7 gRPC 本来就是 HTTP/2 长连接，为什么 Streaming 还有价值？
 
 Unary Channel 确实会复用 HTTP/2 连接，不能错误地说每条消息都新建 TCP。Streaming 的收益是减少逐调用 ClientContext、metadata 和调用状态机开销，并让应用层能在一条流内做有界排队、request/reply 关联、重连和背压。
 
-### 7.8 如何防止广播拖慢单聊？
+### 8.8 如何防止广播拖慢单聊？
 
 入口按 scene 令牌桶，Kafka 按 topic 和 consumer group 隔离，Job 消费路径独立。这样广播堆积不会直接占用单聊 partition 和消费位点。生产环境还应配置不同 worker 配额、partition 数和优先级队列。
 
-### 7.9 离线补推为什么用 delivered_seq，不用 read_seq？
+### 8.9 离线补推为什么用 delivered_seq，不用 read_seq？
 
 delivered 表示服务端是否已经把消息交给该用户连接，read 表示用户是否读过。用户可以收到但未读；如果用 read_seq 做补推，会在每次重连重复发送所有未读消息。两种水位必须分开。
 
-### 7.10 Hermes 为什么不直接在 Logic 里调 HTTP？
+### 8.10 Hermes 为什么不直接在 Logic 里调 HTTP？
 
 模型响应可能是秒级，放在 Logic 热路径会占用工作线程并放大超时。独立 Bridge 和 `ai_request` topic 隔离了慢依赖；最终回答重新进入普通单聊链路，复用持久化、游标和离线恢复。
 
-### 7.11 AI delta 为什么不落库？
+### 8.11 AI delta 为什么不落库？
 
 delta 是展示过程，不是最终事实。落库会制造大量碎片消息，还会让重连恢复半截回答。当前只持久化 final reply；delta 丢失最多影响在线动画，不影响最终历史。
 
-### 7.12 你遇到过哪些真实问题？
+### 8.12 你遇到过哪些真实问题？
 
 至少可以讲三个：
 
@@ -467,7 +665,7 @@ delta 是展示过程，不是最终事实。落库会制造大量碎片消息�
 2. 在线投递后没有推进目标 delivered cursor，重连发生重复补推，修复为 Comet 批量上报目标用户游标；
 3. 页面看似泄漏“缓存回答”，实际是历史请求、实时帧和临时 AI 气泡竞态，使用 generation、历史屏障和统一消息身份去重解决。
 
-## 8. 不应夸大的边界
+## 9. 不应夸大的边界
 
 面试中主动说明这些边界，可信度会更高：
 
@@ -481,7 +679,7 @@ delta 是展示过程，不是最终事实。落库会制造大量碎片消息�
 - HTTP/WS 公开部署前还需要 TLS、统一入口鉴权、严格 CORS、网关限流和安全审计；
 - 当前工程化改动需要形成清晰 Git commit 历史并推到个人仓库，代码演进证据本身也是面试材料的一部分。
 
-## 9. 建议的源码讲解顺序
+## 10. 建议的源码讲解顺序
 
 1. [`proto/spark_push.proto`](../proto/spark_push.proto)：先讲 ACK、Sync、MarkDelivered、MessageStream 和 PushStream；
 2. [`logic/grpc_service.cpp`](../logic/grpc_service.cpp)：讲热路径、幂等、持久化事件、场景路由和 Hermes；
@@ -492,7 +690,7 @@ delta 是展示过程，不是最终事实。落库会制造大量碎片消息�
 7. [`common/security.cpp`](../common/security.cpp) 与 [`logic/http_server.cpp`](../logic/http_server.cpp)：讲用户中心安全和对象级授权；
 8. [`load_test/e2e_bench.cpp`](../load_test/e2e_bench.cpp) 与 [`performance-report-2026-08-09.md`](performance-report-2026-08-09.md)：最后用测试闭环。
 
-## 10. 项目后续最值得做的三件事
+## 11. 项目后续最值得做的三件事
 
 按求职展示价值排序：
 

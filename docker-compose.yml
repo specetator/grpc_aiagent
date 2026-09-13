@@ -76,7 +76,13 @@ services:
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092
         --create --if-not-exists --topic ai_delta --partitions 3 --replication-factor 1 &&
         /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092
-        --create --if-not-exists --topic ai_reply --partitions 3 --replication-factor 1
+        --create --if-not-exists --topic ai_reply --partitions 3 --replication-factor 1 &&
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092
+        --create --if-not-exists --topic ai_request.dlq --partitions 3 --replication-factor 1 &&
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092
+        --create --if-not-exists --topic ai_reply.dlq --partitions 3 --replication-factor 1 &&
+        /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:29092
+        --create --if-not-exists --topic persist_message.dlq --partitions 3 --replication-factor 1
 
 volumes:
   spark_redis_data:

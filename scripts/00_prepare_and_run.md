@@ -43,7 +43,35 @@ SPARK_PUSH_MYSQL_PASSWORD='本机MySQL_ROOT密码' \
   ./scripts/start_demo.sh
 ```
 
-## 3. 一键启动
+## 3. 统一运维入口
+
+日常使用推荐从统一入口启动。它会读取 `.env.local`；当 Hermes 已启用且地址是本机
+`127.0.0.1/localhost` 时，会先检查 `/health`，必要时自动启动独立 WSL Gateway，然后复用
+原有 `start_demo.sh` 完成依赖、编译和业务服务启动。远程 Hermes 只检查可达性，不会远程启停。
+
+```bash
+./scripts/sparkctl.sh doctor             # 启动前只读预检
+./scripts/sparkctl.sh up                 # 完整启动
+./scripts/sparkctl.sh up --fast          # 跳过编译
+./scripts/sparkctl.sh restart --fast     # 快速重启
+./scripts/sparkctl.sh status             # 进程、容器、访问地址
+./scripts/sparkctl.sh health             # 严格检查，失败返回非零
+./scripts/sparkctl.sh logs all -f         # 跟踪全部日志
+./scripts/sparkctl.sh logs bridge -n 200 # 查看 Bridge 最近 200 行
+./scripts/sparkctl.sh down                # 停业务和本机 Hermes，保留依赖
+./scripts/sparkctl.sh down --with-deps    # 同时停止依赖，不删除数据卷
+```
+
+更新自有 CANN 文档后可以单独重建 generation：
+
+```bash
+./scripts/sparkctl.sh knowledge --source custom-docs
+```
+
+该命令执行摄入、建库、校验和固定评测。加 `--sync` 才会同步来源；Git 同步保持匿名、
+非交互模式。索引原子切换后 Hermes 下次工具调用自动看到新 generation，不需要重启。
+
+## 4. 底层一键启动
 
 默认启动脚本会自动完成：
 
@@ -66,13 +94,56 @@ SPARK_PUSH_MYSQL_PASSWORD='本机MySQL_ROOT密码' \
 http://127.0.0.1:9010/index.html
 ```
 
+如果要从 Windows 主机访问，不能在 Windows 浏览器中使用 `127.0.0.1`，因为那指向
+Windows 本机。请在 Ubuntu 虚拟机执行：
+
+```bash
+hostname -I
+```
+
+当前这台虚拟机的业务网卡地址是 `192.168.32.128`，因此 Windows 浏览器访问：
+
+```text
+http://192.168.32.128:9010/index.html
+```
+
+启动脚本会自动识别并打印这个地址，也支持手工指定：
+
+```bash
+SPARK_PUSH_ACCESS_IP=192.168.32.128 ./scripts/start_demo.sh
+```
+
+首页中的 Logic API 和 Comet WebSocket 会根据浏览器地址自动使用同一个主机名，
+因此不需要再把前端代码中的 `127.0.0.1` 改成固定 IP。
+
+Windows PowerShell 可先检查端口：
+
+```powershell
+Test-NetConnection 192.168.32.128 -Port 9010
+Test-NetConnection 192.168.32.128 -Port 9101
+Test-NetConnection 192.168.32.128 -Port 9000
+curl.exe http://192.168.32.128:9010/index.html
+```
+
+如果 `TcpTestSucceeded` 为 `False`，确认虚拟机网络使用 NAT 或桥接模式，并在 Ubuntu
+防火墙放行同一虚拟机网段的页面、API 和 WebSocket 端口：
+
+```bash
+sudo ufw allow from 192.168.32.0/24 to any port 9010 proto tcp
+sudo ufw allow from 192.168.32.0/24 to any port 9101 proto tcp
+sudo ufw allow from 192.168.32.0/24 to any port 9000 proto tcp
+```
+
+9100、9105、9202、9203 是内部 gRPC/监控端口，Windows 浏览器体验基础功能不需要开放。
+
 如果希望脚本一直保持前台运行，并在 Ctrl-C 时自动停止业务进程：
 
 ```bash
 ./scripts/start_demo.sh --foreground
 ```
 
-在 IDE、自动化执行器或会回收后台子进程的环境中，推荐使用 `--foreground`。
+默认后台服务会通过独立 session 脱离启动脚本；在 IDE、自动化执行器或会回收后台子进程的环境中，
+仍推荐使用 `--foreground`，这样可以直接看到服务退出原因。
 
 常用选项：
 
@@ -82,7 +153,7 @@ http://127.0.0.1:9010/index.html
 ./scripts/start_demo.sh --help
 ```
 
-## 4. 端口与健康检查
+## 5. 端口与健康检查
 
 | 服务 | 端口 | 用途 |
 |---|---:|---|
@@ -103,7 +174,7 @@ curl http://127.0.0.1:9203/metrics
 业务日志位于 `logs/logic.out`、`logs/comet.out`、`logs/job.out`、`logs/web.out`；启用 Hermes 后增加 `logs/hermes_bridge.out`；
 PID 文件位于 `.run/`。
 
-## 5. 浏览器体验
+## 6. 浏览器体验
 
 打开两个浏览器窗口或一个普通窗口加一个无痕窗口：
 
@@ -125,7 +196,7 @@ http://127.0.0.1:9010/admin_chatroom.html
 
 单聊目标必须填写数字用户 ID，不是账号名。
 
-### 5.1 与 Windows Hermes 多轮对话
+### 6.1 与 Windows Hermes 多轮对话
 
 Windows 上 `F:\hermes` 的目录不会被虚拟机直接读取，必须先让 Hermes API Server
 对虚拟机可达。在 Windows Hermes 配置中开启（配置项名称以当前 Hermes 版本为准）：
@@ -182,7 +253,7 @@ curl -sS http://127.0.0.1:9101/metrics | grep hermes
 
 完整网络、消息语义和故障排查见 [`../docs/hermes-integration.md`](../docs/hermes-integration.md)。
 
-## 6. 用户中心与管理员操作
+## 7. 用户中心与管理员操作
 
 如果要验证管理员用户管理，先在 `.env.local` 中填写：
 
@@ -199,7 +270,7 @@ Token 和查询审计日志。用户删除是软删除，不会物理删除 `mes
 Logic 启动时会自动补齐旧数据库的 `user.status`、`user.deleted_at`、`user.updated_at` 和
 `audit_log`；生产部署应显式执行并记录 `sql/migrations/001_user_center.sql`。
 
-## 7. 独立 E2E 验证
+## 8. 独立 E2E 验证
 
 先在浏览器注册两个账号，再执行：
 
@@ -221,7 +292,7 @@ ack_errors == 0
 确认小规模通过后，再执行 `--connections 8 --messages-per-conn 100` 观察队列、尾延迟和
 metrics。E2E 结束后不要立刻停止 Job，等待 `persist_message` consumer 追平，再检查 MySQL。
 
-## 8. 停止服务
+## 9. 停止服务
 
 只停止当前启动的业务进程（包含已启用的 Hermes Bridge）：
 
@@ -239,7 +310,7 @@ metrics。E2E 结束后不要立刻停止 Job，等待 `persist_message` consume
 
 不要使用 `docker compose down -v`，除非明确要删除本地数据库和 Redis 数据。
 
-## 9. 常见问题
+## 10. 常见问题
 
 ### `spark-kafka` 容器名称冲突
 
@@ -272,6 +343,25 @@ curl http://127.0.0.1:9203/metrics | grep spark_push
 如果脚本提示 `Job→Comet PushStream` 未就绪，先查看 `logs/job.out`、`logs/comet.out`，
 并确认 `curl http://127.0.0.1:9203/metrics` 中的
 `spark_push_comet_push_stream_ready 1` 已出现。
+
+#### 页面提示“WebSocket 未连接，无法发送”
+
+先执行一次强制刷新（Chrome/Linux：`Ctrl+Shift+R`）。当前前端启动时会先调用 Logic 的
+`/api/session/list_single` 校验 `spark_token`；如果 Redis 重启、管理员撤销 Token 或 Token
+过期，会自动清理 `localStorage` 中的登录态并回到登录框，不再使用旧 Token 无限重连。
+
+可以用下面的命令确认服务端是否拒绝了旧 Token：
+
+```bash
+tail -n 80 logs/comet.out logs/logic.out | grep -E 'VerifyToken|handshake|invalid|expired'
+```
+
+看到 `invalid or expired token` 时重新登录即可；看到 `WebSocket handshake done` 后，页面才
+进入可发送状态。如果 9010、9101 或 9000 不在监听，重新执行：
+
+```bash
+./scripts/start_demo.sh
+```
 
 如果只有 Hermes 没有回答，检查：
 

@@ -1,0 +1,7 @@
+{
+  "defaultProvider": "cli-relay",
+  "defaultModel": "gpt-5.6-luna",
+  "defaultThinkingLevel": "off",
+  "defaultProjectTrust": "always",
+  "quietStartup": true
+}

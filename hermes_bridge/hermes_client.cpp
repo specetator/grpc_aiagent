@@ -1,4 +1,6 @@
 #include "hermes_client.h"
+#include "sse_parser.h"
+#include "agent_event.h"
 
 #include <arpa/inet.h>
 #include <netdb.h>
@@ -405,108 +407,41 @@ std::string ExtractText(const nlohmann::json& value) {
     return result;
 }
 
-class SseParser {
-   public:
-    bool Feed(const std::string& chunk, std::string* answer,
-              const std::function<void(const std::string&)>& on_delta,
-              std::string* err_msg) {
-        pending_ += chunk;
-        while (true) {
-            const size_t line_end = pending_.find('\n');
-            if (line_end == std::string::npos) return true;
-            std::string line = pending_.substr(0, line_end);
-            pending_.erase(0, line_end + 1);
-            if (!line.empty() && line.back() == '\r') line.pop_back();
-            if (line.empty()) {
-                if (!ProcessEvent(answer, on_delta, err_msg)) return false;
-            } else if (line.rfind("data:", 0) == 0) {
-                std::string data = line.substr(5);
-                if (!data.empty() && data.front() == ' ') data.erase(0, 1);
-                event_data_ += data;
-                event_data_ += '\n';
-            }
-        }
-    }
-
-    bool Finish(std::string* answer,
-                const std::function<void(const std::string&)>& on_delta,
-                std::string* err_msg) {
-        if (!pending_.empty()) {
-            std::string line = std::move(pending_);
-            pending_.clear();
-            if (!line.empty() && line.back() == '\r') line.pop_back();
-            if (line.rfind("data:", 0) == 0) {
-                std::string data = line.substr(5);
-                if (!data.empty() && data.front() == ' ') data.erase(0, 1);
-                event_data_ += data;
-            }
-        }
-        return ProcessEvent(answer, on_delta, err_msg);
-    }
-
-   private:
-    bool ProcessEvent(std::string* answer,
-                      const std::function<void(const std::string&)>& on_delta,
-                      std::string* err_msg) {
-        if (event_data_.empty()) return true;
-        std::string data = std::move(event_data_);
-        event_data_.clear();
-        while (!data.empty() && data.back() == '\n') data.pop_back();
-        if (data == "[DONE]") {
-            done_ = true;
-            return true;
-        }
-
-        nlohmann::json event;
-        try {
-            event = nlohmann::json::parse(data);
-        } catch (const std::exception& e) {
-            if (err_msg) *err_msg = "parse Hermes SSE event failed: " +
-                                     std::string(e.what());
-            return false;
-        }
-        if (!event.contains("choices") || !event["choices"].is_array() ||
-            event["choices"].empty()) {
-            // Hermes 的 hermes.tool.progress 等事件没有 choices，增量文本
-            // 仍由后续标准 Chat Completion chunk 提供。
-            return true;
-        }
-        const auto& choice = event["choices"][0];
-        if (!choice.contains("delta") || !choice["delta"].is_object()) {
-            return true;
-        }
-        const auto& delta = choice["delta"];
-        const std::string text = delta.contains("content")
-                                      ? ExtractText(delta["content"])
-                                      : ExtractText(delta.value("text", ""));
-        if (text.empty()) return true;
-        if (answer) *answer += text;
-        if (on_delta) on_delta(text);
-        return true;
-    }
-
-    std::string pending_;
-    std::string event_data_;
-    bool done_{false};
-};
 
 }  // namespace
 
-bool HermesClient::Chat(const nlohmann::json& messages, std::string* answer,
-                        std::string* err_msg) const {
-    if (!answer || !messages.is_array() || messages.empty()) {
+bool HermesClient::Chat(const nlohmann::json& messages,
+                        const HermesChatOptions& options,
+                        HermesChatResult* result, std::string* err_msg) const {
+    if (!result || (options.control.is_null() && !options.retry && (!messages.is_array() || messages.empty()))) {
         if (err_msg) *err_msg = "Hermes chat messages are empty";
         return false;
     }
+    *result = HermesChatResult{};
     ParsedUrl base;
     if (!ParseHttpUrl(config_.hermes_base_url, &base, err_msg)) return false;
-    const std::string path = JoinPath(base.path, "/chat/completions");
+    const std::string path = JoinPath(base.path,
+        options.control.is_null() ? "/chat/completions" : "/agent/control");
 
     nlohmann::json request_body = {
-        {"model", config_.hermes_model},
+        {"model", options.model.empty() ? "pi-agent"
+                                         : options.model},
         {"messages", messages},
         {"stream", false},
     };
+    if (options.retry) request_body["turn_operation"] = "retry";
+    if (!options.provider.empty()) {
+        request_body["provider"] = options.provider;
+    }
+    if (!options.session_id.empty()) {
+        request_body["session_id"] = options.session_id;
+        request_body["context_start_seq"] = options.context_start_seq;
+    }
+    if (!options.control.is_null()) {
+        request_body = options.control;
+        request_body["session_id"] = options.session_id;
+        request_body["context_start_seq"] = options.context_start_seq;
+    }
     const std::string body = request_body.dump();
     const std::string request =
         "POST " + path + " HTTP/1.1\r\n" +
@@ -538,24 +473,48 @@ bool HermesClient::Chat(const nlohmann::json& messages, std::string* answer,
         return false;
     }
     if (status < 200 || status >= 300) {
-        std::string message = response_json.value("error", "Hermes HTTP error");
-        if (response_json.contains("error") && response_json["error"].is_object()) {
-            message = response_json["error"].value("message", message);
-        }
-        if (err_msg) *err_msg = "HTTP " + std::to_string(status) + ": " + message;
+        if (err_msg) *err_msg = "HTTP " + std::to_string(status) + ": Pi gateway request failed";
         return false;
     }
 
     try {
+        if (!options.control.is_null()) {
+            nlohmann::json event;
+            if (!NormalizeAgentEvent(response_json, &event) || event["type"] != "assistant_final") {
+                if (err_msg) *err_msg = "Invalid Agent control result";
+                return false;
+            }
+            result->text = event["data"]["text"].get<std::string>();
+            result->metadata = {{"agent_event", event}};
+            for (const auto* key : {"model_state", "thinking_state", "context_start_seq"})
+                if (response_json["data"].contains(key)) result->metadata[key] = response_json["data"][key];
+            return true;
+        }
         const auto& choice = response_json.at("choices").at(0);
+        if (response_json.contains("error") || choice.value("finish_reason", "") != "stop") {
+            if (err_msg) *err_msg = "Pi gateway did not return a successful answer";
+            return false;
+        }
         const auto& message_json = choice.at("message");
-        *answer = ExtractText(message_json.at("content"));
+        result->text = ExtractText(message_json.at("content"));
+        if (response_json.contains("hermes") &&
+            response_json["hermes"].is_object()) {
+            const auto& hermes = response_json["hermes"];
+            if (hermes.contains("response_metadata") &&
+                hermes["response_metadata"].is_object()) {
+                result->metadata = hermes["response_metadata"];
+                if (result->metadata.contains("citations") &&
+                    result->metadata["citations"].is_array()) {
+                    result->citations = result->metadata["citations"];
+                }
+            }
+        }
     } catch (const std::exception& e) {
         if (err_msg) *err_msg = "Hermes response has no assistant content: " +
                                  std::string(e.what());
         return false;
     }
-    if (answer->empty()) {
+    if (result->text.empty()) {
         if (err_msg) *err_msg = "Hermes returned empty assistant content";
         return false;
     }
@@ -564,21 +523,32 @@ bool HermesClient::Chat(const nlohmann::json& messages, std::string* answer,
 
 bool HermesClient::ChatStream(
     const nlohmann::json& messages,
+    const HermesChatOptions& options,
     const std::function<void(const std::string&)>& on_delta,
-    std::string* answer, std::string* err_msg) const {
-    if (!answer || !messages.is_array() || messages.empty()) {
+    HermesChatResult* result, std::string* err_msg) const {
+    if (!result || (!options.retry && (!messages.is_array() || messages.empty()))) {
         if (err_msg) *err_msg = "Hermes chat messages are empty";
         return false;
     }
-    answer->clear();
+    *result = HermesChatResult{};
     ParsedUrl base;
     if (!ParseHttpUrl(config_.hermes_base_url, &base, err_msg)) return false;
     const std::string path = JoinPath(base.path, "/chat/completions");
-    const nlohmann::json request_body = {
-        {"model", config_.hermes_model},
+    nlohmann::json request_body = {
+        {"model", options.model.empty() ? "pi-agent"
+                                         : options.model},
         {"messages", messages},
         {"stream", true},
+        {"agent_events", true},
     };
+    if (options.retry) request_body["turn_operation"] = "retry";
+    if (!options.provider.empty()) {
+        request_body["provider"] = options.provider;
+    }
+    if (!options.session_id.empty()) {
+        request_body["session_id"] = options.session_id;
+        request_body["context_start_seq"] = options.context_start_seq;
+    }
     const std::string body = request_body.dump();
     const std::string request =
         "POST " + path + " HTTP/1.1\r\n" +
@@ -633,21 +603,21 @@ bool HermesClient::ChatStream(
         return false;
     }
 
-    SseParser parser;
+    HermesSseParser parser(options.on_progress);
     std::string parser_error;
     const bool body_ok = StreamHttpBody(
         fd, response,
-        [&parser, answer, &on_delta, &parser_error](const std::string& chunk) {
-            return parser.Feed(chunk, answer, on_delta, &parser_error);
+        [&parser, result, &on_delta, &parser_error](const std::string& chunk) {
+            return parser.Feed(chunk, result, on_delta, &parser_error);
         },
         err_msg);
-    const bool parser_ok = body_ok && parser.Finish(answer, on_delta, &parser_error);
+    const bool parser_ok = body_ok && parser.Finish(result, on_delta, &parser_error);
     ::close(fd);
     if (!body_ok || !parser_ok) {
         if (err_msg && !parser_error.empty()) *err_msg = parser_error;
         return false;
     }
-    if (answer->empty()) {
+    if (result->text.empty()) {
         if (err_msg) *err_msg = "Hermes streaming response has no assistant content";
         return false;
     }

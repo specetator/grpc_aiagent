@@ -95,6 +95,7 @@ Config LoadConfig(const std::string& path) {
     cfg.redis_connect_timeout_ms = 2000;
     cfg.redis_rw_timeout_ms = 2000;
     cfg.redis_idle_timeout_ms = 60000;
+    cfg.redis_health_check_interval_ms = 30000;
     cfg.mysql_host = "127.0.0.1";
     cfg.mysql_port = 3306;
     cfg.mysql_user = "root";
@@ -123,6 +124,8 @@ Config LoadConfig(const std::string& path) {
     cfg.admin_password.clear();
     cfg.hermes_enabled = false;
     cfg.hermes_bot_user_id = 900000000001LL;
+    cfg.cann_knowledge_root =
+        "/home/peco/cppcode/fenbushi/cann-agent-knowledge";
 
     std::ifstream fin(path);
     if (!fin) {
@@ -210,6 +213,8 @@ Config LoadConfig(const std::string& path) {
             cfg.redis_rw_timeout_ms = std::stoi(value);
         } else if (key == "redis_idle_timeout_ms") {
             cfg.redis_idle_timeout_ms = std::stoi(value);
+        } else if (key == "redis_health_check_interval_ms") {
+            cfg.redis_health_check_interval_ms = std::stoi(value);
         } else if (key == "mysql_host") {
             cfg.mysql_host = value;
         } else if (key == "mysql_port") {
@@ -274,6 +279,21 @@ Config LoadConfig(const std::string& path) {
             cfg.hermes_enabled = (value == "true" || value == "1");
         } else if (key == "hermes_bot_user_id") {
             cfg.hermes_bot_user_id = std::stoll(value);
+        } else if (key == "agent_bot_users") {
+            // Semicolon separated ID:name entries, configured by the operator.
+            cfg.agent_bot_users.clear();
+            std::istringstream entries(value);
+            std::string entry;
+            while (std::getline(entries, entry, ';')) {
+                const auto colon = entry.find(':');
+                if (colon == std::string::npos) continue;
+                const auto id = std::stoll(entry.substr(0, colon));
+                const auto name = entry.substr(colon + 1);
+                if (id > 0 && !name.empty() && name.size() <= 120)
+                    cfg.agent_bot_users[id] = name;
+            }
+        } else if (key == "cann_knowledge_root") {
+            cfg.cann_knowledge_root = value;
         }
     }
 

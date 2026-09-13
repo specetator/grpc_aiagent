@@ -11,7 +11,7 @@ inline constexpr int kUserStatusDeleted = 3;
 inline constexpr int64_t kAdminUserId = 900000000000LL;
 inline constexpr int64_t kHermesBotUserId = 900000000001LL;
 inline constexpr const char* kHermesBotAccount = "hermes_bot";
-inline constexpr const char* kHermesBotName = "Hermes";
+inline constexpr const char* kHermesBotName = "Pi Agent";
 
 // 简单用户 DAO：目前只操作单库，后续可在这里加入分库分表路由
 class UserDao {

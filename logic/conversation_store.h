@@ -1,5 +1,7 @@
 #pragma once
 
+#include <array>
+#include <cstddef>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -108,9 +110,11 @@ class ConversationStore {
     MessageDao* message_dao_{nullptr};
     UserSessionStateDao* state_dao_{nullptr};
     RedisStore* redis_store_{nullptr};
-    // 本进程内已完成 Redis 序号种子的会话，避免每条 EXISTS/查库
-    std::mutex seq_seed_mu_;
-    std::unordered_set<std::string> seq_seeded_sessions_;
+    // 不同会话并行校准 MySQL floor；同一会话仍由固定 shard 串行初始化。
+    static constexpr size_t kSeqSeedShardCount = 64;
+    std::array<std::mutex, kSeqSeedShardCount> seq_seed_mutexes_;
+    std::array<std::unordered_set<std::string>, kSeqSeedShardCount>
+        seq_seeded_sessions_;
 };
 
 }  // namespace sparkpush

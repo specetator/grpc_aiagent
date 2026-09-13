@@ -378,7 +378,6 @@ bool WebSocketHandshake(int fd,
         std::cerr << "WebSocket 握手失败，响应:\n" << resp << "\n";
         return false;
     }
-    std::cout << "WebSocket 握手成功\n";
     return true;
 }
 

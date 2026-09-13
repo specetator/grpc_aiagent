@@ -1,0 +1,33 @@
+{
+  "providers": {
+    "cli-relay": {
+      "baseUrl": "http://127.0.0.1:8317/v1",
+      "api": "openai-responses",
+      "apiKey": "$CLI_RELAY_API_KEY",
+      "authHeader": true,
+      "compat": {
+        "supportsDeveloperRole": false,
+        "supportsReasoningEffort": false
+      },
+      "models": [
+        {
+          "id": "gpt-5.6-luna",
+          "name": "gpt-5.6-luna (CLI Relay)",
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": null,
+            "low": "low",
+            "medium": "medium",
+            "high": "high",
+            "xhigh": "xhigh",
+            "max": "max"
+          },
+          "compat": {
+            "supportsReasoningEffort": true
+          }
+        }
+      ]
+    }
+  }
+}

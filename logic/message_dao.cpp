@@ -338,7 +338,7 @@ bool MessageDao::ListMessages(const std::string& session_id, int64_t anchor_seq,
     long long sender_buf = 0;
     char type_buf[64];
     unsigned long type_len = 0;
-    char content_buf[4096];
+    char content_buf[65536];
     unsigned long content_len = 0;
     long long ts_buf = 0;
     char client_msg_id_buf[128];
@@ -392,7 +392,7 @@ bool MessageDao::ListMessages(const std::string& session_id, int64_t anchor_seq,
         msg.msg_seq = seq_buf;
         msg.sender_id = sender_buf;
         msg.msg_type.assign(type_buf, type_len);
-        msg.content_json.assign(content_buf, content_len);
+        msg.content_json.assign(content_buf, std::min<unsigned long>(content_len, sizeof(content_buf)));
         msg.timestamp_ms = ts_buf;
         msg.client_msg_id.assign(client_msg_id_buf, client_msg_id_len);
         msg.msg_id = msg.session_id + "-" + std::to_string(msg.msg_seq);
@@ -466,7 +466,7 @@ bool MessageDao::ListMessagesAfter(const std::string& session_id,
     long long sender_buf = 0;
     char type_buf[64] = {0};
     unsigned long type_len = 0;
-    char content_buf[4096] = {0};
+    char content_buf[65536] = {0};
     unsigned long content_len = 0;
     long long ts_buf = 0;
     char client_msg_id_buf[128] = {0};
@@ -512,7 +512,7 @@ bool MessageDao::ListMessagesAfter(const std::string& session_id,
         msg.msg_seq = seq_buf;
         msg.sender_id = sender_buf;
         msg.msg_type.assign(type_buf, type_len);
-        msg.content_json.assign(content_buf, content_len);
+        msg.content_json.assign(content_buf, std::min<unsigned long>(content_len, sizeof(content_buf)));
         msg.timestamp_ms = ts_buf;
         msg.client_msg_id.assign(client_msg_id_buf, client_msg_id_len);
         msg.msg_id = msg.session_id + "-" + std::to_string(msg.msg_seq);

@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "logging.h"
+#include "knowledge_catalog.h"
 #include "metrics.h"
 #include "security.h"
 #include "spark_push.pb.h"
@@ -180,6 +181,7 @@ HttpApiServer::HttpApiServer(
     RedisStore* redis_store, KafkaProducer* group_producer,
     KafkaProducer* broadcast_producer, DanmakuDao* danmaku_dao,
     AuditLogDao* audit_log_dao,
+    std::string cann_knowledge_root,
     std::string admin_account, std::string admin_password)
     : store_(store),
       user_dao_(user_dao),
@@ -190,6 +192,7 @@ HttpApiServer::HttpApiServer(
       broadcast_producer_(broadcast_producer),
       danmaku_dao_(danmaku_dao),
       audit_log_dao_(audit_log_dao),
+      cann_knowledge_root_(std::move(cann_knowledge_root)),
       admin_account_(std::move(admin_account)),
       admin_password_(std::move(admin_password)),
       server_(loop, listenAddr, "logic_http_server") {
@@ -224,6 +227,7 @@ void HttpApiServer::onRequest(const HttpRequest& req, HttpResponse* resp) {
         {"/api/register", &HttpApiServer::handleRegister},
         {"/api/message/send", &HttpApiServer::handleSendMessage},
         {"/api/session/history", &HttpApiServer::handleHistory},
+        {"/api/knowledge/document", &HttpApiServer::handleKnowledgeDocument},
         {"/api/session/mark_read", &HttpApiServer::handleMarkRead},
         {"/api/session/unread", &HttpApiServer::handleUnread},
         {"/api/chatroom/join", &HttpApiServer::handleChatroomJoin},
@@ -269,6 +273,42 @@ void HttpApiServer::onRequest(const HttpRequest& req, HttpResponse* resp) {
 
     Handler handler = it->second;
     (this->*handler)(req, resp);
+}
+
+void HttpApiServer::handleKnowledgeDocument(const HttpRequest& req,
+                                            HttpResponse* resp) {
+    if (req.method() != HttpRequest::kPost) {
+        WriteJson(resp, 405, "only POST allowed", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    int64_t user_id = 0;
+    if (!requireUser(req, resp, &user_id)) return;
+    (void)user_id;
+
+    nlohmann::json body;
+    if (!ParseJsonBody(req.body(), &body) || !body.is_object()) {
+        WriteJson(resp, 400,
+                  "invalid json body, expect doc_id and optional chunk_id",
+                  "{}", HttpResponse::k400BadRequest);
+        return;
+    }
+    const std::string doc_id = body.value("doc_id", "");
+    const std::string chunk_id = body.value("chunk_id", "");
+    if (!IsValidKnowledgeDocumentId(doc_id) ||
+        (!chunk_id.empty() && !IsValidKnowledgeChunkId(chunk_id))) {
+        WriteJson(resp, 400, "invalid knowledge document or chunk id", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    nlohmann::json document;
+    std::string error;
+    if (!LoadKnowledgeDocument(cann_knowledge_root_, doc_id, chunk_id,
+                               &document, &error)) {
+        WriteJson(resp, 404, error, "{}", HttpResponse::k404NotFound);
+        return;
+    }
+    WriteJson(resp, 0, "ok", document.dump());
 }
 
 // 发送弹幕：校验 token 后写库并推送 Kafka

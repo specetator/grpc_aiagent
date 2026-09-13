@@ -81,6 +81,7 @@ bool JobRunner::Init() {
         LOG_ERROR << "Kafka broadcast consumer init failed";
         return false;
     }
+    consumer_opts.dead_letter_topic = cfg_.kafka_persist_topic + ".dlq";
     if (!persist_consumer_.Init(
             cfg_.kafka_brokers, cfg_.kafka_consumer_group + "_persist",
             cfg_.kafka_persist_topic,
@@ -674,7 +675,7 @@ bool JobRunner::PersistMessage(const PersistMessageRequest& request) {
             std::this_thread::sleep_for(
                 std::chrono::milliseconds(100 * (attempt + 1)));
         } else {
-            LOG_ERROR << "[DLQ][Persist] msg_id=" << message.msg_id
+            LOG_ERROR << "Persistence retries exhausted msg_id=" << message.msg_id
                       << " error=" << err;
         }
     }
@@ -686,8 +687,8 @@ bool JobRunner::HandlePersistMessage(const std::string& key,
     (void)key;
     PersistMessageRequest request;
     if (!request.ParseFromString(value)) {
-        LOG_ERROR << "[DLQ][Persist] invalid PersistMessageRequest";
-        return true;
+        LOG_ERROR << "Invalid PersistMessageRequest; retain in durable DLQ";
+        return false;
     }
     const bool ok = PersistMessage(request);
     if (ok) {

@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <map>
 
 #include "rate_limiter.h"
 
@@ -45,6 +46,8 @@ struct Config {
     int redis_connect_timeout_ms{2000};
     int redis_rw_timeout_ms{2000};
     int redis_idle_timeout_ms{60000};
+    // 热连接无需每次借出都 PING；仅空闲超过该时间后做健康检查。
+    int redis_health_check_interval_ms{30000};
 
     // MySQL 连接池参数
     std::string mysql_host;
@@ -92,6 +95,10 @@ struct Config {
     // Logic 只负责把 AI 请求写入 Kafka 并消费 AI 回复。
     bool hermes_enabled{false};
     int64_t hermes_bot_user_id{900000000001LL};
+    // Additional independent Agent contacts; the primary Pi contact keeps its ID.
+    std::map<int64_t, std::string> agent_bot_users{{900000000101LL, "Hermes · technical"}};
+    // 只读原文接口读取 cann-rag 当前 generation；客户端不能提交文件路径。
+    std::string cann_knowledge_root;
 
 };
 

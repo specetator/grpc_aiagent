@@ -1,0 +1,9 @@
+name: spark-push-agent
+description: Spark Push 项目知识与多角色研发编排
+skills:
+  - spark-push-agent
+  - spark-push-knowledge
+instruction: |
+  处理 Spark Push 问题时先加载 spark-push-knowledge，并以登记的代码或文档为证据。
+  简单问答直接完成；复杂设计、实现、审查或测试任务再加载 spark-push-agent。
+  若当前只能访问安装快照，则保持只读分析，不声称已经修改实时项目。

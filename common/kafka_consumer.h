@@ -7,14 +7,20 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include "kafka_producer.h"
 
 namespace sparkpush {
 
 // 封装 rdkafka 的简单消费者，负责订阅单个 topic 并将消息分发给回调。
 class KafkaConsumer {
 public:
+    struct RecoveryRecord {
+        std::string topic;
+        std::string key;
+        std::string payload;
+    };
     struct Options {
-        // 是否开启自动提交；关闭时仅在业务回调成功后同步提交。
+        // 是否自动提交。启用 dead_letter_topic 时必须关闭，且失败不跳位点。
         bool enable_auto_commit{false};
         // 自动提交间隔（ms），仅在 enable_auto_commit 为真时生效
         int auto_commit_interval_ms{5000};
@@ -28,6 +34,12 @@ public:
         int max_processing_attempts{3};
         // 业务处理重试的退避时间（ms）。
         int processing_retry_backoff_ms{100};
+        // Opt-in durable failure handling. Requires manual commits. On DLQ
+        // delivery/commit failure halt and leave the group; never skip a record.
+        std::string dead_letter_topic;
+        int dead_letter_timeout_ms{5000};
+        std::function<RecoveryRecord(const std::string&, const std::string&)>
+            failure_recovery;
     };
 
     KafkaConsumer() = default;
@@ -45,6 +57,7 @@ public:
     void Start();
     // 停止消费并回收资源
     void Stop();
+    bool failed() const { return failed_.load(); }
 
 private:
     // 主消费循环，阻塞拉取消息
@@ -54,12 +67,14 @@ private:
 
     std::unique_ptr<RdKafka::KafkaConsumer> consumer_;
     std::string topic_;
+    std::string group_id_;
+    std::unique_ptr<KafkaProducer> dead_letter_producer_;
     std::function<bool(const std::string&, const std::string&)> callback_;
     Options options_;
 
     std::atomic<bool> running_{false};
+    std::atomic<bool> failed_{false};
     std::thread thread_;
 };
 
 }  // namespace sparkpush
-

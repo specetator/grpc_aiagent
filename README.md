@@ -16,10 +16,11 @@ Client ──WebSocket──► Comet ──MessageStream──► Logic
   │                     └──── PushStream ◄──── Job ◄────────┘
   └──────────────────── WebSocket delivery + delivered cursor
 
-单聊 Hermes Bot（可选）：
+单聊 Pi Agent Bot（可选）：
 
-Logic ── ai_request ──► hermes_bridge ──HTTP/SSE──► Windows Hermes
+Logic ── ai_request ──► hermes_bridge ──HTTP/SSE──► Pi gateway ──RPC──► Pi Agent
   ▲                         │       │
+  │                         │       ├─ cann-advisor ──► 独立本地 RAG
   │                         │       └─ ai_delta ──► Logic 临时推送 ──► Job/Comet
   └──── ai_reply ◄──────────┴─────── push_single ──► Job/Comet（最终落库消息）
 ```
@@ -30,7 +31,7 @@ Logic ── ai_request ──► hermes_bridge ──HTTP/SSE──► Windows 
 | Comet | WebSocket 9000 / gRPC 9105 / metrics 9203 | 长连接接入、上行流、本机下推、离线补推 |
 | Job | metrics 9202 | 消费四类 Kafka topic，长连接投递 Comet，持久化 MySQL |
 | Web Demo | HTTP 9010 | 浏览器演示 |
-| Hermes Bridge（可选） | 无监听端口 | 消费 `ai_request`，调用 SSE `/v1/chat/completions`，发布 `ai_delta` 和最终 `ai_reply` |
+| Agent Bridge（可选） | 无监听端口 | 消费 `ai_request`，调用 Pi gateway 的 SSE `/v1/chat/completions`，发布 `ai_delta` 和最终 `ai_reply` |
 
 技术栈：C++17、Muduo、WebSocket、gRPC/Protobuf、Kafka、Redis、MySQL、OpenSSL、CMake/CTest、Docker Compose、GitHub Actions。
 
@@ -42,7 +43,8 @@ Logic ── ai_request ──► hermes_bridge ──HTTP/SSE──► Windows 
 - `user_session_state.delivered_seq`：握手后 `SyncOffline` 补推未交给该用户连接的消息；
 - `push_single` / `push_group` / `broadcast_task`：单聊、群聊、广播分别限流、排队和消费，防止广播挤占单聊；
 - `hermes_bot(900000000001)`：Logic 启动时幂等创建的系统用户；`ai_request/ai_delta/ai_reply` 只承载 AI 编排，最终回答仍走普通单聊 `push_single`；
-- Hermes 增量体验：Bridge 将文本 SSE 增量发布到 `ai_delta`，Logic 只实时推送临时气泡；完整回答经 `ai_reply` 分配正式 `msg_seq`、落库并作为离线/重连恢复事实；
+- Agent 增量体验：Bridge 将文本 SSE 增量发布到 `ai_delta`，Logic 只实时推送临时气泡；完整回答经 `ai_reply` 分配正式 `msg_seq`、落库并作为离线/重连恢复事实；
+- CANN 引用：Pi gateway 的 `hermes.final`/`pi.final` 携带权威最终文本和结构化引用，Logic 校验后随最终消息落库；浏览器把 `cannkb://` 安全转换为受 Token 保护的同源原文页；
 - Job 为每个 Comet 复用双向 `PushStream`，由 reader 按 `request_id` 匹配逐条 reply，带有界队列、指数退避重连、`request_id` 去重和 Unary fallback；
 - 启动脚本不只检查端口，还等待 `spark_push_comet_push_stream_ready 1`，避免 Job/Comet 冷启动时把“可连接”误判为“可投递”；
 - Logic、Job、Comet 都可抓取 Prometheus text metrics；
@@ -52,6 +54,9 @@ Logic ── ai_request ──► hermes_bridge ──HTTP/SSE──► Windows 
 配套的运行、排障、优化操作和面试讲解见 [`../新手上手指南.md`](../新手上手指南.md)。
 原始 Demo 到当前工程化版本的逐阶段对比、简历写法和面试追问见
 [`docs/interview-project-evolution.md`](docs/interview-project-evolution.md)。
+CANNBot Agent 分层思路的 Pi 接入、项目知识 Skill、RAG 引用和二次开发流程见
+[`docs/cannbot-integration.md`](docs/cannbot-integration.md) 与
+[`docs/pi-agent-integration.md`](docs/pi-agent-integration.md)。
 
 ## 用户中心与管理员操作
 
@@ -75,12 +80,25 @@ Token 在 Redis 中维护正向映射和 `user:tokens:<uid>` 反向索引，管�
 cp .env.example .env.local
 ${EDITOR:-vi} .env.local
 
-./scripts/start_demo.sh --foreground
-# 浏览器打开 http://127.0.0.1:9010/index.html
+./scripts/sparkctl.sh doctor
+./scripts/sparkctl.sh up
+# Ubuntu 虚拟机内浏览器打开 http://127.0.0.1:9010/index.html
+# Windows 主机请使用虚拟机网卡 IP，例如：
+# http://192.168.32.128:9010/index.html
 
-# 另开终端执行；或在前台启动脚本中按 Ctrl-C
-./scripts/stop_demo.sh
+# 查看状态、健康和日志
+./scripts/sparkctl.sh status
+./scripts/sparkctl.sh health
+./scripts/sparkctl.sh logs all -f
+
+# 停止业务和本机 Hermes；默认保留 Docker 数据依赖
+./scripts/sparkctl.sh down
 ```
+
+启动脚本会自动打印 Windows 可访问地址。Windows 中的 `127.0.0.1` 指向 Windows
+本机，不是 Ubuntu 虚拟机；若无法访问，先在 Windows PowerShell 执行
+`Test-NetConnection <虚拟机IP> -Port 9010`、`-Port 9101` 和 `-Port 9000`，再检查
+虚拟机网络模式及 Ubuntu 防火墙。
 
 `.env.local` 至少设置 `SPARK_PUSH_MYSQL_PASSWORD`；要启用管理员控制台，还需设置
 `SPARK_PUSH_ADMIN_ACCOUNT` 和 `SPARK_PUSH_ADMIN_PASSWORD`。真实口令不会从环境变量进入配置仓库。
@@ -88,27 +106,39 @@ ${EDITOR:-vi} .env.local
 
 启动脚本会自动拉起 Redis / MySQL / Kafka、创建 topic、编译服务并检查端口。只想复用已启动依赖或已确认二进制最新时，可分别使用 `--skip-deps`、`--skip-build`；完整的参数、浏览器操作和排障说明见 [`scripts/00_prepare_and_run.md`](scripts/00_prepare_and_run.md)。
 
-## Hermes Bot（第一阶段）
+日常运维统一使用 `scripts/sparkctl.sh`：
 
-Windows Hermes 的源码目录 `F:\hermes` 不需要挂载到虚拟机；虚拟机中的
-`hermes_bridge` 通过 HTTP 访问 Hermes API。设置 Hermes API Server 后，在
-`.env.local` 开启：
+```bash
+./scripts/sparkctl.sh up                 # 完整启动，必要时自动启动本机 Pi Agent Gateway
+./scripts/sparkctl.sh up --fast          # 跳过编译
+./scripts/sparkctl.sh restart --fast     # 快速重启
+./scripts/sparkctl.sh logs bridge -f     # 跟踪 Agent Bridge
+./scripts/sparkctl.sh knowledge --source custom-docs
+./scripts/sparkctl.sh down --with-deps   # 连 Docker 依赖一起停止，不删除卷
+```
+
+底层 `start_demo.sh`、`stop_demo.sh` 仍保留，便于自动化程序只管理 Spark 业务进程。
+`sparkctl down` 默认还会停止本机 Pi Agent Gateway。
+
+## Pi Agent Bot
+
+Agent 基座是 WSL 中的 Pi coding agent。`hermes_bridge` 进程名保持不变，指向本机
+Pi gateway（`http://127.0.0.1:8643/v1`）。先执行 `cannbot/scripts/setup_pi_agent.sh`，
+再在 `.env.local` 开启：
 
 ```dotenv
 SPARK_PUSH_HERMES_ENABLED=true
-SPARK_PUSH_HERMES_BASE_URL=http://host.docker.internal:8642/v1
-SPARK_PUSH_HERMES_API_KEY=与 Hermes API_SERVER_KEY 相同
-SPARK_PUSH_HERMES_MODEL=hermes-agent
+SPARK_PUSH_HERMES_BASE_URL=http://127.0.0.1:8643/v1
+SPARK_PUSH_HERMES_API_KEY=与 Pi gateway Bearer 相同
+SPARK_PUSH_HERMES_MODEL=pi-agent
 SPARK_PUSH_HERMES_STREAMING=true
 ```
 
-重新启动 `scripts/start_demo.sh` 后，浏览器单聊页面可点击“与 Hermes Bot 对话”，
-也可输入 UserID `900000000001`。默认使用流式 `/v1/chat/completions`：文本增量经
-`ai_delta` 及时显示，最终完整回答经 `ai_reply` 重新进入
-`persist_message → push_single → Job → Comet`，因此刷新、重连和离线补推仍然可靠。
-设置 `SPARK_PUSH_HERMES_STREAMING=false` 可回退到非流式兼容模式。Logic 把最近 50 条
-单聊历史组装为 `messages`，虚拟机网络、Windows 防火墙、多轮验证和边界说明见
-[`docs/hermes-integration.md`](docs/hermes-integration.md)。
+重新启动后，浏览器单聊页面可点击“与 Pi Agent 对话”，也可输入 UserID
+`900000000001`。默认使用流式 `/v1/chat/completions`：文本增量经 `ai_delta` 及时显示，
+最终完整回答经 `ai_reply` 重新进入 `persist_message → push_single → Job → Comet`。
+CANN RAG、`cannkb://` 超链接和 `/cann` `/kb` 命令仍然可用。细节见
+[`docs/pi-agent-integration.md`](docs/pi-agent-integration.md)。
 
 ## E2E 验证
 
