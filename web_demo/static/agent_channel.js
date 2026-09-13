@@ -107,6 +107,11 @@
       actions.appendChild(button);
     }
     card.appendChild(actions); card.appendChild(status);
+    if (ui.artifact && typeof ui.artifact.name === 'string' && typeof ui.artifact.text === 'string' && ui.artifact.text.length <= 240000) {
+      const download = doc.createElement('button'); download.type='button'; download.textContent='下载 '+ui.artifact.name.slice(0,80);
+      download.onclick=()=>{ const blob=new Blob([ui.artifact.text],{type:ui.artifact.mime || 'application/octet-stream'}); const url=URL.createObjectURL(blob); const a=doc.createElement('a'); a.href=url; a.download=ui.artifact.name.replace(/[^a-zA-Z0-9._-]/g,'_').slice(0,100)||'artifact'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); };
+      card.appendChild(download);
+    }
     const old = bubble.querySelector('.agent-creative-workspace'); if (old) old.remove(); bubble.appendChild(card); return true;
   }
   function renderReasoningPicker(bubble, ui, sendAction) {

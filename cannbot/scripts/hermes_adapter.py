@@ -252,19 +252,33 @@ class HermesHttpAdapter:
                 if branches and not any(x['canon'] for x in branches): branches[-1]['canon']=True
                 state['branches']=branches; self.store.put(self.namespace,session,state); text='已更新剧情主线。'
             elif operation=='export':
-                text='当前 technical 剧情已准备导出；后续将通过 IM 附件发送 Markdown。'
+                lines=['# technical 剧情导出','', '## 模式', str(state.get('creative_mode','write'))]
+                for label,key in [('角色设定','character'),('用户人设','persona'),('当前场景','scene')]:
+                    if state.get(key): lines += ['', '## '+label, str(state[key])[:12000]]
+                facts=state.get('pinned_facts',[])
+                if facts: lines += ['', '## 固定事实'] + ['- '+str(x)[:2000] for x in facts[:50]]
+                branches=state.get('branches',[])
+                if branches: lines += ['', '## 剧情分支'] + ['- '+str(x.get('title',''))+('（主线）' if x.get('canon') else '') for x in branches[:50]]
+                lore=state.get('lorebook',[])
+                if lore: lines += ['', '## 世界书'] + ['- '+', '.join(x.get('keys',[]))+': '+str(x.get('content',''))[:2000] for x in lore[:100]]
+                artifact_text='\n'.join(lines)+'\n'
+                text='已生成 technical 剧情 Markdown 导出。'
+                artifact={'name':'technical-story.md','mime':'text/markdown','text':artifact_text[:240000]}
             else:
                 text='technical '+creative[operation]+'面板将在下一阶段开放；当前命令已记录到独立会话。'
             mode=state.get('creative_mode','write')
             actions=['roleplay','write','scene','character','persona','world','memory','branch','branches','export']
-            return agent_event('assistant_final',{'text':text,'creative_state':{'mode':mode},
+            data={'text':text,'creative_state':{'mode':mode},
                 'presentation':{'kind':'creative_workspace','title':'technical 创作工作台 · '+mode,
                     'state':{'mode':mode,'character':state.get('character',''),'persona':state.get('persona',''),
                              'scene':state.get('scene',''),'active_branch':state.get('active_branch',''),
                              'pinned_facts_count':len(state.get('pinned_facts',[])),
                              'lorebook_count':len(state.get('lorebook',[])),
                              'branch_count':len(state.get('branches',[]))},
-                    'actions':[{'id':key,'label':creative[key],'selected':key==mode} for key in actions]}})
+                    'actions':[{'id':key,'label':creative[key],'selected':key==mode} for key in actions]}}
+            if operation=='export': data['artifact']=artifact
+            if operation=='export': data['presentation']['artifact']=artifact
+            return agent_event('assistant_final',data)
         card=command_card('Hermes 会话操作',['model','new','retry','restart','status','help'])
         if operation in {'list_models','set_model','reset_model'}:
             catalog=self._catalog(refresh=request.get('refresh') is True)
