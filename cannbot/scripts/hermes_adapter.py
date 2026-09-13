@@ -171,6 +171,22 @@ class HermesHttpAdapter:
         return {'context_start_seq':state['context_start_seq'],
             'model_state':{'override':bool(state.get('selection')),'model':model}}
 
+    def _creative_prompt(self, state, message):
+        """Build a bounded, inspectable prompt projection for technical mode."""
+        if not state.get('creative_mode'):
+            return None
+        sections=['technical 创作模式：'+('剧情跑团' if state.get('creative_mode')=='roleplay' else '写作协作')]
+        for label,key in [('角色设定','character'),('用户人设','persona'),('当前场景','scene')]:
+            if state.get(key): sections.append(label+'：'+str(state[key])[:3000])
+        facts=state.get('pinned_facts',[])
+        if facts: sections.append('固定剧情事实：\n- '+'\n- '.join(str(x)[:1000] for x in facts[-20:]))
+        lore=[]
+        for entry in state.get('lorebook',[]):
+            if isinstance(entry,dict) and any(str(k).lower() in message.lower() for k in entry.get('keys',[])):
+                lore.append(str(entry.get('content',''))[:1500])
+        if lore: sections.append('本轮激活世界书：\n- '+'\n- '.join(lore[:12]))
+        return '\n\n'.join(sections)
+
     def control(self,request,timeout_s=30):
         session,operation=request['session_id'],request.get('operation')
         state=self._state(session)
@@ -180,6 +196,17 @@ class HermesHttpAdapter:
                 state['creative_mode']=operation
                 self.store.put(self.namespace,session,state)
                 text='已切换 technical 模式：'+creative[operation]+'。后续请求将使用该创作模式。'
+            elif operation in {'character','world'}:
+                argument=request.get('argument','').strip()
+                if operation=='character':
+                    if argument: state['character']=argument[:4000]; self.store.put(self.namespace,session,state); text='已更新角色设定。'
+                    else: text='当前角色设定：'+state.get('character','尚未设置')
+                elif argument:
+                    parts=argument.split('::',1)
+                    if len(parts)!=2 or not parts[0].strip() or not parts[1].strip(): text='用法：/world 关键词1,关键词2 :: 世界观内容'
+                    else:
+                        lore=state.get('lorebook',[]); lore.append({'keys':[x.strip() for x in parts[0].split(',') if x.strip()][:12],'content':parts[1].strip()[:3000]}); state['lorebook']=lore[-100:]; self.store.put(self.namespace,session,state); text='已添加世界书条目（当前共 '+str(len(lore))+' 条）。'
+                else: text='当前世界书条目：'+str(len(state.get('lorebook',[])))+' 条'
             elif operation=='scene':
                 argument=request.get('argument','').strip()
                 if argument:
@@ -337,7 +364,11 @@ class HermesHttpAdapter:
             last_progress=started
             first_delta=None
             path='/chat/completions'
-            payload={'model':state['model'],'stream':True,'messages':[{'role':'user','content':message}]}
+            messages=[]
+            creative=self._creative_prompt(state,message)
+            if creative: messages.append({'role':'system','content':creative})
+            messages.append({'role':'user','content':message})
+            payload={'model':state['model'],'stream':True,'messages':messages}
             if state.get('selection'):
                 # Explicit provider+model is honored by the installed OpenAI-compatible
                 # endpoint; provider resolution fails closed. The Browser stream has
