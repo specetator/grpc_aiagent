@@ -201,7 +201,9 @@ HermesCommand ParseHermesCommand(const std::string& text) {
         result.kind = HermesCommandKind::kKnowledge;
     } else if (token == "roleplay" || token == "rp" || token == "write" ||
                token == "scene" || token == "character" || token == "world" ||
-               token == "memory" || token == "remember" || token == "forget") {
+               token == "memory" || token == "remember" || token == "forget" ||
+               token == "persona" || token == "branch" || token == "branches" ||
+               token == "canon" || token == "export") {
         result.kind = HermesCommandKind::kCreative;
         result.name = token;
     } else {

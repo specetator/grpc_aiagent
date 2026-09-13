@@ -310,7 +310,10 @@ class HermesBridgeRunner {
                 } else if (command_name == "roleplay" || command_name == "write" ||
                            command_name == "scene" || command_name == "character" ||
                            command_name == "world" || command_name == "memory" ||
-                           command_name == "remember" || command_name == "forget") {
+                           command_name == "remember" || command_name == "forget" ||
+                           command_name == "persona" || command_name == "branch" ||
+                           command_name == "branches" || command_name == "canon" ||
+                           command_name == "export") {
                     chat_options.control["operation"] = command_name;
                 }
                 if (!argument.empty()) chat_options.control["argument"] = argument;

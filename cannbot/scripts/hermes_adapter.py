@@ -176,7 +176,7 @@ class HermesHttpAdapter:
         if not state.get('creative_mode'):
             return None
         sections=['technical 创作模式：'+('剧情跑团' if state.get('creative_mode')=='roleplay' else '写作协作')]
-        for label,key in [('角色设定','character'),('用户人设','persona'),('当前场景','scene')]:
+        for label,key in [('角色设定','character'),('用户人设','persona'),('当前场景','scene'),('当前分支','active_branch')]:
             if state.get(key): sections.append(label+'：'+str(state[key])[:3000])
         facts=state.get('pinned_facts',[])
         if facts: sections.append('固定剧情事实：\n- '+'\n- '.join(str(x)[:1000] for x in facts[-20:]))
@@ -190,12 +190,16 @@ class HermesHttpAdapter:
     def control(self,request,timeout_s=30):
         session,operation=request['session_id'],request.get('operation')
         state=self._state(session)
-        creative={'roleplay':'剧情跑团','write':'写作协作','scene':'当前场景','character':'角色设定','world':'世界书','memory':'记忆状态','remember':'保存固定事实','forget':'删除固定事实'}
+        creative={'roleplay':'剧情跑团','write':'写作协作','scene':'当前场景','character':'角色设定','world':'世界书','memory':'记忆状态','remember':'保存固定事实','forget':'删除固定事实','persona':'用户人设','branch':'创建剧情分支','branches':'查看剧情分支','canon':'设为主线','export':'导出当前剧情'}
         if operation in creative:
             if operation in {'roleplay','write'}:
                 state['creative_mode']=operation
                 self.store.put(self.namespace,session,state)
                 text='已切换 technical 模式：'+creative[operation]+'。后续请求将使用该创作模式。'
+            elif operation=='persona':
+                argument=request.get('argument','').strip()
+                if argument: state['persona']=argument[:4000]; self.store.put(self.namespace,session,state); text='已更新用户人设。'
+                else: text='当前用户人设：'+state.get('persona','尚未设置')
             elif operation in {'character','world'}:
                 argument=request.get('argument','').strip()
                 if operation=='character':
@@ -236,6 +240,19 @@ class HermesHttpAdapter:
                     text='当前固定事实：'+('；'.join(facts) if facts else '暂无')
             elif operation=='memory':
                 text='technical 当前模式：'+({'roleplay':'剧情跑团','write':'写作协作'}.get(state.get('creative_mode'),'默认写作'))+'；固定事实 '+str(len(state.get('pinned_facts',[])))+' 条；场景：'+state.get('scene','未设置')
+            elif operation=='branch':
+                title=request.get('argument','').strip() or '未命名分支'
+                branches=state.get('branches',[]); item={'id':'branch-'+uuid.uuid4().hex[:8],'title':title[:120],'canon':not branches}
+                branches.append(item); state['branches']=branches[-50:]; state['active_branch']=item['id']; self.store.put(self.namespace,session,state); text='已创建剧情分支：'+item['title']
+            elif operation=='branches':
+                branches=state.get('branches',[]); text='当前剧情分支：'+('；'.join(x.get('title','')+(' [主线]' if x.get('canon') else '') for x in branches) if branches else '暂无')
+            elif operation=='canon':
+                target=request.get('argument','').strip(); branches=state.get('branches',[])
+                for item in branches: item['canon']=bool(target and target in {item.get('id'),item.get('title')})
+                if branches and not any(x['canon'] for x in branches): branches[-1]['canon']=True
+                state['branches']=branches; self.store.put(self.namespace,session,state); text='已更新剧情主线。'
+            elif operation=='export':
+                text='当前 technical 剧情已准备导出；后续将通过 IM 附件发送 Markdown。'
             else:
                 text='technical '+creative[operation]+'面板将在下一阶段开放；当前命令已记录到独立会话。'
             mode=state.get('creative_mode','write')
