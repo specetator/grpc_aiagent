@@ -50,6 +50,26 @@ class AgentStore:
         with self.connect() as db:
             db.execute("INSERT OR REPLACE INTO states VALUES (?,?,?)", (namespace,key,json.dumps(value,ensure_ascii=False)))
 
+    def append_context(self, key, role, text, max_messages=24):
+        """Persist a bounded context projection without replacing IM history."""
+        if role not in {"user", "assistant"} or not isinstance(text, str):
+            raise ValueError("invalid context entry")
+        state = self.get("context", key)
+        messages = state.get("recent_messages", [])
+        if not isinstance(messages, list):
+            messages = []
+        messages.append({"role": role, "text": text[:12000]})
+        state["recent_messages"] = messages[-max_messages:]
+        state["context_revision"] = int(state.get("context_revision", 0)) + 1
+        state["last_message_role"] = role
+        state["updated_at_ms"] = int(time.time() * 1000)
+        self.put("context", key, state)
+        return state
+
+    def context(self, key):
+        state = self.get("context", key)
+        return state if isinstance(state, dict) else {}
+
 
 class SessionLocks:
     """Bounded lock registry; unrelated sessions never share a runtime lock."""
@@ -210,12 +230,16 @@ class AgentRouter:
         started=time.monotonic()
         with self.locks.hold(session_id,timeout_s):
             key,_ = self._selected(session_id)
+            context = self.store.append_context(session_id, "user", message)
             if on_progress:
                 on_progress(self.entries[key]["name"] + " · 正在处理")
             text, metadata = self.adapters[key].chat(message,on_delta,
                 max(0,timeout_s-(time.monotonic()-started)),None,None,session_id,0,retry=retry,on_progress=on_progress)
+            context = self.store.append_context(session_id, "assistant", text)
             data = self._decorate(key,{"text":text})
-            return data["text"], {**metadata,"agent_state":data["agent_state"]}
+            return data["text"], {**metadata,"agent_state":data["agent_state"],
+                                   "context_revision":context["context_revision"],
+                                   "context_message_count":len(context["recent_messages"])}
 
     def stop(self):
         for adapter in self.adapters.values():
