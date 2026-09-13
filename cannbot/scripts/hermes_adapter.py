@@ -180,8 +180,35 @@ class HermesHttpAdapter:
                 state['creative_mode']=operation
                 self.store.put(self.namespace,session,state)
                 text='已切换 technical 模式：'+creative[operation]+'。后续请求将使用该创作模式。'
+            elif operation=='scene':
+                argument=request.get('argument','').strip()
+                if argument:
+                    state['scene']=argument[:2000]
+                    self.store.put(self.namespace,session,state)
+                    text='已更新当前场景：'+state['scene']
+                else:
+                    text='当前场景：'+state.get('scene','尚未设置')
+            elif operation=='remember':
+                argument=request.get('argument','').strip()
+                if not argument:
+                    text='用法：/remember <要固定的剧情事实>'
+                else:
+                    facts=state.get('pinned_facts',[])
+                    if not isinstance(facts,list): facts=[]
+                    facts.append(argument[:2000]); state['pinned_facts']=facts[-50:]
+                    self.store.put(self.namespace,session,state)
+                    text='已保存固定事实（当前共 '+str(len(state['pinned_facts']))+' 条）。'
+            elif operation=='forget':
+                argument=request.get('argument','').strip()
+                facts=state.get('pinned_facts',[])
+                if argument and isinstance(facts,list):
+                    facts=[x for x in facts if x!=argument]
+                    state['pinned_facts']=facts; self.store.put(self.namespace,session,state)
+                    text='已删除匹配的固定事实（当前共 '+str(len(facts))+' 条）。'
+                else:
+                    text='当前固定事实：'+('；'.join(facts) if facts else '暂无')
             elif operation=='memory':
-                text='technical 当前模式：'+({'roleplay':'剧情跑团','write':'写作协作'}.get(state.get('creative_mode'),'默认写作'))+'；长期记忆和世界书管理接口已就绪。'
+                text='technical 当前模式：'+({'roleplay':'剧情跑团','write':'写作协作'}.get(state.get('creative_mode'),'默认写作'))+'；固定事实 '+str(len(state.get('pinned_facts',[])))+' 条；场景：'+state.get('scene','未设置')
             else:
                 text='technical '+creative[operation]+'面板将在下一阶段开放；当前命令已记录到独立会话。'
             mode=state.get('creative_mode','write')

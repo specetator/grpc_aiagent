@@ -313,6 +313,7 @@ class HermesBridgeRunner {
                            command_name == "remember" || command_name == "forget") {
                     chat_options.control["operation"] = command_name;
                 }
+                if (!argument.empty()) chat_options.control["argument"] = argument;
                 chat_options.control["command_seq"] = request.value("message_seq", 0LL);
                 if (!chat_options.model.empty()) {
                     chat_options.control["model"] = chat_options.model;
