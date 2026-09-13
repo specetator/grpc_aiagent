@@ -1,4 +1,6 @@
 <network-security-config>
     <!-- Development emulator bridge only; production should use HTTPS/WSS. -->
     <domain-config cleartextTrafficPermitted="true"><domain includeSubdomains="false">10.0.2.2</domain></domain-config>
+    <!-- Optional Tailscale MagicDNS development endpoint; prefer HTTPS in production. -->
+    <domain-config cleartextTrafficPermitted="true"><domain includeSubdomains="true">ts.net</domain></domain-config>
 </network-security-config>
