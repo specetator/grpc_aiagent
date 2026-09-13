@@ -12,7 +12,8 @@
     return typeof value === 'string' && /^[1-9][0-9]{0,15}$/.test(value) && Number.isSafeInteger(Number(value));
   }
   const commands = Object.freeze({agent: '/agent', model: '/model', reasoning: '/reasoning', new: '/new', retry: '/retry',
-    restart: '/restart', restart_confirm: '/restart now', status: '/status', help: '/help', new_confirm: '/new now', retry_confirm: '/retry now'});
+    restart: '/restart', restart_confirm: '/restart now', status: '/status', help: '/help', new_confirm: '/new now', retry_confirm: '/retry now',
+    roleplay: '/roleplay', rp: '/rp', write: '/write', scene: '/scene', character: '/character', world: '/world', memory: '/memory', remember: '/remember', forget: '/forget'});
   function commandForAction(action) {
     if (!action || typeof action.kind !== 'string') return null;
     if (action.kind === 'agent_set') return typeof action.value === 'string' && /^[a-z][a-z0-9_-]{0,47}$/.test(action.value) ? '/agent ' + action.value : null;
@@ -34,7 +35,9 @@
     return ({agent: '查看 Agent 列表', model: '查看模型列表', list_models: '查看模型列表', refresh_models: '刷新模型列表', reset_model: '恢复默认模型',
       reasoning: '查看思考深度', new: '查看新建上下文选项', retry: '查看重试选项',
       new_confirm: '确认新建上下文', retry_confirm: '确认重试上一条消息',
-      restart: '查看重启选项', restart_confirm: '确认重启 Hermes technical', status: '查看会话状态', help: '打开命令菜单'})[action.kind] || null;
+      restart: '查看重启选项', restart_confirm: '确认重启 Hermes technical', status: '查看会话状态', help: '打开命令菜单',
+      roleplay: '剧情跑团模式', rp: '剧情跑团模式', write: '写作协作模式', scene: '查看当前场景',
+      character: '查看角色设定', world: '查看世界书', memory: '查看记忆状态', remember: '保存固定事实', forget: '删除固定事实'})[action.kind] || null;
   }
   function displayAction(content) {
     if (!content || !content.agent_action) return null;
