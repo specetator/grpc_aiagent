@@ -322,7 +322,16 @@ class HermesHttpAdapter:
         elif operation=='restart_agent':
             text=self._restart(request,state,timeout_s)
         elif operation in {'list_reasoning','set_reasoning'}:
-            text='当前适配尚未开放 Hermes 会话思考等级切换，沿用 technical profile 配置；此次未修改。'
+            levels=['low','high','xhigh','max']
+            if operation=='set_reasoning':
+                target=request.get('target') or request.get('level') or request.get('argument','')
+                if target not in levels:
+                    raise ValueError('思考深度必须是 low、high、xhigh 或 max')
+                state['reasoning_level']=target; self.store.put(self.namespace,session,state)
+                text='已切换 Hermes 思考深度：'+target+'。后续请求立即生效；未修改 technical profile 文件。'
+            else:
+                text='当前 Hermes 思考深度：'+str(state.get('reasoning_level') or 'profile 默认')
+            card={'kind':'reasoning_picker','current':state.get('reasoning_level'),'levels':levels}
         elif operation in {'status','help'}:
             ready=self.is_ready()
             selected=self._metadata(state)['model_state']['model']
@@ -391,6 +400,8 @@ class HermesHttpAdapter:
             if creative: messages.append({'role':'system','content':creative})
             messages.append({'role':'user','content':message})
             payload={'model':state['model'],'stream':True,'messages':messages}
+            if state.get('reasoning_level'):
+                payload['reasoning_effort']=state['reasoning_level']
             if state.get('selection'):
                 # Explicit provider+model is honored by the installed OpenAI-compatible
                 # endpoint; provider resolution fails closed. The Browser stream has
