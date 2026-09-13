@@ -85,6 +85,29 @@ class AgentStore:
         return state if isinstance(state, dict) else {}
 
 
+class ArtifactStore:
+    """Small durable artifact boundary; callers receive opaque IDs, never paths."""
+    def __init__(self, root: Path):
+        self.root = root
+        self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
+        if self.root.is_symlink():
+            raise ValueError("artifact directory cannot be a symlink")
+        self.lock = threading.Lock()
+
+    def put_text(self, owner: str, name: str, text: str, mime="text/plain"):
+        if not isinstance(owner, str) or not owner or not isinstance(name, str) or not isinstance(text, str):
+            raise ValueError("invalid artifact")
+        if len(text.encode('utf-8')) > 256 * 1024 or len(name) > 120 or any(c in name for c in '/\\\x00'):
+            raise ValueError("artifact exceeds limits")
+        artifact_id = "art_" + hashlib.sha256((owner + '\0' + name + '\0' + text).encode()).hexdigest()[:24]
+        path = self.root / artifact_id
+        with self.lock:
+            if not path.exists():
+                path.write_text(text, encoding='utf-8')
+                os.chmod(path, 0o600)
+        return {"id": artifact_id, "name": name, "mime": mime, "bytes": len(text.encode('utf-8'))}
+
+
 class SessionLocks:
     """Bounded lock registry; unrelated sessions never share a runtime lock."""
     def __init__(self):
@@ -132,6 +155,7 @@ class AgentRouter:
         if default not in self.entries or len(entries)>12:
             raise ValueError("invalid default Agent or registry size")
         self.adapters, self.store, self.default = adapters, store, default
+        self.artifacts = ArtifactStore(store.path.parent / "artifacts")
         self.bot_user_id = bot_user_id
         self.bot_agents = {}
         for key,entry in self.entries.items():
