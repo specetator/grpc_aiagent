@@ -10,11 +10,21 @@ import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import org.json.JSONObject
+import java.io.IOException
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 
 private const val MAX_WS_TEXT_BYTES = 16 * 1024 * 1024
+
+class SparkHttpException(
+    val statusCode: Int,
+    val bodyCode: Int,
+    message: String,
+    cause: Throwable? = null
+) : Exception(message, cause) {
+    val networkFailure: Boolean get() = statusCode < 0
+}
 
 class SparkClient {
     interface Listener {
@@ -42,18 +52,41 @@ class SparkClient {
     fun currentEndpoint(): Endpoint? = endpoint
 
     suspend fun post(path: String, body: JSONObject, token: String? = null): JSONObject = withContext(Dispatchers.IO) {
-        val base = endpoint ?: throw IllegalStateException("服务器地址未设置")
+        val base = endpoint ?: throw SparkHttpException(-1, -1, "服务器地址未设置")
         val requestBuilder = Request.Builder()
             .url(base.logicBase + path)
             .post(body.toString().toRequestBody(jsonType))
             .header("Accept", "application/json")
         if (!token.isNullOrBlank()) requestBuilder.header("Authorization", "Bearer $token")
-        http.newCall(requestBuilder.build()).execute().use { response ->
-            val raw = response.body.string()
-            if (raw.isBlank()) throw IllegalStateException("服务端返回空响应（HTTP ${response.code}）")
-            try { JSONObject(raw) } catch (e: Exception) {
-                throw IllegalStateException("服务端返回格式错误（HTTP ${response.code}）")
+        try {
+            http.newCall(requestBuilder.build()).execute().use { response ->
+                val raw = response.body.string()
+                val parsed = try {
+                    if (raw.isBlank()) JSONObject() else JSONObject(raw)
+                } catch (_: Exception) {
+                    throw SparkHttpException(
+                        response.code,
+                        -1,
+                        "服务端返回格式错误（HTTP ${response.code}）"
+                    )
+                }
+                val bodyCode = parsed.optInt("code", if (response.isSuccessful) 0 else response.code)
+                if (!response.isSuccessful) {
+                    throw SparkHttpException(
+                        response.code,
+                        bodyCode,
+                        parsed.optString("message", "服务端返回 HTTP ${response.code}")
+                    )
+                }
+                if (raw.isBlank()) {
+                    throw SparkHttpException(response.code, bodyCode, "服务端返回空响应（HTTP ${response.code}）")
+                }
+                parsed
             }
+        } catch (error: SparkHttpException) {
+            throw error
+        } catch (error: IOException) {
+            throw SparkHttpException(-1, -1, error.message ?: "网络不可达", error)
         }
     }
 

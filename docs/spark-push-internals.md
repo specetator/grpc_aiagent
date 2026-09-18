@@ -633,29 +633,21 @@ generation = connectionGeneration.incrementAndGet()
 单帧上限 16 MiB
 ```
 
-`StreamAccumulator`：
+`StreamAccumulator` 使用 `BoundedReorderBuffer`：
 
 ```text
-pending        : TreeMap<Int, PendingStreamDelta>
-text           : StringBuilder          // 只追加，不整串相加
-nextDeltaIndex : Int?  从 0 开始
-dirty / publishedText / publishedProgress
+pending        : TreeMap<Int, StreamDelta>   上限 256 帧 / 512 KiB
+seenEventIds   : LinkedHashSet               上限 4096
+text           : StringBuilder
 ```
 
-`acceptDelta(index, delta)`：
+有 `agent_event` 时必须通过 request/session/type/`terminal=false` 校验，序号取 envelope.sequence；否则退回 `delta_index`。超限或事件队列（容量 512）溢出时停止预览，最终 `ai_reply` 和历史同步仍是权威。
 
-1. `index < 0`：无序号，立即 apply（progress 类）
-2. 否则 `nextDeltaIndex` 初始化为 0
-3. `index < expected` 或 key 已存在 → 丢弃（不回退）
-4. `pending[index] = delta`
-5. `while pending.remove(cursor) != null`: apply 并 `cursor++`
-6. `nextDeltaIndex = cursor`
+登录恢复：`SessionRestoreClassifier` 把网络/5xx 判为 UNREACHABLE（保留 Token），401/403 才清登录。连接、历史、游标、流式都在 `eventDispatcher` 上串行修改。历史首屏会保留 SENDING/ACCEPTED/streaming 气泡。
 
-apply：progress 替换状态文本；正文 `StringBuilder.append`。
-刷新：第一帧强制；之后 40 ms 一批。150 秒无事件把临时气泡标失败，但正式 `ai_reply` 到达仍替换预览。
-事件线程：`Channel.UNLIMITED` + `Dispatchers.Default.limitedParallelism(1)`，避免每个 delta 一个协程抢 Compose 状态。
+计时线：`accepted_ms`、`agent_start_ms`、`first_text_ms`、`final_ms`、`history_ms`，并输出最近 64 次 Agent 请求的 p50/p95。
 
-重连延迟 1800 ms。恢复后按每个 session 的 cursor 发 `sync`。断开时不把最终回答伪造为成功。
+重连延迟 1800 ms。断开时不把最终回答伪造为成功。
 
 ---
 
@@ -709,3 +701,50 @@ provider raw
 9. 客户端推进 cursor；发现缺口再 `sync`
 
 Agent 路径在第 4 步之后分叉：`ai_request` → SSE 状态机 → 48B/50ms 合并 → TreeMap/rAF 预览；终态再从第 4 步重走普通单聊。
+
+---
+
+## 31. 模块说明模板与实例
+
+每个小模块统一按下面八项写。下面两例已经按该模板收敛。
+
+### 31.1 `deque + unordered_set` 投递去重
+
+- **解决的问题**：Job 重连或 Unary fallback 可能把同一 `request_id` 再发给 Comet，不能重复下推到 WebSocket。
+- **源码入口**：`CometServer::AcceptPushRequest`（`comet/comet_server.cpp`）。
+- **数据结构**：`unordered_set<string> recent_push_ids_` 查重；`deque<string> recent_push_order_` 记插入顺序。容量 100000。
+- **操作步骤**：空 id 放行；set 命中则返回 false 并计数 duplicate；否则 insert + push_back；超限 `erase(front)` + `pop_front`。
+- **锁与线程**：`conns_mu_`，与连接表共用。Job 的 PushStream reader/writer 与 Comet gRPC 线程会竞争这把锁。
+- **复杂度**：查重均摊 O(1)，淘汰 O(1)，内存 O(窗口大小)。
+- **失败恢复**：进程重启窗口丢失，可能把旧 request 再下推一次；客户端仍按 `msg_id` 去重。不是 LRU，命中不会把 id 挪到队尾。
+- **对应测试**：Job 重连路径靠 `spark_push_delivery_duplicate_total`；契约层见 `tests/client_reliability_contract_test.py` 的有界窗口语义。
+
+### 31.2 Redis Lua 序号分配
+
+- **解决的问题**：并发重试时既要单调 `msg_seq`，又要把同一 `client_msg_id` 映射回原序号。
+- **源码入口**：`RedisStore::AllocateSessionMsgSeq`；热路径校准 `ConversationStore::AppendMessageHotPath`。
+- **数据结构**：三个 Redis STRING：`session:msg_seq`、`session:last_seq`、`message:dedup:...`（TTL 24h）。
+- **操作步骤**：见第 4 节 Lua 全文：抬 floor → GET dedup → 命中返回旧 seq/`is_new=0` → 否则 INCR 并 SET EX。
+- **锁与线程**：Redis 单线程执行 Lua；C++ 侧仅 64 分片 mutex 保护“本进程是否已校准”。
+- **复杂度**：每条消息一次 EVAL，O(1) Redis 命令；校准 set 随 session 数增长。
+- **失败恢复**：Redis 落后靠 MySQL MAX floor；FLUSH 后若本进程仍认为已校准，可能冲突，Job 唯一键兜底。TTL 过期后同一 client_msg_id 会拿到新序号。
+- **对应测试**：`tests/redis_sequence_integration_test.cpp`（`SPARK_PUSH_RUN_REDIS_TESTS=1`）。
+
+### 31.3 Android 登录恢复与有界流式
+
+- **解决的问题**：弱网被当成退出登录；无界 Channel/TreeMap 在乱序洪泛时撑爆内存；历史加载覆盖正在发的气泡。
+- **源码入口**：`SessionRestoreClassifier`、`BoundedReorderBuffer`、`SparkViewModel.verifySession` / `handleDelta` / `applyHistory`。
+- **数据结构**：有界 `Channel(512)`；每流 `TreeMap` 上限 256 帧 / 512 KiB；`BoundedEventIdSet` 4096。
+- **操作步骤**：网络/5xx → 保留 Token 并允许重试；401/403 → 清登录。envelope 与 Web 相同校验。队列满则停止预览。历史合并时保留 SENDING/ACCEPTED/streaming 气泡。
+- **锁与线程**：单一 `eventDispatcher`（`limitedParallelism(1)`）串行修改连接、历史、游标和流式状态。
+- **复杂度**：每帧 O(log n) 插入，n≤256；队列 O(1) 入队。
+- **失败恢复**：预览可丢，最终 `ai_reply` 和 `sync`/历史是权威。弱网不删 SharedPreferences 中的 Token。
+- **对应测试**：`tests/client_reliability_contract_test.py`。
+
+### 31.4 会话内串行、会话间并行（设计，未实施）
+
+- **解决的问题**：同一会话消息必须保序，不同会话不应互相堵死。
+- **源码入口**：当前 Pi worker 仍全局串行；Router SQLite 单 Gateway 写入。不要先加副本。
+- **数据结构（拟）**：`session_id` 稳定哈希到分片；每分片有界队列；用户级并发上限。
+- **失败恢复**：`running` turn 不能当成功；只有相同 `request_id`+`input_hash` 可回放。
+- **对应测试**：实施时先加假 Agent 的会话隔离用例，再开多 worker。

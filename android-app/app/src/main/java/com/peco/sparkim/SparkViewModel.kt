@@ -18,9 +18,10 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.TreeMap
+import java.util.ArrayDeque
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 
 private val DisplayPrefixRegex = Regex("^\\s*【[^】]{1,100}】")
 
@@ -32,17 +33,15 @@ private fun utf8Bytes(value: String): Int = value.toByteArray(Charsets.UTF_8).si
 private fun unicodeChars(value: String): Int =
     value.codePointCount(0, value.length)
 
-private data class PendingStreamDelta(val text: String, val progress: Boolean)
-
 private class StreamAccumulator(
     val requestId: String,
     val sessionId: String,
     val senderId: Long
 ) {
     val messageKey: String = "stream:$requestId"
-    val pending = TreeMap<Int, PendingStreamDelta>()
+    val reorder = BoundedReorderBuffer()
+    val seenEventIds = BoundedEventIdSet()
     val text = StringBuilder()
-    var nextDeltaIndex: Int? = null
     var progress: String? = null
     var dirty = false
     var lastActivityAtNanos = 0L
@@ -60,7 +59,9 @@ private data class ClientRequestTiming(
     var sendAtNanos: Long,
     var requestId: String? = null,
     var acceptedAtNanos: Long? = null,
+    var agentStartAtNanos: Long? = null,
     var firstDeltaAtNanos: Long? = null,
+    var historyReadableAtNanos: Long? = null,
     var completedAtNanos: Long? = null,
     var chunkCount: Int = 0,
     var deltaBytes: Int = 0,
@@ -83,13 +84,15 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
     // One ordered worker parses WebSocket frames and mutates stream state.
     // This avoids one coroutine and one JSON parse racing for every delta.
     private val eventDispatcher = Dispatchers.Default.limitedParallelism(1)
-    private val eventQueue = Channel<String>(Channel.UNLIMITED)
+    private val eventQueue = Channel<String>(MAX_EVENT_QUEUE)
     private var eventJob: Job? = null
     private var streamFlushJob: Job? = null
     private val terminalStreamRequests = LinkedHashSet<String>()
     private val streamAccumulators = LinkedHashMap<String, StreamAccumulator>()
     private val timingsByClientId = ConcurrentHashMap<String, ClientRequestTiming>()
     private val timingsByRequestId = ConcurrentHashMap<String, ClientRequestTiming>()
+    private val timingSamples = ArrayDeque<Long>()
+    private val realtimeBacklog = AtomicBoolean(false)
     private val cursors = mutableMapOf<String, Long>()
     private val seenSequences = mutableMapOf<String, MutableSet<Long>>()
 
@@ -114,7 +117,7 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
                 val auth = AuthSession(uid, token, name.ifBlank { "用户 $uid" })
                 _ui.update { it.copy(auth = auth, screen = Screen.HOME, notice = "正在恢复登录状态…") }
                 viewModelScope.launch {
-                    if (verifySession(auth)) onAuthenticated(auth) else clearStoredAuth()
+                    applySessionRestore(auth, verifySession(auth))
                 }
             }
         }
@@ -169,10 +172,57 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
         }
     }
 
-    private suspend fun verifySession(auth: AuthSession): Boolean = try {
+    fun retrySessionRestore() {
+        val auth = _ui.value.auth ?: return
+        _ui.update { it.copy(notice = "正在重新校验登录状态…", restoreRetryAvailable = false, error = null) }
+        viewModelScope.launch {
+            applySessionRestore(auth, verifySession(auth))
+        }
+    }
+
+    private suspend fun verifySession(auth: AuthSession): SessionRestoreResult = try {
         val response = client.post("/api/session/list_single", JSONObject().put("user_id", auth.userId), auth.token)
-        response.optInt("code", -1) == 0
-    } catch (_: Exception) { false }
+        SessionRestoreClassifier.classify(
+            networkFailure = false,
+            httpStatus = 200,
+            bodyCode = response.optInt("code", -1),
+            bodyMessage = response.optString("message")
+        )
+    } catch (error: SparkHttpException) {
+        SessionRestoreClassifier.classify(
+            networkFailure = error.networkFailure,
+            httpStatus = error.statusCode,
+            bodyCode = error.bodyCode,
+            bodyMessage = error.message ?: ""
+        )
+    } catch (error: Exception) {
+        SessionRestoreClassifier.classify(true, -1, -1, error.message ?: "")
+    }
+
+    private suspend fun applySessionRestore(auth: AuthSession, result: SessionRestoreResult) {
+        withContext(eventDispatcher) {
+            when (result.kind) {
+                SessionRestoreKind.VALID -> onAuthenticated(auth)
+                SessionRestoreKind.INVALID_TOKEN -> {
+                    clearStoredAuth()
+                    _ui.update { it.copy(error = result.message, restoreRetryAvailable = false) }
+                }
+                SessionRestoreKind.UNREACHABLE -> {
+                    _ui.update {
+                        it.copy(
+                            auth = auth,
+                            screen = Screen.HOME,
+                            loading = false,
+                            error = null,
+                            notice = result.message,
+                            restoreRetryAvailable = true,
+                            connection = ConnectionState.DISCONNECTED
+                        )
+                    }
+                }
+            }
+        }
+    }
 
     private fun parseAuth(response: JSONObject, fallbackName: String): AuthSession {
         val code = response.optInt("code", -1)
@@ -281,23 +331,37 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
         timing.completedAtNanos = completedAt
         fun elapsed(end: Long?, start: Long): Long =
             if (end == null || start <= 0L) -1L else (end - start) / 1_000_000L
+        val totalMs = elapsed(timing.completedAtNanos, timing.sendAtNanos)
+        if (timing.agent && totalMs >= 0) {
+            synchronized(timingSamples) {
+                timingSamples.addLast(totalMs)
+                while (timingSamples.size > MAX_TIMING_SAMPLES) timingSamples.removeFirst()
+            }
+        }
+        val samples = synchronized(timingSamples) { timingSamples.toList() }
         Log.i(
             CLIENT_TIMING_TAG,
             "client_timing request_id=${timing.requestId.orEmpty()} " +
                 "client_msg_id=${timing.clientMsgId} client_trace_id=${timing.clientTraceId} " +
                 "send_at=${timing.sendAtNanos} " +
                 "accepted_at=${timing.acceptedAtNanos ?: 0L} " +
+                "agent_start_at=${timing.agentStartAtNanos ?: 0L} " +
                 "first_delta_at=${timing.firstDeltaAtNanos ?: 0L} " +
+                "history_readable_at=${timing.historyReadableAtNanos ?: 0L} " +
                 "completed_at=${timing.completedAtNanos ?: 0L} " +
                 "accepted_ms=${elapsed(timing.acceptedAtNanos, timing.sendAtNanos)} " +
-                "first_delta_ms=${elapsed(timing.firstDeltaAtNanos, timing.sendAtNanos)} " +
-                "total_ms=${elapsed(timing.completedAtNanos, timing.sendAtNanos)} " +
+                "agent_start_ms=${elapsed(timing.agentStartAtNanos, timing.sendAtNanos)} " +
+                "first_text_ms=${elapsed(timing.firstDeltaAtNanos, timing.sendAtNanos)} " +
+                "final_ms=${elapsed(timing.completedAtNanos, timing.sendAtNanos)} " +
+                "history_ms=${elapsed(timing.historyReadableAtNanos, timing.sendAtNanos)} " +
+                "total_ms=$totalMs " +
                 "provider=${timing.provider} model=${timing.model} " +
-                "stream=${timing.stream} max_tokens=unset max_output_tokens=unset " +
+                "stream=${timing.stream} " +
                 "chunk_count=${timing.chunkCount} delta_bytes=${timing.deltaBytes} " +
                 "delta_chars=${timing.deltaChars} final_bytes=${timing.finalBytes} " +
                 "final_chars=${timing.finalChars} display_bytes=${timing.displayBytes} " +
-                "display_chars=${timing.displayChars} reason=${reason}"
+                "display_chars=${timing.displayChars} reason=${reason} " +
+                "agent_latency=${TimingPercentiles.summarize(samples)}"
         )
         if (timing.clientMsgId.isNotBlank()) timingsByClientId.remove(timing.clientMsgId, timing)
         timing.requestId?.let { timingsByRequestId.remove(it, timing) }
@@ -351,7 +415,7 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
         }
     }
 
-    private fun applyDelta(accumulator: StreamAccumulator, delta: PendingStreamDelta) {
+    private fun applyDelta(accumulator: StreamAccumulator, delta: StreamDelta) {
         if (delta.progress) {
             if (accumulator.progress != delta.text) {
                 accumulator.progress = delta.text
@@ -369,26 +433,24 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
         }
     }
 
-    private fun acceptDelta(accumulator: StreamAccumulator, index: Int, delta: PendingStreamDelta): Boolean {
-        if (index < 0) {
-            applyDelta(accumulator, delta)
-            return true
+    private fun acceptDelta(
+        accumulator: StreamAccumulator,
+        decision: DeltaDecision,
+        delta: StreamDelta
+    ): Boolean {
+        val result = accumulator.reorder.accept(decision, delta)
+        when (result.status) {
+            ReorderStatus.DROP, ReorderStatus.DUPLICATE -> return false
+            ReorderStatus.OVERFLOW -> {
+                discardStream(accumulator, "流式预览积压，已改为等待最终消息", "stream_overflow", showFailure = false)
+                return false
+            }
+            ReorderStatus.BUFFERED -> return false
+            ReorderStatus.APPLIED -> {
+                for (item in result.applied) applyDelta(accumulator, item)
+                return true
+            }
         }
-        // Spark Push numbers the first progress/text delta from zero. Keep a
-        // gap in the small pending map instead of silently discarding a late
-        // lower index; the durable final message remains authoritative.
-        if (accumulator.nextDeltaIndex == null) accumulator.nextDeltaIndex = 0
-        val expected = accumulator.nextDeltaIndex ?: 0
-        if (index < expected || accumulator.pending.containsKey(index)) return false
-        accumulator.pending[index] = delta
-        var cursor = expected
-        while (true) {
-            val next = accumulator.pending.remove(cursor) ?: break
-            applyDelta(accumulator, next)
-            cursor++
-        }
-        accumulator.nextDeltaIndex = cursor
-        return true
     }
 
     private fun streamIndex(state: SparkUiState, accumulator: StreamAccumulator): Int {
@@ -471,11 +533,11 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
         viewModelScope.launch(eventDispatcher) { clearStreams(null, "logout", showFailure = false) }
         client.close()
         prefs.edit().remove("user_id").remove("token").remove("name").apply()
-        _ui.update { it.copy(auth = null, screen = Screen.AUTH, connection = ConnectionState.DISCONNECTED, conversations = emptyList(), selected = null, messages = emptyList(), hasHistory = false, loading = false, notice = null) }
+        _ui.update { it.copy(auth = null, screen = Screen.AUTH, connection = ConnectionState.DISCONNECTED, conversations = emptyList(), selected = null, messages = emptyList(), hasHistory = false, loading = false, notice = null, restoreRetryAvailable = false) }
     }
 
     private fun onAuthenticated(auth: AuthSession) {
-        _ui.update { it.copy(auth = auth, screen = Screen.HOME, loading = false, error = null, notice = "正在连接 Spark Push…") }
+        _ui.update { it.copy(auth = auth, screen = Screen.HOME, loading = false, error = null, notice = "正在连接 Spark Push…", restoreRetryAvailable = false) }
         connectSocket(auth)
         loadSessions(auth)
     }
@@ -796,26 +858,73 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
                         }
                     }
                 }
-                val historyBytes = parsed.sumOf { utf8Bytes(it.text) }
-                val historyChars = parsed.sumOf { unicodeChars(it.text) }
-                Log.i(
-                    CLIENT_TIMING_TAG,
-                    "length_audit stage=android_history_display session=${conversation.sessionId} " +
-                        "message_count=${parsed.size} bytes=${historyBytes} chars=${historyChars}"
-                )
-                parsed.filter { it.seq > 0 }.maxOfOrNull { it.seq }?.let { cursors[conversation.sessionId] = maxOf(cursors[conversation.sessionId] ?: 0, it) }
-                _ui.update { current ->
-                    if (current.selected?.sessionId != conversation.sessionId) current
-                    else {
-                        val merged = if (initial) parsed else (parsed + current.messages).distinctBy { messageKey(it) }.sortedWith(compareBy<ChatMessage> { it.seq == 0L }.thenBy { it.seq })
-                        current.copy(messages = merged, hasHistory = merged.any { it.seq > 0L }, loading = false, loadingMore = false, notice = if (parsed.isEmpty() && initial) "暂无历史消息" else current.notice)
+                withContext(eventDispatcher) {
+                    applyHistory(conversation, initial, parsed)
+                }
+            } catch (e: SparkHttpException) {
+                if (initial && (e.statusCode == 404 || e.bodyCode == 404)) {
+                    withContext(eventDispatcher) { applyHistory(conversation, true, emptyList()) }
+                } else {
+                    withContext(eventDispatcher) {
+                        _ui.update { current ->
+                            if (current.selected?.sessionId != conversation.sessionId) current
+                            else current.copy(loading = false, loadingMore = false, error = e.message ?: "历史消息读取失败")
+                        }
                     }
                 }
             } catch (e: Exception) {
-                _ui.update { current ->
-                    if (current.selected?.sessionId != conversation.sessionId) current
-                    else current.copy(loading = false, loadingMore = false, error = e.message ?: "历史消息读取失败")
+                withContext(eventDispatcher) {
+                    _ui.update { current ->
+                        if (current.selected?.sessionId != conversation.sessionId) current
+                        else current.copy(loading = false, loadingMore = false, error = e.message ?: "历史消息读取失败")
+                    }
                 }
+            }
+        }
+    }
+
+    private fun applyHistory(conversation: Conversation, initial: Boolean, parsed: List<ChatMessage>) {
+        val historyBytes = parsed.sumOf { utf8Bytes(it.text) }
+        val historyChars = parsed.sumOf { unicodeChars(it.text) }
+        Log.i(
+            CLIENT_TIMING_TAG,
+            "length_audit stage=android_history_display session=${conversation.sessionId} " +
+                "message_count=${parsed.size} bytes=${historyBytes} chars=${historyChars}"
+        )
+        parsed.filter { it.seq > 0 }.maxOfOrNull { it.seq }?.let {
+            cursors[conversation.sessionId] = maxOf(cursors[conversation.sessionId] ?: 0, it)
+        }
+        val now = nowNanos()
+        for (message in parsed) {
+            val requestId = message.clientMsgId.removePrefix("hermes:").takeIf {
+                message.clientMsgId.startsWith("hermes:") && it.isNotBlank()
+            } ?: continue
+            timingsByRequestId[requestId]?.let { timing ->
+                if (timing.historyReadableAtNanos == null) timing.historyReadableAtNanos = now
+            }
+        }
+        _ui.update { current ->
+            if (current.selected?.sessionId != conversation.sessionId) current
+            else {
+                val transients = current.messages.filter {
+                    it.streaming || it.state == DeliveryState.SENDING || it.state == DeliveryState.ACCEPTED
+                }
+                val historyKeys = parsed.map { messageKey(it) }.toSet()
+                val kept = if (initial) transients.filter { messageKey(it) !in historyKeys } else emptyList()
+                val merged = if (initial) {
+                    (parsed + kept).distinctBy { messageKey(it) }
+                        .sortedWith(compareBy<ChatMessage> { it.seq == 0L }.thenBy { it.seq })
+                } else {
+                    (parsed + current.messages).distinctBy { messageKey(it) }
+                        .sortedWith(compareBy<ChatMessage> { it.seq == 0L }.thenBy { it.seq })
+                }
+                current.copy(
+                    messages = merged,
+                    hasHistory = merged.any { it.seq > 0L },
+                    loading = false,
+                    loadingMore = false,
+                    notice = if (parsed.isEmpty() && initial) "暂无历史消息" else current.notice
+                )
             }
         }
     }
@@ -903,6 +1012,7 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
             }
             _ui.update { it.copy(connection = state, notice = if (state == ConnectionState.CONNECTED) null else it.notice) }
             if (state == ConnectionState.CONNECTED) {
+                realtimeBacklog.set(false)
                 val selected = _ui.value.selected
                 if (selected != null) client.sync(selected.sessionId, cursors[selected.sessionId] ?: 0)
                 _ui.value.auth?.let { loadSessions(it) }
@@ -911,7 +1021,21 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
     }
 
     override fun onEvent(raw: String) {
-        eventQueue.trySend(raw)
+        if (realtimeBacklog.get() && looksLikeStreamDelta(raw)) return
+        val accepted = eventQueue.trySend(raw)
+        if (accepted.isSuccess) return
+        if (realtimeBacklog.compareAndSet(false, true)) {
+            viewModelScope.launch(eventDispatcher) {
+                stopStreamPreviews("实时通道积压，已停止临时预览，等待最终消息或历史同步", "event_queue_overflow")
+            }
+        }
+    }
+
+    private fun stopStreamPreviews(message: String, reason: String) {
+        for (accumulator in streamAccumulators.values.toList()) {
+            discardStream(accumulator, message, reason, showFailure = false)
+        }
+        _ui.update { it.copy(notice = message) }
     }
 
     override fun onFailure(message: String) {
@@ -994,13 +1118,28 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
         if (terminalStreamRequests.contains(requestId)) return
         val delta = event.optString("delta")
         if (requestId.isBlank() || delta.isEmpty()) return
+        val isProgress = event.optBoolean("progress", false)
+        val envelope = parseDeltaEnvelope(event)
+        val decision = AgentDeltaValidator.decide(
+            requestId = requestId,
+            sessionId = selected.sessionId,
+            delta = delta,
+            progress = isProgress,
+            deltaIndex = event.optInt("delta_index", -1),
+            event = envelope
+        )
+        if (decision is DeltaDecision.Drop) return
         val now = nowNanos()
         val timing = timingForRequest(requestId, selected.sessionId)
         timing.stream = true
-        val isProgress = event.optBoolean("progress", false)
+        if (timing.agentStartAtNanos == null) timing.agentStartAtNanos = now
         if (!isProgress && timing.firstDeltaAtNanos == null) timing.firstDeltaAtNanos = now
         val existing = streamAccumulators[requestId]
         val isNew = existing == null
+        if (isNew && streamAccumulators.size >= MAX_STREAM_ACCUMULATORS) {
+            val oldest = streamAccumulators.entries.firstOrNull()?.value
+            if (oldest != null) discardStream(oldest, "流式预览数量超限，已改为等待最终消息", "stream_cap", showFailure = false)
+        }
         val active = existing ?: StreamAccumulator(
             requestId = requestId,
             sessionId = selected.sessionId,
@@ -1009,21 +1148,37 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
             it.lastActivityAtNanos = now
             streamAccumulators[requestId] = it
         }
+        if (envelope?.eventId != null && !active.seenEventIds.addIfNew(envelope.eventId)) return
         active.lastActivityAtNanos = now
-        val accepted = acceptDelta(
-            active,
-            event.optInt("delta_index", -1),
-            PendingStreamDelta(delta, isProgress)
-        )
+        val accepted = acceptDelta(active, decision, StreamDelta(delta, isProgress))
         if (accepted) {
             timing.chunkCount += 1
             timing.deltaBytes += utf8Bytes(delta)
             timing.deltaChars += unicodeChars(delta)
         }
         ensureStreamFlushLoop()
-        // Make the first visible token appear as soon as the background worker
-        // receives it; all subsequent deltas are coalesced by the 40 ms loop.
-        if (isNew) flushAccumulator(active, now, force = true)
+        if (isNew && streamAccumulators.containsKey(requestId)) flushAccumulator(active, now, force = true)
+    }
+
+    private fun parseDeltaEnvelope(event: JSONObject): AgentDeltaEnvelope? {
+        val raw = event.optJSONObject("agent_event") ?: return null
+        val envelope = raw.optJSONObject("envelope")
+        val data = raw.optJSONObject("data")
+        fun optionalString(obj: JSONObject?, key: String): String? {
+            if (obj == null || !obj.has(key) || obj.isNull(key)) return null
+            return obj.optString(key).takeIf { it.isNotBlank() }
+        }
+        return AgentDeltaEnvelope(
+            schema = optionalString(raw, "schema"),
+            type = optionalString(raw, "type"),
+            dataText = optionalString(data, "text"),
+            envelopeSchema = optionalString(envelope, "schema"),
+            requestId = optionalString(envelope, "request_id"),
+            conversationId = optionalString(envelope, "conversation_id"),
+            sequence = if (envelope != null && envelope.has("sequence")) envelope.optInt("sequence") else null,
+            terminal = if (envelope != null && envelope.has("terminal")) envelope.optBoolean("terminal") else null,
+            eventId = optionalString(envelope, "event_id")
+        )
     }
 
     private fun discardStreamById(requestId: String, message: String, reason: String) {
@@ -1059,8 +1214,14 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
         if (requestId != null) {
             markTerminalStream(requestId)
             streamAccumulators.remove(requestId)
+            timingsByRequestId[requestId]?.let { timing ->
+                if (message.seq > 0 && timing.historyReadableAtNanos == null) {
+                    timing.historyReadableAtNanos = now
+                }
+            }
             completeTimingForRequest(requestId, "completed")
         }
+        realtimeBacklog.set(false)
     }
 
     private fun observeSequence(message: ChatMessage) {
@@ -1068,6 +1229,11 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
         val sid = message.sessionId
         val seen = seenSequences.getOrPut(sid) { mutableSetOf() }
         seen += message.seq
+        if (seen.size > 4096) {
+            seen.clear()
+            client.sync(sid, cursors[sid] ?: 0)
+            return
+        }
         var cursor = cursors[sid] ?: 0
         while (seen.remove(cursor + 1)) cursor++
         cursors[sid] = cursor

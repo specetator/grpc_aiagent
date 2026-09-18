@@ -72,6 +72,12 @@ set_tests_properties(pi_gateway_test PROPERTIES
   ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1"
   TIMEOUT 45
 )
+add_test(NAME client_reliability_contract_test
+  COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/client_reliability_contract_test.py)
+set_tests_properties(client_reliability_contract_test PROPERTIES
+  ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1"
+  TIMEOUT 20
+)
 
 add_executable(citation_validation_test
   citation_validation_test.cpp

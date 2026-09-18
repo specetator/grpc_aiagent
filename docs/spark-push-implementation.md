@@ -44,7 +44,7 @@ cd android-app
 模块落点：
 
 - `SparkClient.kt`：HTTP Bearer、WebSocket、连接代数、16 MiB 单帧保护
-- `SparkViewModel.kt`：历史游标、`TreeMap` 流式合并、40 ms 刷新、150 s 超时
+- `SparkViewModel.kt`：历史游标、有界 `TreeMap` 流式合并、envelope 校验、弱网保留登录、40 ms 刷新
 - `MainActivity.kt`：Setup/Auth/Home/Chat/Knowledge/Admin
 - `SparkModels.kt`：`singleSessionId()` 必须与 Logic 公式一致
 

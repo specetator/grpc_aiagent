@@ -197,7 +197,8 @@ data class SparkUiState(
     val adminBroadcastText: String = "",
     val adminBusy: Boolean = false,
     val adminError: String? = null,
-    val adminNotice: String? = null
+    val adminNotice: String? = null,
+    val restoreRetryAvailable: Boolean = false
 )
 
 // Android uses dedicated Agent contacts. The PC/WebDemo/Telegram channel

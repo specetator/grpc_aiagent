@@ -1,6 +1,6 @@
 plugins { id 'com.android.application'; id 'org.jetbrains.kotlin.android'; id 'org.jetbrains.kotlin.plugin.compose' }
 android { namespace 'com.peco.sparkim'; compileSdk 36
- defaultConfig { applicationId 'com.peco.sparkim'; minSdk 26; targetSdk 36; versionCode 4; versionName '0.4.0' }
+ defaultConfig { applicationId 'com.peco.sparkim'; minSdk 26; targetSdk 36; versionCode 5; versionName '0.5.0' }
     compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
 }
 dependencies {

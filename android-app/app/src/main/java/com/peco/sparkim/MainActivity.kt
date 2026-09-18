@@ -231,6 +231,13 @@ private fun HomeScreen(state: SparkUiState, vm: SparkViewModel) {
                 ConversationRow(conversation) { vm.openConversation(conversation) }
             }
             if (!state.notice.isNullOrBlank()) item { NoticeStrip(state.notice.orEmpty()) }
+            if (state.restoreRetryAvailable) item {
+                Button(
+                    onClick = vm::retrySessionRestore,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    shape = RoundedCornerShape(14.dp)
+                ) { Text("重试连接") }
+            }
             item {
                 Row(Modifier.fillMaxWidth().padding(top = 18.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {

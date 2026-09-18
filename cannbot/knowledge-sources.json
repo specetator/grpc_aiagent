@@ -45,6 +45,12 @@
       "topics": ["android", "compose", "streaming", "history", "output-length", "deployment", "docs-index"]
     },
     {
+      "id": "android-reliability-contract",
+      "path": "android-app/app/src/main/java/com/peco/sparkim/SparkReliability.kt",
+      "authority": "code",
+      "topics": ["android", "login-restore", "bounded-stream", "envelope", "latency"]
+    },
+    {
       "id": "multi-agent-integration",
       "path": "docs/multi-agent-integration.md",
       "authority": "canonical",

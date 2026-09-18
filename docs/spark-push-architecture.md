@@ -216,7 +216,7 @@ Spark Push 拥有鉴权、成员、序号、历史和投递；Pi/Hermes 拥有�
 两端使用同一套 session_id、`client_msg_id`、`accepted_ack` / `delivered_ack`、`sync` 和 Agent envelope。差别只在 UI 状态机：
 
 - WebDemo：乐观气泡、历史加载期间暂存实时帧、`requestAnimationFrame` 合并 DOM、距底部 96px 内才自动滚动。
-- Android：Kotlin/Compose；`SparkClient` 用连接代数丢弃过期回调；`SparkViewModel` 用 `TreeMap` 按序号合并增量，40 ms 刷新一次 Compose 状态。
+- Android：Kotlin/Compose；`SparkClient` 用连接代数丢弃过期回调；`SparkViewModel` 在单一串行入口合并连接/历史/游标/流式状态。弱网不清除 Token。流式 `TreeMap` 有界，超限停止预览并等待最终消息。
 
 Android 使用独立联系人 `900000000201`（Pi）和 `900000000211`（Hermes technical），避免和 PC/WebDemo/Telegram 的 session、模型偏好混用。
 
