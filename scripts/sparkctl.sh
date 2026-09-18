@@ -18,6 +18,7 @@ Spark Push 本地运维入口
   logs        查看或跟踪服务日志
   knowledge   更新并验证 CANN RAG generation
   bench       启动服务并运行四类隔离压测
+  regress     编译、协议测试和知识源校验；浏览器/E2E 需额外环境变量
   doctor      启动前检查命令、配置、Docker、Hermes 和知识索引
   help        显示本帮助
 
@@ -51,6 +52,7 @@ case "$command_name" in
   logs|log) exec bash "$SCRIPT_DIR/ops/logs.sh" "$@" ;;
   knowledge|kb) exec bash "$SCRIPT_DIR/ops/knowledge.sh" "$@" ;;
   bench) exec bash "$SCRIPT_DIR/ops/bench.sh" "$@" ;;
+  regress) exec bash "$SCRIPT_DIR/regress.sh" "$@" ;;
   doctor) exec bash "$SCRIPT_DIR/ops/doctor.sh" "$@" ;;
   help|-h|--help) usage ;;
   *) echo "未知命令：$command_name" >&2; usage >&2; exit 2 ;;

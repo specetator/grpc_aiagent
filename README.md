@@ -133,6 +133,7 @@ ${EDITOR:-vi} .env.local
 ./scripts/sparkctl.sh restart --fast     # 快速重启
 ./scripts/sparkctl.sh logs bridge -f     # 跟踪 Agent Bridge
 ./scripts/sparkctl.sh knowledge --source custom-docs
+./scripts/sparkctl.sh regress            # 编译 + 协议测试 + 知识源校验
 ./scripts/sparkctl.sh down --with-deps   # 连 Docker 依赖一起停止，不删除卷
 ```
 

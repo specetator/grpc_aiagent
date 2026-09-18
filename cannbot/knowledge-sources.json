@@ -45,6 +45,12 @@
       "topics": ["android", "compose", "streaming", "history", "output-length", "deployment", "docs-index"]
     },
     {
+      "id": "agent-scheduler",
+      "path": "cannbot/scripts/agent_scheduler.py",
+      "authority": "code",
+      "topics": ["agent", "queue", "concurrency", "session-serial"]
+    },
+    {
       "id": "android-reliability-contract",
       "path": "android-app/app/src/main/java/com/peco/sparkim/SparkReliability.kt",
       "authority": "code",

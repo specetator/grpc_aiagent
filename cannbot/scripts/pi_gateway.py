@@ -955,6 +955,11 @@ def make_handler(state: GatewayState):
                 ready = state.rpc.is_ready()
                 self._json(200 if ready else 503, {"ok": ready, "agent": "multi" if hasattr(state.rpc, "entries") else "pi"})
                 return
+            if path in {"/v1/agent/metrics", "/agent/metrics"}:
+                scheduler = getattr(state.rpc, "scheduler", None)
+                metrics = scheduler.metrics.snapshot() if scheduler is not None else {}
+                self._json(200, {"ok": True, "scheduler": metrics})
+                return
             if self._unauthorized():
                 return
             if path in {"/v1/models", "/models"}:

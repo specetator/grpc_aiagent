@@ -424,6 +424,8 @@
       gap: 12px;
       max-width: 76%;
       align-items: flex-start;
+      content-visibility: auto;
+      contain-intrinsic-size: auto 88px;
     }
     .msg-row.me {
       align-self: flex-end;
@@ -467,7 +469,10 @@
     .msg-row.me .msg-name {
       text-align: right;
     }
-
+    .session-preview.task-active {
+      color: var(--primary, #7c3aed);
+      font-weight: 600;
+    }
     .msg-bubble {
       padding: 12px 16px;
       border-radius: var(--radius-lg);
@@ -856,6 +861,7 @@
     const hermesBotUserId = 900000000001;
     const agentContacts = new Map([[hermesBotUserId, 'Pi Agent'], [900000000101, 'Hermes · technical']]);
     const conversationDrafts = new Map();
+    const sessionWorkspaces = new Map();
     const isAgentPeer = id => agentContacts.has(Number(id));
     const agentName = id => agentContacts.get(Number(id)) || 'AI Agent';
     let lastHistorySeq = 0;      // 历史消息最大seq，用于标记已读
@@ -983,9 +989,14 @@
               (data && /token|登录|disabled|deleted|失效|expired/i.test(data.message || ''));
             if (authFailed) {
               doLogout('登录状态已失效，请重新登录');
-            } else {
-              doLogout('无法验证登录状态，请确认服务已启动后重新登录');
+              return false;
             }
+            document.getElementById('login-status').textContent =
+              '服务器暂时不可达，已保留登录状态。可稍后重试。';
+            currentUserId = userId;
+            currentUserName = savedSession.name || ('用户 ' + userId);
+            token = savedToken;
+            updateUIState();
             return false;
           }
 
@@ -997,7 +1008,12 @@
           updateUIState();
           return true;
         } catch (e) {
-          doLogout('无法连接 Logic 服务，请确认 start_demo.sh 已成功启动');
+          document.getElementById('login-status').textContent =
+            '无法连接 Logic 服务，已保留登录状态。请确认服务已启动后刷新或重试。';
+          currentUserId = userId;
+          currentUserName = savedSession.name || ('用户 ' + userId);
+          token = savedToken;
+          updateUIState();
           return false;
         }
       })();
@@ -1009,25 +1025,80 @@
       }
     }
 
+    function workspaceFor(sessionId) {
+      const key = String(sessionId || '');
+      if (!key) return null;
+      if (!sessionWorkspaces.has(key)) {
+        sessionWorkspaces.set(key, {
+          fragment: document.createDocumentFragment(),
+          scrollTop: 0,
+          streams: new Map(),
+          completed: new Set(),
+          rendered: new Map(),
+          historyAnchorSeq: 0,
+          historyHasMore: true,
+          historyReady: false,
+          lastHistorySeq: 0,
+          task: { state: 'idle', text: '' }
+        });
+      }
+      return sessionWorkspaces.get(key);
+    }
+
+    function parkCurrentWorkspace() {
+      if (!currentSessionId) return;
+      const ws = workspaceFor(currentSessionId);
+      const container = document.getElementById('messages');
+      ws.scrollTop = container.scrollTop;
+      while (container.firstChild) ws.fragment.appendChild(container.firstChild);
+      ws.streams = new Map(hermesStreamStates);
+      ws.completed = new Set(hermesCompletedRequests);
+      ws.rendered = new Map(renderedMessageRows);
+      ws.historyAnchorSeq = historyAnchorSeq;
+      ws.historyHasMore = historyHasMore;
+      ws.historyReady = historyReady;
+      ws.lastHistorySeq = lastHistorySeq;
+    }
+
+    function restoreWorkspace(sessionId) {
+      const ws = workspaceFor(sessionId);
+      const container = document.getElementById('messages');
+      container.innerHTML = '';
+      container.appendChild(ws.fragment);
+      container.scrollTop = ws.scrollTop;
+      hermesStreamStates.clear();
+      ws.streams.forEach((value, key) => hermesStreamStates.set(key, value));
+      hermesCompletedRequests.clear();
+      ws.completed.forEach(value => hermesCompletedRequests.add(value));
+      renderedMessageRows.clear();
+      ws.rendered.forEach((value, key) => renderedMessageRows.set(key, value));
+      historyAnchorSeq = ws.historyAnchorSeq;
+      historyHasMore = ws.historyHasMore;
+      historyReady = ws.historyReady;
+      lastHistorySeq = ws.lastHistorySeq;
+    }
+
+    function setSessionTask(sessionId, state, text) {
+      const ws = workspaceFor(sessionId);
+      if (!ws) return;
+      ws.task = { state: state || 'idle', text: text || '' };
+      const item = document.querySelector('.session-item[data-sid="' + sessionId + '"] .session-preview');
+      if (!item) return;
+      item.classList.toggle('task-active', state && state !== 'idle' && state !== 'completed');
+      if (state && state !== 'idle') item.textContent = text || state;
+    }
+
     function showChatWindow(peerId, sessionId) {
       if (currentSessionId)
         conversationDrafts.set(String(currentSessionId), document.getElementById('msg-text').value);
       document.getElementById('msg-text').value = conversationDrafts.get(String(sessionId)) || '';
+      parkCurrentWorkspace();
+      const existing = sessionWorkspaces.get(String(sessionId));
       const viewGeneration = ++chatViewGeneration;
       currentPeerId = peerId;
       currentSessionId = sessionId;
       if (historyRequestController) historyRequestController.abort();
-      hermesStreamStates.clear();
-      renderedMessageRows.clear();
-      agentModelActions.clear(); agentModelResults.clear();
-      messageDeliveryStates.clear();
       pendingLiveMessages = [];
-      // 重置历史分页状态
-      historyAnchorSeq = 0;
-      historyHasMore = true;
-      historyLoading = false;
-      historyReady = false;
-      lastHistorySeq = 0;
 
       document.getElementById('empty-state').classList.add('hidden');
       document.getElementById('chat-window').classList.remove('hidden');
@@ -1045,9 +1116,13 @@
         messageInput.title = '';
       }
 
-      // 清空当前消息框并加载历史（首次）
-      document.getElementById('messages').innerHTML = '';
-      loadHistory(true, viewGeneration, sessionId);
+      restoreWorkspace(sessionId);
+      historyLoading = false;
+      if (!existing || !existing.historyReady) {
+        loadHistory(true, viewGeneration, sessionId);
+      } else {
+        historyReady = true;
+      }
 
       // 刷新未读数
       refreshUnread();
@@ -1438,6 +1513,10 @@
 
     function renderSingleChatMessage(obj) {
       const sid = String(obj.session_id || '');
+      const clientMsgId = String(obj.client_msg_id || '');
+      if (isAgentPeer(obj.from_user_id) && clientMsgId.startsWith('hermes:')) {
+        setSessionTask(sid, 'completed', '已完成');
+      }
       if (!currentSessionId || sid !== String(currentSessionId)) return;
       const senderUserId = Number(
         obj.sender_id !== undefined ? obj.sender_id : obj.from_user_id);
@@ -1459,7 +1538,6 @@
         timeStr = new Date(parseInt(obj.client_msg_id, 10)).toLocaleTimeString();
       }
 
-      const clientMsgId = String(obj.client_msg_id || '');
       const isHermesFinal = isAgentPeer(obj.from_user_id) &&
         clientMsgId.startsWith('hermes:');
       if (isHermesFinal) {
@@ -1669,7 +1747,13 @@
         name.textContent = isHermes ? agentName(s.peer_user_id) : '用户 ' + s.peer_user_id;
         const preview = document.createElement('div');
         preview.className = 'session-preview';
-        preview.textContent = '会话 ID: ' + String(s.session_id || '');
+        const task = workspaceFor(s.session_id) && workspaceFor(s.session_id).task;
+        if (task && task.state && task.state !== 'idle') {
+          preview.classList.add('task-active');
+          preview.textContent = task.text || task.state;
+        } else {
+          preview.textContent = '会话 ID: ' + String(s.session_id || '');
+        }
         info.appendChild(name);
         info.appendChild(preview);
         div.appendChild(avatar);
@@ -1746,10 +1830,11 @@
 
     function handleHermesAccepted(obj) {
       const requestId = String(obj.msg_id || '');
-      if (!requestId || hermesCompletedRequests.has(requestId) ||
-          !currentSessionId || String(obj.session_id || '') !== String(currentSessionId)) {
-        return;
-      }
+      const sid = String(obj.session_id || '');
+      if (!requestId || !sid) return;
+      setSessionTask(sid, 'queued', '排队中');
+      if (hermesCompletedRequests.has(requestId)) return;
+      if (sid !== String(currentSessionId || '')) return;
       if (!hermesStreamStates.has(requestId)) {
         createHermesStreamState(requestId, true);
       }
@@ -1778,8 +1863,11 @@
     function handleHermesDelta(obj) {
        const requestId = String(obj.request_id || '');
        const delta = String(obj.delta || '');
+       const sid = String(obj.session_id || '');
        if (!requestId || !delta || hermesCompletedRequests.has(requestId)) return;
-       if (!currentSessionId || String(obj.session_id || '') !== String(currentSessionId)) return;
+       if (obj.progress === true) setSessionTask(sid, 'executing', delta);
+       else setSessionTask(sid, 'generating', '正在生成');
+       if (!currentSessionId || sid !== String(currentSessionId)) return;
 
        let sequence = Number.isInteger(Number(obj.delta_index)) ? Number(obj.delta_index) : null;
        let eventId = '';

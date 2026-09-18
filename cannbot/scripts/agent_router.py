@@ -16,6 +16,7 @@ import threading
 import time
 
 from agent_events import agent_event, canonical_route, command_card
+from agent_scheduler import SessionScheduler
 
 AGENT_ID = re.compile(r"[a-z][a-z0-9_-]{0,47}")
 
@@ -189,6 +190,36 @@ class AgentStore:
                 (request_id,route_key,input_hash,status,created_at_ms) VALUES(?,?,?,?,?)""",
                        (request_id, route_key, input_hash, "running", now))
         return {"status": "new"}
+
+    def get_turn(self, request_id):
+        if not isinstance(request_id, str) or not request_id:
+            return {}
+        with self.connect() as db:
+            row = db.execute("""SELECT input_hash,status,result_text,metadata_json,error_code
+                FROM agent_turns WHERE request_id=?""", (request_id,)).fetchone()
+        if not row:
+            return {}
+        result = {"input_hash": row[0], "status": row[1]}
+        if row[2] is not None:
+            result["text"] = row[2]
+        if row[3]:
+            result["metadata"] = json.loads(row[3])
+        if row[4]:
+            result["error_code"] = row[4]
+        return result
+
+    def reclaim_running_turns(self, max_age_ms=0):
+        """Mark leftover running turns unknown. Never auto-retry tool side effects."""
+        if type(max_age_ms) is not int or max_age_ms < 0:
+            raise ValueError("invalid running-turn age")
+        now = int(time.time() * 1000)
+        cutoff = now if max_age_ms == 0 else now - max_age_ms
+        with self.connect() as db:
+            changed = db.execute("""UPDATE agent_turns SET status='unknown',
+                error_code='process_restart', completed_at_ms=?
+                WHERE status='running' AND created_at_ms<=?""",
+                                 (now, cutoff)).rowcount
+        return changed
 
     def complete_turn(self, request_id, text, metadata):
         now = int(time.time() * 1000)
@@ -384,6 +415,12 @@ class AgentRouter:
         if self.bot_agents and len(self.bot_agents)!=len(self.entries):
             raise ValueError("all Agents must have independent contact IDs")
         self.locks = SessionLocks()
+        self.scheduler = SessionScheduler.from_env()
+        try:
+            reclaimed = self.store.reclaim_running_turns(0)
+            self.scheduler.metrics.unknown_turns += reclaimed
+        except Exception:
+            pass
 
     def _identity(self, session):
         # Spark currently has one local tenant and direct bot conversations.
@@ -544,46 +581,76 @@ class AgentRouter:
              context_start_seq=0,retry=False,on_progress=None,request_id=""):
         self._visible(session_id)
         started=time.monotonic()
-        with self.locks.hold(session_id,timeout_s):
-            key,_ = self._select_for_first_message(session_id, message)
-            route = self._describe_route(session_id)
-            input_hash = hashlib.sha256(json.dumps({
-                "route_key": route["route_key"], "agent_id": key,
-                "message": message, "retry": retry,
-                "context_start_seq": context_start_seq}, ensure_ascii=False,
-                sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
-            turn = (self.store.begin_turn(request_id, route["route_key"], input_hash)
-                    if request_id else {"status": "new"})
-            if turn["status"] == "completed":
-                metadata = dict(turn.get("metadata") or {})
+        try:
+            agent_hint,_ = self._selected(session_id)
+        except Exception:
+            agent_hint = self.default
+        if request_id:
+            existing = self.store.get_turn(request_id)
+            if existing.get("status") == "completed":
+                route = self._describe_route(session_id)
+                input_hash = hashlib.sha256(json.dumps({
+                    "route_key": route["route_key"], "agent_id": agent_hint,
+                    "message": message, "retry": retry,
+                    "context_start_seq": context_start_seq}, ensure_ascii=False,
+                    sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+                if existing.get("input_hash") != input_hash:
+                    raise ValueError("request_id was reused with different Agent input")
+                metadata = dict(existing.get("metadata") or {})
                 metadata.update({"turn_replayed": True, "request_id": request_id,
                                  "agent_route": route})
-                return turn.get("text", ""), metadata
-            if turn["status"] == "running":
-                raise RuntimeError("Agent 请求仍在执行或上次结果未确认，未重复调用工具")
-            if turn["status"] == "failed":
+                return existing.get("text", ""), metadata
+            if existing.get("status") == "unknown":
+                raise RuntimeError("上次执行结果未知，未自动重跑带副作用的请求")
+            if existing.get("status") == "failed":
                 raise RuntimeError("Agent 请求先前已失败，未使用相同 request_id 重复执行")
-            self.store.append_context(session_id, "user", message)
-            try:
-                if on_progress:
-                    on_progress(self.entries[key]["name"] + " · 正在处理")
-                text, metadata = self.adapters[key].chat(
-                    message, on_delta, max(0, timeout_s-(time.monotonic()-started)),
-                    None, None, route["backend_session_ref"], 0, retry=retry,
-                    on_progress=on_progress, request_id=request_id)
-                context = self.store.append_context(session_id, "assistant", text)
-                data = self._decorate(key,{"text":text})
-                metadata = {**metadata, "agent_state":data["agent_state"],
-                    "agent_route":route, "request_id":request_id,
-                    "context_revision":context["context_revision"],
-                    "context_message_count":len(context["recent_messages"])}
-                if request_id:
-                    self.store.complete_turn(request_id, data["text"], metadata)
-                return data["text"], metadata
-            except Exception as exc:
-                if request_id:
-                    self.store.fail_turn(request_id, type(exc).__name__)
-                raise
+
+        def run_turn():
+            with self.locks.hold(session_id, max(0.001, timeout_s-(time.monotonic()-started))):
+                key,_ = self._select_for_first_message(session_id, message)
+                route = self._describe_route(session_id)
+                input_hash = hashlib.sha256(json.dumps({
+                    "route_key": route["route_key"], "agent_id": key,
+                    "message": message, "retry": retry,
+                    "context_start_seq": context_start_seq}, ensure_ascii=False,
+                    sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+                turn = (self.store.begin_turn(request_id, route["route_key"], input_hash)
+                        if request_id else {"status": "new"})
+                if turn["status"] == "completed":
+                    metadata = dict(turn.get("metadata") or {})
+                    metadata.update({"turn_replayed": True, "request_id": request_id,
+                                     "agent_route": route})
+                    return turn.get("text", ""), metadata
+                if turn["status"] == "running":
+                    raise RuntimeError("Agent 请求仍在执行或上次结果未确认，未重复调用工具")
+                if turn["status"] == "unknown":
+                    raise RuntimeError("上次执行结果未知，未自动重跑带副作用的请求")
+                if turn["status"] == "failed":
+                    raise RuntimeError("Agent 请求先前已失败，未使用相同 request_id 重复执行")
+                self.store.append_context(session_id, "user", message)
+                try:
+                    if on_progress:
+                        on_progress(self.entries[key]["name"] + " · 正在生成")
+                    text, metadata = self.adapters[key].chat(
+                        message, on_delta, max(0, timeout_s-(time.monotonic()-started)),
+                        None, None, route["backend_session_ref"], 0, retry=retry,
+                        on_progress=on_progress, request_id=request_id)
+                    context = self.store.append_context(session_id, "assistant", text)
+                    data = self._decorate(key,{"text":text})
+                    metadata = {**metadata, "agent_state":data["agent_state"],
+                        "agent_route":route, "request_id":request_id,
+                        "context_revision":context["context_revision"],
+                        "context_message_count":len(context["recent_messages"]),
+                        "queue_wait_ms": int((time.monotonic()-started)*1000)}
+                    if request_id:
+                        self.store.complete_turn(request_id, data["text"], metadata)
+                    return data["text"], metadata
+                except Exception as exc:
+                    if request_id:
+                        self.store.fail_turn(request_id, type(exc).__name__)
+                    raise
+
+        return self.scheduler.run(session_id, agent_hint, timeout_s, on_progress, run_turn)
 
     def stop(self):
         for adapter in self.adapters.values():
@@ -600,6 +667,20 @@ def load_router(path: Path, pi, state_root: Path):
     if config.get("schema")!=1:
         raise ValueError("invalid Agent registry schema")
     store=AgentStore(state_root)
+    from agent_scheduler import AdapterPool, env_int
+    worker_count = env_int("SPARK_PUSH_PI_WORKERS", 2, 1, 8)
+    pi_adapter = pi
+    if worker_count > 1 and hasattr(pi, "argv"):
+        extras = []
+        for _ in range(worker_count - 1):
+            clone = type(pi)(pi.argv, pi.cwd, pi.env, pi.session_dir)
+            try:
+                clone.start()
+            except Exception:
+                clone.stop()
+                raise
+            extras.append(clone)
+        pi_adapter = AdapterPool([pi, *extras])
     adapters={}
     for entry in config["agents"]:
         runtime=entry.get("runtime")
@@ -609,7 +690,7 @@ def load_router(path: Path, pi, state_root: Path):
         # a separate contact and model/context state without sharing the PC
         # contact's history.
         if runtime=="pi_rpc":
-            adapters[entry["id"]]=pi
+            adapters[entry["id"]]=pi_adapter
         elif runtime=="hermes_http":
             adapters[entry["id"]]=HermesHttpAdapter(entry,store)
         else:

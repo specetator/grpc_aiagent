@@ -741,10 +741,12 @@ Agent 路径在第 4 步之后分叉：`ai_request` → SSE 状态机 → 48B/50
 - **失败恢复**：预览可丢，最终 `ai_reply` 和 `sync`/历史是权威。弱网不删 SharedPreferences 中的 Token。
 - **对应测试**：`tests/client_reliability_contract_test.py`。
 
-### 31.4 会话内串行、会话间并行（设计，未实施）
+### 31.4 会话内串行、会话间并行
 
-- **解决的问题**：同一会话消息必须保序，不同会话不应互相堵死。
-- **源码入口**：当前 Pi worker 仍全局串行；Router SQLite 单 Gateway 写入。不要先加副本。
-- **数据结构（拟）**：`session_id` 稳定哈希到分片；每分片有界队列；用户级并发上限。
-- **失败恢复**：`running` turn 不能当成功；只有相同 `request_id`+`input_hash` 可回放。
-- **对应测试**：实施时先加假 Agent 的会话隔离用例，再开多 worker。
+- **解决的问题**：一个会话的长任务不应堵住其他会话；同一会话仍须保序。
+- **源码入口**：`cannbot/scripts/agent_scheduler.py`（`SessionScheduler`、`AdapterPool`）；`AgentRouter.chat`；Gateway 启动时 `SPARK_PUSH_PI_WORKERS`（默认 2）为 Pi RPC 建进程池。SQLite 仍由**一个** Gateway 写入。
+- **数据结构**：调度器用 condition + `session_running` 集合；池用 `last[session]→worker` 亲和，busy set。队列上限 `SPARK_PUSH_AGENT_MAX_QUEUE`，全局 in-flight `SPARK_PUSH_AGENT_MAX_INFLIGHT`，每 Agent `SPARK_PUSH_AGENT_MAX_PER_AGENT`，排队超时 `SPARK_PUSH_AGENT_QUEUE_TIMEOUT_S`。
+- **操作步骤**：先查 turn 是否已 completed（回放、不进队列）；否则入队 → 同会话无 running 且未超并发才执行 → 进度 `排队中/正在执行/正在生成`。
+- **锁与线程**：调度 condition；会话锁仍保证同会话工具顺序；每个 Pi 进程自己的 `PiRpcClient.lock`。
+- **失败恢复**：Gateway 启动 `reclaim_running_turns` 把遗留 `running` 标为 `unknown`，禁止自动重跑。completed 同 `request_id`+hash 只回放。
+- **对应测试**：`test_agent_router.py` 的跨会话不等待、亲和池、unknown 不重跑。看板：`GET /v1/agent/metrics`。

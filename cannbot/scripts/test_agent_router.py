@@ -13,6 +13,7 @@ from http.server import ThreadingHTTPServer
 from urllib.request import Request, urlopen
 
 from agent_router import AgentRouter, AgentStore
+from agent_scheduler import AdapterPool, SessionScheduler
 from agent_events import agent_event, event_envelope
 from hermes_adapter import HermesHttpAdapter
 from pi_gateway import GatewayState, make_handler
@@ -41,6 +42,7 @@ class RouterTests(unittest.TestCase):
                       {'id':'hermes-technical','name':'Hermes','owner_user_ids':[3]}]
         self.adapters={'pi':self.pi,'hermes-technical':self.hermes}
         self.router=AgentRouter(self.entries,self.adapters,self.store)
+        self.router.scheduler=SessionScheduler(max_inflight=2,max_queue=8,queue_timeout_s=2,max_per_agent=2)
         self.sid='s_3_900000000001'
     def tearDown(self): self.temp.cleanup()
     def test_context_compaction_keeps_tail_and_revision(self):
@@ -144,6 +146,45 @@ class RouterTests(unittest.TestCase):
         self.assertEqual(self.store.get('selection',self.sid)['agent_id'],'hermes-technical')
         with self.assertRaises(ValueError):
             self.router.control({'session_id':self.sid,'operation':'new_session','command_seq':9})
+    def test_running_turn_reclaim_does_not_retry_tools(self):
+        self.router.chat('first', None, 1, session_id=self.sid, request_id='crash-1')
+        self.assertEqual(len(self.pi.calls), 1)
+        with self.store.connect() as db:
+            db.execute("UPDATE agent_turns SET status='unknown', error_code='process_restart' WHERE request_id='crash-1'")
+        with self.assertRaises(RuntimeError) as ctx:
+            self.router.chat('first', None, 1, session_id=self.sid, request_id='crash-1')
+        self.assertIn('未知', str(ctx.exception))
+        self.assertEqual(len(self.pi.calls), 1)
+        self.assertEqual(self.store.reclaim_running_turns(0), 0)
+
+    def test_cross_session_chat_does_not_wait_on_other_session(self):
+        started = threading.Event()
+        release = threading.Event()
+        original = self.pi.chat
+        def slow(message, *args, **kwargs):
+            if message == 'slow':
+                started.set()
+                self.assertTrue(release.wait(1))
+            return original(message, *args, **kwargs)
+        self.pi.chat = slow
+        first = threading.Thread(target=lambda: self.router.chat('slow', None, 2, session_id=self.sid, request_id='slow-1'))
+        first.start()
+        self.assertTrue(started.wait(1))
+        t0 = time.monotonic()
+        self.router.chat('fast', None, 1, session_id='s_4_900000000001', request_id='fast-1')
+        self.assertLess(time.monotonic() - t0, 0.5)
+        release.set()
+        first.join(2)
+        self.assertFalse(first.is_alive())
+
+    def test_adapter_pool_keeps_session_affinity(self):
+        a, b = FakeAgent(), FakeAgent()
+        pool = AdapterPool([a, b])
+        pool.chat('one', None, 1, session_id='s_3_900000000001')
+        pool.chat('two', None, 1, session_id='s_3_900000000001')
+        self.assertEqual(len(a.calls) + len(b.calls), 2)
+        self.assertTrue(len(a.calls) == 2 or len(b.calls) == 2)
+
     def test_same_session_busy_but_another_session_can_run(self):
         with self.router.locks.hold(self.sid,1):
             with self.assertRaises(TimeoutError):
