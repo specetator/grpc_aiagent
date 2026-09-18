@@ -6,8 +6,10 @@
 
 #include "citation_validation.h"
 #include "hermes_reply.h"
+#include "agent_event.h"
 #include "logging.h"
 #include "metrics.h"
+#include "text_metrics.h"
 
 namespace sparkpush {
 
@@ -420,6 +422,19 @@ bool LogicServiceImpl::BuildHermesRequest(const Message& current,
             {"local_error", plan.local_error},
         };
     }
+    const auto current_metrics = MeasureText(current_text);
+    if (LengthAuditEnabled()) {
+        LOG_INFO << "length_audit stage=logic_request request_id=" << current.msg_id
+                 << " provider="
+                 << (plan.provider.empty() ? "adapter-state" : plan.provider)
+                 << " model=" << (plan.model.empty() ? "adapter-state" : plan.model)
+                 << " stream=profile-default max_tokens=unset max_output_tokens=unset"
+                 << " prompt_bytes=" << plan.prompt_chars
+                 << " prompt_chars=" << current_metrics.unicode_chars
+                 << " prompt_message_count=" << plan.messages.size()
+                 << " context_start_seq=" << plan.context_start_seq
+                 << " context_message_count=" << plan.context_message_count;
+    }
     return true;
 }
 
@@ -736,6 +751,24 @@ bool LogicServiceImpl::HandleHermesReply(const std::string& payload,
         MetricsRegistry::Instance().Increment("spark_push_hermes_citations_rejected_total");
     }
     Message message = reply.message;
+    const auto stored_content_metrics = MeasureText(message.content_json);
+    const auto stored_text_metrics =
+        MeasureText(ExtractTextFromContentJson(message.content_json));
+    if (LengthAuditEnabled()) {
+        LOG_INFO << "length_audit stage=storage_before_enqueue request_id="
+                 << request_id
+                 << " provider=" << envelope.value("effective_provider", "adapter-state")
+                 << " model=" << envelope.value("effective_model", "unknown")
+                 << " stream=" << (envelope.value("streamed", false) ? "true" : "false")
+                 << " max_tokens=unset max_output_tokens=unset"
+                 << " provider_bytes=" << envelope.value("audit_provider_output_bytes", 0)
+                 << " provider_chars=" << envelope.value("audit_provider_output_chars", 0)
+                 << " content_json_bytes=" << stored_content_metrics.utf8_bytes
+                 << " content_json_chars=" << stored_content_metrics.unicode_chars
+                 << " response_bytes=" << envelope.value("response_bytes", stored_text_metrics.utf8_bytes)
+                 << " response_chars=" << envelope.value("response_unicode_chars", stored_text_metrics.unicode_chars)
+                 << " finish_reason=" << envelope.value("finish_reason", "");
+    }
     bool is_new = false;
     const int64_t user1 = std::min(user_id, bot_user_id);
     const int64_t user2 = std::max(user_id, bot_user_id);
@@ -751,6 +784,14 @@ bool LogicServiceImpl::HandleHermesReply(const std::string& payload,
         LOG_ERROR << "Persist Hermes reply failed request_id=" << request_id << ": " << err;
         MetricsRegistry::Instance().Increment("spark_push_hermes_errors_total");
         return false;
+    }
+    const auto persisted_content_metrics = MeasureText(message.content_json);
+    if (LengthAuditEnabled()) {
+        LOG_INFO << "length_audit stage=storage_after_enqueue request_id="
+                 << request_id
+                 << " content_json_bytes=" << persisted_content_metrics.utf8_bytes
+                 << " content_json_chars=" << persisted_content_metrics.unicode_chars
+                 << " is_new=" << (is_new ? "true" : "false");
     }
     if (!is_new) {
         MetricsRegistry::Instance().Increment("spark_push_hermes_duplicate_replies_total");
@@ -816,6 +857,36 @@ bool LogicServiceImpl::HandleHermesDelta(const std::string& payload,
             "spark_push_hermes_stream_delta_errors_total");
         return true;
     }
+    std::string session_id = delta.value("session_id", "");
+    const auto expected_session = "s_" + std::to_string(std::min(user_id, bot_user_id)) + "_" +
+                                  std::to_string(std::max(user_id, bot_user_id));
+    if (session_id.empty()) session_id = expected_session;
+    if (session_id != expected_session) return true;
+
+    const bool progress = delta.value("progress", nlohmann::json()) == true;
+    nlohmann::json normalized_event = {{"schema", "sparkpush.agent_event.v1"},
+        {"type", progress ? "assistant_progress" : "assistant_delta"},
+        {"data", {{"text", text}}}};
+    if (delta.contains("agent_event")) {
+        if (!NormalizeAgentEvent(delta["agent_event"], &normalized_event) ||
+            normalized_event["type"] != (progress ? "assistant_progress" : "assistant_delta") ||
+            normalized_event["data"]["text"] != text) {
+            MetricsRegistry::Instance().Increment(
+                "spark_push_agent_event_invalid_total");
+            return true;
+        }
+        if (normalized_event.contains("envelope")) {
+            const auto& envelope = normalized_event["envelope"];
+            if (envelope.value("request_id", "") != request_id ||
+                envelope.value("conversation_id", "") != session_id ||
+                envelope.value("sequence", -1) != delta_index ||
+                envelope.value("terminal", true)) {
+                MetricsRegistry::Instance().Increment(
+                    "spark_push_agent_event_invalid_total");
+                return true;
+            }
+        }
+    }
     if (IsHermesStreamCompleted(request_id)) return true;
 
     const std::string delta_id =
@@ -826,11 +897,6 @@ bool LogicServiceImpl::HandleHermesDelta(const std::string& payload,
         return true;
     }
 
-    std::string session_id = delta.value("session_id", "");
-    const auto expected_session = "s_" + std::to_string(std::min(user_id, bot_user_id)) + "_" +
-                                  std::to_string(std::max(user_id, bot_user_id));
-    if (session_id.empty()) session_id = expected_session;
-    if (session_id != expected_session) return true;
     std::vector<std::string> comets;
     if (!redis_store_ || !redis_store_->GetUserRoutes(user_id, &comets)) {
         LOG_ERROR << "Get Hermes delta recipient routes failed user_id="
@@ -855,8 +921,9 @@ bool LogicServiceImpl::HandleHermesDelta(const std::string& payload,
         {"to_user_id", user_id},
         {"delta_index", delta_index},
         {"delta", text},
-        {"progress", delta.value("progress", nlohmann::json()) == true},
+        {"progress", progress},
         {"source", "hermes"},
+        {"agent_event", normalized_event},
     };
 
     ChatMessage message;

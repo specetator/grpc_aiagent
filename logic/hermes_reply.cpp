@@ -83,18 +83,31 @@ bool PrepareHermesReply(const std::string& payload, int64_t bot_user_id,
         }
         nlohmann::json event = {{"schema", "sparkpush.agent_event.v1"},
             {"type", "assistant_final"}, {"data", {{"text", text}}}};
-        if (ok && command_reply &&
+        bool has_agent_event = false;
+        if (ok &&
             reply.contains("response_metadata") && reply["response_metadata"].is_object() &&
             reply["response_metadata"].contains("agent_event")) {
             if (!NormalizeAgentEvent(reply["response_metadata"]["agent_event"], &event) ||
                 event["type"] != "assistant_final" || event["data"]["text"] != text) return false;
+            if (event.contains("envelope")) {
+                const auto& envelope = event["envelope"];
+                if (envelope.value("request_id", "") != request_id ||
+                    envelope.value("conversation_id", "") != session_id ||
+                    !envelope.value("terminal", false) ||
+                    !reply.contains("delta_count") ||
+                    !reply["delta_count"].is_number_integer() ||
+                    reply["delta_count"].get<int64_t>() < 0 ||
+                    envelope.value("sequence", -1LL) !=
+                        reply["delta_count"].get<int64_t>()) return false;
+            }
+            has_agent_event = true;
         }
         if (command_reply && !event["data"].contains("presentation")) {
             event["data"]["presentation"] = {{"kind", "command_card"}, {"title", "命令帮助"},
                 {"actions", nlohmann::json::array({{{"id", "help"}, {"label", "全部命令"}},
                                                  {{"id", "status"}, {"label", "会话状态"}}})}};
         }
-        if (event["data"].contains("presentation"))
+        if (has_agent_event || event["data"].contains("presentation"))
             message_content["agent_event"] = event;
         if (reply.contains("command") && reply.at("command").is_string()) {
             message_content["hermes_command"] = reply.at("command");

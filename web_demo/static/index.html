@@ -156,9 +156,9 @@
     }
     .tip-banner {
       font-size: 11.5px;
-      color: #92400e;
-      background: #fefce8;
-      border: 1px solid #fef08a;
+      color: var(--tip-text, #92400e);
+      background: var(--tip-bg, #fefce8);
+      border: 1px solid var(--tip-border, #fef08a);
       padding: 8px 10px;
       border-radius: var(--radius-sm);
       margin-bottom: 10px;
@@ -186,8 +186,8 @@
       box-sizing: border-box;
     }
     .hermes-trigger-btn:hover {
-      background: #f5dfd6;
-      border-color: #e5b3a1;
+      background: var(--primary-light-active, #f5dfd6);
+      border-color: var(--primary-border-strong, #e5b3a1);
     }
 
     .session-list-header {
@@ -337,7 +337,7 @@
       align-items: center;
       justify-content: center;
       color: var(--muted-color);
-      background: radial-gradient(circle at 50% 40%, rgba(201, 100, 66, 0.04), transparent 45%), var(--bg-color);
+      background: radial-gradient(circle at 50% 40%, var(--empty-glow, rgba(201, 100, 66, 0.04)), transparent 45%), var(--bg-color);
     }
     #empty-state .empty-icon {
       font-size: 48px;
@@ -405,7 +405,7 @@
     .chat-actions button:hover {
       background: var(--bg-color);
       color: var(--text-primary);
-      border-color: #d1cfc7;
+      border-color: var(--border-strong, #d1cfc7);
     }
 
     /* 消息流区域 */
@@ -527,7 +527,7 @@
       text-underline-offset: 2px;
     }
     .msg-bubble[data-safe-markdown-version] code {
-      background: rgba(34, 30, 20, 0.06);
+      background: var(--code-inline-bg, rgba(34, 30, 20, 0.06));
       font-family: var(--font-mono);
       font-size: 12.5px;
       padding: 2px 5px;
@@ -536,8 +536,8 @@
     }
     .msg-bubble[data-safe-markdown-version] pre {
       overflow: auto;
-      background: #1f1e1d;
-      color: #edece6;
+      background: var(--code-block-bg, #1f1e1d);
+      color: var(--code-block-text, #edece6);
       padding: 14px 16px;
       border-radius: var(--radius-md);
       font-family: var(--font-mono);
@@ -615,7 +615,7 @@
     #msg-text:focus {
       background: var(--surface-color);
       border-color: var(--primary-color);
-      box-shadow: 0 0 0 3px rgba(201, 100, 66, 0.14);
+      box-shadow: 0 0 0 3px var(--focus-ring, rgba(201, 100, 66, 0.14));
     }
     #send-btn {
       padding: 0 24px;
@@ -628,12 +628,12 @@
       font-weight: 500;
       font-size: 14px;
       letter-spacing: -0.01em;
-      box-shadow: 0 1px 3px rgba(201, 100, 66, 0.25);
+      box-shadow: var(--primary-shadow-sm, 0 1px 3px rgba(201, 100, 66, 0.25));
       transition: all 0.18s ease;
     }
     #send-btn:hover {
       background: var(--primary-hover);
-      box-shadow: 0 4px 10px rgba(201, 100, 66, 0.32);
+      box-shadow: var(--primary-shadow-md, 0 4px 10px rgba(201, 100, 66, 0.32));
     }
 
     /* Toast 提示 */
@@ -649,14 +649,14 @@
       pointer-events: none;
     }
     .toast {
-      background: #1f1e1d;
-      color: #edece6;
+      background: var(--toast-bg, #1f1e1d);
+      color: var(--toast-text, #edece6);
       padding: 10px 20px;
       border-radius: var(--radius-md);
       font-size: 13.5px;
       box-shadow: var(--shadow-dropdown);
       animation: toast-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-      border: 1px solid rgba(255, 255, 255, 0.08);
+      border: 1px solid var(--toast-border, rgba(255, 255, 255, 0.08));
     }
     @keyframes toast-in {
       from { opacity: 0; transform: translateY(-16px); }
@@ -665,6 +665,36 @@
     @keyframes toast-out {
       from { opacity: 1; transform: translateY(0); }
       to { opacity: 0; transform: translateY(-16px); }
+    }
+
+    /* 回到最新悬浮按钮 */
+    #back-to-latest {
+      position: absolute;
+      right: 28px;
+      bottom: 92px;
+      z-index: 20;
+      padding: 7px 14px;
+      border-radius: 999px;
+      border: 1px solid var(--border-color);
+      background: var(--surface-color);
+      color: var(--text-secondary);
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      box-shadow: var(--shadow-dropdown);
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.2s ease, color 0.16s ease;
+    }
+    #back-to-latest.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    #back-to-latest:hover {
+      color: var(--primary-color);
+      border-color: var(--primary-border);
     }
 
     @media (max-width: 760px) {
@@ -680,6 +710,8 @@
     }
   </style>
   <script src="auth.js"></script>
+  <script src="theme.js"></script>
+  <link rel="stylesheet" href="themes.css">
   <script src="safe_markdown.js"></script>
   <script src="agent_channel.js"></script>
   <link rel="stylesheet" href="agent_channel.css">
@@ -809,6 +841,8 @@
         <button id="send-btn">发送</button>
       </div>
     </div>
+
+    <button id="back-to-latest" type="button">↓ 回到最新</button>
   </div>
 
   <script>
@@ -1669,7 +1703,10 @@
         pendingText: '',
         framePending: false,
         thinking: !!thinking,
-        autoScroll: true
+        autoScroll: true,
+        nextEventSequence: 0,
+        eventBuffer: new Map(),
+        seenEventIds: new Set()
       };
       const progress = document.createElement('div');
       progress.className = 'agent-stream-progress'; progress.setAttribute('role', 'status');
@@ -1718,16 +1755,9 @@
       }
     }
 
-    function handleHermesDelta(obj) {
-       const requestId = String(obj.request_id || '');
-       const delta = String(obj.delta || '');
-       if (!requestId || !delta || hermesCompletedRequests.has(requestId)) return;
-       if (!currentSessionId || String(obj.session_id || '') !== String(currentSessionId)) return;
-
-       let state = hermesStreamStates.get(requestId);
-       if (!state) state = createHermesStreamState(requestId, false);
+    function applyHermesStreamEvent(requestId, state, delta, progress) {
        state.lastActivity = Date.now();
-       if (obj.progress === true) {
+       if (progress) {
          state.progressText = delta;
          state.progressNode.textContent = delta;
          return;
@@ -1743,6 +1773,57 @@
          container.clientHeight < 96;
        state.pendingText += delta;
        scheduleHermesStreamFlush(requestId, state);
+    }
+
+    function handleHermesDelta(obj) {
+       const requestId = String(obj.request_id || '');
+       const delta = String(obj.delta || '');
+       if (!requestId || !delta || hermesCompletedRequests.has(requestId)) return;
+       if (!currentSessionId || String(obj.session_id || '') !== String(currentSessionId)) return;
+
+       let sequence = Number.isInteger(Number(obj.delta_index)) ? Number(obj.delta_index) : null;
+       let eventId = '';
+       const event = obj.agent_event;
+       if (event !== undefined) {
+         const envelope = event && event.envelope;
+         const expectedType = obj.progress === true ? 'assistant_progress' : 'assistant_delta';
+         if (!envelope || event.schema !== 'sparkpush.agent_event.v1' ||
+             event.type !== expectedType || String(event.data?.text || '') !== delta ||
+             envelope.schema !== 'sparkpush.agent_envelope.v1' ||
+             String(envelope.request_id || '') !== requestId ||
+             String(envelope.conversation_id || '') !== String(currentSessionId) ||
+             !Number.isInteger(Number(envelope.sequence)) || Number(envelope.sequence) < 0 ||
+             envelope.terminal !== false) return;
+         sequence = Number(envelope.sequence);
+         eventId = String(envelope.event_id || '');
+       }
+
+       let state = hermesStreamStates.get(requestId);
+       if (!state) state = createHermesStreamState(requestId, false);
+       if (eventId) {
+         if (state.seenEventIds.has(eventId)) return;
+         state.seenEventIds.add(eventId);
+         if (state.seenEventIds.size > 4096)
+           state.seenEventIds.delete(state.seenEventIds.values().next().value);
+       }
+       if (sequence === null) {
+         applyHermesStreamEvent(requestId, state, delta, obj.progress === true);
+         return;
+       }
+       if (sequence < state.nextEventSequence || state.eventBuffer.has(sequence)) return;
+       state.eventBuffer.set(sequence, {delta, progress: obj.progress === true});
+       if (state.eventBuffer.size > 256) {
+         // The final durable message will replace the preview. Bound a corrupt
+         // or permanently gapped transient stream instead of growing memory.
+         state.eventBuffer.clear();
+         state.nextEventSequence = sequence + 1;
+         return;
+       }
+       while (state.eventBuffer.has(state.nextEventSequence)) {
+         const current = state.eventBuffer.get(state.nextEventSequence);
+         state.eventBuffer.delete(state.nextEventSequence++);
+         applyHermesStreamEvent(requestId, state, current.delta, current.progress);
+       }
     }
 
     // 4. 开启新会话 (build ID)
@@ -2111,11 +2192,18 @@
       loadHistory(false);
     };
 
-    // 上滑到顶部时自动加载更多历史
+    // 上滑到顶部时自动加载更多历史；远离底部时显示「回到最新」
+    const backToLatestBtn = document.getElementById('back-to-latest');
+    backToLatestBtn.onclick = () => {
+      const container = document.getElementById('messages');
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    };
     document.getElementById('messages').addEventListener('scroll', function() {
       if (this.scrollTop < 40 && !historyLoading && historyHasMore && currentSessionId) {
         loadHistory(false);
       }
+      const distToBottom = this.scrollHeight - this.scrollTop - this.clientHeight;
+      backToLatestBtn.classList.toggle('visible', distToBottom > 400);
     });
 
     // 初始化：不要直接相信 localStorage 中的身份；先通过 Logic 校验 Token。

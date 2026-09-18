@@ -225,6 +225,12 @@ start_process() {
   fi
 }
 
+tcp_ok() {
+  local host="$1"
+  local port="$2"
+  (exec 3<>"/dev/tcp/$host/$port") >/dev/null 2>&1
+}
+
 wait_port() {
   local port="$1"
   local label="$2"

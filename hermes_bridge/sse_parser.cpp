@@ -28,6 +28,9 @@ bool HermesSseParser::Fail(const std::string& message, HermesChatResult* result,
   if (error) *error = failure_;
   if (result) {
     result->text.clear();
+    result->finish_reason.clear();
+    result->stream_chunk_count = 0;
+    result->agent_event = nlohmann::json::object();
     result->citations = nlohmann::json::array();
     result->metadata = nlohmann::json::object();
   }
@@ -106,7 +109,11 @@ bool HermesSseParser::ProcessEvent(
       nlohmann::json normalized;
       if (!NormalizeAgentEvent(event, &normalized))
         return Fail("invalid AgentEvent", result, error);
+      if (on_agent_event_) on_agent_event_(normalized);
       const auto payload = event["data"];
+      if (event["type"] == "error") {
+        return Fail("Pi gateway reported an execution error", result, error);
+      }
       if (event["type"] == "assistant_progress") {
         if (final_ || stopped_) return Fail("progress arrived after final answer", result, error);
         if (on_progress_) on_progress_(normalized["data"]["text"].get<std::string>());
@@ -116,6 +123,7 @@ bool HermesSseParser::ProcessEvent(
         event = {{"choices", nlohmann::json::array({{{"delta", {{"content", payload["text"]}}}}})}};
         name.clear();
       } else {
+        result->agent_event = normalized;
         event = {{"final_response", payload["text"]},
                  {"response_metadata", payload.value("metadata", nlohmann::json::object())}};
         name = "agent.final";
@@ -138,6 +146,10 @@ bool HermesSseParser::ProcessEvent(
       final_text_ = text;
       result->text = text;
       result->metadata = metadata;
+      const auto audit = metadata.find("length_audit");
+      if (audit != metadata.end() && audit->is_object()) {
+        result->finish_reason = audit->value("finish_reason", "");
+      }
       result->citations = nlohmann::json::array();
       const auto it = metadata.find("citations");
       if (it != metadata.end() && it->is_array()) result->citations = *it;
@@ -156,10 +168,15 @@ bool HermesSseParser::ProcessEvent(
         return Fail("gateway answer exceeds limit", result, error);
       }
       result->text += text;
+      ++result->stream_chunk_count;
       if (on_delta) on_delta(text);
     }
     if (choice.contains("finish_reason") && !choice["finish_reason"].is_null()) {
-      if (choice["finish_reason"] != "stop") {
+      if (!choice["finish_reason"].is_string()) {
+        return Fail("gateway finish_reason has invalid type", result, error);
+      }
+      result->finish_reason = choice["finish_reason"].get<std::string>();
+      if (result->finish_reason != "stop") {
         return Fail("gateway answer did not finish successfully", result, error);
       }
       stopped_ = true;

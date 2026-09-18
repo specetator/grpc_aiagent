@@ -65,6 +65,12 @@ int main() {
     auto refresh = BuildHermesPromptPlan({}, "/model refresh", 2);
     if (!Check(!refresh.call_model && refresh.local_error.empty() && !refresh.model_override,
                "catalog refresh treated as a model selection")) return 1;
+    auto provider_browse = BuildHermesPromptPlan({}, "/model hermes-custom-botcf-codex-a87e20:", 2);
+    if (!Check(!provider_browse.call_model && provider_browse.local_error.empty() &&
+                   !provider_browse.model_override &&
+                   provider_browse.provider == "hermes-custom-botcf-codex-a87e20" &&
+                   provider_browse.model.empty(),
+               "provider browse command was not preserved")) return 1;
     for (const auto& command : {"/restart", "/restart now", "/restart --yes"}) {
         auto restart = BuildHermesPromptPlan({User(1, "/restart now")}, command, 2);
         if (!Check(!restart.call_model && restart.messages.empty() && restart.local_error.empty() &&

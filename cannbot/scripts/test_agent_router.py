@@ -9,10 +9,13 @@ import sys
 import time
 import unittest
 from unittest.mock import patch
+from http.server import ThreadingHTTPServer
+from urllib.request import Request, urlopen
 
 from agent_router import AgentRouter, AgentStore
-from agent_events import agent_event
+from agent_events import agent_event, event_envelope
 from hermes_adapter import HermesHttpAdapter
+from pi_gateway import GatewayState, make_handler
 
 
 class FakeAgent:
@@ -47,6 +50,66 @@ class RouterTests(unittest.TestCase):
         self.assertEqual(state['summary'], 'summary')
         self.assertEqual(state['recent_messages'], [{'role':'assistant','text':'two'}])
         self.assertEqual(state['context_revision'], 3)
+    def test_canonical_route_is_stable_and_selection_is_sticky(self):
+        first=self.router.describe_route(self.sid)
+        self.assertEqual(first['mode'],'sticky')
+        self.assertEqual(first['agent_id'],'pi')
+        self.assertTrue(first['session_key'].startswith('agent:pi:spark_pc:'))
+        self.select('hermes-technical')
+        selected=self.router.describe_route(self.sid)
+        self.assertEqual(selected['route_key'],first['route_key'])
+        self.assertEqual(selected['agent_id'],'hermes-technical')
+        self.assertNotEqual(selected['session_key'],first['session_key'])
+        again=AgentRouter(self.entries,self.adapters,AgentStore(self.root/'state'))
+        self.assertEqual(again.describe_route(self.sid)['agent_id'],'hermes-technical')
+        self.assertNotEqual(again.describe_route('s_4_900000000001')['route_key'],first['route_key'])
+    def test_first_message_policy_routes_once_then_sticks_until_manual_switch(self):
+        entries=[{**self.entries[0], 'routing_keywords':['代码','CANN']},
+                 {**self.entries[1], 'routing_keywords':['写作','论文']}]
+        router=AgentRouter(entries,self.adapters,self.store)
+        _,metadata=router.chat('请帮我写作一段说明',None,1,session_id=self.sid,
+                               request_id='policy-turn-1')
+        self.assertEqual(len(self.hermes.calls),1)
+        self.assertEqual(metadata['agent_route']['selection_source'],'first_message_policy')
+        router.chat('接下来分析 CANN 代码',None,1,session_id=self.sid,
+                    request_id='policy-turn-2')
+        self.assertEqual(len(self.hermes.calls),2)
+        self.assertEqual(len(self.pi.calls),0)
+        router.control({'session_id':self.sid,'operation':'set_agent',
+                        'target_agent':'pi','command_seq':20})
+        _,metadata=router.chat('继续',None,1,session_id=self.sid,
+                               request_id='policy-turn-3')
+        self.assertEqual(len(self.pi.calls),1)
+        self.assertEqual(metadata['agent_route']['selection_source'],'manual')
+
+    def test_turn_result_is_durable_and_duplicate_does_not_run_agent(self):
+        text,metadata=self.router.chat('execute once',None,1,session_id=self.sid,
+                                       request_id='request-once')
+        self.assertEqual(len(self.pi.calls),1)
+        replay_text,replay_metadata=self.router.chat('execute once',None,1,
+            session_id=self.sid,request_id='request-once')
+        self.assertEqual(replay_text,text)
+        self.assertEqual(len(self.pi.calls),1)
+        self.assertTrue(replay_metadata['turn_replayed'])
+        self.assertEqual(metadata['agent_route']['route_key'],
+                         replay_metadata['agent_route']['route_key'])
+        with self.assertRaises(ValueError):
+            self.router.chat('different input',None,1,session_id=self.sid,
+                             request_id='request-once')
+    def test_event_ledger_preserves_sequence_and_terminal_snapshot(self):
+        route=self.router.describe_route(self.sid)
+        for sequence,(kind,text,terminal) in enumerate([
+                ('assistant_progress','working',False),
+                ('assistant_delta','中文',False),
+                ('assistant_final','中文完成',True)]):
+            event=agent_event(kind,{'text':text},event_envelope(
+                'request-events',route,sequence,terminal=terminal))
+            self.assertTrue(self.router.record_event(event))
+        events,truncated=self.router.replay_events('request-events',0)
+        self.assertFalse(truncated)
+        self.assertEqual([e['envelope']['sequence'] for e in events],[1,2])
+        self.assertEqual(events[-1]['type'],'assistant_final')
+        self.assertTrue(events[-1]['envelope']['terminal'])
     def select(self,key,seq=10):
         return self.router.control({'session_id':self.sid,'operation':'set_agent','target_agent':key,'command_seq':seq})
     def test_selection_persists_and_does_not_copy_history_or_preferences(self):
@@ -115,6 +178,101 @@ class RouterTests(unittest.TestCase):
         with self.assertRaises(ValueError): router.chat('bots cannot chat as a user',None,1,session_id='s_900000000001_900000000101')
 
 
+class GatewayEnvelopeTests(unittest.TestCase):
+    def setUp(self):
+        self.temp=tempfile.TemporaryDirectory()
+        self.agent=FakeAgent()
+        self.router=AgentRouter([{'id':'pi','name':'Pi','owner_user_ids':[]}],
+            {'pi':self.agent},AgentStore(Path(self.temp.name)/'state'))
+        self.server=ThreadingHTTPServer(('127.0.0.1',0),
+            make_handler(GatewayState(self.router,'fixture-key','fixture-model')))
+        self.thread=threading.Thread(target=self.server.serve_forever,daemon=True)
+        self.thread.start()
+        self.url='http://127.0.0.1:'+str(self.server.server_port)
+    def tearDown(self):
+        self.server.shutdown(); self.server.server_close(); self.thread.join(2)
+        self.temp.cleanup()
+    def post(self,path,payload):
+        request=Request(self.url+path,json.dumps(payload).encode(),headers={
+            'Authorization':'Bearer fixture-key','Content-Type':'application/json'})
+        with urlopen(request,timeout=5) as response:
+            return response.read().decode()
+    def post_to(self,port,path,payload):
+        request=Request('http://127.0.0.1:'+str(port)+path,
+                        json.dumps(payload).encode(),headers={
+                            'Authorization':'Bearer fixture-key',
+                            'Content-Type':'application/json'})
+        with urlopen(request,timeout=5) as response:
+            return response.read().decode()
+    @staticmethod
+    def agent_events(body):
+        return [json.loads(line[6:]) for line in body.splitlines()
+                if line.startswith('data: {') and
+                json.loads(line[6:]).get('schema')=='sparkpush.agent_event.v1']
+    def test_stream_envelope_replay_and_turn_idempotency(self):
+        payload={'request_id':'gateway-request-1','session_id':'s_3_900000000001',
+            'messages':[{'role':'user','content':'hello'}],
+            'stream':True,'agent_events':True}
+        first=self.agent_events(self.post('/v1/chat/completions',payload))
+        self.assertEqual([event['envelope']['sequence'] for event in first],list(range(len(first))))
+        self.assertEqual(first[-1]['type'],'assistant_final')
+        self.assertTrue(first[-1]['envelope']['terminal'])
+        self.assertEqual(first[-1]['envelope']['agent_id'],'pi')
+        self.assertEqual(len(self.agent.calls),1)
+        replay=json.loads(self.post('/v1/agent/events/replay',{
+            'request_id':'gateway-request-1','after_sequence':-1}))
+        self.assertEqual(replay['schema'],'sparkpush.agent_replay.v1')
+        self.assertEqual([event['envelope']['sequence'] for event in replay['events']],
+                         list(range(len(first))))
+        second=self.agent_events(self.post('/v1/chat/completions',payload))
+        self.assertEqual(len(self.agent.calls),1)
+        self.assertTrue(all(event['envelope']['replayed'] for event in second))
+        self.assertEqual(second[-1]['data']['text'],first[-1]['data']['text'])
+
+    def test_gateway_resolves_first_message_policy_before_stream_headers(self):
+        temp_state=Path(self.temp.name)/'aggregate-state'
+        pi,hermes=FakeAgent(),FakeAgent()
+        router=AgentRouter([
+            {'id':'pi','name':'Pi','owner_user_ids':[], 'routing_keywords':['代码']},
+            {'id':'hermes-technical','name':'Hermes','owner_user_ids':[],
+             'routing_keywords':['写作']}],
+            {'pi':pi,'hermes-technical':hermes},AgentStore(temp_state))
+        server=ThreadingHTTPServer(('127.0.0.1',0),
+            make_handler(GatewayState(router,'fixture-key','fixture-model')))
+        thread=threading.Thread(target=server.serve_forever,daemon=True)
+        thread.start()
+        try:
+            body=self.post_to(server.server_port,'/v1/chat/completions',{
+                'request_id':'gateway-policy-1','session_id':'s_3_900000000001',
+                'messages':[{'role':'user','content':'请写作一个短段落'}],
+                'stream':True,'agent_events':True})
+            events=self.agent_events(body)
+            self.assertTrue(events)
+            self.assertEqual(events[-1]['envelope']['agent_id'],'hermes-technical')
+            self.assertEqual(len(hermes.calls),1)
+            self.assertEqual(len(pi.calls),0)
+        finally:
+            server.shutdown(); server.server_close(); thread.join(2)
+
+    def test_completed_turn_reconstructs_missing_terminal_event(self):
+        payload={'request_id':'gateway-request-crash-window',
+            'session_id':'s_3_900000000001',
+            'messages':[{'role':'user','content':'recover final'}],
+            'stream':True,'agent_events':True}
+        first=self.agent_events(self.post('/v1/chat/completions',payload))
+        self.assertTrue(first[-1]['envelope']['terminal'])
+        with self.router.store.connect() as db:
+            db.execute("DELETE FROM agent_events WHERE request_id=? AND terminal=1",
+                       ('gateway-request-crash-window',))
+        replayed=self.agent_events(self.post('/v1/chat/completions',payload))
+        self.assertEqual(len(self.agent.calls),1)
+        self.assertTrue(replayed[-1]['envelope']['terminal'])
+        self.assertTrue(replayed[-1]['envelope']['replayed'])
+        self.assertEqual(replayed[-1]['data']['text'],first[-1]['data']['text'])
+        stored,_=self.router.replay_events('gateway-request-crash-window',-1)
+        self.assertTrue(stored[-1]['envelope']['terminal'])
+
+
 class Response(io.BytesIO):
     headers={}
 
@@ -125,7 +283,8 @@ class HermesTests(unittest.TestCase):
         root=Path(self.temp.name)
         (root/'env').write_text('API_SERVER_KEY=test-private-key-not-exported\n')
         self.adapter=HermesHttpAdapter({'id':'hermes-technical','base_url':'http://localhost:8644/v1',
-            'credential_env_file':str(root/'env'),'expected_model':'technical','profile':'technical'},AgentStore(root/'state'))
+            'credential_env_file':str(root/'env'),'expected_model':'technical','profile':'technical',
+            'provider_first':True},AgentStore(root/'state'))
         self.requests=[]
     def tearDown(self): self.temp.cleanup()
     def stream(self,finish='stop',done=True):
@@ -183,6 +342,7 @@ class HermesTests(unittest.TestCase):
             if path=='/api/model/options':
                 result={'provider':'custom:HYX','model':'real-model','providers':[
                     {'slug':'custom:hyx','authenticated':True,'models':['real-model','second-model']},
+                    {'slug':'custom:botcf','name':'BotCF','authenticated':True,'models':['bot-model']},
                     {'slug':'locked','authenticated':False,'models':['not-available']} ]}
             elif path.endswith('/model'):
                 result={'session_id':path.split('/')[3],
@@ -201,13 +361,27 @@ class HermesTests(unittest.TestCase):
         self.adapter.control({'session_id':'a','operation':'list_models','refresh':True})
         self.assertEqual(sum(p=='/api/model/options' for p,_,_ in self.requests),2)
 
+    def test_legacy_channel_keeps_full_model_card(self):
+        self.catalog_fixture()
+        self.adapter.provider_first = False
+        card = self.adapter.control({'session_id':'a','operation':'list_models'})['data']['presentation']
+        self.assertEqual(len(card['models']), 3)
+        self.assertNotIn('selected_provider', card)
+
     def test_real_catalog_selection_ack_and_new_preserves_model(self):
         self.catalog_fixture()
         event=self.adapter.control({'session_id':'a','operation':'list_models'})
         card=event['data']['presentation']
-        self.assertEqual(len(card['models']),2)
+        self.assertEqual(card['models'],[])
+        self.assertEqual(len(card['providers']),2)
+        self.assertTrue(any(item['name']=='BotCF' for item in card['providers']))
         self.assertEqual(card['current']['id'],'real-model')
         self.assertNotIn(':',card['current']['provider'])
+        event=self.adapter.control({'session_id':'a','operation':'list_models',
+                                    'provider_filter':card['current']['provider']})
+        card=event['data']['presentation']
+        self.assertEqual(len(card['models']),2)
+        self.assertEqual(card['selected_provider'],card['current']['provider'])
         model=card['models'][1]
         req={'session_id':'a','operation':'set_model','target_provider':model['provider'],
              'target_model':model['id'],'command_seq':2}

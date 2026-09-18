@@ -48,6 +48,7 @@ Agent 或修改 profile 状态。API 仅监听 Windows loopback，不新增局�
 | `credential_env_file/key` | 服务端凭据引用，不发送给 IM |
 | `expected_model` | 校验目标 Agent 公开的入口身份，technical 必须明确匹配 |
 | `transport` | 普通 HTTP 或 Windows 本机 `windows_stdio` |
+| `routing_keywords` | 可选的首次消息路由词，仅用于没有独立联系人 ID 的聚合入口；命中后即持久粘滞 |
 
 首次接入脚本默认只展示计划：
 
@@ -73,7 +74,7 @@ Windows `.env` 和备份含凭据，应沿用该 profile 的 Windows 访问控�
 - 入口只接受可信 Bridge 的当前单聊 `s_<min(userId,botId)>_<max(userId,botId)>`；当前租户为本机部署，未虚构额外
   tenant/thread 鉴权。机器人 ID 与注册表配置一致，用户 ID 来自已鉴权会话。
 - 独立对话由 bot ID 固定路由到 Agent；不能通过旧的 `/agent` 选择状态将 Pi 对话改绑 Hermes。
-  Router 的 SQLite 持久化 Hermes 上下文和模型状态，路径在
+  Router 的 SQLite 持久化路由绑定、turn 幂等结果、可回放事件、Hermes 上下文和模型状态，路径在
   `~/.pi-spark-agent/im-router/routing.sqlite3`。文件权限 0600，禁止 symlink；同一部署仅允许
   一个 Gateway 写该库，暂不支持多 Gateway 集群共享写入。
 - 同一会话的聊天和控制持有同一锁。打开卡片只导航，不发送模型请求，不改变路由。每次
@@ -87,6 +88,30 @@ Windows `.env` 和备份含凭据，应沿用该 profile 的 Windows 访问控�
   本批没有宣称实现了完整多 session worker pool 或 IM 端全面并行。
 - 现有 accepted/delivered ACK、消息游标、最终答复幂等和历史持久化保持原链路。进度仍为
   临时 ai_delta；断流、非 stop 终态、缺失 DONE 不当作成功最终答复。没有自动重放模型请求。
+
+### PC Agent 路由与事件合同（2026-09-14）
+
+PC 链路现已加入三项可组合的基础能力；Android 原生客户端复用同一 envelope/序号/最终消息合同，并通过 201/211 专用联系人保持 session、模型和上下文隔离：
+
+1. **规范会话身份**：Router 从已鉴权的 `tenant + channel + conversation + thread` 生成稳定
+   `route_key`，并以 `agent + channel + route_key` 生成 `session_key`。当前部署使用
+   `tenant_id=local`、`channel_id=spark_pc`、`thread_id=_`。`route_key` 在手动切换 Agent 时保持
+   不变，`session_key` 随 Agent 改变；底层 Adapter 仍使用原 Spark session 作为
+   `backend_session_ref`，因此不迁移也不合并现有 Pi/Hermes 上下文。
+2. **统一事件信封**：Gateway 的 `sparkpush.agent_event.v1` 增加
+   `sparkpush.agent_envelope.v1`，携带 `event_id/request_id/route_key/session_key/sequence`、渠道身份和
+   `terminal/replayed` 标志。流式事件按 request 严格递增；Gateway 提供内部
+   `/v1/agent/events/replay`，重复 request 会读取已完成 turn 和事件账本，不再次调用模型或工具。
+   若进程恰好在 turn 完成后、终态事件落账前中断，Gateway 会从已完成结果补建终态事件。
+3. **首次路由、粘滞与手动切换**：当前 PC 的 Pi/Hermes 是独立联系人，联系人本身就是明确的首次
+   路由决策，随后以 `contact` 模式固定绑定。对于不配置独立 `bot_user_id` 的聚合入口，Router 可按
+   管理员设置的 `routing_keywords` 对第一条消息做确定性选择，保存后保持 `sticky`；用户通过
+   `/agent` 手动切换时提高 revision，并覆盖后续路由。聊天正文不能提交 Agent ID、URL 或运行命令。
+
+Gateway 先把细碎 token 合并成不超过约 40 ms 的事件批次，Bridge 再投影到现有
+`ai_delta/hermes_delta`；Web 客户端按事件 sequence 缓冲乱序批次并按 event ID 去重。最终完整
+`ai_reply` 仍是历史和游标的唯一权威消息。旧 Gateway 没有 envelope 时，Bridge 和 Logic 继续接受
+原有字段；本批没有修改 protobuf、Kafka topic、MySQL 表或 accepted/delivered ACK 含义。
 
 Pi 原有 `/model`、`/reasoning` 卡片保留。Hermes 常用命令现在也走通用 AgentEvent 卡片：
 
@@ -134,6 +159,15 @@ Stop、steering、附件等仍不属于本批实现。
 覆盖打开独立窗口、指令发送至正确机器人以及迟到 Pi 进度不能进入 Hermes 窗口，并复测
 原有模型和思考卡片。真实 Windows 已验证 technical 入口、只读工作目录工具和多轮上下文。
 
+2026-09-14 的 PC 合同验证：实际运行目录 `build/` 完整重编成功；CTest 13 项执行通过，
+Redis 外部集成项因未启用测试条件跳过；Router/Gateway 27 项 Python 测试通过。真实 Gateway
+短回复产生 5 个连续 AgentEvent，终态与兼容 final 文本一致；相同 request ID 回放耗时约
+0.01 秒，全部事件标记 `replayed`，Pi 日志仅出现一次 turn 执行。隔离测试账号经 WebSocket
+收到 accepted ACK 和最终 Agent 卡片，历史重载得到连续序号；发送后立即断开时，最终卡片仍
+落库，重新连接后补推用户消息和 Agent 最终消息。Bridge 序列投影的短模型 E2E 收到
+`delta_index=0,1,2,3`，持久最终 envelope 为下一号 4 且 `terminal=true`，历史重载保持相同值。
+测试未使用个人账号或 Hermes 私人会话。
+
 部署验收（2026-09-06）：完整构建与 CTest 通过（13 通过、1 Redis 集成跳过），包含 37 个
 Pi Gateway 用例与 11 个路由/Adapter 用例。真实 IM 独立账号验证目录权限、不同联系人回复
 身份、历史保存、重载和切回 Pi 后不混入 Hermes 消息；用户 3 的两个联系人目录及 technical
@@ -159,3 +193,7 @@ Gateway 关闭时回收池中的进程。它复用的是 HTTP 中继，不是新
 本机只读测试：简单请求复用后约 2～3 ms（原约 1.2 s），缓存模型菜单约 1 ms；
 首次/主动刷新约 2.5～3.2 s。该结果不代表模型生成速度。
 WSL 移植的依赖审计、收益边界和切换方案见 [Hermes WSL 迁移评估](hermes-wsl-migration.md)。
+
+## Android 端落地
+
+Android 客户端的 HTTP/WS 适配、会话游标、流式增量排序、Agent 卡片和输出长度计时已经在同一仓库实现，详细到函数级的说明见 ../docs/spark-push-implementation.md。Android 使用 900000000201 和 900000000211，不会复用 PC/Telegram 的 001/101 联系人；最终 ai_reply 仍走普通消息落库和离线补推链路。

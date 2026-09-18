@@ -28,13 +28,40 @@ from typing import Any, Callable
 from urllib.parse import urlparse
 
 from pi_citations import TurnCitationState
-from agent_events import THINKING_LEVELS, command_card, AgentAdapter, agent_event, public_model
+from agent_events import (THINKING_LEVELS, command_card, AgentAdapter,
+                          agent_event, event_envelope, public_model)
 
 DIALOG_METHODS = {"select", "confirm", "input", "editor"}
 
 
 def log(message: str) -> None:
     print(message, file=sys.stderr, flush=True)
+
+
+def text_metrics(value: Any) -> dict[str, int]:
+    if not isinstance(value, str):
+        return {"bytes": 0, "chars": 0}
+    return {"bytes": len(value.encode("utf-8")), "chars": len(value)}
+
+
+def length_audit(event: dict[str, Any]) -> None:
+    # Metadata only. Never include prompt/answer text, credentials or tokens.
+    if os.environ.get("SPARK_PUSH_LENGTH_AUDIT", "").lower() not in {"1", "true"}:
+        return
+    log("pi_length_audit " + json.dumps(event, ensure_ascii=False,
+                                         separators=(",", ":")))
+
+
+def stop_metrics(value: Any) -> dict[str, Any] | None:
+    """Describe stop controls without writing their private literal values."""
+    if value is None:
+        return None
+    if isinstance(value, str):
+        metrics = text_metrics(value)
+        return {"kind": "string", "bytes": metrics["bytes"], "chars": metrics["chars"]}
+    if isinstance(value, list):
+        return {"kind": "list", "count": len(value)}
+    return {"kind": type(value).__name__}
 
 
 def rewrite_user_text(text: str) -> str:
@@ -496,8 +523,8 @@ class PiRpcClient:
             current = state["model"]
             label = current["provider"] + ":" + current["id"]
             text = ("当前模型：" if operation == "list_models" else "已切换模型：") + label
-            # The current IM history uses MySQL TEXT (64 KiB). Keep the card
-            # within a byte budget; manual selection still searches all models.
+            # Keep the model picker card small enough for Spark Push history
+            # and Compose rendering; manual selection still searches all models.
             shown, size = [], 0
             for model in models[:512]:
                 size += len(json.dumps(model, ensure_ascii=False).encode("utf-8"))
@@ -700,6 +727,7 @@ class PiRpcClient:
         context_start_seq: int = 0,
         retry: bool = False,
         on_progress: Callable[[str], None] | None = None,
+        request_id: str = "",
     ) -> tuple[str, dict]:
         session_filename(session_id, context_start_seq)
         if not retry and (not isinstance(message, str) or not message.strip()):
@@ -944,7 +972,8 @@ def make_handler(state: GatewayState):
             path = urlparse(self.path).path
             if self._unauthorized():
                 return
-            if path not in {"/v1/chat/completions", "/chat/completions", "/v1/agent/control"}:
+            if path not in {"/v1/chat/completions", "/chat/completions",
+                            "/v1/agent/control", "/v1/agent/events/replay"}:
                 self._json(404, {"error": {"message": "not found"}})
                 return
             try:
@@ -961,6 +990,20 @@ def make_handler(state: GatewayState):
                     self._json(503, {"error": {"message": "Agent busy; retry later"}})
                 except Exception:
                     self._json(502, {"error": {"message": "Agent control failed"}})
+                return
+            if path == "/v1/agent/events/replay":
+                if not hasattr(state.rpc, "replay_events"):
+                    self._json(501, {"error": {"message": "Agent event replay is unavailable"}})
+                    return
+                try:
+                    events, truncated = state.rpc.replay_events(
+                        request.get("request_id"), request.get("after_sequence", -1))
+                    self._json(200, {"schema": "sparkpush.agent_replay.v1",
+                                     "events": events, "truncated": truncated})
+                except ValueError as exc:
+                    self._json(422, {"error": {"message": str(exc)}})
+                except Exception:
+                    self._json(502, {"error": {"message": "Agent event replay failed"}})
                 return
             retry = request.get("turn_operation") == "retry"
             messages = request.get("messages") or []
@@ -979,17 +1022,63 @@ def make_handler(state: GatewayState):
             generic_events = request.get("agent_events") is True
             provider = str(request.get("provider") or "") or None
             model = str(request.get("model") or "") or None
+            request_id = str(request.get("request_id") or "")
+            if not request_id:
+                request_id = "gw_" + hashlib.sha256(
+                    (str(session_id) + "|" + str(time.monotonic_ns())).encode("utf-8")
+                ).hexdigest()[:32]
+            if (len(request_id.encode("utf-8")) > 121 or
+                    any(ord(c) < 33 or ord(c) == 127 for c in request_id)):
+                self._json(400, {"error": {"message": "invalid request_id"}})
+                return
             timeout_s = float(os.environ.get("SPARK_PUSH_PI_TIMEOUT_S", "600"))
+            audit_trace = hashlib.sha256(
+                (str(session_id) + "|" + str(time.monotonic_ns())).encode("utf-8")
+            ).hexdigest()[:12]
+            input_text = prompt
+            input_metrics = text_metrics(input_text)
+            length_audit({
+                "stage": "gateway_request",
+                "trace_id": audit_trace,
+                "provider": provider or "adapter-state",
+                "model": model or "adapter-state",
+                "stream": stream,
+                "max_tokens": request.get("max_tokens"),
+                "max_output_tokens": request.get("max_output_tokens"),
+                "temperature": request.get("temperature"),
+                "stop": stop_metrics(request.get("stop")),
+                "timeout_s": timeout_s,
+                "context_history_count": len(messages),
+                "prompt_bytes": input_metrics["bytes"],
+                "prompt_chars": input_metrics["chars"],
+            })
 
             if not stream:
                 try:
                     text, metadata = state.rpc.chat(
                         prompt, None, timeout_s, provider, model,
                         session_id, context_start_seq, retry=retry,
+                        request_id=request_id,
                     )
                 except Exception as exc:
                     self._json(502, {"error": {"message": str(exc)}})
                     return
+                output_metrics = text_metrics(text)
+                length_audit({
+                    "stage": "gateway_final",
+                    "trace_id": audit_trace,
+                    "provider": (metadata.get("length_audit") or {}).get("provider", provider or "adapter-state"),
+                    "model": (metadata.get("length_audit") or {}).get("model", model or "adapter-state"),
+                    "stream": False,
+                    "max_tokens": request.get("max_tokens"),
+                    "max_output_tokens": request.get("max_output_tokens"),
+                    "finish_reason": "stop",
+                    "chunk_count": 0,
+                    "provider_output_bytes": (metadata.get("length_audit") or {}).get("provider_output_bytes"),
+                    "provider_output_chars": (metadata.get("length_audit") or {}).get("provider_output_chars"),
+                    "gateway_output_bytes": output_metrics["bytes"],
+                    "gateway_output_chars": output_metrics["chars"],
+                })
                 self._json(
                     200,
                     {
@@ -1008,34 +1097,137 @@ def make_handler(state: GatewayState):
                 )
                 return
 
+            route = None
+            if generic_events and hasattr(state.rpc, "describe_route"):
+                try:
+                    route = state.rpc.describe_route(session_id, prompt, timeout_s)
+                except ValueError as exc:
+                    self._json(422, {"error": {"message": str(exc)}})
+                    return
+                except Exception:
+                    self._json(502, {"error": {"message": "Agent route lookup failed"}})
+                    return
+
             self._sse_headers()
             try:
+                stream_stats = {"chunk_count": 0, "bytes": 0, "chars": 0}
+                event_sequence = 0
+                pending_delta = ""
+                last_event_flush = time.monotonic()
+                sent_first_delta = False
+
+                def emit_event(kind: str, data: dict, terminal: bool = False,
+                               is_replay: bool = False) -> dict:
+                    nonlocal event_sequence
+                    envelope = (event_envelope(request_id, route, event_sequence,
+                                               terminal=terminal, replayed=is_replay)
+                                if route is not None else None)
+                    event = agent_event(kind, data, envelope)
+                    event_sequence += 1
+                    if envelope is not None and hasattr(state.rpc, "record_event"):
+                        try:
+                            state.rpc.record_event(event)
+                        except Exception as persist_error:
+                            # The durable final Spark message remains the
+                            # recovery authority if the preview ledger fails.
+                            log("Agent event ledger write failed: " + type(persist_error).__name__)
+                    self._sse(json.dumps(event, ensure_ascii=False), event="agent.event")
+                    return event
+
+                def flush_delta_event() -> None:
+                    nonlocal pending_delta, last_event_flush, sent_first_delta
+                    if not pending_delta:
+                        return
+                    emit_event("assistant_delta", {"text": pending_delta})
+                    pending_delta = ""
+                    last_event_flush = time.monotonic()
+                    sent_first_delta = True
+
                 def on_delta(delta: str) -> None:
+                    nonlocal pending_delta
+                    metrics = text_metrics(delta)
+                    stream_stats["chunk_count"] += 1
+                    stream_stats["bytes"] += metrics["bytes"]
+                    stream_stats["chars"] += metrics["chars"]
                     if generic_events:
-                        self._sse(json.dumps(agent_event("assistant_delta", {"text": delta}),
-                                             ensure_ascii=False), event="agent.event")
+                        pending_delta += delta
+                        if (not sent_first_delta or
+                                len(pending_delta.encode("utf-8")) >= 256 or
+                                time.monotonic() - last_event_flush >= 0.04):
+                            flush_delta_event()
                     else:
                         self._sse(json.dumps({"choices": [{"index": 0, "delta": {"content": delta}}]},
                                              ensure_ascii=False))
 
                 def on_progress(status: str) -> None:
-                    self._sse(json.dumps(agent_event("assistant_progress", {"text": status}),
-                                         ensure_ascii=False), event="agent.event")
+                    flush_delta_event()
+                    emit_event("assistant_progress", {"text": status})
 
                 text, metadata = state.rpc.chat(
                     prompt, on_delta, timeout_s, provider, model,
                     session_id, context_start_seq, retry=retry,
                     on_progress=on_progress if generic_events else None,
+                    request_id=request_id,
                 )
                 if generic_events:
-                    self._sse(
-                        json.dumps(agent_event("assistant_final", {"text": text, "metadata": metadata}),
-                                   ensure_ascii=False), event="agent.event")
+                    flush_delta_event()
+                output_metrics = text_metrics(text)
+                provider_audit = metadata.get("length_audit") if isinstance(metadata, dict) else {}
+                if not isinstance(provider_audit, dict):
+                    provider_audit = {}
+                length_audit({
+                    "stage": "gateway_final",
+                    "trace_id": audit_trace,
+                    "provider": provider_audit.get("provider", provider or "adapter-state"),
+                    "model": provider_audit.get("model", model or "adapter-state"),
+                    "stream": True,
+                    "max_tokens": request.get("max_tokens"),
+                    "max_output_tokens": request.get("max_output_tokens"),
+                    "finish_reason": provider_audit.get("finish_reason", "stop"),
+                    "chunk_count": stream_stats["chunk_count"],
+                    "provider_chunk_bytes": provider_audit.get("provider_chunk_bytes"),
+                    "provider_chunk_chars": provider_audit.get("provider_chunk_chars"),
+                    "provider_output_bytes": provider_audit.get("provider_output_bytes"),
+                    "provider_output_chars": provider_audit.get("provider_output_chars"),
+                    "gateway_delta_bytes": stream_stats["bytes"],
+                    "gateway_delta_chars": stream_stats["chars"],
+                    "gateway_output_bytes": output_metrics["bytes"],
+                    "gateway_output_chars": output_metrics["chars"],
+                })
+                wire_metadata = dict(metadata) if isinstance(metadata, dict) else {}
+                replayed = wire_metadata.pop("turn_replayed", False) is True
+                if generic_events and replayed and hasattr(state.rpc, "replay_events"):
+                    events, _ = state.rpc.replay_events(request_id, -1)
+                    final_metadata = None
+                    has_terminal = False
+                    for event in events:
+                        envelope = event.get("envelope") if isinstance(event, dict) else None
+                        if isinstance(envelope, dict):
+                            event = {**event, "envelope": {**envelope, "replayed": True}}
+                            event_sequence = max(event_sequence, int(envelope.get("sequence", -1)) + 1)
+                            has_terminal = has_terminal or envelope.get("terminal") is True
+                        if event.get("type") == "assistant_final":
+                            candidate = (event.get("data") or {}).get("metadata")
+                            if isinstance(candidate, dict):
+                                final_metadata = candidate
+                        self._sse(json.dumps(event, ensure_ascii=False), event="agent.event")
+                    if final_metadata is not None:
+                        wire_metadata = final_metadata
+                    if not has_terminal:
+                        # A process may stop after the completed turn is
+                        # committed but before its terminal event reaches the
+                        # ledger. Reconstruct that terminal event from the
+                        # durable turn result without invoking the Agent again.
+                        emit_event("assistant_final", {"text": text, "metadata": wire_metadata},
+                                   terminal=True, is_replay=True)
+                elif generic_events:
+                    emit_event("assistant_final", {"text": text, "metadata": wire_metadata},
+                               terminal=True)
                 self._sse(
                     json.dumps(
                         {
                             "final_response": text,
-                            "response_metadata": metadata,
+                            "response_metadata": wire_metadata,
                         },
                         ensure_ascii=False,
                     ),
@@ -1045,7 +1237,7 @@ def make_handler(state: GatewayState):
                     json.dumps(
                         {
                             "final_response": text,
-                            "response_metadata": metadata,
+                            "response_metadata": wire_metadata,
                         },
                         ensure_ascii=False,
                     ),
@@ -1054,6 +1246,8 @@ def make_handler(state: GatewayState):
                 self._sse("[DONE]")
             except Exception as exc:
                 try:
+                    if generic_events and route is not None:
+                        emit_event("error", {"text": "Agent execution failed"}, terminal=True)
                     self._sse(json.dumps({"error": {"message": str(exc)}}, ensure_ascii=False))
                 except (OSError, TimeoutError):
                     pass

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 from pathlib import Path
 import socket
@@ -17,6 +18,26 @@ from urllib.parse import urlparse
 from urllib.request import Request, build_opener, HTTPRedirectHandler, ProxyHandler
 
 from agent_events import agent_event, command_card, public_model
+
+
+def _text_metrics(value):
+    if not isinstance(value, str):
+        return {"bytes": 0, "chars": 0}
+    return {"bytes": len(value.encode("utf-8")), "chars": len(value)}
+
+
+def _length_audit_enabled():
+    return os.environ.get("SPARK_PUSH_LENGTH_AUDIT", "").lower() in {"1", "true"}
+
+
+def _length_audit(event):
+    # Keep this diagnostic deliberately metadata-only: prompts, answers,
+    # credentials and account identifiers never enter the log line.
+    if not _length_audit_enabled():
+        return
+    print("hermes_length_audit " + json.dumps(event, ensure_ascii=False,
+                                              separators=(",", ":")),
+          file=sys.stderr, flush=True)
 
 
 class NoRedirect(HTTPRedirectHandler):
@@ -37,6 +58,10 @@ class HermesHttpAdapter:
         self.config, self.store = dict(config), store
         self.artifact_store = None
         self.namespace='hermes:'+config['id']
+        # Android gets a provider-first picker to keep the first Compose frame
+        # small. Legacy PC/Telegram Hermes keeps its existing full model card.
+        self.provider_first = (config.get('provider_first') is True or
+                               config.get('id') == 'hermes-android')
         parsed=urlparse(config['base_url'])
         if (parsed.scheme not in {'http','https'} or not parsed.hostname or parsed.username or
             parsed.password or parsed.query or parsed.fragment):
@@ -98,6 +123,7 @@ class HermesHttpAdapter:
                 return self.catalog
             payload=self._json('/api/model/options')
             entries={}
+            provider_info={}
             current=None
             for row in payload.get('providers',[]):
                 if row.get('authenticated') is False:
@@ -108,20 +134,35 @@ class HermesHttpAdapter:
                 # The channel command grammar reserves colon for provider:model.
                 # Keep custom:* identifiers private and map to a stable opaque token.
                 token=slug if ':' not in slug else 'hermes-'+re.sub('[^a-z0-9-]','-',slug.lower())[:40]+'-'+hashlib.sha256(slug.encode()).hexdigest()[:6]
+                label=row.get('name')
+                if not isinstance(label,str) or not label.strip():
+                    label=slug[7:] if slug.startswith('custom:') else slug
+                label=''.join(c for c in label.strip() if ord(c)>=32)[:160] or token
+                provider_info[token]={'id':token,'name':label,'model_count':0,'current':False}
                 for model_id in row.get('models',[]):
                     if model_id in (row.get('unavailable_models') or []):
                         continue
                     model=public_model({'provider':token,'id':model_id,'name':model_id,
                         'reasoning':row.get('capabilities',{}).get(model_id,{}).get('reasoning') is True})
                     if model:
-                        entries[(token,model_id)]={'public':model,'provider':slug}
+                        key=(token,model_id)
+                        if key not in entries:
+                            entries[key]={'public':model,'provider':slug}
+                            provider_info[token]['model_count']+=1
                         if model_id==payload.get('model') and (slug.lower()==str(payload.get('provider','')).lower() or row.get('is_current')):
-                            current=entries[(token,model_id)]
+                            current=entries[key]
             if not entries or not current:
                 raise ValueError('Hermes 当前模型或凭据不可用，请检查 technical 配置')
             # Put the active provider first when a very large catalog is truncated.
             entries=dict(sorted(entries.items(),key=lambda item: item[1]['provider']!=current['provider']))
-            self.catalog={'entries':entries,'default':current}
+            active_provider=current['public']['provider']
+            providers=[]
+            for item in provider_info.values():
+                if item['model_count']<=0:
+                    continue
+                providers.append({**item,'current':item['id']==active_provider})
+            providers.sort(key=lambda item:(not item['current'],item['name'].lower(),item['id']))
+            self.catalog={'entries':entries,'default':current,'providers':providers}
             self.catalog_time=time.monotonic()
             return self.catalog
 
@@ -164,7 +205,16 @@ class HermesHttpAdapter:
         state.update(upstream_session=upstream,selection=entry,model=entry['public']['id'])
 
     def _state(self,session):
-        return self.store.get(self.namespace,session) or {'context_start_seq':0,'model':self.config['expected_model']}
+        state=self.store.get(self.namespace,session)
+        if not isinstance(state,dict):
+            state={}
+        # Technical sessions are writing sessions by default. Older sessions
+        # may predate creative_mode; normalize them before every turn.
+        if self.config.get('id') == 'hermes-android':
+            state.setdefault('creative_mode','write')
+        state.setdefault('context_start_seq',0)
+        state.setdefault('model',self.config['expected_model'])
+        return state
 
     def _metadata(self,state):
         model=state.get('selection',{}).get('public') or (self.catalog or {}).get('default',{}).get('public')
@@ -305,23 +355,54 @@ class HermesHttpAdapter:
             if operation=='reset_model':
                 text+='（采用 profile 当前默认值）'
             if operation=='list_models':
+                provider_filter=request.get('provider_filter')
+                if provider_filter is not None and (not isinstance(provider_filter,str) or not provider_filter or ':' in provider_filter or len(provider_filter)>128):
+                    raise ValueError('provider 参数无效，请重新打开 /model')
+                active_provider=selected['provider']
+                providers=[{**item,'current':item['id']==active_provider} for item in catalog['providers']]
+                if provider_filter:
+                    models=[entry['public'] for entry in catalog['entries'].values()
+                            if entry['public']['provider']==provider_filter]
+                    if not models:
+                        raise ValueError('该 provider 当前没有可用模型，请刷新 /model')
+                    selected_provider=provider_filter
+                    truncated=False
+                else:
+                    if self.provider_first:
+                        # Android's first response is an inexpensive provider
+                        # index. Models are loaded only after a provider is
+                        # selected, so a large catalog cannot block Compose.
+                        models=[]
+                        selected_provider=None
+                        truncated=False
+                    else:
+                        # Preserve the established PC/Telegram response shape.
+                        models=[entry['public'] for entry in catalog['entries'].values()]
+                        selected_provider=None
+                        truncated=False
+                source_models=list(models)
                 models=[]
                 size=0
-                for entry in catalog['entries'].values():
-                    model=entry['public']
+                for model in source_models:
                     size+=len(json.dumps(model,ensure_ascii=False).encode())+2
                     if size>90000 or len(models)>=512:
+                        truncated=True
                         break
                     models.append(model)
                 card={'kind':'model_picker','current':selected,'models':models,
-                      'truncated':len(models)<len(catalog['entries'])}
+                      'providers':providers,'truncated':truncated}
+                if selected_provider:
+                    card['selected_provider']=selected_provider
         elif operation=='new_session':
             revision=request.get('command_seq')
             if type(revision) is not int or not 0<revision<2**63 or revision<state['context_start_seq']:
                 raise ValueError('新建命令已过期')
             if revision>state['context_start_seq']:
                 # /new clears the transcript, retaining the user's model choice.
-                state={k:v for k,v in state.items() if k in {'model','selection','model_revision'}}
+                state={k:v for k,v in state.items() if k in {
+                    'model','selection','model_revision','creative_mode',
+                    'persona','character','lorebook','pinned_facts',
+                }}
                 state['context_start_seq']=revision
                 self.store.put(self.namespace,session,state)
             text='已创建新的 Hermes 上下文；模型选择、聊天记录和长期记忆保留。'
@@ -388,7 +469,7 @@ class HermesHttpAdapter:
             self.store.put(self.namespace+':restart',session,{'revision':revision,'text':text})
             return text
 
-    def chat(self,message,on_delta,timeout_s,provider=None,model=None,session_id='',context_start_seq=0,retry=False,on_progress=None):
+    def chat(self,message,on_delta,timeout_s,provider=None,model=None,session_id='',context_start_seq=0,retry=False,on_progress=None,request_id=''):
         started=time.monotonic()
         trace=uuid.uuid4().hex[:12]
         try:
@@ -410,6 +491,9 @@ class HermesHttpAdapter:
             finish=None
             done=False
             total=0
+            chunk_count=0
+            chunk_bytes=0
+            chunk_chars=0
             last_progress=started
             first_delta=None
             path='/chat/completions'
@@ -417,6 +501,10 @@ class HermesHttpAdapter:
             creative=self._creative_prompt(state,message)
             if creative: messages.append({'role':'system','content':creative})
             messages.append({'role':'user','content':message})
+            prompt_bytes=sum(_text_metrics(item.get('content','')).get('bytes',0)
+                             for item in messages if isinstance(item,dict))
+            prompt_chars=sum(_text_metrics(item.get('content','')).get('chars',0)
+                             for item in messages if isinstance(item,dict))
             payload={'model':state['model'],'stream':True,'messages':messages}
             if state.get('reasoning_level'):
                 payload['reasoning_effort']=state['reasoning_level']
@@ -477,20 +565,78 @@ class HermesHttpAdapter:
                             if isinstance(delta,str):
                                 if delta and first_delta is None:
                                     first_delta=time.monotonic()
+                                if delta:
+                                    metrics=_text_metrics(delta)
+                                    chunk_count+=1
+                                    chunk_bytes+=metrics['bytes']
+                                    chunk_chars+=metrics['chars']
                                 parts.append(delta)
                                 if on_delta:
                                     on_delta(delta)
                             if choice.get('finish_reason') is not None:
                                 finish=choice['finish_reason']
             text=''.join(parts)
+            output_metrics=_text_metrics(text)
+            selected=state.get('selection') if isinstance(state.get('selection'),dict) else {}
+            public=selected.get('public') if isinstance(selected.get('public'),dict) else {}
+            audit={
+                'trace_id':trace,
+                'provider':selected.get('provider') or 'profile-default',
+                'public_provider':public.get('provider') or 'profile-default',
+                'model':public.get('id') or state.get('model'),
+                'profile':self.config.get('profile',''),
+                'stream':True,
+                'max_tokens':None,
+                'max_output_tokens':None,
+                'temperature':None,
+                'stop':None,
+                'timeout_s':round(float(timeout_s),3),
+                'context_start_seq':state.get('context_start_seq',0),
+                'body_message_count':len(messages),
+                'system_prompt_bytes':_text_metrics(creative)['bytes'] if creative else 0,
+                'system_prompt_chars':_text_metrics(creative)['chars'] if creative else 0,
+                'prompt_bytes':prompt_bytes,
+                'prompt_chars':prompt_chars,
+                'chunk_count':chunk_count,
+                'provider_chunk_bytes':chunk_bytes,
+                'provider_chunk_chars':chunk_chars,
+                'provider_output_bytes':output_metrics['bytes'],
+                'provider_output_chars':output_metrics['chars'],
+                'finish_reason':finish,
+                'done':done,
+            }
+            _length_audit(audit)
             if not done or finish!='stop' or not text.strip():
                 raise RuntimeError('Hermes 未正常完成回复；请检查状态后再重试')
             timing={'trace_id':trace,'connect_ms':round((connected-started)*1000),
                     'first_delta_ms':round((first_delta-started)*1000) if first_delta else None,
-                    'total_ms':round((time.monotonic()-started)*1000)}
+                    'total_ms':round((time.monotonic()-started)*1000),
+                    'chunk_count':chunk_count,'finish_reason':finish,
+                    'provider_output_bytes':output_metrics['bytes'],
+                    'provider_output_chars':output_metrics['chars']}
             print('hermes_timing '+json.dumps(timing),file=sys.stderr,flush=True)
-            return text,{**self._metadata(state),'timing':timing}
+            metadata={**self._metadata(state),'timing':timing}
+            # Keep the normal Hermes response metadata/protocol unchanged.
+            # The detailed length ledger is emitted only during an explicit
+            # audit run and is never persisted into ordinary chat messages.
+            if _length_audit_enabled():
+                metadata['length_audit']=audit
+            return text,metadata
         except Exception as exc:
+            _length_audit({
+                'trace_id':trace,
+                'provider':(state.get('selection') or {}).get('provider','profile-default') if 'state' in locals() else 'unknown',
+                'model':(state.get('model') if 'state' in locals() else None),
+                'stream':True,
+                'max_tokens':None,
+                'max_output_tokens':None,
+                'chunk_count':chunk_count if 'chunk_count' in locals() else 0,
+                'provider_output_bytes':_text_metrics(''.join(parts) if 'parts' in locals() else '')['bytes'],
+                'provider_output_chars':_text_metrics(''.join(parts) if 'parts' in locals() else '')['chars'],
+                'finish_reason':finish if 'finish' in locals() else None,
+                'done':done if 'done' in locals() else False,
+                'error_type':type(exc).__name__,
+            })
             print('hermes_timing '+json.dumps({'trace_id':trace,'error_type':type(exc).__name__,
                 'total_ms':round((time.monotonic()-started)*1000)}),file=sys.stderr,flush=True)
             raise

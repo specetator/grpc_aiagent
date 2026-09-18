@@ -142,14 +142,14 @@ button { cursor: pointer; }
   border: 1px solid var(--admin-border);
   border-radius: var(--radius-md);
   outline: none;
-  background: #fff;
+  background: var(--admin-surface);
   transition: border-color .18s ease, box-shadow .18s ease;
 }
 .field textarea { resize: vertical; }
 .field input:focus, .field textarea:focus, .field select:focus,
 .toolbar input:focus, .toolbar select:focus {
   border-color: var(--admin-primary);
-  box-shadow: 0 0 0 3px rgba(201, 100, 66, 0.14);
+  box-shadow: 0 0 0 3px var(--focus-ring, rgba(201, 100, 66, 0.14));
 }
 
 /* Buttons */

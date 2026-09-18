@@ -4,13 +4,83 @@
 
 #include <algorithm>
 #include <cstring>
+#include <limits>
+#include <vector>
+
+#include "text_metrics.h"
 
 #include "logging.h"
 
 namespace sparkpush {
+namespace {
+
+// mysql_stmt_fetch reports MYSQL_DATA_TRUNCATED when the result buffer is
+// smaller than a TEXT/MEDIUMTEXT value. Fetch the current column again into a
+// dynamically sized string so a long JSON message is never silently shortened.
+bool FetchFullTextColumn(MYSQL_STMT* stmt, unsigned int column,
+                         unsigned long reported_length,
+                         std::string* output, std::string* err_msg) {
+    if (!output) return false;
+    output->clear();
+    if (reported_length == 0) return true;
+    if (static_cast<unsigned long long>(reported_length) >
+        static_cast<unsigned long long>(std::string().max_size())) {
+        if (err_msg) *err_msg = "message content exceeds local string capacity";
+        return false;
+    }
+    output->assign(static_cast<std::size_t>(reported_length), '\0');
+    MYSQL_BIND column_bind{};
+    unsigned long fetched_length = 0;
+    column_bind.buffer_type = MYSQL_TYPE_BLOB;
+    column_bind.buffer = output->data();
+    column_bind.buffer_length = reported_length;
+    column_bind.length = &fetched_length;
+    if (mysql_stmt_fetch_column(stmt, &column_bind, column, 0) != 0) {
+        if (err_msg) *err_msg = mysql_stmt_error(stmt);
+        output->clear();
+        return false;
+    }
+    if (fetched_length > reported_length) {
+        if (err_msg) *err_msg = "mysql returned an invalid message length";
+        output->clear();
+        return false;
+    }
+    output->resize(fetched_length);
+    return true;
+}
+
+bool AssignTextColumn(MYSQL_STMT* stmt, unsigned int column, int fetch_ret,
+                      unsigned long reported_length, const char* initial_buffer,
+                      std::size_t initial_capacity, std::string* output,
+                      std::string* err_msg) {
+    if (!initial_buffer || !output) return false;
+    // The common path reads ordinary messages directly. A value at or above
+    // the initial buffer boundary is fetched again dynamically, so this fast
+    // path never turns a large MEDIUMTEXT value into a silent prefix.
+    if (reported_length > initial_capacity ||
+        (fetch_ret == MYSQL_DATA_TRUNCATED &&
+         reported_length >= initial_capacity)) {
+        return FetchFullTextColumn(stmt, column, reported_length, output, err_msg);
+    }
+    output->assign(initial_buffer, static_cast<std::size_t>(reported_length));
+    return true;
+}
+
+void LogMessageLength(const char* stage, const Message& message) {
+    if (!LengthAuditEnabled()) return;
+    const auto metrics = MeasureText(message.content_json);
+    LOG_INFO << "length_audit stage=" << stage
+             << " client_msg_id=" << message.client_msg_id
+             << " msg_seq=" << message.msg_seq
+             << " bytes=" << metrics.utf8_bytes
+             << " chars=" << metrics.unicode_chars;
+}
+
+}  // namespace
 
 // 插入消息记录到 message 表
 bool MessageDao::InsertMessage(const Message& message, std::string* err_msg) {
+    LogMessageLength("db_before_write", message);
     if (!pool_) {
         if (err_msg) *err_msg = "mysql pool not initialized";
         return false;
@@ -338,7 +408,8 @@ bool MessageDao::ListMessages(const std::string& session_id, int64_t anchor_seq,
     long long sender_buf = 0;
     char type_buf[64];
     unsigned long type_len = 0;
-    char content_buf[65536];
+    constexpr std::size_t kInitialContentBufferBytes = 64 * 1024;
+    std::vector<char> content_buf(kInitialContentBufferBytes, '\0');
     unsigned long content_len = 0;
     long long ts_buf = 0;
     char client_msg_id_buf[128];
@@ -361,8 +432,8 @@ bool MessageDao::ListMessages(const std::string& session_id, int64_t anchor_seq,
     result[3].length = &type_len;
 
     result[4].buffer_type = MYSQL_TYPE_STRING;
-    result[4].buffer = content_buf;
-    result[4].buffer_length = sizeof(content_buf);
+    result[4].buffer = content_buf.data();
+    result[4].buffer_length = static_cast<unsigned long>(content_buf.size());
     result[4].length = &content_len;
 
     result[5].buffer_type = MYSQL_TYPE_LONGLONG;
@@ -392,7 +463,13 @@ bool MessageDao::ListMessages(const std::string& session_id, int64_t anchor_seq,
         msg.msg_seq = seq_buf;
         msg.sender_id = sender_buf;
         msg.msg_type.assign(type_buf, type_len);
-        msg.content_json.assign(content_buf, std::min<unsigned long>(content_len, sizeof(content_buf)));
+        if (!AssignTextColumn(stmt, 4, fetch_ret, content_len,
+                               content_buf.data(), content_buf.size(),
+                               &msg.content_json, err_msg)) {
+            mysql_stmt_close(stmt);
+            return false;
+        }
+        LogMessageLength("db_after_read", msg);
         msg.timestamp_ms = ts_buf;
         msg.client_msg_id.assign(client_msg_id_buf, client_msg_id_len);
         msg.msg_id = msg.session_id + "-" + std::to_string(msg.msg_seq);
@@ -466,7 +543,8 @@ bool MessageDao::ListMessagesAfter(const std::string& session_id,
     long long sender_buf = 0;
     char type_buf[64] = {0};
     unsigned long type_len = 0;
-    char content_buf[65536] = {0};
+    constexpr std::size_t kInitialContentBufferBytes = 64 * 1024;
+    std::vector<char> content_buf(kInitialContentBufferBytes, '\0');
     unsigned long content_len = 0;
     long long ts_buf = 0;
     char client_msg_id_buf[128] = {0};
@@ -485,8 +563,8 @@ bool MessageDao::ListMessagesAfter(const std::string& session_id,
     result[3].buffer_length = sizeof(type_buf);
     result[3].length = &type_len;
     result[4].buffer_type = MYSQL_TYPE_STRING;
-    result[4].buffer = content_buf;
-    result[4].buffer_length = sizeof(content_buf);
+    result[4].buffer = content_buf.data();
+    result[4].buffer_length = static_cast<unsigned long>(content_buf.size());
     result[4].length = &content_len;
     result[5].buffer_type = MYSQL_TYPE_LONGLONG;
     result[5].buffer = &ts_buf;
@@ -512,7 +590,13 @@ bool MessageDao::ListMessagesAfter(const std::string& session_id,
         msg.msg_seq = seq_buf;
         msg.sender_id = sender_buf;
         msg.msg_type.assign(type_buf, type_len);
-        msg.content_json.assign(content_buf, std::min<unsigned long>(content_len, sizeof(content_buf)));
+        if (!AssignTextColumn(stmt, 4, fetch_ret, content_len,
+                               content_buf.data(), content_buf.size(),
+                               &msg.content_json, err_msg)) {
+            mysql_stmt_close(stmt);
+            return false;
+        }
+        LogMessageLength("db_after_read", msg);
         msg.timestamp_ms = ts_buf;
         msg.client_msg_id.assign(client_msg_id_buf, client_msg_id_len);
         msg.msg_id = msg.session_id + "-" + std::to_string(msg.msg_seq);

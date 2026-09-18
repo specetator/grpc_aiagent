@@ -430,6 +430,7 @@ bool HermesClient::Chat(const nlohmann::json& messages,
         {"stream", false},
     };
     if (options.retry) request_body["turn_operation"] = "retry";
+    if (!options.request_id.empty()) request_body["request_id"] = options.request_id;
     if (!options.provider.empty()) {
         request_body["provider"] = options.provider;
     }
@@ -491,7 +492,8 @@ bool HermesClient::Chat(const nlohmann::json& messages,
             return true;
         }
         const auto& choice = response_json.at("choices").at(0);
-        if (response_json.contains("error") || choice.value("finish_reason", "") != "stop") {
+        result->finish_reason = choice.value("finish_reason", "");
+        if (response_json.contains("error") || result->finish_reason != "stop") {
             if (err_msg) *err_msg = "Pi gateway did not return a successful answer";
             return false;
         }
@@ -542,6 +544,7 @@ bool HermesClient::ChatStream(
         {"agent_events", true},
     };
     if (options.retry) request_body["turn_operation"] = "retry";
+    if (!options.request_id.empty()) request_body["request_id"] = options.request_id;
     if (!options.provider.empty()) {
         request_body["provider"] = options.provider;
     }
@@ -603,7 +606,7 @@ bool HermesClient::ChatStream(
         return false;
     }
 
-    HermesSseParser parser(options.on_progress);
+    HermesSseParser parser(options.on_progress, options.on_agent_event);
     std::string parser_error;
     const bool body_ok = StreamHttpBody(
         fd, response,

@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS `message` (
   `msg_seq` BIGINT NOT NULL,             -- 会话内自增序号
   `sender_id` BIGINT NOT NULL,
   `msg_type` VARCHAR(32) NOT NULL DEFAULT 'text',
-  `content_json` TEXT NOT NULL,
+  `content_json` MEDIUMTEXT NOT NULL,
   `timestamp_ms` BIGINT NOT NULL,        -- 发送时间（毫秒）
   `client_msg_id` VARCHAR(128) NOT NULL DEFAULT '',
   PRIMARY KEY (`id`),

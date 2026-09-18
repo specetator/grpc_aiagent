@@ -1,0 +1,482 @@
+/* ==========================================================================
+   Spark Push Theme Pack
+   主题包：原版暖阳（默认）/ Kimi 风格 / Claude Desktop 风格 / Codex 风格
+   - 原版 = auth_style.css 中的 :root 默认值，此文件不覆盖，保证原汁原味
+   - 其余主题通过 html[data-theme="..."] 覆盖 CSS 变量实现
+   ========================================================================== */
+
+/* --- 新增语义变量（原版默认值，与改造前的硬编码完全一致） --- */
+:root {
+  --focus-ring: rgba(201, 100, 66, 0.14);
+  --primary-shadow-sm: 0 1px 2px rgba(201, 100, 66, 0.2);
+  --primary-shadow-md: 0 3px 8px rgba(201, 100, 66, 0.28);
+  --primary-light-active: #f5dfd6;
+  --primary-border-strong: #e5b3a1;
+  --border-strong: #d1cfc7;
+  --tip-text: #92400e;
+  --tip-bg: #fefce8;
+  --tip-border: #fef08a;
+  --toast-bg: #1f1e1d;
+  --toast-text: #edece6;
+  --toast-border: rgba(255, 255, 255, 0.08);
+  --code-inline-bg: rgba(34, 30, 20, 0.06);
+  --code-block-bg: #1f1e1d;
+  --code-block-text: #edece6;
+  --empty-glow: rgba(201, 100, 66, 0.04);
+  --scrollbar-thumb: rgba(140, 136, 126, 0.35);
+  --scrollbar-thumb-hover: rgba(140, 136, 126, 0.6);
+  --selection-bg: rgba(201, 100, 66, 0.18);
+  --switcher-shadow: 0 4px 16px rgba(34, 30, 20, 0.08), 0 12px 32px rgba(34, 30, 20, 0.06);
+}
+
+/* ==========================================================================
+   主题一：Kimi 风格 —— 清爽蓝白 · 简洁现代 · 大圆角
+   ========================================================================== */
+html[data-theme="kimi"] {
+  --bg-color: #f7f8fa;
+  --sidebar-bg: #ffffff;
+  --surface-color: #ffffff;
+  --surface-subtle: #f6f7f9;
+
+  --primary-color: #4d6bfe;
+  --primary-hover: #3b57e8;
+  --primary-light: #eef1ff;
+  --primary-border: #d6defe;
+
+  --text-primary: #17181c;
+  --text-color: #26272b;
+  --text-secondary: #5a5d66;
+  --muted-color: #9a9ea8;
+  --border-color: #e8eaef;
+  --border-subtle: #f0f1f5;
+
+  --bubble-me: #e9edff;
+  --bubble-me-text: #1b2350;
+  --bubble-me-border: #d5defc;
+  --bubble-other: #ffffff;
+  --bubble-other-text: #26272b;
+  --bubble-other-border: #e8eaef;
+
+  --accent-sage: #0e9f6e;
+  --accent-sage-light: #e6f6f0;
+  --accent-sand: #eef0f4;
+  --accent-coral: #f05252;
+  --status-success: #0e9f6e;
+  --status-success-bg: #e8f7f1;
+  --status-error: #e02424;
+  --status-error-bg: #fdecec;
+  --status-warning: #c27803;
+  --status-warning-bg: #fef6e0;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+  --shadow-subtle: 0 1px 2px rgba(23, 24, 28, 0.04), 0 2px 8px rgba(23, 24, 28, 0.03);
+  --shadow-card: 0 2px 8px rgba(23, 24, 28, 0.05), 0 8px 24px rgba(23, 24, 28, 0.04);
+  --shadow-dropdown: 0 4px 16px rgba(23, 24, 28, 0.09), 0 12px 32px rgba(23, 24, 28, 0.07);
+
+  --focus-ring: rgba(77, 107, 254, 0.16);
+  --primary-shadow-sm: 0 1px 2px rgba(77, 107, 254, 0.22);
+  --primary-shadow-md: 0 3px 10px rgba(77, 107, 254, 0.3);
+  --primary-light-active: #dfe6fd;
+  --primary-border-strong: #b8c6fb;
+  --border-strong: #d3d7e0;
+  --empty-glow: rgba(77, 107, 254, 0.05);
+  --code-inline-bg: rgba(23, 24, 28, 0.06);
+  --scrollbar-thumb: rgba(154, 158, 168, 0.4);
+  --scrollbar-thumb-hover: rgba(154, 158, 168, 0.65);
+  --selection-bg: rgba(77, 107, 254, 0.18);
+
+  /* 管理员控制台变量映射 */
+  --admin-primary: #4d6bfe;
+  --admin-primary-dark: #3b57e8;
+  --admin-primary-light: #eef1ff;
+  --admin-primary-border: #d6defe;
+  --admin-text: #17181c;
+  --admin-text-secondary: #5a5d66;
+  --admin-muted: #9a9ea8;
+  --admin-border: #e8eaef;
+  --admin-border-subtle: #f0f1f5;
+  --admin-surface: #ffffff;
+  --admin-page: #f7f8fa;
+  --admin-sidebar-bg: #ffffff;
+}
+
+/* ==========================================================================
+   主题二：Claude Desktop 风格 —— 暖阳陶土 · 深邃米棕桌面质感
+   ========================================================================== */
+html[data-theme="claude"] {
+  --bg-color: #f0eee6;
+  --sidebar-bg: #e9e7dc;
+  --surface-color: #faf9f2;
+  --surface-subtle: #f5f3ea;
+
+  --primary-color: #d97757;
+  --primary-hover: #c66242;
+  --primary-light: #f7e4da;
+  --primary-border: #eccbb9;
+
+  --text-primary: #141413;
+  --text-color: #28251f;
+  --text-secondary: #5e5748;
+  --muted-color: #948b77;
+  --border-color: #ddd8c8;
+  --border-subtle: #e6e2d4;
+
+  --bubble-me: #f6e5d8;
+  --bubble-me-text: #40241a;
+  --bubble-me-border: #ecd2bf;
+  --bubble-other: #faf9f2;
+  --bubble-other-text: #26231c;
+  --bubble-other-border: #e0dcc9;
+
+  --accent-sage: #617a54;
+  --accent-sage-light: #eef0e4;
+  --accent-sand: #e6e1cf;
+  --accent-coral: #c24e2e;
+  --status-success: #4d7a55;
+  --status-success-bg: #ecf2e8;
+  --status-error: #b8471a;
+  --status-error-bg: #faeee6;
+  --status-warning: #a85f0e;
+  --status-warning-bg: #faf5e0;
+
+  --radius-sm: 7px;
+  --radius-md: 11px;
+  --radius-lg: 15px;
+  --radius-xl: 19px;
+  --shadow-subtle: 0 1px 2px rgba(40, 34, 22, 0.05), 0 2px 8px rgba(40, 34, 22, 0.04);
+  --shadow-card: 0 2px 8px rgba(40, 34, 22, 0.06), 0 8px 24px rgba(40, 34, 22, 0.05);
+  --shadow-dropdown: 0 4px 16px rgba(40, 34, 22, 0.1), 0 12px 32px rgba(40, 34, 22, 0.08);
+
+  --focus-ring: rgba(217, 119, 87, 0.18);
+  --primary-shadow-sm: 0 1px 2px rgba(217, 119, 87, 0.22);
+  --primary-shadow-md: 0 3px 9px rgba(217, 119, 87, 0.3);
+  --primary-light-active: #f2d7c8;
+  --primary-border-strong: #e0b197;
+  --border-strong: #cfc9b6;
+  --empty-glow: rgba(217, 119, 87, 0.06);
+  --code-inline-bg: rgba(40, 34, 22, 0.07);
+  --code-block-bg: #232019;
+  --scrollbar-thumb: rgba(148, 139, 119, 0.4);
+  --scrollbar-thumb-hover: rgba(148, 139, 119, 0.65);
+  --selection-bg: rgba(217, 119, 87, 0.2);
+
+  --admin-primary: #d97757;
+  --admin-primary-dark: #c66242;
+  --admin-primary-light: #f7e4da;
+  --admin-primary-border: #eccbb9;
+  --admin-text: #141413;
+  --admin-text-secondary: #5e5748;
+  --admin-muted: #948b77;
+  --admin-border: #ddd8c8;
+  --admin-border-subtle: #e6e2d4;
+  --admin-surface: #faf9f2;
+  --admin-page: #f0eee6;
+  --admin-sidebar-bg: #e9e7dc;
+}
+
+/* ==========================================================================
+   主题三：Codex 风格 —— 极客暗夜 · 荧光绿 · 终端质感
+   ========================================================================== */
+html[data-theme="codex"] {
+  --bg-color: #0e0e10;
+  --sidebar-bg: #141416;
+  --surface-color: #1a1a1e;
+  --surface-subtle: #161619;
+
+  --primary-color: #10a37f;
+  --primary-hover: #0d8a6c;
+  --primary-light: #122e26;
+  --primary-border: #1f5040;
+
+  --text-primary: #f5f5f5;
+  --text-color: #e2e2e2;
+  --text-secondary: #b0b0b0;
+  --muted-color: #7d7d7d;
+  --border-color: #2c2c31;
+  --border-subtle: #232327;
+
+  --bubble-me: #123529;
+  --bubble-me-text: #d6f3e6;
+  --bubble-me-border: #1d5240;
+  --bubble-other: #1e1e23;
+  --bubble-other-text: #e6e6e6;
+  --bubble-other-border: #2c2c33;
+
+  --accent-sage: #5fae8a;
+  --accent-sage-light: #16302a;
+  --accent-sand: #26262b;
+  --accent-coral: #e0654a;
+  --status-success: #4ade80;
+  --status-success-bg: #12291e;
+  --status-error: #f76a5a;
+  --status-error-bg: #331a17;
+  --status-warning: #f0b35c;
+  --status-warning-bg: #2e2412;
+
+  --shadow-subtle: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 8px rgba(0, 0, 0, 0.25);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.3);
+  --shadow-dropdown: 0 4px 16px rgba(0, 0, 0, 0.5), 0 12px 32px rgba(0, 0, 0, 0.4);
+
+  --focus-ring: rgba(74, 222, 128, 0.18);
+  --primary-shadow-sm: 0 1px 2px rgba(16, 163, 127, 0.35);
+  --primary-shadow-md: 0 3px 10px rgba(16, 163, 127, 0.45);
+  --primary-light-active: #173c30;
+  --primary-border-strong: #2a6b54;
+  --border-strong: #3a3a41;
+  --tip-text: #f0c97a;
+  --tip-bg: #26200f;
+  --tip-border: #4a3d1c;
+  --toast-bg: #ececec;
+  --toast-text: #171717;
+  --toast-border: rgba(0, 0, 0, 0.12);
+  --code-inline-bg: rgba(255, 255, 255, 0.09);
+  --code-block-bg: #0a0a0c;
+  --code-block-text: #d6e8de;
+  --empty-glow: rgba(74, 222, 128, 0.05);
+  --scrollbar-thumb: rgba(255, 255, 255, 0.16);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
+  --selection-bg: rgba(74, 222, 128, 0.28);
+
+  --admin-primary: #10a37f;
+  --admin-primary-dark: #0d8a6c;
+  --admin-primary-light: #122e26;
+  --admin-primary-border: #1f5040;
+  --admin-text: #f5f5f5;
+  --admin-text-secondary: #b0b0b0;
+  --admin-muted: #7d7d7d;
+  --admin-border: #2c2c31;
+  --admin-border-subtle: #232327;
+  --admin-surface: #1a1a1e;
+  --admin-page: #0e0e10;
+  --admin-sidebar-bg: #141416;
+  --admin-danger: #f76a5a;
+  --admin-danger-bg: #331a17;
+  --admin-success: #4ade80;
+  --admin-success-bg: #12291e;
+  --admin-warning: #f0b35c;
+  --admin-warning-bg: #2e2412;
+}
+
+/* Codex 暗色下对硬编码浅色元素的定点修正 */
+html[data-theme="codex"] .agent-model-search,
+html[data-theme="codex"] .agent-model-picker button {
+  background: var(--surface-subtle);
+}
+html[data-theme="codex"] .msg-bubble[data-safe-markdown-version] pre {
+  border: 1px solid var(--border-color);
+}
+html[data-theme="codex"] .msg-row.me .msg-avatar,
+html[data-theme="codex"] .session-item .avatar-placeholder {
+  color: #ffffff;
+}
+
+/* ==========================================================================
+   全局操控美化（对全部主题生效）
+   ========================================================================== */
+
+/* 主题切换时的平滑过渡（仅切换瞬间挂载，400ms 后移除） */
+html.spark-theme-anim,
+html.spark-theme-anim body,
+html.spark-theme-anim body * {
+  transition: background-color 0.35s ease, color 0.35s ease,
+    border-color 0.35s ease, box-shadow 0.35s ease !important;
+}
+
+/* 细窄滚动条 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+}
+*::-webkit-scrollbar-track,
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* 文本选区配色 */
+::selection {
+  background: var(--selection-bg);
+}
+
+/* 键盘可达性：统一的焦点轮廓 */
+:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* 消息行入场动画 */
+@keyframes spark-msg-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.msg-row {
+  animation: spark-msg-in 0.28s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* 消息气泡 hover 微浮起 */
+.msg-bubble {
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+.msg-row:hover .msg-bubble {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-card, 0 2px 8px rgba(34, 30, 20, 0.05));
+}
+
+/* 按钮按下反馈 */
+.btn-primary:active, #send-btn:active {
+  transform: translateY(1px) scale(0.98);
+}
+
+/* ==========================================================================
+   主题切换器（由 theme.js 注入）
+   ========================================================================== */
+.spark-theme-fab {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 12000;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 1px solid var(--border-color, #e5e3dc);
+  background: var(--surface-color, #ffffff);
+  color: var(--text-primary, #1f1e1d);
+  box-shadow: var(--switcher-shadow);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.spark-theme-fab:hover {
+  transform: translateY(-2px);
+}
+.spark-theme-fab svg {
+  width: 22px;
+  height: 22px;
+  display: block;
+}
+
+.spark-theme-menu {
+  position: fixed;
+  right: 22px;
+  bottom: 80px;
+  z-index: 12000;
+  width: 248px;
+  padding: 8px;
+  border-radius: 14px;
+  border: 1px solid var(--border-color, #e5e3dc);
+  background: var(--surface-color, #ffffff);
+  color: var(--text-color, #2b2a27);
+  box-shadow: var(--switcher-shadow);
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif);
+  animation: spark-theme-menu-in 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes spark-theme-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.spark-theme-menu-title {
+  padding: 6px 10px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-color, #8c887e);
+}
+.spark-theme-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-color, #2b2a27);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.spark-theme-option:hover {
+  background: var(--surface-subtle, #fbfbf9);
+  border-color: var(--border-subtle, #eeece5);
+}
+.spark-theme-option.active {
+  background: var(--primary-light, #faece7);
+  border-color: var(--primary-border, #f0cbbd);
+}
+.spark-theme-swatches {
+  display: flex;
+  flex-shrink: 0;
+}
+.spark-theme-swatches span {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+}
+.spark-theme-swatches span + span {
+  margin-left: -6px;
+}
+.spark-theme-option-meta {
+  flex: 1;
+  min-width: 0;
+}
+.spark-theme-option-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-primary, #1f1e1d);
+}
+.spark-theme-option-desc {
+  font-size: 11.5px;
+  color: var(--muted-color, #8c887e);
+  margin-top: 1px;
+}
+.spark-theme-check {
+  flex-shrink: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary-color, #c96442);
+  visibility: hidden;
+}
+.spark-theme-option.active .spark-theme-check {
+  visibility: visible;
+}
+
+@media (max-width: 760px) {
+  .spark-theme-fab {
+    right: 14px;
+    bottom: 14px;
+  }
+  .spark-theme-menu {
+    right: 14px;
+    bottom: 70px;
+  }
+}

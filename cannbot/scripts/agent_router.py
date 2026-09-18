@@ -15,7 +15,7 @@ import sqlite3
 import threading
 import time
 
-from agent_events import agent_event, command_card
+from agent_events import agent_event, canonical_route, command_card
 
 AGENT_ID = re.compile(r"[a-z][a-z0-9_-]{0,47}")
 
@@ -29,12 +29,39 @@ class AgentStore:
         if self.path.is_symlink():
             raise ValueError("Agent state database cannot be a symlink")
         with self.connect() as db:
+            # Event previews are written while text is streaming. WAL keeps
+            # replay readers from blocking those short writes, while NORMAL
+            # synchronous mode still makes committed terminal events durable.
+            db.execute("PRAGMA journal_mode=WAL")
             db.execute("CREATE TABLE IF NOT EXISTS states (namespace TEXT, key TEXT, value TEXT NOT NULL, PRIMARY KEY(namespace,key))")
+            db.execute("""CREATE TABLE IF NOT EXISTS agent_routes (
+                route_key TEXT PRIMARY KEY, tenant_id TEXT NOT NULL,
+                channel_id TEXT NOT NULL, conversation_id TEXT NOT NULL,
+                thread_id TEXT NOT NULL, user_id INTEGER NOT NULL,
+                agent_id TEXT NOT NULL, mode TEXT NOT NULL,
+                backend_session_ref TEXT NOT NULL, revision INTEGER NOT NULL,
+                created_at_ms INTEGER NOT NULL, updated_at_ms INTEGER NOT NULL,
+                UNIQUE(tenant_id,channel_id,conversation_id,thread_id))""")
+            db.execute("""CREATE TABLE IF NOT EXISTS agent_turns (
+                request_id TEXT PRIMARY KEY, route_key TEXT NOT NULL,
+                input_hash TEXT NOT NULL, status TEXT NOT NULL,
+                result_text TEXT, metadata_json TEXT, error_code TEXT,
+                created_at_ms INTEGER NOT NULL, completed_at_ms INTEGER)""")
+            db.execute("""CREATE TABLE IF NOT EXISTS agent_events (
+                request_id TEXT NOT NULL, sequence INTEGER NOT NULL,
+                event_id TEXT NOT NULL UNIQUE, payload TEXT NOT NULL,
+                terminal INTEGER NOT NULL DEFAULT 0,
+                created_at_ms INTEGER NOT NULL,
+                PRIMARY KEY(request_id,sequence))""")
+            db.execute("CREATE INDEX IF NOT EXISTS idx_agent_events_request ON agent_events(request_id,sequence)")
         os.chmod(self.path, 0o600)
 
     @contextmanager
     def connect(self):
         db = sqlite3.connect(self.path, timeout=10)
+        db.execute("PRAGMA busy_timeout=10000")
+        db.execute("PRAGMA foreign_keys=ON")
+        db.execute("PRAGMA synchronous=NORMAL")
         try:
             with db:
                 yield db
@@ -99,6 +126,125 @@ class AgentStore:
             state["compacted_at_ms"] = int(time.time() * 1000)
             return state
         return self.update("context", key, mutate)
+
+    def bind_route(self, route, mode, backend_session_ref, revision=0):
+        if mode not in {"sticky", "contact"}:
+            raise ValueError("invalid route mode")
+        now = int(time.time() * 1000)
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute(
+                "SELECT agent_id,mode,backend_session_ref,revision FROM agent_routes WHERE route_key=?",
+                (route["route_key"],)).fetchone()
+            if row:
+                if row[1] == "contact" and row[0] != route["agent_id"]:
+                    raise ValueError("Agent contact route conflicts with persisted identity")
+                if revision < row[3]:
+                    raise ValueError("Agent route selection is stale")
+                db.execute("""UPDATE agent_routes SET agent_id=?,mode=?,backend_session_ref=?,
+                    revision=?,updated_at_ms=? WHERE route_key=?""",
+                           (route["agent_id"], mode, backend_session_ref,
+                            max(revision, row[3]), now, route["route_key"]))
+            else:
+                db.execute("""INSERT INTO agent_routes
+                    (route_key,tenant_id,channel_id,conversation_id,thread_id,user_id,
+                     agent_id,mode,backend_session_ref,revision,created_at_ms,updated_at_ms)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?)""",
+                           (route["route_key"], route["tenant_id"], route["channel_id"],
+                            route["conversation_id"], route["thread_id"], route["user_id"],
+                            route["agent_id"], mode, backend_session_ref, revision, now, now))
+        return self.route(route["route_key"])
+
+    def route(self, route_key):
+        with self.connect() as db:
+            row = db.execute("""SELECT tenant_id,channel_id,conversation_id,thread_id,user_id,
+                agent_id,mode,backend_session_ref,revision,created_at_ms,updated_at_ms
+                FROM agent_routes WHERE route_key=?""", (route_key,)).fetchone()
+        if not row:
+            return {}
+        keys = ("tenant_id", "channel_id", "conversation_id", "thread_id", "user_id",
+                "agent_id", "mode", "backend_session_ref", "revision", "created_at_ms", "updated_at_ms")
+        return {"route_key": route_key, **dict(zip(keys, row))}
+
+    def begin_turn(self, request_id, route_key, input_hash):
+        if not isinstance(request_id, str) or not request_id or len(request_id.encode("utf-8")) > 121:
+            raise ValueError("invalid Agent request id")
+        now = int(time.time() * 1000)
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("""SELECT input_hash,status,result_text,metadata_json,error_code
+                FROM agent_turns WHERE request_id=?""", (request_id,)).fetchone()
+            if row:
+                if row[0] != input_hash:
+                    raise ValueError("request_id was reused with different Agent input")
+                result = {"status": row[1]}
+                if row[2] is not None:
+                    result["text"] = row[2]
+                if row[3]:
+                    result["metadata"] = json.loads(row[3])
+                if row[4]:
+                    result["error_code"] = row[4]
+                return result
+            db.execute("""INSERT INTO agent_turns
+                (request_id,route_key,input_hash,status,created_at_ms) VALUES(?,?,?,?,?)""",
+                       (request_id, route_key, input_hash, "running", now))
+        return {"status": "new"}
+
+    def complete_turn(self, request_id, text, metadata):
+        now = int(time.time() * 1000)
+        encoded = json.dumps(metadata, ensure_ascii=False, separators=(",", ":"))
+        with self.connect() as db:
+            changed = db.execute("""UPDATE agent_turns SET status='completed',result_text=?,
+                metadata_json=?,error_code=NULL,completed_at_ms=?
+                WHERE request_id=? AND status='running'""",
+                                 (text, encoded, now, request_id)).rowcount
+        if changed != 1:
+            raise RuntimeError("Agent turn completion lost its running owner")
+
+    def fail_turn(self, request_id, error_code):
+        now = int(time.time() * 1000)
+        with self.connect() as db:
+            db.execute("""UPDATE agent_turns SET status='failed',error_code=?,completed_at_ms=?
+                WHERE request_id=? AND status='running'""",
+                       (str(error_code)[:80], now, request_id))
+
+    def append_event(self, event):
+        envelope = event.get("envelope") if isinstance(event, dict) else None
+        if not isinstance(envelope, dict):
+            raise ValueError("Agent event has no envelope")
+        payload = json.dumps(event, ensure_ascii=False, separators=(",", ":"))
+        request_id, sequence = envelope.get("request_id"), envelope.get("sequence")
+        with self.connect() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT payload FROM agent_events WHERE request_id=? AND sequence=?",
+                             (request_id, sequence)).fetchone()
+            if row:
+                if row[0] != payload:
+                    raise ValueError("conflicting Agent event sequence")
+                return False
+            db.execute("""INSERT INTO agent_events
+                (request_id,sequence,event_id,payload,terminal,created_at_ms)
+                VALUES(?,?,?,?,?,?)""",
+                       (request_id, sequence, envelope["event_id"], payload,
+                        1 if envelope.get("terminal") else 0, envelope["created_at_ms"]))
+            # The final event contains the complete answer. Bound preview
+            # history without running a pruning scan for every 40 ms batch.
+            if envelope.get("terminal") or (type(sequence) is int and sequence > 0 and sequence % 256 == 0):
+                db.execute("""DELETE FROM agent_events WHERE request_id=? AND terminal=0
+                    AND sequence IN (SELECT sequence FROM agent_events
+                    WHERE request_id=? AND terminal=0 ORDER BY sequence DESC
+                    LIMIT -1 OFFSET 4096)""", (request_id, request_id))
+        return True
+
+    def replay_events(self, request_id, after_sequence=-1):
+        if (not isinstance(request_id, str) or not request_id or
+                type(after_sequence) is not int or after_sequence < -1):
+            raise ValueError("invalid Agent event replay cursor")
+        with self.connect() as db:
+            rows = db.execute("""SELECT payload FROM agent_events
+                WHERE request_id=? AND sequence>? ORDER BY sequence LIMIT 4097""",
+                              (request_id, after_sequence)).fetchall()
+        return [json.loads(row[0]) for row in rows[:4096]], len(rows) > 4096
 
 
 class ArtifactStore:
@@ -193,21 +339,30 @@ class SessionLocks:
 
 class AgentRouter:
     def __init__(self, entries: list[dict], adapters: dict, store: AgentStore,
-                 default="pi", bot_user_id=900000000001):
+                 default="pi", bot_user_id=900000000001,
+                 tenant_id="local", channel_id="spark_pc"):
         self.entries = {}
         for entry in entries:
             key, name, owners = entry.get("id"), entry.get("name"), entry.get("owner_user_ids")
+            routing_keywords = entry.get("routing_keywords", [])
             if (not isinstance(key,str) or not AGENT_ID.fullmatch(key) or key in self.entries or
                 not isinstance(name,str) or not name.strip() or len(name.encode()) > 120 or
                 any(ord(c)<32 for c in name) or
-                not isinstance(owners,list) or any(type(uid) is not int or uid<=0 for uid in owners)):
+                not isinstance(owners,list) or any(type(uid) is not int or uid<=0 for uid in owners) or
+                not isinstance(routing_keywords,list) or len(routing_keywords)>32 or
+                any(not isinstance(word,str) or not word.strip() or len(word.encode("utf-8"))>64 or
+                    any(ord(c)<32 for c in word) for word in routing_keywords)):
                 raise ValueError("invalid Agent registry entry")
             if key not in adapters:
                 raise ValueError("missing Agent adapter")
-            self.entries[key] = dict(entry)
+            normalized = list(dict.fromkeys(word.strip().casefold() for word in routing_keywords))
+            self.entries[key] = {**entry, "routing_keywords": normalized}
         if default not in self.entries or len(entries)>12:
             raise ValueError("invalid default Agent or registry size")
         self.adapters, self.store, self.default = adapters, store, default
+        self.tenant_id, self.channel_id = tenant_id, channel_id
+        # Validate deployment-owned identity labels once at startup.
+        canonical_route(tenant_id, channel_id, "bootstrap", 1, default)
         self.artifacts = ArtifactStore(store.path.parent / "artifacts")
         # Best-effort startup hygiene; serving traffic never depends on cleanup.
         try:
@@ -250,11 +405,68 @@ class AgentRouter:
 
     def _selected(self, session):
         visible = self._visible(session)
+        if not visible:
+            raise ValueError("当前用户没有可访问的 Agent")
         saved = self.store.get("selection", session)
         key = self.bot_agents[self._identity(session)[1]] if self.bot_agents else saved.get("agent_id",self.default)
         if key not in visible:
             raise ValueError("当前 Agent 已不可访问，请发送 /agent 重新选择")
         return key, saved
+
+    def _select_for_first_message(self, session, message):
+        """Resolve an unbound hub conversation once, then keep it sticky."""
+        if self.bot_agents:
+            return self._selected(session)
+        visible = self._visible(session)
+        if not visible:
+            raise ValueError("当前用户没有可访问的 Agent")
+        saved = self.store.get("selection", session)
+        if saved.get("agent_id"):
+            return self._selected(session)
+        folded = message.casefold() if isinstance(message, str) else ""
+        scored = []
+        for order, (key, entry) in enumerate(visible.items()):
+            score = sum(len(word) for word in entry["routing_keywords"] if word in folded)
+            if score:
+                scored.append((score, key == self.default, -order, key))
+        if scored:
+            key = max(scored)[3]
+            source = "first_message_policy"
+        else:
+            key = self.default if self.default in visible else next(iter(visible))
+            source = "default"
+        saved = {"agent_id": key, "revision": 1, "source": source}
+        self.store.put("selection", session, saved)
+        route = canonical_route(self.tenant_id, self.channel_id, session,
+                                self._identity(session)[0], key)
+        self.store.bind_route(route, "sticky", session, saved["revision"])
+        return key, saved
+
+    def _describe_route(self, session, message=None):
+        key, saved = (self._select_for_first_message(session, message)
+                      if message is not None else self._selected(session))
+        user_id, _ = self._identity(session)
+        route = canonical_route(self.tenant_id, self.channel_id, session, user_id, key)
+        revision = saved.get("revision", 0) if isinstance(saved, dict) else 0
+        mode = "contact" if self.bot_agents else "sticky"
+        persisted = self.store.bind_route(route, mode, session, revision)
+        return {**route, "mode": mode,
+                "selection_source": "contact" if self.bot_agents else saved.get("source", "persisted"),
+                "revision": persisted.get("revision", revision),
+                "backend_session_ref": persisted.get("backend_session_ref", session)}
+
+    def describe_route(self, session, message=None, timeout_s=30):
+        # Gateway calls this before sending SSE headers. Serializing the
+        # first-message decision here prevents two concurrent hub requests
+        # from selecting different Agents before the chat lock is acquired.
+        with self.locks.hold(session, timeout_s):
+            return self._describe_route(session, message)
+
+    def record_event(self, event):
+        return self.store.append_event(event)
+
+    def replay_events(self, request_id, after_sequence=-1):
+        return self.store.replay_events(request_id, after_sequence)
 
     def _decorate(self, key, data):
         data = dict(data)
@@ -305,7 +517,11 @@ class AgentRouter:
                     if not self.adapters[target].is_ready():
                         raise ValueError("目标 Agent 暂不可用，当前选择未改变")
                     key=target
-                    self.store.put("selection",session,{"agent_id":key,"revision":revision})
+                    self.store.put("selection",session,{"agent_id":key,"revision":revision,
+                                                        "source":"manual"})
+                    route = canonical_route(self.tenant_id, self.channel_id, session,
+                                            self._identity(session)[0], key)
+                    self.store.bind_route(route, "sticky", session, revision)
                 text = ("已切换 Agent：" if operation=="set_agent" else "当前 Agent：") + self.entries.get(key,{}).get("name","不可访问")
                 text += "。各 Agent 分别保留上下文；/new 只重置当前 Agent。"
                 return agent_event("assistant_final",{"text":text,"agent_state":{"id":key},
@@ -325,21 +541,49 @@ class AgentRouter:
             return {**event,"data":self._decorate(key,event["data"])}
 
     def chat(self,message,on_delta,timeout_s,provider=None,model=None,session_id="",
-             context_start_seq=0,retry=False,on_progress=None):
+             context_start_seq=0,retry=False,on_progress=None,request_id=""):
         self._visible(session_id)
         started=time.monotonic()
         with self.locks.hold(session_id,timeout_s):
-            key,_ = self._selected(session_id)
-            context = self.store.append_context(session_id, "user", message)
-            if on_progress:
-                on_progress(self.entries[key]["name"] + " · 正在处理")
-            text, metadata = self.adapters[key].chat(message,on_delta,
-                max(0,timeout_s-(time.monotonic()-started)),None,None,session_id,0,retry=retry,on_progress=on_progress)
-            context = self.store.append_context(session_id, "assistant", text)
-            data = self._decorate(key,{"text":text})
-            return data["text"], {**metadata,"agent_state":data["agent_state"],
-                                   "context_revision":context["context_revision"],
-                                   "context_message_count":len(context["recent_messages"])}
+            key,_ = self._select_for_first_message(session_id, message)
+            route = self._describe_route(session_id)
+            input_hash = hashlib.sha256(json.dumps({
+                "route_key": route["route_key"], "agent_id": key,
+                "message": message, "retry": retry,
+                "context_start_seq": context_start_seq}, ensure_ascii=False,
+                sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+            turn = (self.store.begin_turn(request_id, route["route_key"], input_hash)
+                    if request_id else {"status": "new"})
+            if turn["status"] == "completed":
+                metadata = dict(turn.get("metadata") or {})
+                metadata.update({"turn_replayed": True, "request_id": request_id,
+                                 "agent_route": route})
+                return turn.get("text", ""), metadata
+            if turn["status"] == "running":
+                raise RuntimeError("Agent 请求仍在执行或上次结果未确认，未重复调用工具")
+            if turn["status"] == "failed":
+                raise RuntimeError("Agent 请求先前已失败，未使用相同 request_id 重复执行")
+            self.store.append_context(session_id, "user", message)
+            try:
+                if on_progress:
+                    on_progress(self.entries[key]["name"] + " · 正在处理")
+                text, metadata = self.adapters[key].chat(
+                    message, on_delta, max(0, timeout_s-(time.monotonic()-started)),
+                    None, None, route["backend_session_ref"], 0, retry=retry,
+                    on_progress=on_progress, request_id=request_id)
+                context = self.store.append_context(session_id, "assistant", text)
+                data = self._decorate(key,{"text":text})
+                metadata = {**metadata, "agent_state":data["agent_state"],
+                    "agent_route":route, "request_id":request_id,
+                    "context_revision":context["context_revision"],
+                    "context_message_count":len(context["recent_messages"])}
+                if request_id:
+                    self.store.complete_turn(request_id, data["text"], metadata)
+                return data["text"], metadata
+            except Exception as exc:
+                if request_id:
+                    self.store.fail_turn(request_id, type(exc).__name__)
+                raise
 
     def stop(self):
         for adapter in self.adapters.values():
@@ -359,10 +603,17 @@ def load_router(path: Path, pi, state_root: Path):
     adapters={}
     for entry in config["agents"]:
         runtime=entry.get("runtime")
-        if runtime=="pi_rpc" and entry["id"]=="pi":
+        # Multiple independent Spark contacts may use the same Pi runtime.
+        # The adapter already binds each request to its validated session
+        # file; allowing more than the default ``pi`` entry lets Android have
+        # a separate contact and model/context state without sharing the PC
+        # contact's history.
+        if runtime=="pi_rpc":
             adapters[entry["id"]]=pi
         elif runtime=="hermes_http":
             adapters[entry["id"]]=HermesHttpAdapter(entry,store)
         else:
             raise ValueError("unsupported Agent runtime")
-    return AgentRouter(config["agents"],adapters,store,config.get("default_agent","pi"),config.get("bot_user_id",900000000001))
+    return AgentRouter(config["agents"], adapters, store,
+        config.get("default_agent", "pi"), config.get("bot_user_id", 900000000001),
+        config.get("tenant_id", "local"), config.get("channel_id", "spark_pc"))

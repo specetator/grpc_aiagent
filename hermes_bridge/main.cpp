@@ -19,6 +19,7 @@
 #include "logging.h"
 #include "metrics.h"
 #include "agent_event.h"
+#include "text_metrics.h"
 
 namespace {
 
@@ -28,6 +29,27 @@ int64_t NowMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
                std::chrono::system_clock::now().time_since_epoch())
         .count();
+}
+
+uint64_t Fnv1a64(const std::string& value, uint64_t seed) {
+    uint64_t hash = seed;
+    for (const unsigned char byte : value) {
+        hash ^= byte;
+        hash *= 1099511628211ULL;
+    }
+    return hash;
+}
+
+std::string ProjectedEventId(const std::string& request_id, int sequence) {
+    const std::string material = request_id + std::string(1, '\0') +
+                                 std::to_string(sequence);
+    const auto left = Fnv1a64(material, 1469598103934665603ULL);
+    const auto right = Fnv1a64(material, 1099511628211ULL);
+    char value[37]{};
+    std::snprintf(value, sizeof(value), "evt_%016llx%016llx",
+                  static_cast<unsigned long long>(left),
+                  static_cast<unsigned long long>(right));
+    return value;
 }
 
 void HandleSignal(int) { g_running = false; }
@@ -187,6 +209,7 @@ class HermesBridgeRunner {
             const bool call_model = request.value("call_model", true);
             const std::string command_name = command.value("name", "");
             HermesChatOptions chat_options;
+            chat_options.request_id = request_id;
             chat_options.retry = call_model && command_name == "retry";
             chat_options.session_id = request.value("session_id", "");
             chat_options.context_start_seq =
@@ -208,22 +231,63 @@ class HermesBridgeRunner {
                 reply["command"] = command.value("name", "");
             }
             const int64_t request_started_at_ms = NowMs();
-            size_t prompt_chars = 0;
+            size_t prompt_bytes = 0;
+            size_t prompt_unicode_chars = 0;
             if (messages.is_array()) {
                 for (const auto& item : messages) {
                     if (item.is_object() && item.contains("content") &&
                         item.at("content").is_string()) {
-                        prompt_chars += item.at("content").get<std::string>().size();
+                        const auto metrics =
+                            MeasureText(item.at("content").get<std::string>());
+                        prompt_bytes += metrics.utf8_bytes;
+                        prompt_unicode_chars += metrics.unicode_chars;
                     }
                 }
+            }
+            const bool streamed_request = call_model && config_.streaming;
+            if (LengthAuditEnabled()) {
+                LOG_INFO << "length_audit stage=bridge_request request_id="
+                         << request_id << " provider="
+                         << (effective_provider.empty() ? "adapter-state" : effective_provider)
+                         << " model=" << effective_model
+                         << " stream=" << (streamed_request ? "true" : "false")
+                         << " max_tokens=unset max_output_tokens=unset"
+                         << " prompt_bytes=" << prompt_bytes
+                         << " prompt_chars=" << prompt_unicode_chars
+                         << " prompt_message_count="
+                         << (messages.is_array() ? messages.size() : 0);
             }
             HermesChatResult chat_result;
             std::string error;
             int delta_count = 0;
+            size_t provider_delta_bytes = 0;
+            size_t provider_delta_chars = 0;
             bool delta_publish_failed = false;
             int64_t first_delta_at_ms = 0;
             std::string delta_buffer;
+            nlohmann::json latest_agent_envelope = nlohmann::json::object();
+            chat_options.on_agent_event = [&](const nlohmann::json& event) {
+                if (event.is_object() && event.contains("envelope") &&
+                    event["envelope"].is_object()) {
+                    latest_agent_envelope = event["envelope"];
+                }
+            };
             auto last_delta_flush = std::chrono::steady_clock::now();
+            auto projected_event = [&](const char* kind, const std::string& text,
+                                       int sequence) {
+                nlohmann::json event = {{"schema", "sparkpush.agent_event.v1"},
+                    {"type", kind}, {"data", {{"text", text}}}};
+                if (!latest_agent_envelope.empty()) {
+                    auto envelope = latest_agent_envelope;
+                    // Bridge batching is a channel projection, so its sequence
+                    // follows the emitted legacy delta order.
+                    envelope["sequence"] = sequence;
+                    envelope["event_id"] = ProjectedEventId(request_id, sequence);
+                    envelope["terminal"] = false;
+                    event["envelope"] = std::move(envelope);
+                }
+                return event;
+            };
             auto flush_delta = [&]() {
                 if (delta_buffer.empty()) return;
                 if (first_delta_at_ms == 0) {
@@ -241,6 +305,8 @@ class HermesBridgeRunner {
                     {"delta", delta_buffer},
                     {"created_at_ms", NowMs()},
                 };
+                delta["agent_event"] =
+                    projected_event("assistant_delta", delta_buffer, delta_count);
                 if (!PublishDelta(request_id, delta)) {
                     delta_publish_failed = true;
                     MetricsRegistry::Instance().Increment(
@@ -255,6 +321,9 @@ class HermesBridgeRunner {
             };
             auto on_delta = [&](const std::string& value) {
                 if (!call_model || !config_.streaming || value.empty()) return;
+                const auto metrics = MeasureText(value);
+                provider_delta_bytes += metrics.utf8_bytes;
+                provider_delta_chars += metrics.unicode_chars;
                 delta_buffer += value;
                 const auto elapsed = std::chrono::duration_cast<
                     std::chrono::milliseconds>(
@@ -274,6 +343,9 @@ class HermesBridgeRunner {
                     {"session_id", request.value("session_id", "")}, {"user_id", request.value("user_id", 0LL)},
                     {"bot_user_id", request.value("bot_user_id", 0LL)}, {"delta_index", delta_count++},
                     {"delta", status}, {"progress", true}, {"created_at_ms", NowMs()}};
+                progress["agent_event"] = projected_event(
+                    "assistant_progress", status,
+                    progress["delta_index"].get<int>());
                 if (!PublishDelta(request_id, progress)) delta_publish_failed = true;
             };
             bool ok = true;
@@ -294,6 +366,9 @@ class HermesBridgeRunner {
                         chat_options.control["refresh"] = true;
                     } else if (argument == "default" || argument == "reset") {
                         chat_options.control["operation"] = "reset_model";
+                    } else if (!argument.empty() && argument.back() == ':') {
+                        chat_options.control = {{"operation", "list_models"},
+                            {"provider_filter", argument.substr(0, argument.size() - 1)}};
                     } else if (!argument.empty()) {
                         const auto colon = argument.find(':');
                         chat_options.control = {{"operation", "set_model"},
@@ -347,29 +422,78 @@ class HermesBridgeRunner {
                 }
             }
             if (call_model && config_.streaming) flush_delta();
+            if (ok && chat_result.agent_event.is_object() &&
+                !chat_result.agent_event.empty()) {
+                if (!chat_result.metadata.is_object()) {
+                    chat_result.metadata = nlohmann::json::object();
+                }
+                auto final_event = chat_result.agent_event;
+                if (final_event.contains("envelope") &&
+                    final_event["envelope"].is_object()) {
+                    // Intermediate events were coalesced into the Bridge's
+                    // delta_index domain. Project the terminal event into the
+                    // same sequence so the channel observes 0..N without a
+                    // gap or collision.
+                    final_event["envelope"]["sequence"] = delta_count;
+                    final_event["envelope"]["event_id"] =
+                        ProjectedEventId(request_id, delta_count);
+                    final_event["envelope"]["terminal"] = true;
+                }
+                chat_result.metadata["agent_event"] = std::move(final_event);
+            }
             reply["ok"] = ok;
             reply["streamed"] = call_model && config_.streaming;
             reply["delta_count"] = delta_count;
+            if (LengthAuditEnabled()) {
+                reply["provider_chunk_count"] =
+                    static_cast<int64_t>(chat_result.stream_chunk_count);
+                reply["provider_delta_bytes"] = provider_delta_bytes;
+                reply["provider_delta_chars"] = provider_delta_chars;
+            }
             reply["delta_publish_failed"] = delta_publish_failed;
             const int64_t completed_at_ms = NowMs();
             reply["request_started_at_ms"] = request_started_at_ms;
             reply["first_delta_at_ms"] = first_delta_at_ms;
             reply["completed_at_ms"] = completed_at_ms;
             reply["total_latency_ms"] = completed_at_ms - request_started_at_ms;
-            reply["prompt_chars"] = prompt_chars;
+            // Keep the historical prompt_chars field for compatibility. The
+            // explicit byte/code-point fields are debug-only extensions.
+            reply["prompt_chars"] = prompt_bytes;
+            if (LengthAuditEnabled()) {
+                reply["prompt_bytes"] = prompt_bytes;
+                reply["prompt_unicode_chars"] = prompt_unicode_chars;
+            }
             reply["prompt_message_count"] = messages.is_array() ? messages.size() : 0;
             MetricsRegistry::Instance().Observe(
                 "spark_push_hermes_total_latency_ms",
                 completed_at_ms - request_started_at_ms);
             MetricsRegistry::Instance().Observe(
                 "spark_push_hermes_prompt_chars",
-                static_cast<int64_t>(prompt_chars));
+                static_cast<int64_t>(prompt_bytes));
             if (!call_model) {
                 MetricsRegistry::Instance().Increment(
                     "spark_push_hermes_commands_total_" +
                     command.value("name", "unknown"));
             }
             if (ok) {
+                if (LengthAuditEnabled()) {
+                    const auto response_metrics = MeasureText(chat_result.text);
+                    reply["response_bytes"] = response_metrics.utf8_bytes;
+                    reply["response_unicode_chars"] = response_metrics.unicode_chars;
+                    reply["finish_reason"] = chat_result.finish_reason;
+                    if (chat_result.metadata.is_object() &&
+                        chat_result.metadata.contains("length_audit") &&
+                        chat_result.metadata["length_audit"].is_object()) {
+                        const auto& audit = chat_result.metadata["length_audit"];
+                        for (const auto* key : {"provider", "public_provider", "model",
+                                                 "max_tokens", "max_output_tokens",
+                                                 "temperature", "stop", "timeout_s",
+                                                 "provider_output_bytes",
+                                                 "provider_output_chars", "finish_reason"}) {
+                            if (audit.contains(key)) reply[std::string("audit_") + key] = audit[key];
+                        }
+                    }
+                }
                 reply["text"] = chat_result.text;
                 if (chat_result.citations.is_array() &&
                     !chat_result.citations.empty()) {
@@ -383,6 +507,21 @@ class HermesBridgeRunner {
                 reply["error"] = error.empty() ? "Hermes request failed" : error;
                 LOG_ERROR << "Hermes request failed request_id=" << request_id
                           << ": " << reply["error"].get<std::string>();
+            }
+            if (LengthAuditEnabled()) {
+                LOG_INFO << "length_audit stage=bridge_final request_id="
+                         << request_id << " provider="
+                         << reply.value("effective_provider", "adapter-state")
+                         << " model=" << reply.value("effective_model", "unknown")
+                         << " stream=" << (reply.value("streamed", false) ? "true" : "false")
+                         << " max_tokens=unset max_output_tokens=unset"
+                         << " provider_bytes=" << reply.value("audit_provider_output_bytes", 0)
+                         << " provider_chars=" << reply.value("audit_provider_output_chars", 0)
+                         << " delta_bytes=" << reply.value("provider_delta_bytes", 0)
+                         << " delta_chars=" << reply.value("provider_delta_chars", 0)
+                         << " response_bytes=" << reply.value("response_bytes", 0)
+                         << " response_chars=" << reply.value("response_unicode_chars", 0)
+                         << " finish_reason=" << reply.value("finish_reason", "");
             }
             const std::string serialized = reply.dump();
             {

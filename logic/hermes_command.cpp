@@ -48,6 +48,18 @@ bool ApplyModelArgument(const std::string& arguments, bool* model_override,
         provider->clear();
         return true;
     }
+    // A trailing colon is the explicit provider-browse form used by native
+    // clients. It is distinct from provider:model and never changes state.
+    if (target.size() > 1 && target.back() == ':') {
+        *provider = target.substr(0, target.size() - 1);
+        if (provider->empty() || provider->find(':') != std::string::npos) {
+            if (error) *error = "provider 参数无效，请重新打开 /model";
+            return false;
+        }
+        *model_override = false;
+        model->clear();
+        return true;
+    }
     if (target.size() > 128 || ContainsSpaceOrControl(target)) {
         if (error) {
             *error = "模型格式无效；请使用 /model provider:model，或 "

@@ -17,9 +17,13 @@ struct HermesChatOptions {
     std::string provider;
     // Spark 会话标识，供 Pi gateway 复用同一 Agent session 和工具历史。
     std::string session_id;
+    // 端到端 turn 幂等键。Gateway 使用它恢复已完成结果，绝不因 Bridge
+    // 重启而用同一请求重复调用 Agent 工具。
+    std::string request_id;
     int64_t context_start_seq{0};
     bool retry{false};
     std::function<void(const std::string&)> on_progress;
+    std::function<void(const nlohmann::json&)> on_agent_event;
     // Agent control uses /agent/control; it never sends a prompt to the model.
     nlohmann::json control;
 };
@@ -28,6 +32,11 @@ struct HermesChatResult {
     // text 是 Hermes transform_llm_output 之后的权威最终文本。流式 delta
     // 仅用于预览，收到 hermes.final 后必须以此处文本覆盖。
     std::string text;
+    // Provider/gateway terminal diagnostics. These are observational fields;
+    // they do not change the existing request or message protocol.
+    std::string finish_reason;
+    std::size_t stream_chunk_count{0};
+    nlohmann::json agent_event{nlohmann::json::object()};
     nlohmann::json citations{nlohmann::json::array()};
     nlohmann::json metadata{nlohmann::json::object()};
 };

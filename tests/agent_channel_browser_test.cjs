@@ -167,6 +167,27 @@ const {chromium} = require(process.env.SPARK_PLAYWRIGHT_MODULE || 'playwright');
         client_msg_id:'hermes:progress-test',msg_id:'progress-final',msg_seq:100,content:{text:'最终正文',source:'hermes'}});
     });
     assert.equal(await page.locator('.agent-stream-progress').count(),0,'progress remained after final');
+    await page.evaluate(() => {
+      const requestId='ordered-stream';
+      handleHermesAccepted({msg_id:requestId,session_id:currentSessionId});
+      const send=(sequence,text,eventId)=>handleHermesDelta({
+        request_id:requestId,session_id:currentSessionId,delta_index:sequence,
+        delta:text,progress:false,agent_event:{schema:'sparkpush.agent_event.v1',
+          type:'assistant_delta',data:{text},envelope:{schema:'sparkpush.agent_envelope.v1',
+            event_id:eventId,request_id:requestId,route_key:'rt_fixture',
+            session_key:'agent:pi:spark_pc:fixture',tenant_id:'local',channel_id:'spark_pc',
+            conversation_id:currentSessionId,thread_id:'_',agent_id:'pi',sequence,
+            created_at_ms:Date.now(),replayable:true,terminal:false,replayed:false}}});
+      send(1,'B','evt-b');
+      send(0,'A','evt-a');
+      send(1,'B','evt-b');
+    });
+    await page.waitForFunction(() => document.querySelector('.hermes-streaming .msg-bubble')?.textContent === 'AB');
+    await page.evaluate(() => renderSingleChatMessage({session_id:currentSessionId,
+      from_user_id:hermesBotUserId,client_msg_id:'hermes:ordered-stream',msg_id:'ordered-final',
+      msg_seq:101,content:{text:'AB final',source:'hermes'}}));
+    assert.equal(await page.locator('.msg-bubble').filter({hasText:'AB final'}).count(),1,
+      'ordered stream final did not replace preview');
     historyData=[];
     await page.evaluate(() => showCommandFixture([{id:'agent_open',label:'Hermes · technical',value:'900000000101'}]));
     const beforeOpen=await page.evaluate(()=>sentActions.length);

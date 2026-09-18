@@ -49,11 +49,44 @@ int main() {
                     [](Message*, bool*) { return false; }, persist) && publishes == 2,
                 "sequence failure still published");
 
+        auto enveloped = source;
+        enveloped["delta_count"] = 2;
+        nlohmann::json final_event = {
+            {"schema", "sparkpush.agent_event.v1"}, {"type", "assistant_final"},
+            {"data", {{"text", source["text"]}}}, {"envelope", {
+                {"schema", "sparkpush.agent_envelope.v1"},
+                {"event_id", "evt_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+                {"request_id", source["request_id"]},
+                {"route_key", "rt_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+                {"session_key", "agent:pi:spark_pc:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"},
+                {"tenant_id", "local"}, {"channel_id", "spark_pc"},
+                {"conversation_id", source["session_id"]}, {"thread_id", "_"},
+                {"agent_id", "pi"}, {"sequence", 2},
+                {"created_at_ms", 1750000000123LL}, {"replayable", true},
+                {"terminal", true}, {"replayed", false}}}};
+        enveloped["response_metadata"] = {{"agent_event", final_event}};
+        Require(PrepareHermesReply(enveloped.dump(), 99, "Pi", &prepared, &error),
+                "final Agent envelope rejected");
+        auto enveloped_content = nlohmann::json::parse(prepared.message.content_json)["content"];
+        Require(enveloped_content["agent_event"]["envelope"]["route_key"] ==
+                    "rt_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+                "final Agent envelope missing from history");
+        enveloped["response_metadata"]["agent_event"]["envelope"]["sequence"] = 1;
+        Require(!PrepareHermesReply(enveloped.dump(), 99, "Pi", &prepared, &error),
+                "final Agent envelope sequence mismatch accepted");
+        enveloped["response_metadata"]["agent_event"]["envelope"]["sequence"] = 2;
+        enveloped["response_metadata"]["agent_event"]["envelope"]["terminal"] = false;
+        Require(!PrepareHermesReply(enveloped.dump(), 99, "Pi", &prepared, &error),
+                "non-terminal final Agent envelope accepted");
+
         const nlohmann::json model = {{"provider", "fixture"}, {"id", "other"}, {"name", "Other"},
                                      {"headers", {{"Authorization", "must-not-escape"}}}};
         auto event = nlohmann::json{{"schema", "sparkpush.agent_event.v1"}, {"type", "assistant_final"},
             {"data", {{"text", source["text"]}, {"presentation", {{"kind", "model_picker"},
-                {"models", nlohmann::json::array({model})}, {"current", model}}}}}};
+                {"models", nlohmann::json::array({model})},
+                {"providers", nlohmann::json::array({{{"id", "fixture"}, {"name", "Fixture"},
+                                                        {"model_count", 1}, {"current", true}}})},
+                {"current", model}}}}}};
         auto menu = source;
         menu["command_handled_locally"] = true;
         menu["command"] = "model";
@@ -62,6 +95,8 @@ int main() {
         auto content = nlohmann::json::parse(prepared.message.content_json)["content"];
         Require(content["agent_event"]["data"]["presentation"]["models"].size() == 1,
                 "model card missing from persisted history");
+        Require(content["agent_event"]["data"]["presentation"]["providers"][0]["name"] == "Fixture",
+                "provider index missing from persisted history");
         Require(prepared.message.content_json.find("must-not-escape") == std::string::npos,
                 "runtime credentials escaped to IM");
         menu["response_metadata"]["agent_event"]["data"]["presentation"]["models"][0]["id"] = "bad\n/model";
