@@ -50,13 +50,32 @@ Logic ── ai_request ──► hermes_bridge ──HTTP/SSE──► Pi gatew
 - Logic、Job、Comet 都可抓取 Prometheus text metrics；
 - MySQL 唯一键、字段比对和单调水位更新提供幂等落库兜底。
 
+设计文档分成两层：
+
+- 大框架（模块职责、完整链路、输入输出）：[`docs/spark-push-architecture.md`](docs/spark-push-architecture.md)
+- 小模块（Lua 取号、连接表、PushStream 队列、SHA1 握手、TreeMap 合并等逐步算法）：[`docs/spark-push-internals.md`](docs/spark-push-internals.md)
+- 阅读索引：[`docs/spark-push-implementation.md`](docs/spark-push-implementation.md)
+
 完整的优化决策、状态机、指标定义和边界见 [`docs/reliability-optimization.md`](docs/reliability-optimization.md)。
-配套的运行、排障、优化操作和面试讲解见 [`../新手上手指南.md`](../新手上手指南.md)。
+配套的运行、排障和验证操作见 [`scripts/00_prepare_and_run.md`](scripts/00_prepare_and_run.md)。
 原始 Demo 到当前工程化版本的逐阶段对比、简历写法和面试追问见
 [`docs/interview-project-evolution.md`](docs/interview-project-evolution.md)。
 CANNBot Agent 分层思路的 Pi 接入、项目知识 Skill、RAG 引用和二次开发流程见
 [`docs/cannbot-integration.md`](docs/cannbot-integration.md) 与
 [`docs/pi-agent-integration.md`](docs/pi-agent-integration.md)。
+
+## 原生 Android 客户端与输出长度链路
+
+Android 客户端已经从 WebView 壳迁移为 Kotlin/Jetpack Compose 原生实现，覆盖登录/注册、单聊历史与分页、实时消息、离线补推、Agent 命令卡片、模型/思考等级、CANN 知识原文和管理员控制台。Android 使用独立的 Pi/Hermes 联系人 ID，避免和 PC/WebDemo/Telegram 的 session、模型偏好和上下文混用。
+
+~~~bash
+cd /home/peco/cppcode/fenbushi/11.2-spark_push/android-app
+./gradlew assembleDebug --no-daemon --console=plain
+~~~
+
+模块地图见 [`docs/spark-push-architecture.md`](docs/spark-push-architecture.md)；TreeMap 合并、envelope 序号、MEDIUMTEXT 动态读取等逐步算法见 [`docs/spark-push-internals.md`](docs/spark-push-internals.md)。Android 的构建/安装说明见 android-app/README.md。
+
+单条 Agent 回复的长度排查要区分 12 KiB prompt 输入预算、provider 输出、Bridge 拼接、Logic 写入、MySQL 读取和 Android 展示；sql/migrations/002_message_content_mediumtext.sql 将历史消息字段提升为 MEDIUMTEXT，SPARK_PUSH_LENGTH_AUDIT=1 可记录各阶段 UTF-8 字节和 Unicode 字符数。迁移不会扩大模型上下文窗口，也不会改变 Android 输入框的可见高度。
 
 ## 用户中心与管理员操作
 
@@ -184,12 +203,13 @@ curl http://127.0.0.1:9203/metrics  # Comet
 
 ## 代码阅读顺序
 
-1. `proto/spark_push.proto`：ACK、游标、持久化事件和 gRPC 服务；
-2. `comet/comet_server.cpp`：WebSocket 握手、上行解析、缺口同步和离线补推；
-3. `logic/grpc_service.cpp`：序号、幂等、场景路由、持久化 topic 和限流；
-4. `logic/conversation_store.cpp`、`logic/redis_store.cpp`：Redis Lua 和 MySQL 水位；
-5. `job/service.cpp`、`common/kafka_consumer.cpp`：场景 consumer group、PushStream、offset 和落库；
-6. `load_test/e2e_bench.cpp`：如何区分 accepted、delivered ACK 和真实接收。
+1. [`docs/spark-push-architecture.md`](docs/spark-push-architecture.md)：三进程职责和两条消息链路；
+2. `proto/spark_push.proto`：ACK、游标、持久化事件和 gRPC 服务；
+3. [`docs/spark-push-internals.md`](docs/spark-push-internals.md)：从 Redis Lua、连接表、PushStream 队列追到函数；
+4. `comet/comet_server.cpp`：WebSocket 握手、上行解析、缺口同步和离线补推；
+5. `logic/grpc_service.cpp`、`logic/redis_store.cpp`、`logic/conversation_store.cpp`：序号、幂等、场景路由；
+6. `job/service.cpp`、`common/kafka_consumer.cpp`：consumer group、PushStream、offset 和落库；
+7. `load_test/e2e_bench.cpp`：如何区分 accepted、delivered ACK 和真实接收。
 
 教学快照 `02_auth_subset`～`06` 只用于分阶段学习；运行和面试说明以根目录源码为准。
 

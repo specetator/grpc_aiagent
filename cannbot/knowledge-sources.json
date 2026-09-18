@@ -27,6 +27,24 @@
       "topics": ["pi", "agent", "gateway", "rag", "skills"]
     },
     {
+      "id": "architecture-framework",
+      "path": "docs/spark-push-architecture.md",
+      "authority": "canonical",
+      "topics": ["architecture", "modules", "message-flow", "comet", "logic", "job"]
+    },
+    {
+      "id": "implementation-internals",
+      "path": "docs/spark-push-internals.md",
+      "authority": "canonical",
+      "topics": ["algorithms", "redis-lua", "push-stream", "websocket", "queues", "android-streaming"]
+    },
+    {
+      "id": "android-client",
+      "path": "docs/spark-push-implementation.md",
+      "authority": "canonical",
+      "topics": ["android", "compose", "streaming", "history", "output-length", "deployment", "docs-index"]
+    },
+    {
       "id": "multi-agent-integration",
       "path": "docs/multi-agent-integration.md",
       "authority": "canonical",
