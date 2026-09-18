@@ -394,6 +394,14 @@ node tests/agent_channel_browser_test.cjs
 | `/new`、`/reset`、`/clear` | 显示新建说明和确认/取消；`/new now`（也接受 `--yes`、`-y`）创建空白上下文 |
 | `/status` | 从运行时读取实际模型、思考等级、上下文消息数、工具调用数和累计 token 数 |
 | `/help`、`/commands` | 常用命令菜单，保留 `/cann`、`/kb` 的帮助说明 |
+| `/agent` | Router 列出/打开独立 Agent 会话（Pi 与 Hermes technical 隔离） |
+| `/restart` | Windows Hermes technical 才重启 runtime；Pi 返回说明并引导 `/new` |
+| 剧情命令 `/scene` 等 | 仅 Hermes · technical；Pi 上引导 `/agent` 切换 |
+
+DeepSeek（`deepseek-flash` / `deepseek-v4-pro`）按官网 Thinking Mode 配置：上下文 1M、最大输出 384K，
+`compat.thinkingFormat=deepseek`。`/reasoning` 的 Pi 等级映射为 `off→none`（关闭思考）、
+`minimal/low→low`、`medium/high/xhigh→high`、`max→max`。默认思考强度为 `high`。
+密钥只在 `~/.pi-spark-agent/.env` 的 `DEEPSEEK_API_KEY`。修改 `models.json` 后必须重启 Gateway。
 
 输入框旁增加「/ 命令」按钮，在 Agent 单聊发送 `/help`。卡片点击走原有鉴权、限流、消息序号、
 Kafka 和最终回复链路，不新增前端直连 gateway 的控制接口。保留输入草稿；提交后禁用按钮，

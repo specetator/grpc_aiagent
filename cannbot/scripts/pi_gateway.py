@@ -598,7 +598,12 @@ class PiRpcClient:
 
     def command_control(self, request: dict, timeout_s: float = 30) -> dict:
         operation = request.get("operation")
-        if operation not in {"help", "status", "new", "new_session", "retry", "list_reasoning", "set_reasoning"}:
+        creative = {"roleplay", "rp", "write", "scene", "character", "world",
+                    "memory", "remember", "forget", "persona", "branch",
+                    "branches", "canon", "export"}
+        if operation not in {"help", "status", "new", "new_session", "retry",
+                             "list_reasoning", "set_reasoning", "restart",
+                             "restart_agent"} | creative:
             raise ValueError("unsupported Agent control operation")
         session_id, context = request.get("session_id"), request.get("context_start_seq", 0)
         session_filename(session_id, context)
@@ -661,6 +666,15 @@ class PiRpcClient:
                 self._retry_message()
                 text = "重试会将当前 Agent 上下文的最后一条用户消息再次发给 Agent，工具可能再次执行；已有回答和文件操作不会撤销。"
                 card = command_card("重试上一条消息？", ["retry_confirm", "cancel"])
+            elif operation in {"restart", "restart_agent"}:
+                text = ("Pi Agent 不使用 Windows Hermes 的 /restart。"
+                        "重置当前 Agent 上下文请用 /new；重启 Gateway 请在本机执行 "
+                        "scripts/sparkctl.sh。")
+                card = command_card("Pi 会话操作", ["new", "status", "help"])
+            elif operation in creative:
+                text = ("剧情/人设/世界书命令由 Hermes · technical 处理。"
+                        "请发送 /agent 打开对应独立会话，不要在 Pi 对话里执行。")
+                card = command_card("切换 Agent", ["help", "status"])
             elif operation == "status":
                 state = self.rpc({"type": "get_state"}).get("data") or {}
                 stats = self.rpc({"type": "get_session_stats"}).get("data") or {}
@@ -675,9 +689,11 @@ class PiRpcClient:
             else:
                 text = ("Agent 常用命令\n/model：模型选择\n/reasoning（/thinking）：思考等级\n"
                         "/retry：重试确认卡片\n/new（/reset、/clear）：新建确认卡片\n"
-                        "/status：实际会话状态\n/help（/commands）：命令菜单\n"
+                        "/status：实际会话状态\n/agent：切换或打开其他 Agent\n"
+                        "/help（/commands）：命令菜单\n"
                         "/cann <问题>、/kb <问题>：知识库检索；/kb status：知识库状态\n"
-                        "可直接发送 /new now 或 /retry now 确认操作。")
+                        "可直接发送 /new now 或 /retry now 确认操作。\n"
+                        "/restart 仅用于 Windows Hermes technical；Pi 请用 /new 重置上下文。")
             if operation == "new_session":
                 self._save_state(self._state_path(session_id, ".route.json"),
                                  {"schema": 1, "context_start_seq": revision})

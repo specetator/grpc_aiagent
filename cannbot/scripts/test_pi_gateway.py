@@ -249,6 +249,14 @@ class GatewayTests(unittest.TestCase):
         self.assertTrue(self.chat("session", session="a").endswith("a__7.jsonl"))
         self.assertTrue(self.chat("session", session="b").endswith("b__0.jsonl"))
 
+    def test_restart_and_creative_commands_stay_local_on_pi(self):
+        restart = self.control("restart")["data"]
+        self.assertIn("/new", restart["text"])
+        self.assertEqual(restart["presentation"]["kind"], "command_card")
+        scene = self.control("scene")["data"]
+        self.assertIn("Hermes", scene["text"])
+        self.assertNotIn(str(self.root), json.dumps(restart) + json.dumps(scene))
+
     def test_help_status_reasoning_and_retry_preview_do_not_prompt(self):
         self.chat("last", session="a")
         before = self.client.rpc({"type": "get_messages"})["data"]
