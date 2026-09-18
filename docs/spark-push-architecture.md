@@ -211,6 +211,8 @@ Router 拥有 Agent 运行时：
 
 Spark Push 拥有鉴权、成员、序号、历史和投递；Pi/Hermes 拥有推理、工具、Skill 和模型访问。
 
+Agent 执行是「会话内串行、会话间并行」：`SessionScheduler` 限制排队和 in-flight，`AdapterPool` 用多个 Pi RPC 进程做亲和调度。SQLite 路由库仍由**一个** Gateway 写入，不要靠加 Gateway 副本扩容。进度为排队中 / 正在执行 / 正在生成 / 已完成；崩溃遗留的 `running` turn 启动时标为 `unknown`，不自动重跑。看板见 `GET /v1/agent/metrics`。
+
 ### 3.6 WebDemo 与 Android
 
 两端使用同一套 session_id、`client_msg_id`、`accepted_ack` / `delivered_ack`、`sync` 和 Agent envelope。差别只在 UI 状态机：

@@ -27,8 +27,9 @@
 1. [`spark-push-architecture.md`](spark-push-architecture.md) 第 1–2 节：三进程和两条消息链路。
 2. `proto/spark_push.proto`：`AckStage`、`MessageStream`、`PushStream`、`SyncMessages`。
 3. [`spark-push-internals.md`](spark-push-internals.md) 第 4–5、17–19 节：Lua 取号和两条 gRPC 流。
-4. 同一文档第 14–16、27 节：WebSocket 帧、去重窗口、Android TreeMap。
+4. 同一文档第 14–16、27、31.4 节：WebSocket 帧、去重窗口、Android TreeMap、会话并行调度。
 5. [`reliability-optimization.md`](reliability-optimization.md)：哪些数字可以写进简历，哪些不能。
+6. 统一回归：`./scripts/sparkctl.sh regress`。
 
 ---
 

@@ -19,6 +19,7 @@
 | WSL Pi Agent 安装、配置与二次开发 | `docs/pi-agent-integration.md`、`docs/cannbot-integration.md` | `/home/peco/.pi-spark-agent`、`cannbot/pi/` |
 | Agent 命令和多轮上下文 | `docs/hermes-integration.md` | `logic/hermes_command.*`、`logic/grpc_service.cpp` |
 | 多 Agent 选择、粘滞路由、事件回放、所有者配置和 Windows technical 隔离接入 | `docs/multi-agent-integration.md` | `cannbot/scripts/agent_events.py`、`cannbot/scripts/agent_router.py`、`cannbot/scripts/pi_gateway.py`、`cannbot/scripts/hermes_adapter.py`、`cannbot/scripts/windows_agent_transport.py` |
+| 会话内串行、会话间并行、排队超时与 Agent 看板 | `docs/spark-push-internals.md` 第 31.4 节 | `cannbot/scripts/agent_scheduler.py`、`cannbot/scripts/agent_router.py`、`cannbot/scripts/pi_gateway.py` |
 | Android 原生客户端、历史游标、流式渲染与输出长度审计 | `docs/spark-push-architecture.md`、`docs/spark-push-internals.md`、`docs/spark-push-implementation.md` | `android-app/app/src/main/java/com/peco/sparkim/SparkReliability.kt`、`SparkClient.kt`、`SparkViewModel.kt`、`MainActivity.kt`、`SparkModels.kt`、`logic/message_dao.cpp` |
 | Hermes 延迟优化与 WSL 移植 | `docs/hermes-wsl-migration.md`（2026-09-07 评估） | `cannbot/scripts/windows_agent_transport.py`、`cannbot/scripts/hermes_adapter.py`、`cannbot/scripts/audit_hermes_wsl.py` |
 | 用户、管理员、Token、审计 | `docs/user-center.md` | `logic/http_server.cpp`、`logic/user_dao.*`、`logic/audit_log_dao.*`、`common/security.*` |
