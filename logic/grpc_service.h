@@ -20,6 +20,7 @@
 #include "rate_limiter.h"
 #include "spark_push.grpc.pb.h"
 #include "user_dao.h"
+#include "attachment_dao.h"
 
 namespace sparkpush {
 
@@ -36,7 +37,8 @@ class LogicServiceImpl final : public sparkpush::LogicService::Service {
                      int persist_kafka_timeout_ms,
                      KafkaProducer* hermes_request_producer,
                      bool hermes_enabled, int64_t hermes_bot_user_id,
-                     std::map<int64_t, std::string> agent_bot_users = {});
+                     std::map<int64_t, std::string> agent_bot_users = {},
+                     AttachmentDao* attachment_dao = nullptr);
 
     ::grpc::Status VerifyToken(
         ::grpc::ServerContext* context,
@@ -118,6 +120,9 @@ class LogicServiceImpl final : public sparkpush::LogicService::Service {
     void MarkHermesStreamCompleted(const std::string& request_id);
     bool MarkHermesDeltaSeen(const std::string& delta_id);
     bool GetActiveUser(int64_t user_id, User* user, std::string* err);
+    bool AuthorizeMessageImages(int64_t sender_id, const std::string& session_id,
+                                const std::string& content_json,
+                                std::string* err);
 
     ConversationStore* store_;
     GroupMemberDao* group_member_dao_;
@@ -128,6 +133,7 @@ class LogicServiceImpl final : public sparkpush::LogicService::Service {
     KafkaProducer* persist_producer_;
     KafkaProducer* hermes_request_producer_;
     RedisStore* redis_store_;
+    AttachmentDao* attachment_dao_{nullptr};
     SceneRateLimiter rate_limiter_;
     int persist_kafka_timeout_ms_{5000};
     bool hermes_enabled_{false};

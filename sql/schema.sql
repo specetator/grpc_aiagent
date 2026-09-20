@@ -69,6 +69,23 @@ CREATE TABLE IF NOT EXISTS `message` (
   KEY `idx_sender` (`sender_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 图片附件：二进制不进 Kafka/WebSocket，消息只引用 id。
+CREATE TABLE IF NOT EXISTS `attachment` (
+  `id` VARCHAR(72) NOT NULL,
+  `owner_user_id` BIGINT NOT NULL,
+  `session_id` VARCHAR(128) NOT NULL DEFAULT '',
+  `display_name` VARCHAR(256) NOT NULL DEFAULT '',
+  `mime` VARCHAR(64) NOT NULL,
+  `bytes` INT NOT NULL,
+  `sha256` CHAR(64) NOT NULL,
+  `storage_key` VARCHAR(128) NOT NULL,
+  `status` VARCHAR(16) NOT NULL DEFAULT 'ready',
+  `created_at` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  PRIMARY KEY (`id`),
+  KEY `idx_attachment_owner` (`owner_user_id`),
+  KEY `idx_attachment_session` (`session_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- 用户会话状态表：记录每个用户在每个会话的已读游标
 CREATE TABLE IF NOT EXISTS `user_session_state` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,

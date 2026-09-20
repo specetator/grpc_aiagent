@@ -113,6 +113,9 @@ Config LoadConfig(const std::string& path) {
     cfg.comet_grpc_pool_size = 4;
     cfg.use_grpc_stream = false;
     cfg.grpc_stream_count = 4;
+    cfg.grpc_stream_reconnect_base_ms = 200;
+    cfg.grpc_stream_reconnect_max_ms = 5000;
+    cfg.grpc_stream_ack_timeout_ms = 8000;
     cfg.use_push_stream = true;
     cfg.push_stream_queue_max = 10000;
     cfg.push_stream_reconnect_base_ms = 200;
@@ -126,6 +129,7 @@ Config LoadConfig(const std::string& path) {
     cfg.hermes_bot_user_id = 900000000001LL;
     cfg.cann_knowledge_root =
         "/home/peco/cppcode/fenbushi/cann-agent-knowledge";
+    cfg.attachment_dir = "data/attachments";
 
     std::ifstream fin(path);
     if (!fin) {
@@ -247,6 +251,12 @@ Config LoadConfig(const std::string& path) {
             cfg.use_grpc_stream = (value == "true" || value == "1");
         } else if (key == "grpc_stream_count") {
             cfg.grpc_stream_count = std::stoi(value);
+        } else if (key == "grpc_stream_reconnect_base_ms") {
+            cfg.grpc_stream_reconnect_base_ms = std::stoi(value);
+        } else if (key == "grpc_stream_reconnect_max_ms") {
+            cfg.grpc_stream_reconnect_max_ms = std::stoi(value);
+        } else if (key == "grpc_stream_ack_timeout_ms") {
+            cfg.grpc_stream_ack_timeout_ms = std::stoi(value);
         } else if (key == "use_push_stream") {
             cfg.use_push_stream = (value == "true" || value == "1");
         } else if (key == "push_stream_queue_max") {
@@ -294,6 +304,8 @@ Config LoadConfig(const std::string& path) {
             }
         } else if (key == "cann_knowledge_root") {
             cfg.cann_knowledge_root = value;
+        } else if (key == "attachment_dir") {
+            cfg.attachment_dir = value;
         }
     }
 

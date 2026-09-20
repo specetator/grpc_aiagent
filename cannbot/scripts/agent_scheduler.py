@@ -169,12 +169,12 @@ class AdapterPool:
 
     def chat(self, message, on_delta, timeout_s, provider=None, model=None,
              session_id="", context_start_seq=0, retry=False, on_progress=None,
-             request_id=""):
+             request_id="", images=None):
         worker = self._acquire(session_id, timeout_s)
         try:
             return worker.chat(message, on_delta, timeout_s, provider, model,
                                session_id, context_start_seq, retry, on_progress,
-                               request_id)
+                               request_id, images)
         finally:
             self._release(worker)
 

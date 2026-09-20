@@ -10,6 +10,10 @@ add_executable(config_test config_test.cpp)
 target_link_libraries(config_test PRIVATE spark_push_common)
 add_test(NAME config_test COMMAND config_test)
 
+add_executable(image_attachment_test image_attachment_test.cpp)
+target_link_libraries(image_attachment_test PRIVATE spark_push_common)
+add_test(NAME image_attachment_test COMMAND image_attachment_test)
+
 add_executable(rate_limiter_test rate_limiter_test.cpp)
 target_link_libraries(rate_limiter_test PRIVATE spark_push_common)
 add_test(NAME rate_limiter_test COMMAND rate_limiter_test)

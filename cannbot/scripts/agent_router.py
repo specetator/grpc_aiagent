@@ -578,7 +578,7 @@ class AgentRouter:
             return {**event,"data":self._decorate(key,event["data"])}
 
     def chat(self,message,on_delta,timeout_s,provider=None,model=None,session_id="",
-             context_start_seq=0,retry=False,on_progress=None,request_id=""):
+             context_start_seq=0,retry=False,on_progress=None,request_id="",images=None):
         self._visible(session_id)
         started=time.monotonic()
         try:
@@ -592,7 +592,8 @@ class AgentRouter:
                 input_hash = hashlib.sha256(json.dumps({
                     "route_key": route["route_key"], "agent_id": agent_hint,
                     "message": message, "retry": retry,
-                    "context_start_seq": context_start_seq}, ensure_ascii=False,
+                    "context_start_seq": context_start_seq,
+                    "images": len(images or [])}, ensure_ascii=False,
                     sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
                 if existing.get("input_hash") != input_hash:
                     raise ValueError("request_id was reused with different Agent input")
@@ -612,7 +613,8 @@ class AgentRouter:
                 input_hash = hashlib.sha256(json.dumps({
                     "route_key": route["route_key"], "agent_id": key,
                     "message": message, "retry": retry,
-                    "context_start_seq": context_start_seq}, ensure_ascii=False,
+                    "context_start_seq": context_start_seq,
+                    "images": len(images or [])}, ensure_ascii=False,
                     sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
                 turn = (self.store.begin_turn(request_id, route["route_key"], input_hash)
                         if request_id else {"status": "new"})
@@ -634,7 +636,8 @@ class AgentRouter:
                     text, metadata = self.adapters[key].chat(
                         message, on_delta, max(0, timeout_s-(time.monotonic()-started)),
                         None, None, route["backend_session_ref"], 0, retry=retry,
-                        on_progress=on_progress, request_id=request_id)
+                        on_progress=on_progress, request_id=request_id,
+                        images=images)
                     context = self.store.append_context(session_id, "assistant", text)
                     data = self._decorate(key,{"text":text})
                     metadata = {**metadata, "agent_state":data["agent_state"],

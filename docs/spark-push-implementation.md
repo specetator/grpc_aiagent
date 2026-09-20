@@ -14,6 +14,7 @@
 | ACK / 游标 / 指标语义 | [`reliability-optimization.md`](reliability-optimization.md) |
 | 启动、排障、健康检查 | [`../scripts/00_prepare_and_run.md`](../scripts/00_prepare_and_run.md) |
 | Pi Agent / CANN 引用 | [`pi-agent-integration.md`](pi-agent-integration.md)、[`cannbot-integration.md`](cannbot-integration.md) |
+| 图片发送 / 截图问答 | 大框架第 2.5 节；逐步算法第 32、31.5 节 |
 | 多 Agent 路由与隔离 | [`multi-agent-integration.md`](multi-agent-integration.md) |
 | 用户中心与管理员 | [`user-center.md`](user-center.md) |
 | 教学演进与简历边界 | [`interview-project-evolution.md`](interview-project-evolution.md) |
@@ -27,7 +28,7 @@
 1. [`spark-push-architecture.md`](spark-push-architecture.md) 第 1–2 节：三进程和两条消息链路。
 2. `proto/spark_push.proto`：`AckStage`、`MessageStream`、`PushStream`、`SyncMessages`。
 3. [`spark-push-internals.md`](spark-push-internals.md) 第 4–5、17–19 节：Lua 取号和两条 gRPC 流。
-4. 同一文档第 14–16、27、31.4 节：WebSocket 帧、去重窗口、Android TreeMap、会话并行调度。
+4. 同一文档第 14–16、18、27、31.4、31.6、32 节：WebSocket 帧、MessageStream 重连、去重窗口、Android TreeMap、会话并行调度、图片附件。
 5. [`reliability-optimization.md`](reliability-optimization.md)：哪些数字可以写进简历，哪些不能。
 6. 统一回归：`./scripts/sparkctl.sh regress`。
 
@@ -35,7 +36,7 @@
 
 ## Android 与输出长度（实现要点）
 
-Android 已从 WebView 壳迁到 Kotlin/Jetpack Compose，覆盖登录、单聊历史分页、实时消息、离线补推、Agent 卡片、模型/思考等级、CANN 原文和管理员控制台。联系人 ID 与 PC 隔离：Pi `900000000201`，Hermes technical `900000000211`。
+Android 已从 WebView 壳迁到 Kotlin/Jetpack Compose，覆盖登录、单聊历史分页、实时消息、图片发送、离线补推、Agent 卡片、模型/思考等级、CANN 原文和管理员控制台。联系人 ID 与 PC 隔离：Pi `900000000201`，Hermes technical `900000000211`。
 
 ~~~bash
 cd android-app
@@ -45,9 +46,9 @@ cd android-app
 模块落点：
 
 - `SparkClient.kt`：HTTP Bearer、WebSocket、连接代数、16 MiB 单帧保护
-- `SparkViewModel.kt`：历史游标、有界 `TreeMap` 流式合并、envelope 校验、弱网保留登录、40 ms 刷新
-- `MainActivity.kt`：Setup/Auth/Home/Chat/Knowledge/Admin
-- `SparkModels.kt`：`singleSessionId()` 必须与 Logic 公式一致
+- `SparkViewModel.kt`：历史游标、有界 `TreeMap` 流式合并、envelope 校验、弱网保留登录、40 ms 刷新、图片上传与预览缓存
+- `MainActivity.kt`：Setup/Auth/Home/Chat/Knowledge/Admin；聊天栏图片选择器
+- `SparkModels.kt`：`singleSessionId()` 必须与 Logic 公式一致；`ImageAttachment` / `PendingChatImage`
 
 单条 Agent 回复变短时，按 [`spark-push-internals.md`](spark-push-internals.md) 第 21、28 节区分：12 KiB prompt 预算、provider 输出、Bridge 拼接、Logic 写入、MySQL 读取、客户端展示。`sql/migrations/002_message_content_mediumtext.sql` 把历史字段提升为 MEDIUMTEXT；`SPARK_PUSH_LENGTH_AUDIT=1` 记录 UTF-8 字节和 Unicode 字符数。迁移不会扩大模型窗口，也不会改变输入框可见高度。
 
@@ -58,7 +59,8 @@ cd android-app
 | 数据 | 权威位置 |
 | --- | --- |
 | Android 地址 / token / 昵称 | SharedPreferences `"spark_native"`，不存聊天历史 |
-| 最终消息 | MySQL `spark_push.message` |
+| 最终消息 | MySQL `spark_push.message`（图片只存 attachment id） |
+| 图片字节 | `data/attachments/<att_*>`；元数据在 MySQL `attachment` |
 | Agent 路由 / turn / event | `~/.pi-spark-agent/im-router/routing.sqlite3` |
 | token / 序号 / 热路由 | Redis |
 | accepted → persist/push | Kafka |

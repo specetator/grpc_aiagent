@@ -110,6 +110,10 @@ pi-spark-agent
 | `/cann` `/kb` `/kb status` | Logic 解析 + gateway/扩展改写成强制检索 |
 
 知识工作区路径不变：`/home/peco/cppcode/fenbushi/cann-agent-knowledge`。
+官方算子/API 按 CANN 版本分层（`sources/official/8.5.0|9.0.0|9.1.0`）；`cann_knowledge_search`
+可传 `cann_version`，默认 8.5.0，禁止跨版本混检。
+
+图片与截图问答见第 13 节；大框架在 `docs/spark-push-architecture.md` 第 2.5 节，逐步算法在 `docs/spark-push-internals.md` 第 32 节。
 
 项目知识或 Skill 变化后：
 
@@ -598,3 +602,25 @@ Pi Gateway 和 IM 服务，15 项健康检查全部通过。用户模型和思�
 Pi 与 Hermes 分别使用 900000000001、900000000101，历史及上下文按独立联系人隔离。
 Windows technical 通过 loopback API 和本地 stdio 管道接入，所有者权限在路由层校验。
 详细使用方法、配置字段、隔离范围及已验证边界见 [多 Agent 接入文档](multi-agent-integration.md)。
+
+## 13. 图片与截图问答
+
+Spark 侧合同与普通单聊相同：用户输入先 `accepted_ack`。变化只在**载荷**：图片字节不进 WebSocket、Kafka 或 `content_json`。
+
+```text
+Web/Android
+  → POST /api/attachment/upload（Bearer + session）
+  → att_* id
+  → WS single_chat { text, attachments:[{id,name,mime,bytes}] }
+  → Logic 校验所有权后 persist/push（仍是 JSON 引用）
+  → 若对端是 Agent：ai_request.images = [{attachment_id,...}]（仅本轮）
+  → Bridge 读 data/attachments/<id>
+  → Pi gateway / Pi RPC prompt.images
+  → deepseek-flash 视觉理解
+```
+
+配置：`conf/logic.conf` 与 `conf/hermes_bridge.conf` 的 `attachment_dir`（默认 `data/attachments`，相对进程 cwd，启动脚本在仓库根目录）。上限每条 4 张、每张 4 MiB，jpeg/png/gif/webp。无文字时默认「请查看这张图片。」
+
+客户端：Web 支持按钮、粘贴截图、拖放；Android 用系统选择器。两端拉历史都走 `POST /api/attachment/get`，不把文件写进 WS 帧。
+
+逐步算法（魔数、rename、BindSession、Pi 编码）见 [`spark-push-internals.md`](spark-push-internals.md) 第 32 节。模块职责见 [`spark-push-architecture.md`](spark-push-architecture.md) 第 2.5 节。

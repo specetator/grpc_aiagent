@@ -99,6 +99,21 @@ data class Citation(
 )
 
 @Immutable
+data class ImageAttachment(
+    val id: String,
+    val name: String = "",
+    val mime: String = "",
+    val bytes: Int = 0
+)
+
+@Immutable
+data class PendingChatImage(
+    val name: String,
+    val mime: String,
+    val data: String
+)
+
+@Immutable
 data class ChatMessage(
     val msgId: String = "",
     val clientMsgId: String = "",
@@ -112,7 +127,8 @@ data class ChatMessage(
     val streaming: Boolean = false,
     val progress: String? = null,
     val agentCard: AgentCard? = null,
-    val citations: List<Citation> = emptyList()
+    val citations: List<Citation> = emptyList(),
+    val attachments: List<ImageAttachment> = emptyList()
 )
 
 @Immutable
@@ -169,6 +185,8 @@ data class SparkUiState(
     // timeline on every streaming frame.
     val hasHistory: Boolean = false,
     val draft: String = "",
+    val pendingImages: List<PendingChatImage> = emptyList(),
+    val imagePreviews: Map<String, android.graphics.Bitmap> = emptyMap(),
     val loading: Boolean = false,
     val loadingMore: Boolean = false,
     val error: String? = null,

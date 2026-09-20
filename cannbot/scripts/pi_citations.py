@@ -69,6 +69,9 @@ def source_line(number: int, citation: dict) -> str:
     where = f"{locator.get('type', 'section')} {locator.get('value', '')}".strip()
     revision = str(citation.get("source_revision") or "")[:12]
     suffix = f" · {citation.get('authority', 'unknown')}"
+    cann_version = str(citation.get("cann_version") or "").strip()
+    if cann_version:
+        suffix += f" · CANN {cann_version}"
     if revision:
         suffix += f" · {revision}"
     title = citation.get("title", "未命名资料")

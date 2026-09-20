@@ -20,6 +20,8 @@
 | Agent 命令和多轮上下文 | `docs/hermes-integration.md` | `logic/hermes_command.*`、`logic/grpc_service.cpp` |
 | 多 Agent 选择、粘滞路由、事件回放、所有者配置和 Windows technical 隔离接入 | `docs/multi-agent-integration.md` | `cannbot/scripts/agent_events.py`、`cannbot/scripts/agent_router.py`、`cannbot/scripts/pi_gateway.py`、`cannbot/scripts/hermes_adapter.py`、`cannbot/scripts/windows_agent_transport.py` |
 | 会话内串行、会话间并行、排队超时与 Agent 看板 | `docs/spark-push-internals.md` 第 31.4 节 | `cannbot/scripts/agent_scheduler.py`、`cannbot/scripts/agent_router.py`、`cannbot/scripts/pi_gateway.py` |
+| 图片发送、截图问答、附件不进 Kafka/WS | `docs/spark-push-architecture.md` 第 2.5 节、`docs/spark-push-internals.md` 第 32、31.5 节、`docs/pi-agent-integration.md` | `common/image_attachment.cpp`、`logic/attachment_dao.cpp`、`logic/http_server.cpp`、`logic/grpc_service.cpp`、`hermes_bridge/main.cpp`、`cannbot/scripts/pi_gateway.py`、`web_demo/static/index.html`、`android-app/.../SparkViewModel.kt` |
+| Logic 重启后发消息停在「发送中」 | `docs/spark-push-internals.md` 第 18、31.6 节 | `comet/comet_server.cpp` `ReconnectStream` |
 | Android 原生客户端、历史游标、流式渲染与输出长度审计 | `docs/spark-push-architecture.md`、`docs/spark-push-internals.md`、`docs/spark-push-implementation.md` | `android-app/app/src/main/java/com/peco/sparkim/SparkReliability.kt`、`SparkClient.kt`、`SparkViewModel.kt`、`MainActivity.kt`、`SparkModels.kt`、`logic/message_dao.cpp` |
 | Hermes 延迟优化与 WSL 移植 | `docs/hermes-wsl-migration.md`（2026-09-07 评估） | `cannbot/scripts/windows_agent_transport.py`、`cannbot/scripts/hermes_adapter.py`、`cannbot/scripts/audit_hermes_wsl.py` |
 | 用户、管理员、Token、审计 | `docs/user-center.md` | `logic/http_server.cpp`、`logic/user_dao.*`、`logic/audit_log_dao.*`、`common/security.*` |

@@ -2,6 +2,7 @@
 
 #include "comet_grpc_service.h"
 #include "comet_server.h"
+#include "grpc_keepalive.h"
 #include "logging.h"
 
 #include <grpcpp/grpcpp.h>
@@ -28,6 +29,7 @@ void RunComet(const Config& cfg) {
     grpc::ServerBuilder builder;
     CometServiceImpl grpcService(&server);
     builder.AddListeningPort(addr, grpc::InsecureServerCredentials());
+    ApplyGrpcKeepaliveServerArgs(&builder);
     builder.RegisterService(&grpcService);
     std::unique_ptr<grpc::Server> grpcServer = builder.BuildAndStart();
     LOG_INFO << "Comet gRPC server listening on " << addr;

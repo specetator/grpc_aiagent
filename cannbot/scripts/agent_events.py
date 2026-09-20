@@ -24,7 +24,7 @@ class AgentAdapter(Protocol):
              timeout_s: float, provider: str | None = None, model: str | None = None,
              session_id: str = "", context_start_seq: int = 0, retry: bool = False,
              on_progress: Callable[[str], None] | None = None,
-             request_id: str = "") -> tuple[str, dict]: ...
+             request_id: str = "", images: list | None = None) -> tuple[str, dict]: ...
 
 EVENT_TYPES = frozenset({
     "user_message", "assistant_start", "assistant_delta", "thinking_delta",

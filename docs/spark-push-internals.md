@@ -23,6 +23,7 @@
 | Job 已写出未回复 | `unordered_map<string, PendingRequest>` | reply 可能乱序，按 `request_id` 匹配 | 按下标等待 |
 | Android 流式乱序帧 | `TreeMap<Int, PendingStreamDelta>` | 需要最小缺口序号，O(log n) 插入 | 链表、数组线性扫描 |
 | Agent 短期热上下文 | `unordered_map → deque<Message>` | 每会话 FIFO 100 条 | 严格 LRU（满 1024 会话时删 `begin()`） |
+| 图片附件 | 磁盘文件 `data/attachments/<id>` + MySQL `attachment` | 二进制与元数据分离；id 即文件名 | Kafka/WS 里的 base64、对象存储 |
 
 选择依据始终是访问模式：FIFO 发送、按时间淘汰、按 ID 回调、按整数序号重排。容量、锁和唤醒条件必须和生命周期一起看。
 
@@ -412,30 +413,60 @@ Logic 侧同类结构：
 
 ## 18. Comet → Logic MessageStream
 
-配置：`use_grpc_stream=true`，`grpc_stream_count=8`。
+配置：`use_grpc_stream=true`，`grpc_stream_count=8`，`grpc_stream_reconnect_base_ms=200`，`grpc_stream_reconnect_max_ms=5000`，`grpc_stream_ack_timeout_ms=8000`。
+
+### 18.1 问题
+
+WebSocket 握手走 Unary `VerifyToken`，发消息走双向 `MessageStream`。旧实现只在 Comet 启动时 `InitStreams()`；Writer `Write` 失败就退出循环，`stream_running_` 仍为 true。Logic 重启后：
+
+1. 页面还能握手，看起来在线；
+2. 发送进入已死的流，callback 永不触发；
+3. 前端乐观气泡一直停在「发送中」。
+
+Job→Comet 的 PushStream 本来就会重连；Comet→Logic 没有对称能力。
+
+### 18.2 怎么解决
+
+对齐 Job `ReconnectStream`：每条流自己的 `broken` + `pending`。Reader 读失败只标坏并失败等待中的 callback；**只有 Writer 重连**（join 旧 reader，新 `ClientContext` + `MessageStream`，再拉起 reader）。Write 最多 4 次，退避 200ms 倍增到 5000ms。重试耗尽才回 `error.code=503`，前端变成「发送失败」而不是永远「发送中」。
+
+只靠「下一条消息再重连」不够：Logic 进程退出后 gRPC `Write` 可能仍返回成功，`Read` 也可能半开挂死。因此还有三道兜底：
+
+1. 通道开 HTTP/2 keepalive（10s ping / 5s 超时），对端死后 Reader 必须退出。
+2. Writer 空闲时若 `broken` 也按同一退避自愈，不必等用户再发一条。
+3. 已 Write 的 callback 超过 `grpc_stream_ack_timeout_ms`（默认 8s，大于 persist Kafka 超时）仍无 reply，则 503，气泡变成「发送失败」。
+
+指标：`spark_push_comet_logic_stream_ready`、`_reconnect_total`、`_write_failed_total`、`_read_failed_total`、`_ack_timeout_total`。健康检查和启动脚本都要求 `logic_stream_ready 1`，不能再出现「进程绿、发送中」的假健康。
+
+### 18.3 技术要点
 
 每条流：
 
 ```text
 send_queue : queue<PendingRequest>   // 无界
-send_queue_mutex + send_queue_cv
+pending    : unordered_map<string, callback>  // 已 Write、等 reply
+broken     : atomic<bool>
+reconnect_mutex
 writer_thread / reader_thread
-```
-
-全局：
-
-```text
-pending_callbacks_ : unordered_map<string, callback>
-request_id_counter_ : atomic<uint64_t>
 ```
 
 `SendToStream`：`fetch_add` 得到 id，`stream_idx = id % stream_count`，push 到对应队列，`notify_one`。
 
-Writer：wait → pop → 把 callback 放入 `pending_callbacks_` → `Write`。Write 失败只 log 并退出循环，**Comet 侧不重连**。
+Writer：
 
-Reader：`Read` → 按 `request_id` 取出 callback → 锁外调用。
+1. `wait_for`（健康 200ms 扫超时；流坏则按 idle 退避）
+2. 队列空且 `broken` → 空闲 `ReconnectStream`，不必等用户发送
+3. 有请求且 `broken` 或没有 stream → `ReconnectStream`
+4. 把 callback + deadline 放入本流 `pending`
+5. `Write` 成功则等 Reader；失败则从 pending 摘掉、标 broken、退避后重连，最多 4 次
+6. 仍失败：callback(503)
 
-Logic `MessageStream` 顺序 Read，处理完用同一 `request_id` Write 回去。这消除了逐条 Unary 的 ClientContext 开销，但 Comet 发送队列无界。
+Reader：`Read` → 按 `request_id` 取出 callback → 锁外调用。Read 失败：`broken=true`，`FailStreamPending`（503），notify Writer。
+
+`ReconnectStream`：`TryCancel` → `WritesDone` → join reader（不能是自己）→ `Finish` → 失败等待中的 pending → 新 context 上 `MessageStream`；stub 用 `stub_mutex_` 保护。不排空 `send_queue`（那些还没写出）。通道用 keepalive 创建。
+
+握手 Unary 与上行流动作分离：Logic 短暂不可用时，已建立的 WebSocket 可以保留；流在空闲期自愈，恢复后不必重启 Comet。
+
+Logic `MessageStream` 仍顺序 Read，同一 `request_id` Write 回去。Comet 发送队列仍然无界。
 
 ---
 
@@ -620,6 +651,8 @@ contact 模式：session 必须是 `s_{lo}_{hi}` 且恰好一个已知 bot。sti
 
 Agent 卡片：只有发送方是受信 bot，且 `agent_command_result.client_msg_id` 匹配原请求时才更新。模型名按文本节点写入，不作为 HTML 执行。
 
+图片：`pendingImages` 最多 4 项，每项 `FileReader.readAsDataURL`；粘贴取 `clipboardData.items` 中 `kind=file`。发送前 `POST /api/attachment/upload`，WS `content.attachments` 只带 id。气泡用 `POST /api/attachment/get` 填 `img.src` 的 data URL。切会话时 pending 进 `conversationPendingImages`。
+
 ---
 
 ## 27. Android：连接代数与 TreeMap 流式合并
@@ -648,6 +681,8 @@ text           : StringBuilder
 计时线：`accepted_ms`、`agent_start_ms`、`first_text_ms`、`final_ms`、`history_ms`，并输出最近 64 次 Agent 请求的 p50/p95。
 
 重连延迟 1800 ms。断开时不把最终回答伪造为成功。
+
+图片：`GetContent("image/*")` 读字节，`Base64.NO_WRAP` 后 `POST /api/attachment/upload`；`sendMessage` 允许空文本+附件。`parseMessage` 读 `content.attachments`（最多 4），无文字但有附件仍渲染。预览缓存 `imagePreviews: Map<id, Bitmap>`，按 id 懒加载 `/api/attachment/get`。
 
 ---
 
@@ -700,7 +735,9 @@ provider raw
 8. Comet MarkDelivered；Job 回传来源 `delivered_ack`
 9. 客户端推进 cursor；发现缺口再 `sync`
 
-Agent 路径在第 4 步之后分叉：`ai_request` → SSE 状态机 → 48B/50ms 合并 → TreeMap/rAF 预览；终态再从第 4 步重走普通单聊。
+Agent 路径在第 4 步之后分叉：`ai_request`（图片仅为 id）→ Bridge 读本地文件 → SSE 状态机 → 48B/50ms 合并 → TreeMap/rAF 预览；终态再从第 4 步重走普通单聊。
+
+带图时第 1 步之前多一次 HTTP 上传；第 3 步 `AuthorizeMessageImages` 校验 id 所有权。二进制从不进入第 4～8 步的 Kafka/WS 载荷。
 
 ---
 
@@ -750,3 +787,109 @@ Agent 路径在第 4 步之后分叉：`ai_request` → SSE 状态机 → 48B/50
 - **锁与线程**：调度 condition；会话锁仍保证同会话工具顺序；每个 Pi 进程自己的 `PiRpcClient.lock`。
 - **失败恢复**：Gateway 启动 `reclaim_running_turns` 把遗留 `running` 标为 `unknown`，禁止自动重跑。completed 同 `request_id`+hash 只回放。
 - **对应测试**：`test_agent_router.py` 的跨会话不等待、亲和池、unknown 不重跑。看板：`GET /v1/agent/metrics`。
+
+### 31.5 图片附件与截图问答
+
+- **解决的问题**：聊天和 Agent 需要看图，但不能把 base64 放进 WebSocket/Kafka/`content_json`，否则撑爆帧、日志和 MySQL 热路径。
+- **源码入口**：`logic/http_server.cpp` `handleAttachmentUpload` / `handleAttachmentGet`；`logic/grpc_service.cpp` `AuthorizeMessageImages`、`BuildHermesRequest`；`common/image_attachment.cpp`；`hermes_bridge/main.cpp` `LoadPiImagesFromDir`；`cannbot/scripts/pi_gateway.py` `normalize_prompt_images`。
+- **数据结构**：磁盘文件名为 `att_` + 24 hex（`RAND_bytes(12)`）；MySQL `attachment` 存 owner/session/mime/sha256；聊天 JSON 只保留 `{id,name,mime,bytes}` 数组，上限 4。
+- **操作步骤**：见第 32 节。
+- **锁与线程**：上传走 Logic HTTP 线程；热路径只读元数据。Bridge 与 Logic 必须共用同一 `attachment_dir`（进程 cwd 下 `data/attachments`）。
+- **复杂度**：上传 O(字节)；热路径每条消息最多 4 次主键点查。Pi 侧每轮只加载本轮图片。
+- **失败恢复**：缺文件则本轮 Agent 失败，不静默丢图。历史同步仍按 attachment id 再取。id 校验拒绝 `../`。
+- **对应测试**：`tests/image_attachment_test.cpp`；`cannbot/scripts/test_pi_gateway.py` 的 `test_prompt_images_are_forwarded_to_rpc`。
+
+### 31.6 Comet→Logic MessageStream 重连
+
+- **解决的问题**：Logic 重启后握手仍成功，发消息停在「发送中」。
+- **源码入口**：`comet/comet_server.cpp` `ReconnectStream`、`StreamWriterLoop`、`StreamReaderLoop`；`common/grpc_keepalive.h`。
+- **数据结构**：每流 `broken` + `pending{callback,deadline}` + `reconnect_mutex`；退避 `grpc_stream_reconnect_base_ms` / `_max_ms`；回包超时 `grpc_stream_ack_timeout_ms`。
+- **操作步骤**：见第 18 节。Writer 重连（含空闲自愈），Reader 只失败 pending。
+- **锁与线程**：`reconnect_mutex` 串行一条流的重连；`stub_mutex_` 保护 Logic stub 重建。
+- **失败恢复**：Write 失败 / Read 失败 / ACK 超时都回 503；keepalive 让半开连接在约 15s 内被拆掉。不必重启 Comet。
+- **对应测试**：`tests/config_test.cpp` 解析重连和 ACK 超时参数。行为验证：停 Logic 再拉起后无需重启 Comet，`logic_stream_ready` 回到 1 且可 `accepted_ack`。
+
+---
+
+## 32. 图片附件：上传、绑定、视觉输入
+
+源码：`common/image_attachment.cpp`、`logic/attachment_dao.cpp`、`logic/http_server.cpp`、`logic/grpc_service.cpp`、`hermes_bridge/main.cpp`、`cannbot/scripts/pi_gateway.py`。
+
+### 32.1 魔数与 id
+
+`DetectImageMime` 只认文件头，不信任客户端 `mime`：
+
+| 魔数 | mime |
+| --- | --- |
+| `FF D8 FF` | `image/jpeg` |
+| `89 50 4E 47 0D 0A 1A 0A` | `image/png` |
+| `GIF87a` / `GIF89a` | `image/gif` |
+| `RIFF....WEBP` | `image/webp` |
+
+`GenerateAttachmentId`：`RAND_bytes(12)` → `att_` + 24 位 hex。合法 id：`^att_[0-9a-f]{16,64}$`。路径永远是 `attachment_dir + "/" + id`，禁止相对段。
+
+Base64 编解码是项目自实现（与 WebSocket 握手那套独立），空白忽略，`=` 结束。
+
+容量：解码后 1 字节～4 MiB；HTTP 请求体上限 8 MiB（给 base64 膨胀留余量）；每条消息最多 4 张。
+
+### 32.2 上传
+
+`POST /api/attachment/upload`，Bearer 必填。
+
+```text
+requireUser
+body.size > 8MiB → 413
+解析 session_id、name、data
+GetSessionById；没有则解析 s_{u1}_{u2}，调用方必须是其中一端，再 GetOrCreateSingleSession
+DecodeBase64 → DetectImageMime；非允许类型拒绝
+CreateImage：写 <id>.tmp → rename → INSERT attachment
+返回 {id,name,mime,bytes,sha256}
+```
+
+`sha256` 是文件内容哈希，不是 id。`session_id` 在上传时绑定；空会话的行只允许发送者在首次聊天时 `BindSession`。
+
+`POST /api/attachment/get`：owner 或同会话成员可读，返回 mime + base64。img 标签不走 query token。
+
+### 32.3 发送路径绑定
+
+`HandleUpstreamMessage` 在 Redis 取号**之前**调用 `AuthorizeMessageImages`：
+
+```text
+ExtractImageRefs：content.attachments 或包装后的 content.content.attachments
+空数组 → 放行，msg_type=text
+否则 attachment_dao 必须存在
+对每个 id：
+  GetById 失败 → 400
+  owner != sender → 400
+  status != ready → 400
+  stored.session_id 非空且不等于当前 session → 400
+  stored.session_id 为空 → BindSession
+msg_type = image
+AppendMessageHotPath 仍只写 JSON 引用
+```
+
+重复 `client_msg_id` 不重新上传文件；id 已经 durable。
+
+### 32.4 Agent 当前轮视觉输入
+
+`BuildHermesRequest`：
+
+1. `ExtractTextFromContentJson`；无文字且无图 → 拒绝
+2. 无文字有图 → 文本改成「请查看这张图片。」
+3. `ai_request.images = [{attachment_id, mime, name}]`，**只含本轮**
+4. 历史 messages 仍是纯文本，避免把多轮图片打进 Kafka
+
+Bridge `LoadPiImagesFromDir`：
+
+```text
+refs 必须是 array，长度 ≤ 4
+id 再校验一次
+ifstream(storage_dir/id) ；size 超 4MiB 失败
+再跑 DetectImageMime
+EncodeBase64 → {type:"image", mimeType, data}
+写入 Chat Completions 请求的 images 字段
+```
+
+Gateway `normalize_prompt_images`：mime 白名单、data 非空、编码串 ≤ 6 MiB。`latest_user_text` 在空文本+有图时返回同一句默认 caption。`PiRpcClient.chat` 把 `images` 放进 RPC `prompt`；fixture `fake_pi_rpc.py` 用 `"N images: ..."` 回显，便于无模型单测。
+
+当前默认模型 `deepseek-flash` 接受这些图片块。历史图要再问，用户必须再发一次或依赖 Pi session 自己的上下文，Spark 不会在后续 `ai_request` 里重放旧 id。

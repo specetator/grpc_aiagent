@@ -73,6 +73,9 @@ struct Config {
     // Comet↔Logic 双向流（对齐 06）
     bool use_grpc_stream{false};
     int grpc_stream_count{4};
+    int grpc_stream_reconnect_base_ms{200};
+    int grpc_stream_reconnect_max_ms{5000};
+    int grpc_stream_ack_timeout_ms{8000};
 
     // Job -> Comet 长连接推送。
     bool use_push_stream{true};
@@ -99,6 +102,9 @@ struct Config {
     std::map<int64_t, std::string> agent_bot_users{{900000000101LL, "Hermes · technical"}};
     // 只读原文接口读取 cann-rag 当前 generation；客户端不能提交文件路径。
     std::string cann_knowledge_root;
+    // Immutable image blobs for IM + Agent screenshot Q&A. Kafka/WS only
+    // carry attachment IDs; the files stay on this local directory.
+    std::string attachment_dir{"data/attachments"};
 
 };
 

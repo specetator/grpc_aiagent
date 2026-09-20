@@ -109,6 +109,8 @@ bool LoadHermesBridgeConfig(const std::string& path,
                                         std::to_string(line_number);
                 return false;
             }
+        } else if (key == "attachment_dir") {
+            config->attachment_dir = value;
         } else if (key == "reply_delivery_timeout_ms") {
             if (!ParseInt(value, &config->reply_delivery_timeout_ms)) {
                 if (err_msg) {

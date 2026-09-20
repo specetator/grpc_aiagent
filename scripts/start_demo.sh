@@ -323,6 +323,15 @@ start_services() {
     "$BUILD_DIR/comet/comet_server" --config "$ROOT/conf/comet.conf"
   wait_port 9000 Comet-WebSocket
   wait_port 9105 Comet-gRPC
+  if grep -Eq '^[[:space:]]*use_grpc_stream[[:space:]]*=[[:space:]]*true' \
+      "$ROOT/conf/comet.conf"; then
+    if ! wait_metric "http://127.0.0.1:9203/metrics" \
+        "spark_push_comet_logic_stream_ready" "Comet→Logic MessageStream"; then
+      echo "上行长连接未就绪，清理本次启动的业务进程" >&2
+      bash "$ROOT/scripts/stop_demo.sh" || true
+      return 1
+    fi
+  fi
 
   start_process job_server "$ROOT/logs/job.out" \
     "$BUILD_DIR/job/job_server" --config "$ROOT/conf/job.conf"

@@ -33,7 +33,11 @@ exceptions, table headers and version/model applicability. A complete chunk is
 NOT proof that its parent document has no additional conditions.
 Do not stop necessary reading after an arbitrary number of tool calls. Avoid
 redundant broad searches, but prioritize complete conditions over latency.
-Keep source revisions separate. If expected_hash fails, restart reading at offset=0;
+Pass cann_version for official operator/API questions. Default search uses one
+CANN version layer (currently 8.5.0) plus unversioned curated skills. Do not mix
+official API docs from different CANN versions unless cann_version=all, and then
+treat each version separately. Keep source revisions separate.
+If expected_hash fails, restart reading at offset=0;
 never join pages from different revisions. If any necessary context is unavailable,
 state the exact uncertainty and do not present the claim as fully verified.`;
 
@@ -213,6 +217,9 @@ export default function (pi: ExtensionAPI) {
       query: Type.String({ description: "CANN/Ascend development question" }),
       top_k: Type.Optional(Type.Number({ description: "Result count, 1-8; use a single focused query first" })),
       platform: Type.Optional(Type.String({ description: "Optional platform, e.g. a3" })),
+      cann_version: Type.Optional(Type.String({
+        description: "Official CANN version layer, e.g. 8.5.0, 9.0.0, 9.1.0, or all",
+      })),
     }),
     async execute(_toolCallId, params) {
       const query = String(params.query || "").trim();
@@ -220,6 +227,7 @@ export default function (pi: ExtensionAPI) {
       try {
         const args = ["query", "--query", query, "--top-k", String(limit(params.top_k, 4, 1, 8))];
         if (params.platform) args.push("--platform", String(params.platform));
+        if (params.cann_version) args.push("--cann-version", String(params.cann_version));
         return toolText(fitContext(runCannRag(args)));
       } catch (error) {
         return toolError(`CANN 知识检索失败: ${error instanceof Error ? error.message : error}`);

@@ -10,6 +10,7 @@ add_library(spark_push_common
     kafka_consumer.cpp
     thread_pool.cpp
     security.cpp
+    image_attachment.cpp
     metrics.cpp
     metrics_http_server.cpp
     rate_limiter.cpp

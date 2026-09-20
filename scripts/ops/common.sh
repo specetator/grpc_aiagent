@@ -99,6 +99,14 @@ http_ok() {
   curl -fsS --max-time "${2:-3}" "$1" >/dev/null 2>&1
 }
 
+metric_eq() {
+  local url="$1"
+  local name="$2"
+  local value="$3"
+  curl -fsS --max-time 2 "$url" 2>/dev/null |
+    grep -Eq "^${name}[[:space:]]+${value}([[:space:]]|$)"
+}
+
 tcp_ok() {
   local host="$1" port="$2"
   (exec 3<>"/dev/tcp/$host/$port") >/dev/null 2>&1

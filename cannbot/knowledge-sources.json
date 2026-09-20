@@ -24,19 +24,19 @@
       "id": "pi-agent-integration",
       "path": "docs/pi-agent-integration.md",
       "authority": "canonical",
-      "topics": ["pi", "agent", "gateway", "rag", "skills"]
+      "topics": ["pi", "agent", "gateway", "rag", "skills", "vision", "attachments"]
     },
     {
       "id": "architecture-framework",
       "path": "docs/spark-push-architecture.md",
       "authority": "canonical",
-      "topics": ["architecture", "modules", "message-flow", "comet", "logic", "job"]
+      "topics": ["architecture", "modules", "message-flow", "comet", "logic", "job", "attachments"]
     },
     {
       "id": "implementation-internals",
       "path": "docs/spark-push-internals.md",
       "authority": "canonical",
-      "topics": ["algorithms", "redis-lua", "push-stream", "websocket", "queues", "android-streaming"]
+      "topics": ["algorithms", "redis-lua", "push-stream", "websocket", "queues", "android-streaming", "attachments", "vision"]
     },
     {
       "id": "android-client",
@@ -72,7 +72,19 @@
       "id": "pi-rpc-gateway",
       "path": "cannbot/scripts/pi_gateway.py",
       "authority": "code",
-      "topics": ["pi", "rpc", "session", "lifecycle", "streaming"]
+      "topics": ["pi", "rpc", "session", "lifecycle", "streaming", "vision"]
+    },
+    {
+      "id": "image-attachment-codec",
+      "path": "common/image_attachment.cpp",
+      "authority": "code",
+      "topics": ["attachments", "vision", "mime"]
+    },
+    {
+      "id": "image-attachment-store",
+      "path": "logic/attachment_dao.cpp",
+      "authority": "code",
+      "topics": ["attachments", "mysql", "filesystem"]
     },
     {
       "id": "agent-sse-parser",

@@ -80,10 +80,12 @@ cannbot/skills/spark-push-agent/
 └── data/generations/         # 不进入 Git，current.json 原子切换
 ```
 
-第一批语料只摄入 `cannbot-skills` 的 `ops/model/graph/runtime/tools` 中的 CANN Skill、
-references 和代码样例，锁定上游 commit。许可证正文、版权和 NOTICE 保存在独立工作区。
-新增自有资料必须先写入 `sources.json`；RAG 不会扫描任意磁盘目录。默认离线检索不依赖
-LLM endpoint 的 embeddings 能力。
+语料分两层：未分版本的 `cannbot-skills`（`ops/model/graph/runtime/tools` 的 Skill 与
+references），以及按 CANN 版本隔离的官方算子/API 文档（`sources/official/8.5.0|9.0.0|9.1.0`，
+来自 `asc-devkit` 对应分支的 `docs/` 与 `examples/`）。默认检索只使用
+`default_cann_version`（8.5.0）加 curated skills，避免 8.5 与 9.x 官方 API 互相污染。
+许可证正文、版权和 NOTICE 保存在独立工作区。新增自有资料必须先写入 `sources.json`；
+RAG 不会扫描任意磁盘目录。默认离线检索不依赖 LLM endpoint 的 embeddings 能力。
 
 知识真源登记表是 `cannbot/knowledge-sources.json`。`authority` 含义如下：
 

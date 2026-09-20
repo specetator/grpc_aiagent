@@ -18,6 +18,7 @@ struct HermesBridgeConfig {
     bool streaming{true};
     int request_timeout_ms{120000};
     int reply_delivery_timeout_ms{5000};
+    std::string attachment_dir{"data/attachments"};
 };
 
 bool LoadHermesBridgeConfig(const std::string& path,

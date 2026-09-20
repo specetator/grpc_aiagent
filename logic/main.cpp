@@ -9,6 +9,7 @@
 
 #include "config.h"
 #include "conversation_store.h"
+#include "grpc_keepalive.h"
 #include "audit_log_dao.h"
 #include "danmaku_dao.h"
 #include "group_dao.h"
@@ -25,6 +26,7 @@
 #include "thread_pool.h"
 #include "user_dao.h"
 #include "user_session_state_dao.h"
+#include "attachment_dao.h"
 
 namespace {
 
@@ -165,6 +167,13 @@ int RunLogic(const Config& cfg) {
     SessionDao session_dao(&mysql_pool);
     MessageDao message_dao(&mysql_pool);
     UserSessionStateDao state_dao(&mysql_pool);
+    AttachmentDao attachment_dao(&mysql_pool, cfg.attachment_dir);
+    std::string attachment_schema_err;
+    if (!attachment_dao.EnsureSchema(&attachment_schema_err)) {
+        LOG_ERROR << "Failed to ensure attachment schema: "
+                  << attachment_schema_err;
+        return 1;
+    }
     std::string state_schema_err;
     if (!state_dao.EnsureDeliveredSeqColumn(&state_schema_err)) {
         LOG_ERROR << "Failed to ensure delivered cursor schema: "
@@ -206,7 +215,8 @@ int RunLogic(const Config& cfg) {
         &group_producer, &broadcast_producer, &persist_producer, &redis_store,
         cfg.rate_limit, cfg.persist_kafka_timeout_ms,
         cfg.hermes_enabled ? &hermes_request_producer : nullptr,
-        cfg.hermes_enabled, cfg.hermes_bot_user_id, cfg.agent_bot_users);
+        cfg.hermes_enabled, cfg.hermes_bot_user_id, cfg.agent_bot_users,
+        &attachment_dao);
 
     KafkaConsumer hermes_reply_consumer;
     KafkaConsumer hermes_delta_consumer;
@@ -242,6 +252,7 @@ int RunLogic(const Config& cfg) {
         }
     }
     builder.AddListeningPort(grpc_addr, grpc::InsecureServerCredentials());
+    ApplyGrpcKeepaliveServerArgs(&builder);
     builder.RegisterService(service.get());
     std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
     LOG_INFO << "Logic gRPC server listening on " << grpc_addr;
@@ -255,7 +266,7 @@ int RunLogic(const Config& cfg) {
                              &group_producer, &broadcast_producer, &danmaku_dao,
                              &audit_log_dao, cfg.cann_knowledge_root,
                              cfg.admin_account,
-                             cfg.admin_password);
+                             cfg.admin_password, &attachment_dao);
     httpServer.start();
     LOG_INFO << "Logic HTTP server listening on port "
              << std::to_string(cfg.http_port);

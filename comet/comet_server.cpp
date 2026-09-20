@@ -6,9 +6,11 @@
 #include <algorithm>
 #include <cstring>
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <vector>
 
+#include "grpc_keepalive.h"
 #include "metrics.h"
 
 namespace sparkpush {
@@ -208,10 +210,19 @@ CometServer::CometServer(EventLoop* loop, const Config& cfg)
                  "comet_grpc_pool"),
       use_stream_(cfg.use_grpc_stream),
       stream_count_(cfg.grpc_stream_count > 0 ? cfg.grpc_stream_count : 4),
+      stream_reconnect_base_ms_(cfg.grpc_stream_reconnect_base_ms > 0
+                                    ? cfg.grpc_stream_reconnect_base_ms
+                                    : 200),
+      stream_reconnect_max_ms_(cfg.grpc_stream_reconnect_max_ms > 0
+                                   ? cfg.grpc_stream_reconnect_max_ms
+                                   : 5000),
+      stream_ack_timeout_ms_(cfg.grpc_stream_ack_timeout_ms > 0
+                                 ? cfg.grpc_stream_ack_timeout_ms
+                                 : 8000),
+      logic_grpc_target_(cfg.logic_grpc_target),
       metrics_port_(cfg.metrics_port) {
     comet_id_ = cfg.comet_id;
-    channel_ = grpc::CreateChannel(cfg.logic_grpc_target,
-                                   grpc::InsecureChannelCredentials());
+    channel_ = CreateKeepaliveChannel(cfg.logic_grpc_target);
     logic_stub_ = sparkpush::LogicService::NewStub(channel_);
 
     server_.setConnectionCallback(
@@ -244,6 +255,122 @@ uint64_t CometServer::NextRequestId() {
     return request_id_counter_.fetch_add(1, std::memory_order_relaxed);
 }
 
+void CometServer::FailStreamPending(StreamState* state,
+                                    const std::string& message) {
+    if (!state) return;
+    std::unordered_map<std::string, PendingCallback> pending;
+    {
+        std::lock_guard<std::mutex> lock(state->pending_mutex);
+        pending.swap(state->pending);
+    }
+    StreamResponse resp;
+    resp.mutable_error()->set_code(503);
+    resp.mutable_error()->set_message(message);
+    for (auto& item : pending) {
+        if (item.second.callback) item.second.callback(resp);
+    }
+}
+
+void CometServer::ExpireStreamPending(StreamState* state) {
+    if (!state || stream_ack_timeout_ms_ <= 0) return;
+    const auto now = std::chrono::steady_clock::now();
+    std::vector<std::function<void(const StreamResponse&)>> expired;
+    {
+        std::lock_guard<std::mutex> lock(state->pending_mutex);
+        for (auto it = state->pending.begin(); it != state->pending.end();) {
+            if (it->second.deadline <= now) {
+                if (it->second.callback) {
+                    expired.push_back(std::move(it->second.callback));
+                }
+                it = state->pending.erase(it);
+            } else {
+                ++it;
+            }
+        }
+    }
+    if (expired.empty()) return;
+    StreamResponse resp;
+    resp.mutable_error()->set_code(503);
+    resp.mutable_error()->set_message("logic stream ack timeout");
+    MetricsRegistry::Instance().Increment(
+        "spark_push_comet_logic_stream_ack_timeout_total",
+        static_cast<int64_t>(expired.size()));
+    for (auto& cb : expired) {
+        cb(resp);
+    }
+}
+
+void CometServer::UpdateLogicStreamReadyMetric() {
+    int ready = 1;
+    if (!use_stream_ || !stream_running_ || streams_.empty()) {
+        ready = 0;
+    } else {
+        for (const auto& state : streams_) {
+            if (!state || state->broken.load() || !state->stream) {
+                ready = 0;
+                break;
+            }
+        }
+    }
+    MetricsRegistry::Instance().Set("spark_push_comet_logic_stream_ready",
+                                    ready);
+}
+
+bool CometServer::ReconnectStream(int stream_idx) {
+    if (stream_idx < 0 || stream_idx >= static_cast<int>(streams_.size())) {
+        return false;
+    }
+    auto& state = streams_[stream_idx];
+    if (!state) return false;
+    std::lock_guard<std::mutex> reconnect_lock(state->reconnect_mutex);
+    if (!stream_running_) return false;
+    if (state->stream && !state->broken.load()) return true;
+
+    if (state->ctx) state->ctx->TryCancel();
+    if (state->stream) {
+        state->stream->WritesDone();
+    }
+    if (state->reader_thread.joinable() &&
+        state->reader_thread.get_id() != std::this_thread::get_id()) {
+        state->reader_thread.join();
+    }
+    if (state->stream) {
+        state->stream->Finish();
+        state->stream.reset();
+    }
+    FailStreamPending(state.get(), "logic stream disconnected");
+
+    state->ctx = std::make_unique<grpc::ClientContext>();
+    {
+        std::lock_guard<std::mutex> stub_lock(stub_mutex_);
+        if (!logic_stub_) {
+            channel_ = CreateKeepaliveChannel(logic_grpc_target_);
+            logic_stub_ = sparkpush::LogicService::NewStub(channel_);
+        }
+        state->stream = logic_stub_->MessageStream(state->ctx.get());
+        if (!state->stream) {
+            channel_ = CreateKeepaliveChannel(logic_grpc_target_);
+            logic_stub_ = sparkpush::LogicService::NewStub(channel_);
+            state->ctx = std::make_unique<grpc::ClientContext>();
+            state->stream = logic_stub_->MessageStream(state->ctx.get());
+        }
+    }
+    if (!state->stream) {
+        state->broken = true;
+        UpdateLogicStreamReadyMetric();
+        LOG_ERROR << "Failed to reconnect Logic MessageStream " << stream_idx;
+        return false;
+    }
+    state->broken = false;
+    state->reader_thread =
+        std::thread(&CometServer::StreamReaderLoop, this, stream_idx);
+    MetricsRegistry::Instance().Increment(
+        "spark_push_comet_logic_stream_reconnect_total");
+    UpdateLogicStreamReadyMetric();
+    LOG_INFO << "Reconnected Logic MessageStream " << stream_idx;
+    return true;
+}
+
 void CometServer::InitStreams() {
     streams_.resize(stream_count_);
     for (int i = 0; i < stream_count_; ++i) {
@@ -252,43 +379,109 @@ void CometServer::InitStreams() {
         streams_[i]->stream =
             logic_stub_->MessageStream(streams_[i]->ctx.get());
         if (!streams_[i]->stream) {
-            LOG_ERROR << "Failed to create gRPC stream " << i;
-            use_stream_ = false;
-            return;
+            LOG_ERROR << "Failed to create gRPC stream " << i
+                      << ", will retry on first send";
+            streams_[i]->broken = true;
         }
     }
     stream_running_ = true;
     for (int i = 0; i < stream_count_; ++i) {
         streams_[i]->writer_thread =
             std::thread(&CometServer::StreamWriterLoop, this, i);
-        streams_[i]->reader_thread =
-            std::thread(&CometServer::StreamReaderLoop, this, i);
+        if (streams_[i]->stream && !streams_[i]->broken.load()) {
+            streams_[i]->reader_thread =
+                std::thread(&CometServer::StreamReaderLoop, this, i);
+        }
     }
+    UpdateLogicStreamReadyMetric();
     LOG_INFO << "gRPC bidirectional streams ready, count=" << stream_count_;
 }
 
 void CometServer::StreamWriterLoop(int stream_idx) {
     auto& state = streams_[stream_idx];
-    if (!state || !state->stream) return;
+    if (!state) return;
+    const int max_backoff =
+        std::max(stream_reconnect_base_ms_, stream_reconnect_max_ms_);
+    int idle_backoff = std::max(10, stream_reconnect_base_ms_);
     while (stream_running_) {
+        ExpireStreamPending(state.get());
         PendingRequest req;
+        bool have_req = false;
         {
             std::unique_lock<std::mutex> lock(state->send_queue_mutex);
-            state->send_queue_cv.wait(lock, [&] {
-                return !state->send_queue.empty() || !stream_running_;
-            });
-            if (!stream_running_) break;
-            if (state->send_queue.empty()) continue;
-            req = std::move(state->send_queue.front());
-            state->send_queue.pop();
+            const int wait_ms =
+                (state->broken.load() || !state->stream ||
+                 idle_backoff > stream_reconnect_base_ms_)
+                    ? idle_backoff
+                    : 200;
+            state->send_queue_cv.wait_for(
+                lock, std::chrono::milliseconds(wait_ms), [&] {
+                    return !state->send_queue.empty() || !stream_running_;
+                });
+            if (!stream_running_ && state->send_queue.empty()) break;
+            if (!state->send_queue.empty()) {
+                req = std::move(state->send_queue.front());
+                state->send_queue.pop();
+                have_req = true;
+            }
         }
-        if (req.callback) {
-            std::lock_guard<std::mutex> lock(callbacks_mutex_);
-            pending_callbacks_[req.msg.request_id()] = std::move(req.callback);
+        if (!have_req) {
+            if (stream_running_ &&
+                (state->broken.load() || !state->stream)) {
+                ReconnectStream(stream_idx);
+                idle_backoff = std::min(max_backoff, idle_backoff * 2);
+            } else {
+                idle_backoff = std::max(10, stream_reconnect_base_ms_);
+            }
+            continue;
         }
-        if (!state->stream->Write(req.msg)) {
-            LOG_ERROR << "Stream " << stream_idx << " write failed";
-            break;
+        idle_backoff = std::max(10, stream_reconnect_base_ms_);
+
+        bool sent = false;
+        int backoff = std::max(10, stream_reconnect_base_ms_);
+        for (int attempt = 0; attempt < 4 && stream_running_; ++attempt) {
+            if (state->broken.load() || !state->stream) {
+                if (!ReconnectStream(stream_idx)) {
+                    std::this_thread::sleep_for(
+                        std::chrono::milliseconds(backoff));
+                    backoff = std::min(max_backoff, backoff * 2);
+                    continue;
+                }
+            }
+            {
+                std::lock_guard<std::mutex> lock(state->pending_mutex);
+                if (req.callback) {
+                    const auto timeout =
+                        stream_ack_timeout_ms_ > 0
+                            ? std::chrono::milliseconds(stream_ack_timeout_ms_)
+                            : std::chrono::hours(24);
+                    state->pending[req.msg.request_id()] = PendingCallback{
+                        req.callback, std::chrono::steady_clock::now() + timeout};
+                }
+            }
+            if (state->stream && state->stream->Write(req.msg)) {
+                sent = true;
+                break;
+            }
+            MetricsRegistry::Instance().Increment(
+                "spark_push_comet_logic_stream_write_failed_total");
+            {
+                std::lock_guard<std::mutex> lock(state->pending_mutex);
+                state->pending.erase(req.msg.request_id());
+            }
+            state->broken = true;
+            UpdateLogicStreamReadyMetric();
+            LOG_ERROR << "Stream " << stream_idx
+                      << " write failed, reconnecting";
+            std::this_thread::sleep_for(std::chrono::milliseconds(backoff));
+            ReconnectStream(stream_idx);
+            backoff = std::min(max_backoff, backoff * 2);
+        }
+        if (!sent && req.callback) {
+            StreamResponse resp;
+            resp.mutable_error()->set_code(503);
+            resp.mutable_error()->set_message("logic stream unavailable");
+            req.callback(resp);
         }
     }
 }
@@ -297,17 +490,27 @@ void CometServer::StreamReaderLoop(int stream_idx) {
     auto& state = streams_[stream_idx];
     if (!state || !state->stream) return;
     StreamResponse resp;
-    while (stream_running_ && state->stream->Read(&resp)) {
+    while (stream_running_ && state->stream && state->stream->Read(&resp)) {
         std::function<void(const StreamResponse&)> callback;
         {
-            std::lock_guard<std::mutex> lock(callbacks_mutex_);
-            auto it = pending_callbacks_.find(resp.request_id());
-            if (it != pending_callbacks_.end()) {
-                callback = std::move(it->second);
-                pending_callbacks_.erase(it);
+            std::lock_guard<std::mutex> lock(state->pending_mutex);
+            auto it = state->pending.find(resp.request_id());
+            if (it != state->pending.end()) {
+                callback = std::move(it->second.callback);
+                state->pending.erase(it);
             }
         }
         if (callback) callback(resp);
+    }
+    if (stream_running_) {
+        state->broken = true;
+        MetricsRegistry::Instance().Increment(
+            "spark_push_comet_logic_stream_read_failed_total");
+        FailStreamPending(state.get(), "logic stream disconnected");
+        UpdateLogicStreamReadyMetric();
+        state->send_queue_cv.notify_one();
+        LOG_ERROR << "Stream " << stream_idx
+                  << " read failed, waiting to reconnect";
     }
 }
 

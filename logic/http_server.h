@@ -12,6 +12,7 @@
 #include "kafka_producer.h"
 #include "redis_store.h"
 #include "user_dao.h"
+#include "attachment_dao.h"
 
 namespace sparkpush {
 
@@ -33,7 +34,8 @@ class HttpApiServer {
                   AuditLogDao* audit_log_dao,
                   std::string cann_knowledge_root = {},
                   std::string admin_account = {},
-                  std::string admin_password = {});
+                  std::string admin_password = {},
+                  AttachmentDao* attachment_dao = nullptr);
 
     // 功能：启动 HTTP 服务监听
     // 参数：无
@@ -61,6 +63,10 @@ class HttpApiServer {
     // 参数：req/resp HTTP 请求响应
     void handleSendMessage(const muduo::net::HttpRequest& req,
                            muduo::net::HttpResponse* resp);
+    void handleAttachmentUpload(const muduo::net::HttpRequest& req,
+                                muduo::net::HttpResponse* resp);
+    void handleAttachmentGet(const muduo::net::HttpRequest& req,
+                             muduo::net::HttpResponse* resp);
 
     // 功能：拉取会话历史
     void handleHistory(const muduo::net::HttpRequest& req,
@@ -150,6 +156,7 @@ class HttpApiServer {
     KafkaProducer* broadcast_producer_;
     DanmakuDao* danmaku_dao_;
     AuditLogDao* audit_log_dao_;
+    AttachmentDao* attachment_dao_{nullptr};
     std::string cann_knowledge_root_;
     std::string admin_account_;
     std::string admin_password_;

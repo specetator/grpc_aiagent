@@ -12,6 +12,7 @@
 #include <muduo/net/TcpServer.h>
 
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
 #include <deque>
 #include <functional>
@@ -81,8 +82,14 @@ private:
     void NotifyRoomJoin(int64_t room_id, int64_t user_id);
     void NotifyRoomLeave(int64_t room_id, int64_t user_id);
 
+    struct StreamState;
+
     // gRPC 双向流
     void InitStreams();
+    bool ReconnectStream(int stream_idx);
+    void FailStreamPending(StreamState* state, const std::string& message);
+    void ExpireStreamPending(StreamState* state);
+    void UpdateLogicStreamReadyMetric();
     void StreamWriterLoop(int stream_idx);
     void StreamReaderLoop(int stream_idx);
     void SendToStream(StreamMessage msg,
@@ -97,6 +104,7 @@ private:
     std::deque<std::string> recent_push_order_;
     std::shared_ptr<grpc::Channel> channel_;
     std::unique_ptr<sparkpush::LogicService::Stub> logic_stub_;
+    std::mutex stub_mutex_;
     std::string comet_id_;
     int metrics_port_{0};
     MetricsHttpServer metrics_server_;
@@ -108,6 +116,10 @@ private:
         StreamMessage msg;
         std::function<void(const StreamResponse&)> callback;
     };
+    struct PendingCallback {
+        std::function<void(const StreamResponse&)> callback;
+        std::chrono::steady_clock::time_point deadline;
+    };
     struct StreamState {
         std::unique_ptr<grpc::ClientContext> ctx;
         std::unique_ptr<
@@ -118,13 +130,17 @@ private:
         std::queue<PendingRequest> send_queue;
         std::mutex send_queue_mutex;
         std::condition_variable send_queue_cv;
+        std::mutex pending_mutex;
+        std::unordered_map<std::string, PendingCallback> pending;
+        std::mutex reconnect_mutex;
+        std::atomic<bool> broken{false};
     };
     std::vector<std::unique_ptr<StreamState>> streams_;
     std::atomic<bool> stream_running_{false};
-    std::unordered_map<std::string,
-                       std::function<void(const StreamResponse&)>>
-        pending_callbacks_;
-    std::mutex callbacks_mutex_;
+    std::string logic_grpc_target_;
+    int stream_reconnect_base_ms_{200};
+    int stream_reconnect_max_ms_{5000};
+    int stream_ack_timeout_ms_{8000};
     std::atomic<uint64_t> request_id_counter_{0};
 };
 

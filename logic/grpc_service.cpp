@@ -10,6 +10,7 @@
 #include "logging.h"
 #include "metrics.h"
 #include "text_metrics.h"
+#include "image_attachment.h"
 
 namespace sparkpush {
 
@@ -81,7 +82,8 @@ LogicServiceImpl::LogicServiceImpl(ConversationStore* store,
                                    KafkaProducer* hermes_request_producer,
                                    bool hermes_enabled,
                                    int64_t hermes_bot_user_id,
-                                   std::map<int64_t, std::string> agent_bot_users)
+                                   std::map<int64_t, std::string> agent_bot_users,
+                                   AttachmentDao* attachment_dao)
     : store_(store),
       group_member_dao_(group_member_dao),
       user_dao_(user_dao),
@@ -91,6 +93,7 @@ LogicServiceImpl::LogicServiceImpl(ConversationStore* store,
       persist_producer_(persist_producer),
       hermes_request_producer_(hermes_request_producer),
       redis_store_(redis_store),
+      attachment_dao_(attachment_dao),
       rate_limiter_(rate_limit),
       persist_kafka_timeout_ms_(persist_kafka_timeout_ms),
       hermes_enabled_(hermes_enabled),
@@ -365,11 +368,13 @@ bool LogicServiceImpl::BuildHermesRequest(const Message& current,
         history.erase(history.begin(), history.end() - 50);
     }
 
-    const std::string current_text = ExtractTextFromContentJson(current.content_json);
-    if (current_text.empty()) {
-        if (err) *err = "Hermes only supports text messages in first stage";
+    std::string current_text = ExtractTextFromContentJson(current.content_json);
+    const auto current_images = ExtractImageRefsFromContentJson(current.content_json);
+    if (current_text.empty() && current_images.empty()) {
+        if (err) *err = "Hermes only supports text or image messages";
         return false;
     }
+    if (current_text.empty()) current_text = "请查看这张图片。";
 
     std::vector<HermesConversationEntry> entries;
     entries.reserve(history.size());
@@ -422,6 +427,15 @@ bool LogicServiceImpl::BuildHermesRequest(const Message& current,
             {"local_error", plan.local_error},
         };
     }
+    if (!current_images.empty()) {
+        nlohmann::json images = nlohmann::json::array();
+        for (const auto& image : current_images) {
+            images.push_back({{"attachment_id", image.id},
+                              {"mime", image.mime},
+                              {"name", image.name}});
+        }
+        (*request)["images"] = std::move(images);
+    }
     const auto current_metrics = MeasureText(current_text);
     if (LengthAuditEnabled()) {
         LOG_INFO << "length_audit stage=logic_request request_id=" << current.msg_id
@@ -434,6 +448,39 @@ bool LogicServiceImpl::BuildHermesRequest(const Message& current,
                  << " prompt_message_count=" << plan.messages.size()
                  << " context_start_seq=" << plan.context_start_seq
                  << " context_message_count=" << plan.context_message_count;
+    }
+    return true;
+}
+
+bool LogicServiceImpl::AuthorizeMessageImages(int64_t sender_id,
+                                              const std::string& session_id,
+                                              const std::string& content_json,
+                                              std::string* err) {
+    const auto refs = ExtractImageRefsFromContentJson(content_json);
+    if (refs.empty()) return true;
+    if (!attachment_dao_) {
+        if (err) *err = "image attachments are not enabled";
+        return false;
+    }
+    for (const auto& ref : refs) {
+        StoredAttachment stored;
+        if (!attachment_dao_->GetById(ref.id, &stored, err)) return false;
+        if (stored.owner_user_id != sender_id) {
+            if (err) *err = "attachment does not belong to the sender";
+            return false;
+        }
+        if (stored.status != "ready") {
+            if (err) *err = "attachment is not ready";
+            return false;
+        }
+        if (!stored.session_id.empty() && stored.session_id != session_id) {
+            if (err) *err = "attachment belongs to another conversation";
+            return false;
+        }
+        if (stored.session_id.empty() &&
+            !attachment_dao_->BindSession(ref.id, session_id, err)) {
+            return false;
+        }
     }
     return true;
 }
@@ -588,9 +635,18 @@ void LogicServiceImpl::HandleUpstreamMessage(
                          std::chrono::system_clock::now().time_since_epoch())
                          .count();
 
+    if (!AuthorizeMessageImages(from_user, session_id, request.content_json(),
+                                &err)) {
+        SetError(response->mutable_error(), 400, err);
+        return;
+    }
+    const auto image_refs =
+        ExtractImageRefsFromContentJson(request.content_json());
+    const char* msg_type = image_refs.empty() ? "text" : "image";
+
     Message msg;
     bool is_new = false;
-    if (!store_->AppendMessageHotPath(session_id, from_user, "text",
+    if (!store_->AppendMessageHotPath(session_id, from_user, msg_type,
                                       request.content_json(), now_ms,
                                       request.client_msg_id(), &msg, &is_new,
                                       &err)) {

@@ -930,8 +930,47 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
     }
 
     fun sendDraft() {
-        val text = _ui.value.draft.trim()
-        if (text.isNotEmpty()) sendMessage(text)
+        val snapshot = _ui.value
+        if (snapshot.draft.trim().isNotEmpty() || snapshot.pendingImages.isNotEmpty()) {
+            sendMessage(snapshot.draft)
+        }
+    }
+
+    fun addPendingImage(name: String, mime: String, bytes: ByteArray) {
+        if (bytes.isEmpty() || bytes.size > 4 * 1024 * 1024) {
+            _ui.update { it.copy(error = "图片不能超过 4 MiB") }
+            return
+        }
+        if (_ui.value.pendingImages.size >= 4) {
+            _ui.update { it.copy(error = "一条消息最多 4 张图片") }
+            return
+        }
+        val encoded = android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
+        _ui.update { it.copy(pendingImages = it.pendingImages + PendingChatImage(name, mime, encoded), error = null) }
+    }
+
+    fun removePendingImage(index: Int) {
+        _ui.update {
+            if (index !in it.pendingImages.indices) it
+            else it.copy(pendingImages = it.pendingImages.toMutableList().also { list -> list.removeAt(index) })
+        }
+    }
+
+    fun ensureImagePreview(id: String) {
+        if (id.isBlank() || _ui.value.imagePreviews.containsKey(id)) return
+        val auth = _ui.value.auth ?: return
+        viewModelScope.launch {
+            try {
+                val response = client.post("/api/attachment/get", JSONObject().put("id", id), auth.token)
+                val payload = response.optJSONObject("data") ?: return@launch
+                val encoded = payload.optString("data")
+                if (encoded.isBlank()) return@launch
+                val bytes = android.util.Base64.decode(encoded, android.util.Base64.DEFAULT)
+                val bitmap = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size) ?: return@launch
+                _ui.update { it.copy(imagePreviews = it.imagePreviews + (id to bitmap)) }
+            } catch (_: Exception) {
+            }
+        }
     }
 
     fun sendMessage(text: String, action: AgentAction? = null): Boolean {
@@ -941,30 +980,61 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
             _ui.update { it.copy(error = "请先选择会话") }
             return false
         }
-        if (text.isBlank()) return false
+        val pending = current.pendingImages
+        if (text.isBlank() && pending.isEmpty()) return false
         if (current.connection != ConnectionState.CONNECTED) {
             _ui.update { it.copy(error = "实时连接尚未建立，请稍候重试") }
             return false
         }
-        val clientId = "${System.currentTimeMillis()}-${UUID.randomUUID().toString().take(8)}"
-        val content = JSONObject().put("text", text)
-        if (action != null) {
-            val actionJson = JSONObject().put("kind", action.id)
-            action.value?.let { actionJson.put("value", it) }
-            action.provider?.let { actionJson.put("provider", it) }
-            action.modelId?.let { actionJson.put("modelId", it) }
-            content.put("agent_action", actionJson)
+        viewModelScope.launch {
+            try {
+                val attachments = org.json.JSONArray()
+                val parsed = mutableListOf<ImageAttachment>()
+                for (image in pending) {
+                    val response = client.post(
+                        "/api/attachment/upload",
+                        JSONObject().put("session_id", selected.sessionId).put("name", image.name).put("data", image.data),
+                        auth.token
+                    )
+                    val data = response.optJSONObject("data") ?: throw IllegalStateException("图片上传失败")
+                    val item = ImageAttachment(
+                        data.optString("id"),
+                        data.optString("name"),
+                        data.optString("mime"),
+                        data.optInt("bytes")
+                    )
+                    parsed += item
+                    attachments.put(JSONObject().put("id", item.id).put("name", item.name).put("mime", item.mime).put("bytes", item.bytes))
+                }
+                val bodyText = text.trim().ifBlank { if (parsed.isNotEmpty()) "请查看这张图片。" else "" }
+                val clientId = "${System.currentTimeMillis()}-${UUID.randomUUID().toString().take(8)}"
+                val content = JSONObject().put("text", bodyText)
+                if (parsed.isNotEmpty()) content.put("attachments", attachments)
+                if (action != null) {
+                    val actionJson = JSONObject().put("kind", action.id)
+                    action.value?.let { actionJson.put("value", it) }
+                    action.provider?.let { actionJson.put("provider", it) }
+                    action.modelId?.let { actionJson.put("modelId", it) }
+                    content.put("agent_action", actionJson)
+                }
+                val payload = JSONObject().put("type", "single_chat").put("to_user_id", selected.peerId).put("client_msg_id", clientId).put("content", content)
+                val optimistic = ChatMessage(
+                    clientMsgId = clientId, sessionId = selected.sessionId, senderId = auth.userId,
+                    timestampMs = System.currentTimeMillis(), text = bodyText, state = DeliveryState.SENDING,
+                    attachments = parsed
+                )
+                _ui.update { it.copy(messages = it.messages + optimistic, draft = "", pendingImages = emptyList(), error = null) }
+                registerTiming(clientId, selected.sessionId, selected.agent, nowNanos())
+                val sent = client.send(payload)
+                if (!sent) {
+                    updateMessage(clientId) { it.copy(state = DeliveryState.FAILED) }
+                    completeTimingForClient(clientId, "send_failed")
+                }
+            } catch (exc: Exception) {
+                _ui.update { it.copy(error = exc.message ?: "图片发送失败") }
+            }
         }
-        val payload = JSONObject().put("type", "single_chat").put("to_user_id", selected.peerId).put("client_msg_id", clientId).put("content", content)
-        val optimistic = ChatMessage(clientMsgId = clientId, sessionId = selected.sessionId, senderId = auth.userId, timestampMs = System.currentTimeMillis(), text = text, state = DeliveryState.SENDING)
-        _ui.update { it.copy(messages = it.messages + optimistic, draft = "", error = null) }
-        registerTiming(clientId, selected.sessionId, selected.agent, nowNanos())
-        val sent = client.send(payload)
-        if (!sent) {
-            updateMessage(clientId) { it.copy(state = DeliveryState.FAILED) }
-            completeTimingForClient(clientId, "send_failed")
-        }
-        return sent
+        return true
     }
 
     fun sendAgentAction(action: AgentAction) {
@@ -1287,7 +1357,8 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
         val citations = parseCitations(content?.optJSONArray("citations") ?: outer?.optJSONArray("citations"))
         // 控制帧或只有包装元数据的记录没有可见内容，不能交给 Compose 绘制；
         // 否则圆角 Surface 会退化成空白小圆点。
-        if (displayText.isBlank() && card == null && citations.isEmpty()) return null
+        val attachments = parseAttachments(content?.optJSONArray("attachments") ?: outer?.optJSONArray("attachments"))
+        if (displayText.isBlank() && card == null && citations.isEmpty() && attachments.isEmpty()) return null
         val sender = obj.optLong("sender_id", obj.optLong("from_user_id", 0)).takeIf { it > 0 }
             ?: outer?.optLong("from_user_id", 0)?.takeIf { it > 0 } ?: 0
         val clientId = obj.optString("client_msg_id").ifBlank { outer?.optString("client_msg_id").orEmpty() }
@@ -1304,8 +1375,21 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
             displayText,
             content?.optString("format") == "markdown" || outer?.optString("format") == "markdown",
             agentCard = card,
-            citations = citations
+            citations = citations,
+            attachments = attachments
         )
+    }
+
+    private fun parseAttachments(array: JSONArray?): List<ImageAttachment> {
+        if (array == null) return emptyList()
+        return buildList {
+            for (i in 0 until minOf(array.length(), 4)) {
+                val item = array.optJSONObject(i) ?: continue
+                val id = item.optString("id")
+                if (id.isBlank()) continue
+                add(ImageAttachment(id, item.optString("name"), item.optString("mime"), item.optInt("bytes")))
+            }
+        }
     }
 
     private fun parseCitations(array: JSONArray?): List<Citation> {

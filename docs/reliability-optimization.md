@@ -177,6 +177,9 @@ curl http://127.0.0.1:9203/metrics  # Comet
 | `spark_push_delivery_cursor_update_failed_total` | 目标 delivered 游标更新失败数 |
 | `spark_push_persist_success_total` | Job 成功落库数 |
 | `spark_push_comet_push_stream_ready` | Job → Comet 长连接已进入 Comet 服务端处理函数 |
+| `spark_push_comet_logic_stream_ready` | Comet → Logic MessageStream 全部未标 broken |
+| `spark_push_comet_logic_stream_reconnect_total` | Comet → Logic 流重连次数 |
+| `spark_push_comet_logic_stream_ack_timeout_total` | Write 成功但超时未收到 Logic reply |
 | `spark_push_hermes_ttft_ms_{count,sum,max}` | Hermes 请求开始到首个增量发布的延迟 |
 | `spark_push_hermes_total_latency_ms_{count,sum,max}` | Hermes 请求从开始到完整回答的延迟 |
 | `spark_push_hermes_prompt_chars_{count,sum,max}` | 实际发送给 Hermes 的 prompt 字符数 |

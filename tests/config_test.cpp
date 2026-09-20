@@ -23,7 +23,10 @@ int main() {
             << "kafka_group_topic=test_group\n"
             << "redis_health_check_interval_ms=4567\n"
             << "single_rate_per_sec=17\n"
-            << "single_burst=4\n";
+            << "single_burst=4\n"
+            << "grpc_stream_reconnect_base_ms=250\n"
+            << "grpc_stream_reconnect_max_ms=4000\n"
+            << "grpc_stream_ack_timeout_ms=9000\n";
         out << "agent_bot_users=900000000101:Hermes technical;900000000003:Other Agent\n";
     }
 
@@ -41,7 +44,10 @@ int main() {
         cfg.kafka_group_topic != "test_group" ||
         cfg.redis_health_check_interval_ms != 4567 ||
         cfg.rate_limit.single_rate_per_sec != 17.0 ||
-        cfg.rate_limit.single_burst != 4.0) {
+        cfg.rate_limit.single_burst != 4.0 ||
+        cfg.grpc_stream_reconnect_base_ms != 250 ||
+        cfg.grpc_stream_reconnect_max_ms != 4000 ||
+        cfg.grpc_stream_ack_timeout_ms != 9000) {
         std::cerr << "environment expansion/override failed\n";
         return 1;
     }

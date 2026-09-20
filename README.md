@@ -45,15 +45,17 @@ Logic ── ai_request ──► hermes_bridge ──HTTP/SSE──► Pi gatew
 - `hermes_bot(900000000001)`：Logic 启动时幂等创建的系统用户；`ai_request/ai_delta/ai_reply` 只承载 AI 编排，最终回答仍走普通单聊 `push_single`；
 - Agent 增量体验：Bridge 将文本 SSE 增量发布到 `ai_delta`，Logic 只实时推送临时气泡；完整回答经 `ai_reply` 分配正式 `msg_seq`、落库并作为离线/重连恢复事实；
 - CANN 引用：Pi gateway 的 `hermes.final`/`pi.final` 携带权威最终文本和结构化引用，Logic 校验后随最终消息落库；浏览器把 `cannkb://` 安全转换为受 Token 保护的同源原文页；
+- 图片与截图问答：先 HTTP 上传到 `data/attachments/`，聊天帧和 Kafka 只带 `att_*` id；发给 Pi 的当前轮由 Bridge 读文件再走 `prompt.images`（默认 `deepseek-flash`）；每条最多 4 张、每张 4 MiB；
 - Job 为每个 Comet 复用双向 `PushStream`，由 reader 按 `request_id` 匹配逐条 reply，带有界队列、指数退避重连、`request_id` 去重和 Unary fallback；
-- 启动脚本不只检查端口，还等待 `spark_push_comet_push_stream_ready 1`，避免 Job/Comet 冷启动时把“可连接”误判为“可投递”；
+- Comet→Logic `MessageStream` 在 Logic 重启后自动重连（握手 Unary 与上行流分开）；空闲自愈、HTTP/2 keepalive、ACK 超时都会把失败回成 503，避免气泡停在「发送中」；
+- 启动脚本和健康检查要求 `spark_push_comet_logic_stream_ready 1` 与 `spark_push_comet_push_stream_ready 1`，避免把“进程在”误判为“可投递”；
 - Logic、Job、Comet 都可抓取 Prometheus text metrics；
 - MySQL 唯一键、字段比对和单调水位更新提供幂等落库兜底。
 
 设计文档分成两层：
 
 - 大框架（模块职责、完整链路、输入输出）：[`docs/spark-push-architecture.md`](docs/spark-push-architecture.md)
-- 小模块（Lua 取号、连接表、PushStream 队列、SHA1 握手、TreeMap 合并等逐步算法）：[`docs/spark-push-internals.md`](docs/spark-push-internals.md)
+- 小模块（Lua 取号、连接表、PushStream 队列、SHA1 握手、TreeMap 合并、图片附件等逐步算法）：[`docs/spark-push-internals.md`](docs/spark-push-internals.md)
 - 阅读索引：[`docs/spark-push-implementation.md`](docs/spark-push-implementation.md)
 
 完整的优化决策、状态机、指标定义和边界见 [`docs/reliability-optimization.md`](docs/reliability-optimization.md)。

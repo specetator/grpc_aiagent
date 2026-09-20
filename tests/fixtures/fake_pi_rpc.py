@@ -72,7 +72,10 @@ for line in sys.stdin.buffer:
     if kind != "prompt":
         continue
     text = command["message"]
+    images = command.get("images") or []
     messages.append({"role": "user", "content": [{"type": "text", "text": text}]})
+    if images:
+        text = f"{len(images)} images: {text}"
     Path(session).with_suffix(".fixture.json").write_text(json.dumps(messages))
     emit({"type": "agent_start"})
     if text == "tools-progress":

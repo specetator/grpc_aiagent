@@ -1,10 +1,14 @@
 package com.peco.sparkim
 
 import android.os.Bundle
+import android.util.Base64
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -56,6 +60,9 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -333,22 +340,52 @@ private fun ChatScreen(state: SparkUiState, vm: SparkViewModel) {
             if (state.loading) CircularProgressIndicator(Modifier.size(24.dp).align(Alignment.Center), strokeWidth = 2.dp, color = SparkPurple)
         }
         QuickCommands(selected, vm)
+        if (state.pendingImages.isNotEmpty()) {
+            LazyRow(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(state.pendingImages.size) { index ->
+                    val pending = state.pendingImages[index]
+                    val preview = remember(pending.data) {
+                        val bytes = Base64.decode(pending.data, Base64.DEFAULT)
+                        android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                    }
+                    Box(Modifier.size(72.dp).clickable { vm.removePendingImage(index) }) {
+                        if (preview != null) {
+                            Image(preview.asImageBitmap(), pending.name, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+                        }
+                        Text("×", color = Color.White, modifier = Modifier.align(Alignment.TopEnd).background(Color(0x99000000), RoundedCornerShape(8.dp)).padding(horizontal = 5.dp))
+                    }
+                }
+            }
+        }
+        val context = LocalContext.current
+        val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+            if (uri == null) return@rememberLauncherForActivityResult
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                val bytes = input.readBytes()
+                val mime = context.contentResolver.getType(uri) ?: "image/jpeg"
+                vm.addPendingImage(uri.lastPathSegment ?: "image.jpg", mime, bytes)
+            }
+        }
         Row(Modifier.fillMaxWidth().imePadding().navigationBarsPadding().padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.Bottom) {
+            OutlinedButton(onClick = { picker.launch("image/*") }, shape = RoundedCornerShape(14.dp), modifier = Modifier.height(54.dp)) {
+                Text("图片", fontSize = 13.sp)
+            }
+            Spacer(Modifier.width(8.dp))
             OutlinedTextField(
                 value = draft,
                 onValueChange = { draft = it },
                 modifier = Modifier.weight(1f).heightIn(min = 54.dp, max = 118.dp),
-                placeholder = { Text(if (selected.agent) "输入问题，或使用 /cann、/kb…" else "输入消息…") },
+                placeholder = { Text(if (selected.agent) "输入问题，或粘贴/选择截图" else "输入消息或选择图片…") },
                 shape = RoundedCornerShape(18.dp),
                 minLines = 1,
                 maxLines = 4
             )
             Spacer(Modifier.width(8.dp))
             SparkSendButton(
-                enabled = draft.isNotBlank(),
+                enabled = draft.isNotBlank() || state.pendingImages.isNotEmpty(),
                 onClick = {
                     val outgoing = draft.trim()
-                    if (outgoing.isNotEmpty() && vm.sendMessage(outgoing)) draft = ""
+                    if ((outgoing.isNotEmpty() || state.pendingImages.isNotEmpty()) && vm.sendMessage(outgoing)) draft = ""
                 }
             )
         }
@@ -824,6 +861,20 @@ private fun MessageBody(message: ChatMessage, accent: Color, vm: SparkViewModel,
             Text(message.progress.orEmpty(), color = accent, fontSize = 11.sp, modifier = Modifier.padding(bottom = 6.dp))
         }
         if (message.text.isNotBlank()) Text(message.text, color = SparkInk, fontSize = 15.sp, lineHeight = 22.sp)
+        message.attachments.forEach { attachment ->
+            LaunchedEffect(attachment.id) { vm.ensureImagePreview(attachment.id) }
+            val preview = vm.ui.collectAsStateWithLifecycle().value.imagePreviews[attachment.id]
+            if (preview != null) {
+                Image(
+                    preview.asImageBitmap(),
+                    attachment.name.ifBlank { "图片" },
+                    modifier = Modifier.padding(top = 8.dp).widthIn(max = 240.dp).heightIn(max = 180.dp),
+                    contentScale = ContentScale.Fit
+                )
+            } else {
+                Text("图片 ${attachment.name}", fontSize = 12.sp, color = SparkMuted, modifier = Modifier.padding(top = 8.dp))
+            }
+        }
         message.agentCard?.let { AgentCardView(it, vm) }
         if (message.citations.isNotEmpty()) {
             Text("CANN 依据", fontWeight = FontWeight.SemiBold, color = Color(0xFF5B477D), fontSize = 11.sp, modifier = Modifier.padding(top = 10.dp, bottom = 3.dp))
@@ -851,6 +902,7 @@ private fun MessageBody(message: ChatMessage, accent: Color, vm: SparkViewModel,
 
 private fun hasVisibleContent(message: ChatMessage): Boolean =
     message.text.isNotBlank() || message.agentCard != null || message.citations.isNotEmpty() ||
+        message.attachments.isNotEmpty() ||
         (message.streaming && !message.progress.isNullOrBlank())
 
 @Composable

@@ -354,6 +354,19 @@ class GatewayTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.chat("must not run", session="escape")
 
+    def test_prompt_images_are_forwarded_to_rpc(self):
+        png = (
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+        )
+        images = [{"type": "image", "mimeType": "image/png", "data": png}]
+        self.assertIn("1 images:", self.chat("describe", images=images))
+
+    def test_image_only_user_text_uses_default_caption(self):
+        self.assertEqual(
+            latest_user_text([{"role": "user", "content": " "}], [{"mimeType": "image/png", "data": "AAAA"}]),
+            "请查看这张图片。",
+        )
+
     def test_input_rejects_unsupported_blocks_and_missing_user(self):
         for messages in ([{"role": "user", "content": [{"type": "image"}]}],
                          [{"role": "assistant", "content": "not an input"}], [None],

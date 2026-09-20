@@ -469,7 +469,7 @@ class HermesHttpAdapter:
             self.store.put(self.namespace+':restart',session,{'revision':revision,'text':text})
             return text
 
-    def chat(self,message,on_delta,timeout_s,provider=None,model=None,session_id='',context_start_seq=0,retry=False,on_progress=None,request_id=''):
+    def chat(self,message,on_delta,timeout_s,provider=None,model=None,session_id='',context_start_seq=0,retry=False,on_progress=None,request_id='',images=None):
         started=time.monotonic()
         trace=uuid.uuid4().hex[:12]
         try:

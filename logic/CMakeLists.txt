@@ -18,6 +18,7 @@ add_executable(logic_server
   user_session_state_dao.cpp
   conversation_store.cpp
   model.cpp
+  attachment_dao.cpp
 )
 
 target_link_libraries(logic_server

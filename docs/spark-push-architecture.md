@@ -25,7 +25,8 @@ Client ──WebSocket──► Comet ──MessageStream──► Logic
   │                     │                       ├── Redis：token / 路由 / seq / dedup
   │                     │                       ├── persist_message：持久化事件
   │                     │                       ├── push_single / push_group / broadcast_task
-  │                     │                       └── ai_request（仅 Agent 联系人）
+  │                     │                       ├── HTTP 图片上传：本地附件目录 + MySQL attachment
+  │                     │                       └── ai_request（仅 Agent 联系人；图片只带 attachment id）
   │                     │                                  │
   │                     └──── PushStream ◄──── Job ◄────────┘
   └──────────────────── WebSocket delivery + delivered cursor
@@ -34,13 +35,14 @@ Agent 路径（可选）：
 
 Logic ── ai_request ──► hermes_bridge ──HTTP/SSE──► Pi gateway
   ▲                         │
+  │                         ├─ 当前轮按 id 读本地图片 → Pi RPC prompt.images
   │                         ├─ ai_delta ──► Logic 临时推送（不落库、不占 msg_seq）
   └──── ai_reply ◄──────────┴── persist_message + push_single（最终事实）
 ```
 
 | 进程 / 模块 | 默认端口 | 职责边界 |
 | --- | ---: | --- |
-| Logic | gRPC 9100 / HTTP 9101 | 鉴权、序号、幂等、Kafka 生产、历史/游标、管理员 HTTP、`/metrics` |
+| Logic | gRPC 9100 / HTTP 9101 | 鉴权、序号、幂等、Kafka 生产、历史/游标、图片附件 HTTP、管理员 HTTP、`/metrics` |
 | Comet | WS 9000 / gRPC 9105 / metrics 9203 | 长连接接入、上行解析、本机下推、离线补推 |
 | Job | metrics 9202 | 消费四类 Kafka topic；写 MySQL；经 PushStream 投递 Comet |
 | Hermes Bridge | 无监听端口 | 消费 `ai_request`，调用本机 Pi gateway，发布 `ai_delta` / `ai_reply` |
@@ -54,6 +56,7 @@ Logic ── ai_request ──► hermes_bridge ──HTTP/SSE──► Pi gatew
 - `accepted_ack`：Logic 已把 `persist_message` 交给 Kafka，并收到 delivery report。它**不是**目标客户端已经看到消息。
 - `delivered_ack`：Job/Comet 已把消息交给目标在线 WebSocket 连接。它**不是**已读回执。
 - `ai_delta` 只改变在线预览，不分配 `msg_seq`，不进历史。最终 `ai_reply` 才走普通单聊持久化。
+- 图片二进制不进 WebSocket / Kafka / `content_json`。客户端先 HTTP 上传拿到 `att_*` id，聊天帧只带引用；发给 Agent 时 Bridge 再按 id 读本地文件。
 - 当前是“至少一次事件 + 幂等落库”，不是分布式 exactly-once。
 
 ---
@@ -119,7 +122,7 @@ sequenceDiagram
   J-->>C: 正式最终消息
 ```
 
-用户输入的 accepted 边界不依赖模型耗时。Bridge 超时或重启时，未确认的 `ai_request` 由 Kafka 重试；已经生成的回答按 `request_id` 回放，不再调模型。
+用户输入的 accepted 边界不依赖模型耗时。Bridge 超时或重启时，未确认的 `ai_request` 由 Kafka 重试；已经生成的回答按 `request_id` 回放，不再调模型。当前轮若带图片，`ai_request` 只携带 attachment id；Bridge 在调用 gateway 前读本地文件，Pi RPC 才出现 base64。历史轮次的图片不再次塞进 Kafka。
 
 ### 2.4 断线、缺口、离线
 
@@ -128,7 +131,26 @@ sequenceDiagram
 | 客户端发现 `msg_seq` 缺口 | Client `sync` | MySQL `message` | Comet 调 `SyncMessages` 补发原始消息 |
 | 握手后补推未交给连接的消息 | Comet `SyncOffline` | `user_session_state.delivered_seq` | 只有实际 send 成功才 `MarkDelivered` |
 | Job→Comet 流断开 | Job writer | Kafka offset 未提交 | 指数退避重连，失败走 Unary；都失败则不提交位点 |
-| 重复投递 | Comet `AcceptPushRequest` | 最近 10 万个 `request_id` | 返回成功但 `delivered_count=0` |
+
+### 2.5 图片消息与截图问答
+
+图片走**先上传、再引用**，与普通单聊共用 `accepted_ack` / `msg_seq` / 历史同步：
+
+```text
+Client ──POST /api/attachment/upload──► Logic HTTP
+  │              校验成员、魔数、大小
+  │              写 data/attachments/<id> + MySQL attachment
+  │              返回 att_* / mime / bytes
+  ▼
+Client ──WS single_chat──► Comet ──► Logic
+           content.text + content.attachments[{id,name,mime,bytes}]
+           Logic 校验所有权与会话绑定后，msg_type=image
+           persist/push 仍只带 JSON 引用
+```
+
+发给 Agent 联系人时，用户输入仍然先 accepted；`BuildHermesRequest` 把**本轮** attachment id 放进 `ai_request.images`。无文字时补默认句「请查看这张图片。」。Bridge 读文件、gateway 调 Pi RPC `prompt.images`，当前默认视觉模型是 `deepseek-flash`。对端拉历史时用 `POST /api/attachment/get`（Bearer + 会话成员）取回字节，不把文件写进 WebSocket。
+
+上限：每条消息 4 张、每张 4 MiB，jpeg/png/gif/webp。聊天室/广播当前不走这条附件合同。
 
 ---
 
@@ -143,7 +165,7 @@ Comet 不做业务裁决。它只保证：
 1. TCP 连接 `TCP_NODELAY`，先完成 HTTP Upgrade，再按 RFC6455 解析文本帧。
 2. 握手 Token 调 Logic `VerifyToken`；失败直接断开。
 3. 同一 `user_id` 可以有多条连接（多标签页 / 多设备），保存在 `user_conns_[uid]` 的 `set` 里。
-4. 上行 `single_chat` / `chatroom` 经 `MessageStream` 交给 Logic；带 `client_msg_id` 供幂等。
+4. 上行 `single_chat` / `chatroom` 经 `MessageStream` 交给 Logic；带 `client_msg_id` 供幂等。Logic 重启后 Comet **自动重连**这条流（握手走 Unary，发消息走流；二者必须分开恢复）。空闲期也会重连；Write 成功却无 reply 会在 `grpc_stream_ack_timeout_ms` 内失败，避免气泡停在「发送中」。
 5. 下行由 Job 的 `PushStream` 进入 `ProcessPushRequest`：先按 `request_id` 去重，再拷贝连接列表后发送，避免持锁 send。
 6. 发送成功后异步 `MarkDelivered`；来源用户另外收到 `delivered_ack`。
 7. 握手成功立即 `SyncOffline(limit=200)`。客户端仍可以用自己的 `msg_seq` 游标发 `sync`。
@@ -152,7 +174,7 @@ Comet 不持久化消息，不分配序号。socket 已连接不代表消息已 
 
 ### 3.2 Logic：权威编排层
 
-源码：`logic/grpc_service.cpp`、`logic/conversation_store.cpp`、`logic/redis_store.cpp`、`logic/http_server.cpp`。
+源码：`logic/grpc_service.cpp`、`logic/conversation_store.cpp`、`logic/redis_store.cpp`、`logic/http_server.cpp`、`logic/attachment_dao.cpp`。
 
 Logic 是消息事实的编排者：
 
@@ -162,7 +184,8 @@ Logic 是消息事实的编排者：
 4. Redis Lua 原子完成：校准 floor、`client_msg_id` 去重、`INCR msg_seq`、更新 `last_seq`。
 5. `persist_message` 必须 `SendAndWait` 成功才回 `accepted_ack`。
 6. 新消息再异步写入 `push_single` / `push_group`；重复 `client_msg_id` 不再二次投递（Agent 请求允许按 `request_id` 重入队）。
-7. HTTP 提供注册/登录、历史分页、未读/已读、知识原文和管理员操作。
+7. HTTP 提供注册/登录、历史分页、未读/已读、知识原文、图片上传/下载和管理员操作。
+8. 上行若带 `content.attachments`，校验所有权与会话后把 `msg_type` 标为 `image`；Kafka 事件仍只含 JSON 引用。
 
 Logic 崩溃后，只要 persist 事件已进入 Kafka，Job 仍可重放落库。实时 topic 失败时，accepted 仍然成立，消息进入“已受理、待投递”状态。
 
@@ -187,7 +210,9 @@ Job 用四个独立 consumer group 隔离阶段：
 | --- | --- | --- |
 | Redis | token、用户/房间路由、msg_seq、dedup、未读热缓存 | 最终消息正文 |
 | Kafka | persist / push / broadcast / ai_* 事件 | 客户端游标 |
-| MySQL `message` | 最终消息，`uk_session_seq(session_id,msg_seq)` | 半截 `ai_delta` |
+| MySQL `message` | 最终消息，`uk_session_seq(session_id,msg_seq)` | 半截 `ai_delta`、图片二进制 |
+| MySQL `attachment` | 附件元数据（id、owner、session、mime、sha256） | 像素本身 |
+| 本地 `data/attachments/<id>` | 图片字节，文件名即 `att_*` | Kafka/WebSocket 载荷 |
 | MySQL `user_session_state` | `read_seq` 与 `delivered_seq`，更新用 `GREATEST` | 在线连接 |
 | SQLite `routing.sqlite3` | Agent route / turn / event 账本 | Spark 聊天历史 |
 
@@ -198,6 +223,7 @@ MySQL `content_json` 已升级为 `MEDIUMTEXT`。读取仍先走 64 KiB 缓冲�
 Bridge 只做传输和投影：
 
 - 消费 `ai_request`，按 `request_id` 去重；
+- 若本轮带 `images[].attachment_id`，从 `attachment_dir` 读文件并转成 Pi RPC 图片块；
 - HTTP/SSE 只打本机 Pi gateway `/v1/chat/completions`；
 - 文本增量按 48 字节 / 50 ms 合并后发 `ai_delta`；
 - 终态完整文本发 `ai_reply`，再进入普通单聊。
@@ -217,15 +243,15 @@ Agent 执行是「会话内串行、会话间并行」：`SessionScheduler` 限�
 
 两端使用同一套 session_id、`client_msg_id`、`accepted_ack` / `delivered_ack`、`sync` 和 Agent envelope。差别只在 UI 状态机：
 
-- WebDemo：乐观气泡、历史加载期间暂存实时帧、`requestAnimationFrame` 合并 DOM、距底部 96px 内才自动滚动。
-- Android：Kotlin/Compose；`SparkClient` 用连接代数丢弃过期回调；`SparkViewModel` 在单一串行入口合并连接/历史/游标/流式状态。弱网不清除 Token。流式 `TreeMap` 有界，超限停止预览并等待最终消息。
+- WebDemo：乐观气泡、历史加载期间暂存实时帧、`requestAnimationFrame` 合并 DOM、距底部 96px 内才自动滚动。图片可粘贴/点选/拖放，先 HTTP 上传再发聊天帧。
+- Android：Kotlin/Compose；`SparkClient` 用连接代数丢弃过期回调；`SparkViewModel` 在单一串行入口合并连接/历史/游标/流式状态。弱网不清除 Token。流式 `TreeMap` 有界，超限停止预览并等待最终消息。图片走系统选择器上传，气泡按 attachment id 拉取预览。
 
 Android 使用独立联系人 `900000000201`（Pi）和 `900000000211`（Hermes technical），避免和 PC/WebDemo/Telegram 的 session、模型偏好混用。
 
 ### 3.7 运维与验证
 
 - 日常：`scripts/sparkctl.sh up|status|health|logs|down`。
-- 启动不只检查端口，还等待 `spark_push_comet_push_stream_ready 1`。
+- 启动不只检查端口，还等待 `spark_push_comet_logic_stream_ready 1` 和 `spark_push_comet_push_stream_ready 1`。健康检查同样要求这两条流为 1，避免「进程在、发送中」。
 - E2E 必须同时满足 `sent == accepted_ack == delivered_ack == delivered`，并且让 Job 继续消费 persist topic 后再查库。
 - 指标：Logic 9101、Job 9202、Comet 9203。
 
@@ -236,11 +262,12 @@ Android 使用独立联系人 `900000000201`（Pi）和 `900000000211`（Hermes 
 | 模块 | 输入 | 输出 | 失败时 |
 | --- | --- | --- | --- |
 | Comet 握手 | HTTP Upgrade + token | 在线连接 + 离线补推 | 断开 TCP |
-| Comet 上行 | WS JSON `single_chat` | Logic `UpstreamMessageRequest` | 回 error 帧 |
+| Comet 上行 | WS JSON `single_chat`（文本或附件引用） | Logic `UpstreamMessageRequest` | 流断开则重连；重试耗尽回 error 帧，不把气泡停在「发送中」 |
+| Logic HTTP 附件 | Bearer + session + base64 | `att_*` 元数据 / 取回字节 | 401/403/400，不写聊天序号 |
 | Logic 热路径 | 上行请求 | `accepted_ack` + persist/push 事件 | 400/403/429/503，不写假 ACK |
 | Job persist | persist 事件 | MySQL 行 | 重试 3 次后 DLQ；DLQ 失败则停消费 |
 | Job 投递 | push 事件 | Comet reply + delivered_ack | 不提交 Kafka offset |
-| Bridge | `ai_request` | `ai_delta` / `ai_reply` | 缓存命中则只重发 reply |
+| Bridge | `ai_request`（图片仅为 id） | `ai_delta` / `ai_reply`；gateway 侧才带 base64 | 缺文件则本轮失败；缓存命中则只重发 reply |
 | 客户端 | ACK / 消息 / delta | 本地游标与 UI | 发现缺口发 `sync` |
 
 ---
@@ -250,7 +277,9 @@ Android 使用独立联系人 `900000000201`（Pi）和 `900000000211`（Hermes 
 - 单机 WSL + 单 broker 教学环境，不能外推多机容量、TLS 或灾备。
 - `delivered_ack` 不是 read receipt。
 - persist 有 DLQ；实时 push 失败目前是 best-effort + 指标，没有独立可重放 DLQ topic。
-- Comet 侧 `MessageStream` 发送队列无界；Job 侧 PushStream 队列有界。
+- Comet 侧 `MessageStream` 发送队列仍无界；流本身会按指数退避重连。Job 侧 PushStream 队列有界。
 - HTTP 部分教学接口仍需统一对象级授权后才能公开部署。
+- 图片只服务本机 `attachment_dir`；没有对象存储、CDN、跨机复制或病毒扫描。历史轮次图片不会随 `ai_request` 重放给模型。
+- `/api/message/send` 仍是同步写库的兼容接口，不走附件合同。
 
 下一步读 [`spark-push-internals.md`](spark-push-internals.md)，从 Redis Lua、连接表、PushStream 队列和客户端 TreeMap 追到函数级实现。

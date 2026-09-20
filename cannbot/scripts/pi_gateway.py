@@ -85,7 +85,29 @@ def rewrite_user_text(text: str) -> str:
     return text
 
 
-def latest_user_text(messages: list[dict]) -> str:
+def normalize_prompt_images(value) -> list[dict]:
+    if value in (None, []):
+        return []
+    if not isinstance(value, list) or len(value) > 4:
+        raise ValueError("at most 4 images are allowed")
+    images = []
+    for item in value:
+        if not isinstance(item, dict):
+            raise ValueError("image entries must be objects")
+        mime = str(item.get("mimeType") or item.get("mime") or "")
+        data = item.get("data")
+        if mime not in {"image/jpeg", "image/png", "image/gif", "image/webp"}:
+            raise ValueError("only jpeg/png/gif/webp images are allowed")
+        if not isinstance(data, str) or not data:
+            raise ValueError("image data must be base64")
+        if len(data) > 6 * 1024 * 1024:
+            raise ValueError("image payload is too large")
+        images.append({"type": "image", "mimeType": mime, "data": data})
+    return images
+
+
+def latest_user_text(messages: list[dict], images: list | None = None) -> str:
+    has_images = bool(images)
     for item in reversed(messages):
         if not isinstance(item, dict):
             raise ValueError("messages must contain objects")
@@ -97,7 +119,11 @@ def latest_user_text(messages: list[dict]) -> str:
         text = rewrite_user_text(content)
         if text.strip():
             return text
+        if has_images:
+            return "请查看这张图片。"
         raise ValueError("the latest user message must not be empty")
+    if has_images:
+        return "请查看这张图片。"
     raise ValueError("a non-empty user message is required")
 
 
@@ -744,9 +770,11 @@ class PiRpcClient:
         retry: bool = False,
         on_progress: Callable[[str], None] | None = None,
         request_id: str = "",
+        images: list | None = None,
     ) -> tuple[str, dict]:
         session_filename(session_id, context_start_seq)
-        if not retry and (not isinstance(message, str) or not message.strip()):
+        prompt_images = normalize_prompt_images(images)
+        if not retry and (not isinstance(message, str) or not message.strip()) and not prompt_images:
             raise ValueError("a non-empty user message is required")
         if not math.isfinite(timeout_s) or timeout_s <= 0:
             raise ValueError("timeout must be positive and finite")
@@ -770,7 +798,10 @@ class PiRpcClient:
             phase = "等待模型回答"
             log(f"Pi turn started session={self.current_session_path.name} thinking={thinking_state['level']}")
             self.drain_events()
-            self.rpc({"type": "prompt", "message": message}, timeout=15)
+            prompt = {"type": "prompt", "message": message or "请查看这张图片。"}
+            if prompt_images:
+                prompt["images"] = prompt_images
+            self.rpc(prompt, timeout=15)
             citations = TurnCitationState()
             final_message: dict | None = None
             retry_error: str | None = None
@@ -1032,7 +1063,8 @@ def make_handler(state: GatewayState):
                 self._json(400, {"error": {"message": "messages are empty"}})
                 return
             try:
-                prompt = "" if retry else latest_user_text(messages)
+                images = [] if retry else normalize_prompt_images(request.get("images"))
+                prompt = "" if retry else latest_user_text(messages, images)
                 session_id = request.get("session_id")
                 context_start_seq = request.get("context_start_seq", 0)
                 session_filename(session_id, context_start_seq)
@@ -1079,7 +1111,7 @@ def make_handler(state: GatewayState):
                     text, metadata = state.rpc.chat(
                         prompt, None, timeout_s, provider, model,
                         session_id, context_start_seq, retry=retry,
-                        request_id=request_id,
+                        request_id=request_id, images=images,
                     )
                 except Exception as exc:
                     self._json(502, {"error": {"message": str(exc)}})
@@ -1188,7 +1220,7 @@ def make_handler(state: GatewayState):
                     prompt, on_delta, timeout_s, provider, model,
                     session_id, context_start_seq, retry=retry,
                     on_progress=on_progress if generic_events else None,
-                    request_id=request_id,
+                    request_id=request_id, images=images,
                 )
                 if generic_events:
                     flush_delta_event()

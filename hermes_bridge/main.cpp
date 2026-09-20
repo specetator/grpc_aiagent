@@ -20,6 +20,7 @@
 #include "metrics.h"
 #include "agent_event.h"
 #include "text_metrics.h"
+#include "image_attachment.h"
 
 namespace {
 
@@ -217,6 +218,17 @@ class HermesBridgeRunner {
             if (request.value("model_override", false)) {
                 chat_options.model = request.value("model", "");
                 chat_options.provider = request.value("provider", "");
+            }
+            if (request.contains("images") && request["images"].is_array() &&
+                !request["images"].empty()) {
+                std::string image_error;
+                if (!sparkpush::LoadPiImagesFromDir(
+                        config_.attachment_dir, request["images"],
+                        &chat_options.images, &image_error)) {
+                    LOG_ERROR << "Hermes bridge failed to load images: "
+                              << image_error;
+                    return false;
+                }
             }
             const std::string effective_model =
                 chat_options.model.empty() ? config_.hermes_model

@@ -438,6 +438,9 @@ bool HermesClient::Chat(const nlohmann::json& messages,
         request_body["session_id"] = options.session_id;
         request_body["context_start_seq"] = options.context_start_seq;
     }
+    if (options.images.is_array() && !options.images.empty()) {
+        request_body["images"] = options.images;
+    }
     if (!options.control.is_null()) {
         request_body = options.control;
         request_body["session_id"] = options.session_id;
@@ -551,6 +554,9 @@ bool HermesClient::ChatStream(
     if (!options.session_id.empty()) {
         request_body["session_id"] = options.session_id;
         request_body["context_start_seq"] = options.context_start_seq;
+    }
+    if (options.images.is_array() && !options.images.empty()) {
+        request_body["images"] = options.images;
     }
     const std::string body = request_body.dump();
     const std::string request =

@@ -11,6 +11,7 @@
 #include "metrics.h"
 #include "security.h"
 #include "spark_push.pb.h"
+#include "image_attachment.h"
 
 namespace sparkpush {
 
@@ -182,7 +183,8 @@ HttpApiServer::HttpApiServer(
     KafkaProducer* broadcast_producer, DanmakuDao* danmaku_dao,
     AuditLogDao* audit_log_dao,
     std::string cann_knowledge_root,
-    std::string admin_account, std::string admin_password)
+    std::string admin_account, std::string admin_password,
+    AttachmentDao* attachment_dao)
     : store_(store),
       user_dao_(user_dao),
       group_dao_(group_dao),
@@ -192,6 +194,7 @@ HttpApiServer::HttpApiServer(
       broadcast_producer_(broadcast_producer),
       danmaku_dao_(danmaku_dao),
       audit_log_dao_(audit_log_dao),
+      attachment_dao_(attachment_dao),
       cann_knowledge_root_(std::move(cann_knowledge_root)),
       admin_account_(std::move(admin_account)),
       admin_password_(std::move(admin_password)),
@@ -226,6 +229,8 @@ void HttpApiServer::onRequest(const HttpRequest& req, HttpResponse* resp) {
         {"/api/login", &HttpApiServer::handleLogin},
         {"/api/register", &HttpApiServer::handleRegister},
         {"/api/message/send", &HttpApiServer::handleSendMessage},
+        {"/api/attachment/upload", &HttpApiServer::handleAttachmentUpload},
+        {"/api/attachment/get", &HttpApiServer::handleAttachmentGet},
         {"/api/session/history", &HttpApiServer::handleHistory},
         {"/api/knowledge/document", &HttpApiServer::handleKnowledgeDocument},
         {"/api/session/mark_read", &HttpApiServer::handleMarkRead},
@@ -826,6 +831,175 @@ void HttpApiServer::handleSendMessage(const HttpRequest& req,
     data << "{\"session_id\":\"" << msg.session_id << "\",\"msg_id\":\""
          << msg.msg_id << "\",\"msg_seq\":" << msg.msg_seq << "}";
     WriteJson(resp, 0, "ok", data.str());
+}
+
+void HttpApiServer::handleAttachmentUpload(const HttpRequest& req,
+                                           HttpResponse* resp) {
+    if (req.method() != HttpRequest::kPost) {
+        WriteJson(resp, 405, "only POST allowed", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    int64_t user_id = 0;
+    if (!requireUser(req, resp, &user_id)) return;
+    if (!attachment_dao_) {
+        WriteJson(resp, 503, "image attachments are not enabled");
+        return;
+    }
+    if (req.body().size() > 8 * 1024 * 1024) {
+        WriteJson(resp, 413, "image upload exceeds 4 MiB", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    nlohmann::json body;
+    if (!ParseJsonBody(req.body(), &body) || !body.is_object()) {
+        WriteJson(resp, 400, "invalid json body", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    const std::string session_id = body.value("session_id", "");
+    const std::string name = body.value("name", "image");
+    const std::string encoded = body.value("data", "");
+    if (session_id.empty() || encoded.empty()) {
+        WriteJson(resp, 400, "session_id and data are required", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    if (!store_) {
+        WriteJson(resp, 500, "conversation store not initialized");
+        return;
+    }
+    Session session;
+    std::string err;
+    if (!store_->GetSessionById(session_id, &session, &err)) {
+        int64_t user1 = 0, user2 = 0;
+        if (session_id.size() > 2 && session_id[0] == 's' && session_id[1] == '_') {
+            const auto split = session_id.find('_', 2);
+            if (split != std::string::npos) {
+                try {
+                    user1 = std::stoll(session_id.substr(2, split - 2));
+                    user2 = std::stoll(session_id.substr(split + 1));
+                } catch (...) {
+                    user1 = 0;
+                }
+            }
+        }
+        if (user1 <= 0 || user2 <= 0 ||
+            (user_id != user1 && user_id != user2) ||
+            !store_->GetOrCreateSingleSession(user1, user2, &session, &err) ||
+            session.id != session_id) {
+            WriteJson(resp, 404, "session not found", "{}",
+                      HttpResponse::k404NotFound);
+            return;
+        }
+    }
+    bool authorized = false;
+    if (session.type == SessionType::kSingle) {
+        authorized = session.user1_id == user_id || session.user2_id == user_id;
+    } else if (session.group_id > 0 && group_member_dao_) {
+        if (!group_member_dao_->IsMember(session.group_id, user_id, &authorized,
+                                         &err)) {
+            WriteJson(resp, 500, "check session membership failed: " + err);
+            return;
+        }
+    }
+    if (!authorized) {
+        WriteJson(resp, 403, "user is not a member of this session", "{}",
+                  HttpResponse::k403Forbidden);
+        return;
+    }
+    std::string bytes;
+    if (!DecodeBase64(encoded, &bytes)) {
+        WriteJson(resp, 400, "invalid base64 image data", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    StoredAttachment stored;
+    if (!attachment_dao_->CreateImage(user_id, session_id, name, bytes, &stored,
+                                      &err)) {
+        WriteJson(resp, 400, err, "{}", HttpResponse::k400BadRequest);
+        return;
+    }
+    nlohmann::json data = {
+        {"id", stored.id},
+        {"name", stored.display_name},
+        {"mime", stored.mime},
+        {"bytes", stored.bytes},
+        {"sha256", stored.sha256},
+    };
+    WriteJson(resp, 0, "ok", data.dump());
+}
+
+void HttpApiServer::handleAttachmentGet(const HttpRequest& req,
+                                        HttpResponse* resp) {
+    if (req.method() != HttpRequest::kPost) {
+        WriteJson(resp, 405, "only POST allowed", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    int64_t user_id = 0;
+    if (!requireUser(req, resp, &user_id)) return;
+    if (!attachment_dao_) {
+        WriteJson(resp, 503, "image attachments are not enabled");
+        return;
+    }
+    nlohmann::json body;
+    if (!ParseJsonBody(req.body(), &body) || !body.is_object()) {
+        WriteJson(resp, 400, "invalid json body", "{}",
+                  HttpResponse::k400BadRequest);
+        return;
+    }
+    const std::string id = body.value("id", "");
+    StoredAttachment stored;
+    std::string err;
+    if (!attachment_dao_->GetById(id, &stored, &err)) {
+        WriteJson(resp, 404, err, "{}", HttpResponse::k404NotFound);
+        return;
+    }
+    if (stored.owner_user_id != user_id) {
+        if (stored.session_id.empty() || !store_) {
+            WriteJson(resp, 403, "attachment is not visible", "{}",
+                      HttpResponse::k403Forbidden);
+            return;
+        }
+        Session session;
+        if (!store_->GetSessionById(stored.session_id, &session, &err)) {
+            WriteJson(resp, 403, "attachment is not visible", "{}",
+                      HttpResponse::k403Forbidden);
+            return;
+        }
+        bool authorized = false;
+        if (session.type == SessionType::kSingle) {
+            authorized =
+                session.user1_id == user_id || session.user2_id == user_id;
+        } else if (session.group_id > 0 && group_member_dao_) {
+            group_member_dao_->IsMember(session.group_id, user_id, &authorized,
+                                        &err);
+        }
+        if (!authorized) {
+            WriteJson(resp, 403, "attachment is not visible", "{}",
+                      HttpResponse::k403Forbidden);
+            return;
+        }
+    }
+    std::string bytes;
+    if (!attachment_dao_->ReadBytes(stored, &bytes, &err)) {
+        WriteJson(resp, 404, err, "{}", HttpResponse::k404NotFound);
+        return;
+    }
+    std::string encoded;
+    if (!EncodeBase64(bytes, &encoded)) {
+        WriteJson(resp, 500, "failed to encode image");
+        return;
+    }
+    nlohmann::json data = {
+        {"id", stored.id},
+        {"name", stored.display_name},
+        {"mime", stored.mime},
+        {"bytes", stored.bytes},
+        {"data", encoded},
+    };
+    WriteJson(resp, 0, "ok", data.dump());
 }
 
 // 拉取会话历史消息

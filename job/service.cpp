@@ -1,5 +1,6 @@
 #include "service.h"
 
+#include "grpc_keepalive.h"
 #include "logging.h"
 #include "metrics.h"
 
@@ -156,8 +157,7 @@ CometService::Stub* JobRunner::GetStub(const std::string& comet_id) {
     if (it != comet_stubs_.end()) return it->second.get();
     auto address_it = comet_addrs_.find(comet_id);
     if (address_it == comet_addrs_.end()) return nullptr;
-    auto channel = grpc::CreateChannel(address_it->second,
-                                       grpc::InsecureChannelCredentials());
+    auto channel = CreateKeepaliveChannel(address_it->second);
     auto stub = CometService::NewStub(channel);
     auto* result = stub.get();
     comet_stubs_[comet_id] = std::move(stub);
@@ -167,8 +167,7 @@ CometService::Stub* JobRunner::GetStub(const std::string& comet_id) {
 void JobRunner::InitStreams() {
     for (const auto& item : comet_addrs_) {
         auto state = std::make_unique<StreamState>();
-        state->channel = grpc::CreateChannel(
-            item.second, grpc::InsecureChannelCredentials());
+        state->channel = CreateKeepaliveChannel(item.second);
         state->stub = CometService::NewStub(state->channel);
         state->context = std::make_unique<grpc::ClientContext>();
         state->stream = state->stub->PushStream(state->context.get());
@@ -227,8 +226,7 @@ bool JobRunner::ReconnectStream(const std::string& comet_id,
     }
 
     state->context = std::make_unique<grpc::ClientContext>();
-    state->channel = grpc::CreateChannel(address_it->second,
-                                         grpc::InsecureChannelCredentials());
+    state->channel = CreateKeepaliveChannel(address_it->second);
     state->stub = CometService::NewStub(state->channel);
     state->stream = state->stub->PushStream(state->context.get());
     if (!state->stream) return false;
@@ -312,6 +310,7 @@ void JobRunner::StreamReaderLoop(const std::string& comet_id) {
         state->stream_broken = true;
         MetricsRegistry::Instance().Increment(
             "spark_push_stream_read_failed_total");
+        state->queue_cv.notify_one();
     }
 
     std::vector<std::shared_ptr<PromiseState>> failed;
@@ -341,18 +340,40 @@ void JobRunner::StreamWriterLoop(const std::string& comet_id) {
     const int max_backoff = std::max(cfg_.push_stream_reconnect_base_ms,
                                      cfg_.push_stream_reconnect_max_ms);
 
+    int idle_backoff = std::max(10, cfg_.push_stream_reconnect_base_ms);
     while (streams_running_) {
         PendingRequest pending;
+        bool have_req = false;
         {
             std::unique_lock<std::mutex> lock(state->queue_mutex);
-            state->queue_cv.wait(lock, [&] {
-                return !state->queue.empty() || !streams_running_;
-            });
+            const int wait_ms =
+                (state->stream_broken || !state->stream ||
+                 idle_backoff > cfg_.push_stream_reconnect_base_ms)
+                    ? idle_backoff
+                    : 200;
+            state->queue_cv.wait_for(lock, std::chrono::milliseconds(wait_ms),
+                                     [&] {
+                                         return !state->queue.empty() ||
+                                                !streams_running_;
+                                     });
             if (!streams_running_ && state->queue.empty()) break;
-            if (state->queue.empty()) continue;
-            pending = std::move(state->queue.front());
-            state->queue.pop();
+            if (!state->queue.empty()) {
+                pending = std::move(state->queue.front());
+                state->queue.pop();
+                have_req = true;
+            }
         }
+        if (!have_req) {
+            if (streams_running_ &&
+                (state->stream_broken || !state->stream)) {
+                ReconnectStream(comet_id, state);
+                idle_backoff = std::min(max_backoff, idle_backoff * 2);
+            } else {
+                idle_backoff = std::max(10, cfg_.push_stream_reconnect_base_ms);
+            }
+            continue;
+        }
+        idle_backoff = std::max(10, cfg_.push_stream_reconnect_base_ms);
 
         bool sent = false;
         bool completed_ok = false;
