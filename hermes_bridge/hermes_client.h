@@ -27,7 +27,7 @@ struct HermesChatOptions {
     // Agent control uses /agent/control; it never sends a prompt to the model.
     nlohmann::json control;
     // Pi RPC images for the current turn only; base64 payloads, never Kafka IDs.
-    nlohmann::json images{nlohmann::json::array()};
+    nlohmann::json images = nlohmann::json::array();
 };
 
 struct HermesChatResult {

@@ -15,6 +15,8 @@ int main(int argc, char** argv) {
         config.request_timeout_ms = 5000;
         sparkpush::HermesClient client(config);
         sparkpush::HermesChatOptions options;
+        Require(options.images.is_array() && options.images.empty(),
+                "default chat options must not contain image entries");
         options.session_id = "s_7_99";
         options.control = {{"operation", "list_models"}};
         sparkpush::HermesChatResult result;
@@ -42,6 +44,8 @@ int main(int argc, char** argv) {
         Require(client.ChatStream(messages, options, [&](const std::string& s) { preview += s; }, &result, &error),
                 "generic streaming transport failed");
         Require(preview == "other" && result.text == "other", "selected model not used by next turn");
+        Require(client.Chat(messages, options, &result, &error), "text-only nonstream transport failed");
+        Require(result.text == "other", "nonstream chat lost selected model");
         options.control = {{"operation", "set_model"}, {"command_seq", 3},
             {"target_provider", "fixture"}, {"target_model", "missing"}};
         Require(!client.Chat(nlohmann::json::array(), options, &result, &error), "invalid model returned success");
@@ -78,6 +82,18 @@ int main(int argc, char** argv) {
         options.control = nullptr;
         options.retry = true;
         Require(!client.Chat(nlohmann::json::array(), options, &result, &error), "new session retried old question");
+        options.retry = false;
+        options.images = nlohmann::json::array({{
+            {"type", "image"}, {"mimeType", "image/png"},
+            {"data", "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aC1sAAAAASUVORK5CYII="}
+        }});
+        const auto image_messages = nlohmann::json::array({{{"role", "user"}, {"content", "describe"}}});
+        Require(client.Chat(image_messages, options, &result, &error), "image nonstream transport failed");
+        Require(result.text == "1 images: describe", "nonstream image payload lost");
+        preview.clear();
+        Require(client.ChatStream(image_messages, options, [&](const std::string& s) { preview += s; }, &result, &error),
+                "image streaming transport failed");
+        Require(preview == "1 images: describe" && result.text == preview, "streaming image payload lost");
         std::cout << "C++ bridge/gateway control and AgentEvent integration passed\n";
         return 0;
     } catch (const std::exception& e) {
