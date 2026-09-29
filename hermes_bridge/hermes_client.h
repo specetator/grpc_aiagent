@@ -27,7 +27,7 @@ struct HermesChatOptions {
     // Agent control uses /agent/control; it never sends a prompt to the model.
     nlohmann::json control;
     // Pi RPC images for the current turn only; base64 payloads, never Kafka IDs.
-    nlohmann::json images{nlohmann::json::array()};
+    nlohmann::json images = nlohmann::json::array();
 };
 
 struct HermesChatResult {
@@ -43,21 +43,33 @@ struct HermesChatResult {
     nlohmann::json metadata{nlohmann::json::object()};
 };
 
-class HermesClient {
+class ModelClient {
+   public:
+    virtual ~ModelClient() = default;
+    virtual bool Chat(const nlohmann::json& messages,
+                      const HermesChatOptions& options, HermesChatResult* result,
+                      std::string* err_msg) const = 0;
+    virtual bool ChatStream(const nlohmann::json& messages,
+                    const HermesChatOptions& options,
+                    const std::function<void(const std::string&)>& on_delta,
+                    HermesChatResult* result, std::string* err_msg) const = 0;
+};
+
+class HermesClient : public ModelClient {
    public:
     explicit HermesClient(const HermesBridgeConfig& config) : config_(config) {}
 
     // 非流式兼容路径：完整回答返回后才结束调用。
     bool Chat(const nlohmann::json& messages,
               const HermesChatOptions& options, HermesChatResult* result,
-              std::string* err_msg) const;
+              std::string* err_msg) const override;
 
     // 流式 Chat Completions：每收到一段 assistant 文本就回调一次。调用方
     // 负责把增量投递给客户端，answer 仍会累积为最终完整回答。
     bool ChatStream(const nlohmann::json& messages,
                     const HermesChatOptions& options,
                     const std::function<void(const std::string&)>& on_delta,
-                    HermesChatResult* result, std::string* err_msg) const;
+                    HermesChatResult* result, std::string* err_msg) const override;
 
    private:
     HermesBridgeConfig config_;

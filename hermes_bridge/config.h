@@ -15,6 +15,9 @@ struct HermesBridgeConfig {
     std::string hermes_base_url;
     std::string hermes_api_key;
     std::string hermes_model{"hermes-agent"};
+    std::string inference_backend{"pi"};
+    std::string inference_gateway{"127.0.0.1:9300"};
+    std::string inference_model{"qwen3-0.6b"};
     bool streaming{true};
     int request_timeout_ms{120000};
     int reply_delivery_timeout_ms{5000};

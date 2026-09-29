@@ -1,0 +1,61 @@
+syntax = "proto3";
+package sparkpush.inference;
+
+message WorkerInfo {
+  string worker_id = 1;
+  string endpoint = 2;
+  string model_id = 3;
+  string device_type = 4;
+  int32 device_index = 5;
+  uint64 total_memory_bytes = 6;
+  uint64 free_memory_bytes = 7;
+  uint32 running_requests = 8;
+  uint32 waiting_requests = 9;
+  uint64 kv_cache_bytes = 10;
+  bool healthy = 11;
+  int64 timestamp_ms = 12;
+}
+
+message RegisterWorkerRequest { WorkerInfo worker = 1; }
+message RegisterWorkerReply { bool accepted = 1; string error = 2; }
+message HeartbeatRequest { WorkerInfo worker = 1; }
+message HeartbeatReply { bool accepted = 1; string error = 2; }
+message GenerateRequest {
+  string request_id = 1;
+  string session_id = 2;
+  string model = 3;
+  string prompt = 4;
+  repeated string messages = 5;
+  uint32 max_tokens = 6;
+  optional float temperature = 7;
+  map<string, string> metadata = 8;
+  repeated ChatTurn chat_turns = 9;
+}
+message ChatTurn {
+  string role = 1;
+  string content = 2;
+}
+message GenerateChunk {
+  string request_id = 1;
+  uint64 sequence = 2;
+  string text_delta = 3;
+  bool finished = 4;
+  string finish_reason = 5;
+  string error = 6;
+  int64 timestamp_ms = 7;
+}
+message CancelRequest { string request_id = 1; }
+message CancelReply { bool cancelled = 1; }
+message GetWorkerStatusRequest {}
+
+service InferenceGateway {
+  rpc Generate(GenerateRequest) returns (stream GenerateChunk);
+  rpc Cancel(CancelRequest) returns (CancelReply);
+  rpc RegisterWorker(RegisterWorkerRequest) returns (RegisterWorkerReply);
+  rpc Heartbeat(HeartbeatRequest) returns (HeartbeatReply);
+}
+service InferenceWorker {
+  rpc Generate(GenerateRequest) returns (stream GenerateChunk);
+  rpc Cancel(CancelRequest) returns (CancelReply);
+  rpc GetStatus(GetWorkerStatusRequest) returns (WorkerInfo);
+}

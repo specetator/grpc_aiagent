@@ -14,6 +14,7 @@
 
 #include "config.h"
 #include "hermes_client.h"
+#include "grpc_inference_client.h"
 #include "kafka_consumer.h"
 #include "kafka_producer.h"
 #include "logging.h"
@@ -92,7 +93,14 @@ namespace sparkpush {
 class HermesBridgeRunner {
    public:
     explicit HermesBridgeRunner(const HermesBridgeConfig& config)
-        : config_(config), client_(config) {}
+        : config_(config), client_(config) {
+        if (config_.inference_backend == "grpc") {
+            grpc_client_ = std::make_unique<GrpcInferenceClient>(config_, &g_running);
+            model_client_ = grpc_client_.get();
+        } else {
+            model_client_ = &client_;
+        }
+    }
 
     bool Init() {
         if (!reply_producer_.Init(config_.kafka_brokers,
@@ -231,7 +239,8 @@ class HermesBridgeRunner {
                 }
             }
             const std::string effective_model =
-                chat_options.model.empty() ? config_.hermes_model
+                chat_options.model.empty() ?
+                    (config_.inference_backend == "grpc" ? config_.inference_model : config_.hermes_model)
                                            : chat_options.model;
             const std::string effective_provider = chat_options.provider;
             reply["model_override"] = request.value("model_override", false);
@@ -414,10 +423,10 @@ class HermesBridgeRunner {
             } else if (!call_model) {
                 chat_result.text = BuildLocalCommandReply(command);
             } else if (config_.streaming) {
-                ok = client_.ChatStream(messages, chat_options, on_delta,
+                ok = model_client_->ChatStream(messages, chat_options, on_delta,
                                         &chat_result, &error);
             } else {
-                ok = client_.Chat(messages, chat_options, &chat_result, &error);
+                ok = model_client_->Chat(messages, chat_options, &chat_result, &error);
             }
             if (ok && chat_result.metadata.contains("model_state")) {
                 const auto& state = chat_result.metadata["model_state"];
@@ -558,6 +567,8 @@ class HermesBridgeRunner {
 
     HermesBridgeConfig config_;
     HermesClient client_;
+    std::unique_ptr<GrpcInferenceClient> grpc_client_;
+    ModelClient* model_client_{nullptr};
     KafkaConsumer request_consumer_;
     KafkaProducer delta_producer_;
     KafkaProducer reply_producer_;

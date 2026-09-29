@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.14)
 
 find_package(Protobuf REQUIRED)
 find_package(gRPC REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(GRPCXX REQUIRED IMPORTED_TARGET grpc++)
 find_program(GRPC_CPP_PLUGIN_EXECUTABLE NAMES grpc_cpp_plugin)
 if(NOT GRPC_CPP_PLUGIN_EXECUTABLE)
   message(FATAL_ERROR "grpc_cpp_plugin not found. Please install gRPC C++ plugin.")
@@ -42,7 +44,7 @@ endforeach()
 
 add_library(spark_push_proto ${GENERATED_SRCS})
 target_include_directories(spark_push_proto PUBLIC ${GENERATED_DIR})
-target_link_libraries(spark_push_proto PUBLIC protobuf::libprotobuf gRPC::grpc++ gRPC::grpc++)
+target_link_libraries(spark_push_proto PUBLIC protobuf::libprotobuf PkgConfig::GRPCXX)
 
 
 

@@ -59,6 +59,8 @@ Logic ── ai_request ──► hermes_bridge ──HTTP/SSE──► Pi gatew
 - 阅读索引：[`docs/spark-push-implementation.md`](docs/spark-push-implementation.md)
 
 完整的优化决策、状态机、指标定义和边界见 [`docs/reliability-optimization.md`](docs/reliability-optimization.md)。
+可选的 Phase 1 gRPC Inference Gateway / Mock Worker（默认不替代 Pi）见
+[`docs/inference-serving.md`](docs/inference-serving.md)。
 配套的运行、排障和验证操作见 [`scripts/00_prepare_and_run.md`](scripts/00_prepare_and_run.md)。
 原始 Demo 到当前工程化版本的逐阶段对比、简历写法和面试追问见
 [`docs/interview-project-evolution.md`](docs/interview-project-evolution.md)。

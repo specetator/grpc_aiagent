@@ -4,11 +4,13 @@ add_executable(hermes_bridge
   main.cpp
   config.cpp
   hermes_client.cpp
+  grpc_inference_client.cpp
   sse_parser.cpp
 )
 
 target_link_libraries(hermes_bridge
   PRIVATE
     spark_push_common
+    inference_proto
     pthread
 )

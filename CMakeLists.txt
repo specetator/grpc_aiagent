@@ -30,6 +30,7 @@ add_subdirectory(common)
 add_subdirectory(logic)
 add_subdirectory(comet)
 add_subdirectory(job)
+add_subdirectory(inference)
 add_subdirectory(hermes_bridge)
 
 add_subdirectory(load_test)
