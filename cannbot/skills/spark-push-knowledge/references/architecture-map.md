@@ -7,6 +7,7 @@
 | 问题领域 | 首选文档 | 当前代码真源 |
 |---|---|---|
 | 总体架构、组件边界、启动入口 | `README.md`、`docs/spark-push-architecture.md`、`scripts/00_prepare_and_run.md` | `CMakeLists.txt`、各组件 `main.cpp` |
+| Inference Phase 1 Gateway、Worker、调度和取消 | `docs/inference-serving.md` | `inference/proto/inference.proto`、`inference/gateway/`、`inference/worker/`、`hermes_bridge/grpc_inference_client.cpp` |
 | 队列/哈希/Lua/握手等逐步算法 | `docs/spark-push-internals.md` | `common/thread_pool.cpp`、`common/mysql_pool.cpp`、`logic/redis_store.cpp`、`comet/comet_server.cpp`、`job/service.cpp` |
 | WebSocket 接入、ACK、断线补偿 | `docs/reliability-optimization.md`、`docs/spark-push-internals.md` | `comet/comet_server.cpp`、`comet/comet_grpc_service.cpp` |
 | 序号、幂等、会话历史、AI 请求编排 | `docs/reliability-optimization.md`、`docs/spark-push-internals.md`、`docs/hermes-integration.md` | `logic/grpc_service.cpp`、`logic/redis_store.cpp`、`logic/conversation_store.cpp` |

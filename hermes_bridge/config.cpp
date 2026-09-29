@@ -99,6 +99,12 @@ bool LoadHermesBridgeConfig(const std::string& path,
             config->hermes_api_key = value;
         } else if (key == "hermes_model") {
             config->hermes_model = value;
+        } else if (key == "inference_backend") {
+            config->inference_backend = value;
+        } else if (key == "inference_gateway") {
+            config->inference_gateway = value;
+        } else if (key == "inference_model") {
+            config->inference_model = value;
         } else if (key == "hermes_streaming") {
             if (!value.empty()) {
                 config->streaming = value == "true" || value == "1";
@@ -133,6 +139,12 @@ bool LoadHermesBridgeConfig(const std::string& path,
         config->streaming = std::string(env_value) == "true" ||
                             std::string(env_value) == "1";
     }
+    env_value = std::getenv("SPARK_PUSH_INFERENCE_BACKEND");
+    if (env_value) config->inference_backend = env_value;
+    env_value = std::getenv("SPARK_PUSH_INFERENCE_GATEWAY");
+    if (env_value) config->inference_gateway = env_value;
+    env_value = std::getenv("SPARK_PUSH_INFERENCE_MODEL");
+    if (env_value) config->inference_model = env_value;
 
     if (config->kafka_brokers.empty() || config->request_topic.empty() ||
         config->delta_topic.empty() ||
@@ -140,7 +152,17 @@ bool LoadHermesBridgeConfig(const std::string& path,
         if (err_msg) *err_msg = "Kafka bridge configuration is incomplete";
         return false;
     }
-    if (config->hermes_base_url.empty() || config->hermes_api_key.empty()) {
+    if (config->inference_backend != "pi" && config->inference_backend != "grpc") {
+        if (err_msg) *err_msg = "inference backend must be pi or grpc";
+        return false;
+    }
+    if (config->inference_backend == "grpc" &&
+        (config->inference_gateway.empty() || config->inference_model.empty())) {
+        if (err_msg) *err_msg = "inference gateway and model are required";
+        return false;
+    }
+    if (config->inference_backend == "pi" &&
+        (config->hermes_base_url.empty() || config->hermes_api_key.empty())) {
         if (err_msg) *err_msg =
             "SPARK_PUSH_HERMES_BASE_URL and SPARK_PUSH_HERMES_API_KEY are required";
         return false;

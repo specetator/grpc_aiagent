@@ -15,6 +15,18 @@
       "topics": ["ack", "cursor", "deduplication", "reconnect", "metrics"]
     },
     {
+      "id": "inference-serving-phase-one",
+      "path": "docs/inference-serving.md",
+      "authority": "canonical",
+      "topics": ["inference", "gateway", "worker", "streaming", "scheduler", "metrics"]
+    },
+    {
+      "id": "inference-wire-contract",
+      "path": "inference/proto/inference.proto",
+      "authority": "code",
+      "topics": ["inference", "grpc", "worker", "cancellation"]
+    },
+    {
       "id": "agent-integration",
       "path": "docs/hermes-integration.md",
       "authority": "canonical",
