@@ -3,6 +3,8 @@
 #include <iostream>
 #include <memory>
 #include <thread>
+#include <atomic>
+#include "metrics.h"
 
 #include <grpcpp/grpcpp.h>
 
@@ -34,6 +36,20 @@ GenerateRequest MakeRequest(const std::string& id) {
   request.set_prompt("hello");
   return request;
 }
+void WireTemperaturePresence() {
+  GenerateRequest request;
+  Check(request.sampling_temperature_case() != GenerateRequest::kTemperature,
+        "unset temperature presence");
+  // Field 7, fixed32 zero: existing proto3 optional clients encode the same bytes.
+  const std::string legacy_zero("\x3d\x00\x00\x00\x00", 5);
+  Check(request.ParseFromString(legacy_zero) &&
+        request.sampling_temperature_case() == GenerateRequest::kTemperature &&
+        request.temperature() == 0 && request.SerializeAsString() == legacy_zero,
+        "legacy explicit zero temperature wire compatibility");
+  request.clear_temperature();
+  Check(request.sampling_temperature_case() != GenerateRequest::kTemperature,
+        "cleared temperature presence");
+}
 void RegistryAndScheduler() {
   WorkerRegistry registry(std::chrono::milliseconds(25));
   auto a = MakeWorker("a"), b = MakeWorker("b");
@@ -51,10 +67,95 @@ void RegistryAndScheduler() {
   Check(registry.Heartbeat(b), "heartbeat b");
   chosen = scheduler.SelectWorker(MakeRequest("tie"), registry.ListWorkers());
   Check(chosen && chosen->worker_id() == "a", "deterministic tie");
+  a.set_max_concurrent_requests(3);
+  Check(registry.Heartbeat(a), "capacity heartbeat");
+  chosen = scheduler.SelectWorker(MakeRequest("capacity"), registry.ListWorkers());
+  Check(chosen && chosen->worker_id() == "b", "full worker filtered");
   std::this_thread::sleep_for(std::chrono::milliseconds(35));
   Check(registry.FindWorkersForModel("mock-model").empty(), "heartbeat expiry");
   Check(!registry.ListWorkers()[0].healthy(), "expired unhealthy");
   Check(registry.Remove("a"), "remove");
+}
+class BlockingBackend final : public GenerationBackend {
+ public:
+  std::atomic<bool> entered{false}, release{false};
+  bool Generate(const GenerateRequest& request, const std::atomic<bool>& cancelled,
+      const std::function<bool(const GenerateChunk&)>& emit) override {
+    entered = true;
+    while (!release && !cancelled) std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    if (cancelled) return false;
+    GenerateChunk end;
+    end.set_request_id(request.request_id());
+    end.set_finished(true); end.set_finish_reason("stop");
+    return emit(end);
+  }
+};
+void AdmissionAndCapacity() {
+  WorkerRegistry registry;
+  LeastLoadedScheduler scheduler;
+  AdmissionOptions options;
+  options.max_queue = 1;
+  options.queue_timeout = std::chrono::milliseconds(100);
+  GatewayService gateway(&registry, &scheduler, options);
+  grpc::ServerBuilder gb;
+  int gp = 0, wp = 0;
+  gb.AddListeningPort("127.0.0.1:0", grpc::InsecureServerCredentials(), &gp);
+  gb.RegisterService(&gateway);
+  auto gs = gb.BuildAndStart();
+  auto backend = std::make_unique<BlockingBackend>();
+  auto* blocking = backend.get();
+  auto info = MakeWorker("bounded"); info.set_max_concurrent_requests(1);
+  InferenceWorkerService worker(info, std::move(backend));
+  grpc::ServerBuilder wb;
+  wb.AddListeningPort("127.0.0.1:0", grpc::InsecureServerCredentials(), &wp);
+  wb.RegisterService(&worker);
+  auto ws = wb.BuildAndStart();
+  Check(gs && ws, "bounded servers start");
+  info.set_endpoint("127.0.0.1:" + std::to_string(wp));
+  registry.Register(info);
+  auto stub = InferenceGateway::NewStub(grpc::CreateChannel(
+      "127.0.0.1:" + std::to_string(gp), grpc::InsecureChannelCredentials()));
+  auto generate = [&](const std::string& id) {
+    grpc::ClientContext context;
+    context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(3));
+    auto stream = stub->Generate(&context, MakeRequest(id));
+    GenerateChunk chunk; while (stream->Read(&chunk)) {}
+    return stream->Finish();
+  };
+  grpc::Status owner_status, queued_status;
+  std::thread owner([&] { owner_status = generate("owner"); });
+  for (int i = 0; i < 500 && !blocking->entered; ++i)
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+  Check(blocking->entered, "capacity owner entered");
+  std::thread queued([&] { queued_status = generate("queued"); });
+  bool waiting = false;
+  for (int i = 0; i < 100 && !waiting; ++i) {
+    waiting = sparkpush::MetricsRegistry::Instance().RenderPrometheus().find(
+        "inference_requests_waiting 1\n") != std::string::npos;
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  }
+  Check(waiting, "request queued");
+  Check(generate("overflow").error_code() == grpc::StatusCode::RESOURCE_EXHAUSTED,
+        "bounded queue rejects overflow");
+  grpc::ClientContext cancel_context;
+  CancelRequest cancel; cancel.set_request_id("queued"); CancelReply reply;
+  Check(stub->Cancel(&cancel_context, cancel, &reply).ok() && reply.cancelled(), "queued cancel");
+  queued.join();
+  Check(queued_status.error_code() == grpc::StatusCode::CANCELLED, "queued cancellation status");
+  Check(generate("timeout").error_code() == grpc::StatusCode::DEADLINE_EXCEEDED,
+        "queue deadline enforced");
+  auto direct = InferenceWorker::NewStub(grpc::CreateChannel(info.endpoint(), grpc::InsecureChannelCredentials()));
+  grpc::ClientContext direct_context;
+  auto stream = direct->Generate(&direct_context, MakeRequest("direct-overflow"));
+  GenerateChunk chunk; while (stream->Read(&chunk)) {}
+  Check(stream->Finish().error_code() == grpc::StatusCode::RESOURCE_EXHAUSTED, "direct worker cap");
+  blocking->release = true; owner.join();
+  Check(owner_status.ok() && registry.ListWorkers()[0].running_requests() == 0,
+        "reserved capacity released");
+  const auto metrics = sparkpush::MetricsRegistry::Instance().RenderPrometheus();
+  Check(metrics.find("inference_queue_wait_ms_bucket{le=\"+Inf\"}") != std::string::npos,
+        "Prometheus histogram buckets exported");
+  ws->Shutdown(); gs->Shutdown();
 }
 void StreamAndCancel() {
   WorkerRegistry registry(std::chrono::seconds(5));
@@ -178,7 +279,9 @@ void StreamAndCancel() {
 }  // namespace
 
 int main() {
+  WireTemperaturePresence();
   RegistryAndScheduler();
   StreamAndCancel();
+  AdmissionAndCapacity();
   std::cout << "inference tests passed\n";
 }

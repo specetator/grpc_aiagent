@@ -1,0 +1,23 @@
+{
+  "collected_at": "2026-09-30T19:14:35.6776588+08:00",
+  "windows_os": {
+    "Caption": "Microsoft Windows 11 专业版",
+    "Version": "10.0.22631",
+    "BuildNumber": "22631"
+  },
+  "cpu": {
+    "Name": "AMD Ryzen 5 9600X 6-Core Processor             ",
+    "NumberOfCores": 6,
+    "NumberOfLogicalProcessors": 12
+  },
+  "gpus": [
+    {
+      "Name": "AMD Radeon(TM) Graphics",
+      "DriverVersion": "32.0.21043.19003"
+    },
+    {
+      "Name": "AMD Radeon RX 9070 XT",
+      "DriverVersion": "32.0.31021.5001"
+    }
+  ]
+}

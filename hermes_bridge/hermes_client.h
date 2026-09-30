@@ -40,7 +40,7 @@ struct HermesChatResult {
     std::size_t stream_chunk_count{0};
     nlohmann::json agent_event{nlohmann::json::object()};
     nlohmann::json citations{nlohmann::json::array()};
-    nlohmann::json metadata{nlohmann::json::object()};
+    nlohmann::json metadata = nlohmann::json::object();
 };
 
 class ModelClient {

@@ -20,15 +20,22 @@ void Stop(int) { running = false; }
 int main(int argc, char** argv) {
   std::string listen = "127.0.0.1:9300";
   int metrics_port = 9301;
+  sparkpush::inference::AdmissionOptions admission;
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
     if (arg == "--listen" && i + 1 < argc) listen = argv[++i];
     else if (arg == "--metrics-port" && i + 1 < argc) metrics_port = std::stoi(argv[++i]);
-    else { std::cerr << "usage: inference_gateway [--listen host:port] [--metrics-port port]\n"; return 2; }
+    else if (arg == "--max-queue" && i + 1 < argc) admission.max_queue = std::stoul(argv[++i]);
+    else if (arg == "--queue-timeout-ms" && i + 1 < argc)
+      admission.queue_timeout = std::chrono::milliseconds(std::stoi(argv[++i]));
+    else if (arg == "--no-session-affinity") admission.session_affinity = false;
+    else { std::cerr << "usage: inference_gateway [--listen host:port] [--metrics-port port] [--max-queue N] [--queue-timeout-ms N] [--no-session-affinity]\n"; return 2; }
   }
   sparkpush::inference::WorkerRegistry registry;
   sparkpush::inference::LeastLoadedScheduler scheduler;
-  sparkpush::inference::GatewayService service(&registry, &scheduler);
+  if (!admission.max_queue || admission.max_queue > 4096 || admission.queue_timeout.count() <= 0)
+    return 2;
+  sparkpush::inference::GatewayService service(&registry, &scheduler, admission);
   grpc::EnableDefaultHealthCheckService(true);
   grpc::ServerBuilder builder;
   int bound_port = 0;

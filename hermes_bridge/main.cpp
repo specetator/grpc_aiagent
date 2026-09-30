@@ -118,12 +118,17 @@ class HermesBridgeRunner {
         options.auto_offset_reset = "earliest";
         options.max_processing_attempts = 3;
         options.dead_letter_topic = config_.request_topic + ".dlq";
-        // consume() is synchronous: allow the full bounded retry budget before
-        // max.poll expiry. This does not add concurrency; a session worker will.
+        // Poll resumes after a bounded durable batch. A worst-case batch may
+        // contain only one session, so budget for serial processing of every
+        // record, including business retries and DLQ confirmation.
         const int64_t poll_budget = 3LL * (config_.request_timeout_ms +
             static_cast<int64_t>(config_.reply_delivery_timeout_ms)) + 65000;
-        if (poll_budget > std::numeric_limits<int>::max()) return false;
-        options.max_poll_interval_ms = static_cast<int>(std::max<int64_t>(300000, poll_budget));
+        const auto batch_budget = poll_budget *
+            (config_.processing_workers > 1 ? config_.max_batch_records : 1);
+        if (batch_budget > std::numeric_limits<int>::max()) return false;
+        options.max_poll_interval_ms = static_cast<int>(std::max<int64_t>(300000, batch_budget));
+        options.processing_workers = config_.processing_workers;
+        options.max_batch_records = config_.max_batch_records;
         options.failure_recovery = [this](const std::string& key, const std::string& value) {
             const auto request = nlohmann::json::parse(value, nullptr, false);
             if (!request.is_object()) return KafkaConsumer::RecoveryRecord{};

@@ -19,6 +19,12 @@ def free_port():
 class ModelHandler(http.server.BaseHTTPRequestHandler):
     calls = []
 
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b'{}' if self.path == '/health' else
+                         b'llamacpp:requests_processing 0\nllamacpp:requests_deferred 0\n')
+
     def do_POST(self):
         if self.path != "/v1/chat/completions":
             self.send_error(404)
@@ -44,8 +50,13 @@ class ModelHandler(http.server.BaseHTTPRequestHandler):
                 return
             time.sleep(0.08 if len(deltas) > 2 else 0.03)
         event = {"choices": [{"delta": {}, "finish_reason": "stop"}]}
+        usage = {"choices": [], "usage": {"prompt_tokens": 3,
+                 "completion_tokens": len(deltas), "prompt_tokens_details": {"cached_tokens": 1}}}
+        if body["messages"][-1]["content"] == "bad-usage":
+            usage["usage"]["completion_tokens"] = "invalid"
         try:
             self.wfile.write(("data: " + json.dumps(event) + "\n\n" +
+                              "data: " + json.dumps(usage) + "\n\n" +
                               "data: [DONE]\n\n").encode())
             self.wfile.flush()
         except (BrokenPipeError, ConnectionResetError):
@@ -65,7 +76,7 @@ def wait_port(port):
     raise AssertionError(f"port {port} did not open")
 
 
-def main(gateway_bin, worker_bin, cli_bin):
+def main(gateway_bin, worker_bin, cli_bin, backend="llamacpp"):
     model_port, gateway_port, worker_port, metrics_port = [free_port() for _ in range(4)]
     model = http.server.ThreadingHTTPServer(("127.0.0.1", model_port), ModelHandler)
     server_thread = threading.Thread(target=model.serve_forever, daemon=True)
@@ -83,7 +94,7 @@ def main(gateway_bin, worker_bin, cli_bin):
                 worker_bin, "--worker-id", "llama-test", "--listen",
                 f"127.0.0.1:{worker_port}", "--gateway",
                 f"127.0.0.1:{gateway_port}", "--model", "real-test",
-                "--backend", "llamacpp", "--model-endpoint",
+                "--backend", backend, "--model-endpoint",
                 f"http://127.0.0.1:{model_port}"],
                 stdout=worker_log, stderr=subprocess.STDOUT))
             wait_port(worker_port)
@@ -96,8 +107,17 @@ def main(gateway_bin, worker_bin, cli_bin):
             assert result.returncode == 0, result.stderr
             assert "[0] Hi\n[1]  there\nfinished: stop" in result.stdout, result.stdout
             assert ModelHandler.calls[-1]["stream"] is True
+            usage_result = subprocess.run(cmd + ["--prompt", "hello", "--json"],
+                                          capture_output=True, text=True, timeout=5)
+            usage = json.loads(usage_result.stdout)
+            assert usage['completion_tokens'] == 2 and usage['cached_prompt_tokens'] == 1
+            if backend == "vllm":
+                assert 'cache_prompt' not in ModelHandler.calls[-1]
             assert ModelHandler.calls[-1]["messages"][-1] == {
                 "role": "user", "content": "hello"}
+            bad_usage = subprocess.run(cmd + ["--prompt", "bad-usage"],
+                                       capture_output=True, text=True, timeout=5)
+            assert bad_usage.returncode != 0 and 'finished:' not in bad_usage.stdout
             failed = subprocess.run(cmd + ["--prompt", "fail"],
                                     capture_output=True, text=True, timeout=5)
             assert failed.returncode != 0 and "generation backend failed" in failed.stderr, failed.stderr

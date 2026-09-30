@@ -105,6 +105,17 @@ bool LoadHermesBridgeConfig(const std::string& path,
             config->inference_gateway = value;
         } else if (key == "inference_model") {
             config->inference_model = value;
+        } else if (key == "inference_cache_prompt") {
+            config->inference_cache_prompt = value == "true" || value == "1";
+        } else if (key == "inference_max_tokens" || key == "inference_temperature_milli") {
+            int* target = key == "inference_max_tokens" ? &config->inference_max_tokens : &config->inference_temperature_milli;
+            if (!ParseInt(value, target)) return false;
+        } else if (key == "processing_workers" || key == "max_batch_records") {
+            int* target = key == "processing_workers" ? &config->processing_workers : &config->max_batch_records;
+            if (!ParseInt(value, target)) {
+                if (err_msg) *err_msg = "invalid Bridge concurrency configuration";
+                return false;
+            }
         } else if (key == "hermes_streaming") {
             if (!value.empty()) {
                 config->streaming = value == "true" || value == "1";
@@ -145,6 +156,15 @@ bool LoadHermesBridgeConfig(const std::string& path,
     if (env_value) config->inference_gateway = env_value;
     env_value = std::getenv("SPARK_PUSH_INFERENCE_MODEL");
     if (env_value) config->inference_model = env_value;
+    env_value = std::getenv("SPARK_PUSH_BRIDGE_WORKERS");
+    if (env_value && !ParseInt(env_value, &config->processing_workers)) return false;
+    env_value = std::getenv("SPARK_PUSH_BRIDGE_MAX_BATCH_RECORDS");
+    if (env_value && !ParseInt(env_value, &config->max_batch_records)) return false;
+    if (config->processing_workers < 1 || config->processing_workers > 64 ||
+        config->max_batch_records < config->processing_workers || config->max_batch_records > 1024) {
+        if (err_msg) *err_msg = "invalid Bridge concurrency bounds";
+        return false;
+    }
 
     if (config->kafka_brokers.empty() || config->request_topic.empty() ||
         config->delta_topic.empty() ||
@@ -154,6 +174,11 @@ bool LoadHermesBridgeConfig(const std::string& path,
     }
     if (config->inference_backend != "pi" && config->inference_backend != "grpc") {
         if (err_msg) *err_msg = "inference backend must be pi or grpc";
+        return false;
+    }
+    if (config->inference_max_tokens < 1 || config->inference_max_tokens > 32768 ||
+        config->inference_temperature_milli < 0 || config->inference_temperature_milli > 2000) {
+        if (err_msg) *err_msg = "invalid inference generation parameters";
         return false;
     }
     if (config->inference_backend == "grpc" &&

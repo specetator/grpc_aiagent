@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <array>
 #include <mutex>
 #include <string>
 #include <unordered_map>
@@ -28,6 +29,7 @@ class MetricsRegistry {
     int64_t count{0};
     int64_t sum{0};
     int64_t max{0};
+    std::array<int64_t, 15> buckets{};
   };
 
   mutable std::mutex mutex_;

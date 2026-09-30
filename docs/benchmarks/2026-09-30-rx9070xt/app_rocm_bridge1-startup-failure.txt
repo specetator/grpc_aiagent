@@ -1,0 +1,2 @@
+0.00.001.011 W Setting 'enable_thinking' via --chat-template-kwargs is deprecated. Use --reasoning on / --reasoning off instead.
+llama-server: ./sources/wsl/libhsakmt/src/events.cpp:118: HSAKMT_STATUS hsaKmtWaitOnMultipleEvents_Ext(HsaEvent**, HSAuint32, bool, HSAuint32, uint64_t*): Assertion `false' failed.

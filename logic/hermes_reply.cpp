@@ -80,6 +80,22 @@ bool PrepareHermesReply(const std::string& payload, int64_t bot_user_id,
             if (metadata.contains("context_start_seq") && metadata["context_start_seq"].is_number_integer() &&
                 metadata["context_start_seq"].get<int64_t>() >= 0)
                 message_content["hermes_context_start_seq"] = metadata["context_start_seq"];
+            // Persist only the allowlisted runtime counters, not arbitrary provider metadata.
+            if (metadata.contains("usage") && metadata["usage"].is_object()) {
+                nlohmann::json usage = nlohmann::json::object();
+                for (const auto* key : {"prompt_tokens", "completion_tokens", "cached_prompt_tokens"}) {
+                    const auto& source = metadata["usage"];
+                    if (source.contains(key) && source[key].is_number_integer() &&
+                        (!source[key].is_number_unsigned() || source[key].get<uint64_t>() <=
+                         static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) &&
+                        source[key].get<int64_t>() >= 0)
+                        usage[key] = source[key];
+                }
+                if (!usage.empty()) message_content["inference_usage"] = std::move(usage);
+            }
+            if (metadata.contains("worker_id") && metadata["worker_id"].is_string() &&
+                metadata["worker_id"].get_ref<const std::string&>().size() <= 128)
+                message_content["inference_worker_id"] = metadata["worker_id"];
         }
         nlohmann::json event = {{"schema", "sparkpush.agent_event.v1"},
             {"type", "assistant_final"}, {"data", {{"text", text}}}};

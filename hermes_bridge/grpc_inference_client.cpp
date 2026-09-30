@@ -31,6 +31,9 @@ bool GrpcInferenceClient::ChatStream(const nlohmann::json& messages,
     request.set_request_id(options.request_id);
     request.set_session_id(options.session_id);
     request.set_model(options.model.empty() ? config_.inference_model : options.model);
+    request.set_max_tokens(config_.inference_max_tokens);
+    request.set_temperature(config_.inference_temperature_milli / 1000.0f);
+    (*request.mutable_metadata())["cache_prompt"] = config_.inference_cache_prompt ? "true" : "false";
     for (const auto& message : messages) {
         if (!message.is_object() || !message.contains("content") ||
             !message["content"].is_string()) continue;
@@ -82,6 +85,10 @@ bool GrpcInferenceClient::ChatStream(const nlohmann::json& messages,
         if (chunk.finished()) {
             finished = true;
             result->finish_reason = chunk.finish_reason();
+            result->metadata["usage"] = {{"prompt_tokens", chunk.prompt_tokens()},
+                {"completion_tokens", chunk.completion_tokens()},
+                {"cached_prompt_tokens", chunk.cached_prompt_tokens()}};
+            result->metadata["worker_id"] = chunk.worker_id();
         }
     }
     const auto status = reader->Finish();

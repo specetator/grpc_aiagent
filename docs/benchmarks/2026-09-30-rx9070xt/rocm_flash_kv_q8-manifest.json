@@ -1,0 +1,56 @@
+{
+  "profile": {
+    "name": "rocm_flash_kv_q8",
+    "gpu": true,
+    "slots": 4,
+    "conc": [
+      4
+    ],
+    "fa": "on",
+    "kv": "q8_0"
+  },
+  "model": "/home/peco/models/Qwen3-0.6B-Q8_0.gguf",
+  "runtime_commands": [
+    [
+      "/home/peco/tools/llama.cpp/build-rocm/bin/llama-server",
+      "-m",
+      "/home/peco/models/Qwen3-0.6B-Q8_0.gguf",
+      "--alias",
+      "qwen3-0.6b",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "44093",
+      "-np",
+      "4",
+      "-c",
+      "8192",
+      "-t",
+      "6",
+      "-tb",
+      "6",
+      "-b",
+      "512",
+      "-ub",
+      "128",
+      "--metrics",
+      "-lv",
+      "4",
+      "--chat-template-kwargs",
+      "{\"enable_thinking\":false}",
+      "-fa",
+      "on",
+      "-cb",
+      "-ngl",
+      "99",
+      "--no-cache-prompt",
+      "--cache-ram",
+      "0",
+      "-ctk",
+      "q8_0",
+      "-ctv",
+      "q8_0"
+    ]
+  ],
+  "ok": true
+}
