@@ -36,6 +36,17 @@ GenerateRequest MakeRequest(const std::string& id) {
   request.set_prompt("hello");
   return request;
 }
+void WireTemperaturePresence() {
+  GenerateRequest request;
+  Check(!request.has_temperature(), "unset temperature presence");
+  // Field 7, fixed32 zero: existing proto3 optional clients encode the same bytes.
+  const std::string legacy_zero("\x3d\x00\x00\x00\x00", 5);
+  Check(request.ParseFromString(legacy_zero) && request.has_temperature() &&
+        request.temperature() == 0 && request.SerializeAsString() == legacy_zero,
+        "legacy explicit zero temperature wire compatibility");
+  request.clear_temperature();
+  Check(!request.has_temperature(), "cleared temperature presence");
+}
 void RegistryAndScheduler() {
   WorkerRegistry registry(std::chrono::milliseconds(25));
   auto a = MakeWorker("a"), b = MakeWorker("b");
@@ -265,6 +276,7 @@ void StreamAndCancel() {
 }  // namespace
 
 int main() {
+  WireTemperaturePresence();
   RegistryAndScheduler();
   StreamAndCancel();
   AdmissionAndCapacity();

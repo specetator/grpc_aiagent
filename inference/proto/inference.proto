@@ -31,7 +31,10 @@ message GenerateRequest {
   string prompt = 4;
   repeated string messages = 5;
   uint32 max_tokens = 6;
-  optional float temperature = 7;
+  // Explicit oneof preserves presence and field-7 wire encoding on protoc 3.12.
+  oneof sampling_temperature {
+    float temperature = 7;
+  }
   map<string, string> metadata = 8;
   repeated ChatTurn chat_turns = 9;
 }

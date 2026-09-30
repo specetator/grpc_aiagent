@@ -59,6 +59,10 @@ occupies one gRPC thread; independent requests execute concurrently. The vLLM
 adapter suppresses llama.cpp-specific options and recognizes vLLM metric names.
 It has contract fixture tests, but no real vLLM experiment in this report.
 
+`temperature` uses an explicit oneof so protoc 3.12 / Ubuntu 22.04 can compile
+presence semantics without experimental flags. Field 7 retains its fixed32 wire
+encoding: unset uses the adapter default; explicit zero remains greedy sampling.
+
 ## Real runtime: CPU, ROCm, CUDA, CANN
 
 Keep engine/model outside the repository. Build scripts print the engine commit

@@ -206,6 +206,8 @@ python3 cannbot/scripts/sync_pi_agent.py --check
 完整 CTest 20 项：20 通过，含真实 Redis 序号测试。Kafka 并行 correctness 用 librdkafka mock broker
 验证同 key 串行、不同 key 并行、未完成不提交和失败重放；完整应用实验用真实 broker。
 HTTP fixture 验证 usage-only SSE、坏字段失败、取消及 llama.cpp/vLLM 适配。
+GitHub CI 使用 Ubuntu 22.04 / protoc 3.12；温度字段改用显式 oneof 保留 presence 和
+原字段 7 的 fixed32 编码，测试核对旧客户端显式温度 0 的原始字节，不改变实验请求的编码。
 知识严格校验通过（41 sources），Pi 引用测试通过。`sync_pi_agent.py --check` 报告
 WSL 的 `/home/peco/.pi-spark-agent` 下 Skills、扩展、settings/models 尚未安装。
 本次可选 gRPC 链路不依赖该目录；没有把它写成已通过的 Pi 实际部署验证。
