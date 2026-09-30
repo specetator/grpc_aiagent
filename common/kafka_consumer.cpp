@@ -8,6 +8,7 @@
 #include <chrono>
 #include <thread>
 #include <vector>
+#include <unordered_map>
 #include <nlohmann/json.hpp>
 
 namespace sparkpush {
@@ -43,6 +44,10 @@ bool KafkaConsumer::Init(const std::string& brokers,
     group_id_ = group_id;
     callback_ = std::move(callback);
     options_ = options;
+    if (options_.processing_workers < 1 || options_.processing_workers > 64 ||
+        options_.max_batch_records < options_.processing_workers ||
+        options_.max_batch_records > 1024 || options_.batch_window_ms < 0 ||
+        (options_.processing_workers > 1 && options_.enable_auto_commit)) return false;
     if (!options_.dead_letter_topic.empty()) {
         if (options_.enable_auto_commit || options_.dead_letter_timeout_ms <= 0 ||
             options_.dead_letter_topic == topic_) return false;
@@ -66,7 +71,7 @@ bool KafkaConsumer::Init(const std::string& brokers,
     set_config("enable.partition.eof", "false");
     set_config("auto.offset.reset", options_.auto_offset_reset);
     set_config("enable.auto.commit", options_.enable_auto_commit ? "true" : "false");
-    if (dead_letter_producer_)
+    if (dead_letter_producer_ || options_.processing_workers > 1)
         set_config("enable.auto.offset.store", "false");
     set_config("auto.commit.interval.ms", std::to_string(options_.auto_commit_interval_ms));
     set_config("max.poll.interval.ms", std::to_string(options_.max_poll_interval_ms));
@@ -122,7 +127,23 @@ void KafkaConsumer::Loop() {
         if (!msg) {
             continue;
         }
-        HandleMessage(msg.get());
+        if (options_.processing_workers == 1 || msg->err() != RdKafka::ERR_NO_ERROR) {
+            HandleMessage(msg.get());
+            continue;
+        }
+        std::vector<std::unique_ptr<RdKafka::Message>> batch;
+        batch.push_back(std::move(msg));
+        const auto until = std::chrono::steady_clock::now() +
+            std::chrono::milliseconds(options_.batch_window_ms);
+        while (running_ && batch.size() < static_cast<size_t>(options_.max_batch_records) &&
+               std::chrono::steady_clock::now() < until) {
+            std::unique_ptr<RdKafka::Message> next(consumer_->consume(1));
+            if (next && next->err() == RdKafka::ERR_NO_ERROR)
+                batch.push_back(std::move(next));
+            else if (next && next->err() != RdKafka::ERR__TIMED_OUT)
+                HandleMessage(next.get());
+        }
+        ProcessBatch(batch);
     }
     if (failed_) {
         // Release assignment promptly so a replacement can replay the record.
@@ -132,7 +153,7 @@ void KafkaConsumer::Loop() {
 }
 
 // 按错误码分类处理 Kafka 消息，确保业务回调后再提交位点。
-void KafkaConsumer::HandleMessage(RdKafka::Message* message) {
+bool KafkaConsumer::HandleMessage(RdKafka::Message* message, bool commit) {
     switch (message->err()) {
         case RdKafka::ERR_NO_ERROR: {
             const auto timestamp = message->timestamp();
@@ -212,7 +233,7 @@ void KafkaConsumer::HandleMessage(RdKafka::Message* message) {
                         MetricsRegistry::Instance().Set(
                             "spark_push_kafka_consumer_failed_" + topic_, 1);
                         LOG_ERROR << "Kafka consumer halted: DLQ unconfirmed topic=" << topic_;
-                        return;
+                        return false;
                     }
                     MetricsRegistry::Instance().Increment(
                         "spark_push_kafka_dead_letters_total_" + topic_);
@@ -221,7 +242,7 @@ void KafkaConsumer::HandleMessage(RdKafka::Message* message) {
 
             // Durable mode requires business success or confirmed DLQ delivery.
             // Other consumers retain their existing best-effort failure policy.
-            if (!options_.enable_auto_commit && consumer_) {
+            if (commit && !options_.enable_auto_commit && consumer_) {
                 RdKafka::ErrorCode commit_err = consumer_->commitSync(message);
                 if (commit_err != RdKafka::ERR_NO_ERROR) {
                     LOG_ERROR << "Kafka offset commit failed: "
@@ -234,6 +255,7 @@ void KafkaConsumer::HandleMessage(RdKafka::Message* message) {
                     }
                 }
             }
+            if (!handled && options_.processing_workers > 1) return false;
             break;
         }
         case RdKafka::ERR__TIMED_OUT:
@@ -243,6 +265,55 @@ void KafkaConsumer::HandleMessage(RdKafka::Message* message) {
             LOG_ERROR << "Kafka consume error: " << message->errstr();
             break;
     }
+    return !failed_;
+}
+
+void KafkaConsumer::ProcessBatch(std::vector<std::unique_ptr<RdKafka::Message>>& batch) {
+    // Logic publishes ai_request with session_id as its Kafka key. Assign all
+    // records for a key to the same lane, preserving order within and across
+    // batches. Other sessions can execute on independent lanes.
+    const size_t lanes = std::min(batch.size(), static_cast<size_t>(options_.processing_workers));
+    std::vector<std::vector<size_t>> jobs(lanes);
+    std::unordered_map<std::string, size_t> assigned;
+    for (size_t i = 0; i < batch.size(); ++i) {
+        const std::string key = batch[i]->key() ? *batch[i]->key() : std::string{};
+        auto it = assigned.find(key);
+        if (it == assigned.end()) {
+            const auto lane = std::min_element(jobs.begin(), jobs.end(),
+                [](const auto& a, const auto& b) { return a.size() < b.size(); }) - jobs.begin();
+            it = assigned.emplace(key, lane).first;
+        }
+        jobs[it->second].push_back(i);
+    }
+    std::atomic<bool> durable{true};
+    std::vector<std::thread> workers;
+    MetricsRegistry::Instance().Set("spark_push_kafka_batch_records_" + topic_, batch.size());
+    for (const auto& lane : jobs) {
+        workers.emplace_back([&, lane] {
+            for (size_t index : lane) {
+                if (failed_ || !HandleMessage(batch[index].get(), false)) {
+                    durable = false;
+                    break;
+                }
+            }
+        });
+    }
+    for (auto& worker : workers) worker.join();
+    // A failed batch is replayed in full. In particular a later completion can
+    // never advance an offset past an earlier unfinished/failed record.
+    if (!durable || failed_) {
+        failed_ = true; running_ = false;
+        return;
+    }
+    for (const auto& record : batch) {
+        const auto error = consumer_->commitSync(record.get());
+        if (error != RdKafka::ERR_NO_ERROR) {
+            LOG_ERROR << "Parallel Kafka batch commit failed topic=" << topic_;
+            failed_ = true; running_ = false;
+            return;
+        }
+    }
+    MetricsRegistry::Instance().Set("spark_push_kafka_batch_records_" + topic_, 0);
 }
 
 }  // namespace sparkpush

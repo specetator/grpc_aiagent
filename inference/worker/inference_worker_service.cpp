@@ -14,7 +14,7 @@ int64_t NowMs() {
 
 InferenceWorkerService::InferenceWorkerService(WorkerInfo info,
     std::unique_ptr<GenerationBackend> backend)
-    : info_(std::move(info)), backend_(std::move(backend)) {}
+    : info_(std::move(info)), backend_(std::move(backend)), memory_probe_(info_) {}
 
 grpc::Status InferenceWorkerService::Generate(grpc::ServerContext* context,
     const GenerateRequest* request, grpc::ServerWriter<GenerateChunk>* writer) {
@@ -26,6 +26,10 @@ grpc::Status InferenceWorkerService::Generate(grpc::ServerContext* context,
     std::lock_guard<std::mutex> lock(mutex_);
     if (!active_.emplace(request->request_id(), cancelled).second)
       return {grpc::StatusCode::ALREADY_EXISTS, "request_id already active"};
+    if (info_.max_concurrent_requests() && active_.size() > info_.max_concurrent_requests()) {
+      active_.erase(request->request_id());
+      return {grpc::StatusCode::RESOURCE_EXHAUSTED, "worker capacity exhausted"};
+    }
   }
   std::cerr << "inference worker started request_id=" << request->request_id()
             << " worker_id=" << info_.worker_id() << '\n';
@@ -86,9 +90,13 @@ grpc::Status InferenceWorkerService::Cancel(grpc::ServerContext*,
 
 grpc::Status InferenceWorkerService::GetStatus(grpc::ServerContext*,
     const GetWorkerStatusRequest*, WorkerInfo* reply) {
-  std::lock_guard<std::mutex> lock(mutex_);
-  *reply = info_;
-  reply->set_running_requests(active_.size());
+  {
+    std::lock_guard<std::mutex> lock(mutex_);
+    *reply = info_;
+    reply->set_running_requests(active_.size());
+  }
+  backend_->GetRuntimeStatus(reply);
+  memory_probe_.Sample(reply);
   reply->set_timestamp_ms(NowMs());
   return grpc::Status::OK;
 }

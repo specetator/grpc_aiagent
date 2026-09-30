@@ -8,6 +8,7 @@
 
 #include "inference.grpc.pb.h"
 #include "worker/generation_backend.h"
+#include "worker/gpu_memory_probe.h"
 
 namespace sparkpush::inference {
 
@@ -25,6 +26,7 @@ class InferenceWorkerService final : public InferenceWorker::Service {
  private:
   WorkerInfo info_;
   std::unique_ptr<GenerationBackend> backend_;
+  GpuMemoryProbe memory_probe_;
   std::mutex mutex_;
   std::unordered_map<std::string, std::shared_ptr<std::atomic<bool>>> active_;
 };

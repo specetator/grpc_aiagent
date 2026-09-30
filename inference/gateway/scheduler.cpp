@@ -10,6 +10,8 @@ std::optional<WorkerInfo> LeastLoadedScheduler::SelectWorker(
   double best_score = 0;
   for (const auto& worker : workers) {
     if (!worker.healthy() || worker.model_id() != request.model()) continue;
+    if (worker.max_concurrent_requests() &&
+        worker.running_requests() >= worker.max_concurrent_requests()) continue;
     const double pressure = worker.total_memory_bytes() == 0 ? 0.0 :
         1.0 - std::min(1.0, static_cast<double>(worker.free_memory_bytes()) /
                             worker.total_memory_bytes());

@@ -1,0 +1,54 @@
+{
+  "app_lengths": [
+    {
+      "profile": "app_cpu_flash_bridge4-c4",
+      "requests": 36,
+      "completion_token_counts": [
+        128
+      ]
+    },
+    {
+      "profile": "app_rocm_flash_bridge4-c4",
+      "requests": 36,
+      "completion_token_counts": [
+        128
+      ]
+    },
+    {
+      "profile": "app_cpu_bridge1-c4",
+      "requests": 36,
+      "completion_token_counts": [
+        128
+      ]
+    },
+    {
+      "profile": "app_rocm_bridge4-c4",
+      "requests": 36,
+      "completion_token_counts": [
+        128
+      ]
+    },
+    {
+      "profile": "app_rocm_bridge1-c4",
+      "requests": 36,
+      "completion_token_counts": [
+        128
+      ]
+    }
+  ],
+  "hash_comparisons": [
+    {
+      "a": "cpu_flash_f16-c4",
+      "b": "rocm_flash_f16-c4",
+      "compared": 36,
+      "exact_output_hash_matches": 1
+    },
+    {
+      "a": "rocm_flash_f16-c4",
+      "b": "rocm_flash_kv_q8-c4",
+      "compared": 36,
+      "exact_output_hash_matches": 5
+    }
+  ],
+  "note": "Hashes only check these prompts, not model quality/perplexity."
+}

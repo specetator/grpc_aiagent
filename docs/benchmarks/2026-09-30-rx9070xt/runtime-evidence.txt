@@ -1,0 +1,153 @@
+# app_rocm_bridge1-runtime.log
+Warning: Resource leak detected by SharedSignalPool, 2 Signals leaked.
+
+# app_rocm_bridge4-runtime.log
+Warning: Resource leak detected by SharedSignalPool, 2 Signals leaked.
+
+# app_rocm_flash_bridge4-runtime.log
+Warning: Resource leak detected by SharedSignalPool, 2 Signals leaked.
+
+# cpu_flash_f16-runtime-0.log
+0.00.001.825 I cmn  common_param: system_info: n_threads = 6 (n_threads_batch = 6) / 12 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX_VNNI = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | AVX512_BF16 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 |
+
+# cpu_q8_p1-runtime-0.log
+0.00.002.034 I cmn  common_param: system_info: n_threads = 6 (n_threads_batch = 6) / 12 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX_VNNI = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | AVX512_BF16 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 |
+
+# cpu_q8_p4-runtime-0.log
+0.00.001.905 I cmn  common_param: system_info: n_threads = 6 (n_threads_batch = 6) / 12 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX_VNNI = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | AVX512_BF16 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 |
+
+# grpc_cpu_flash_f16-runtime-0.log
+0.00.001.824 I cmn  common_param: system_info: n_threads = 6 (n_threads_batch = 6) / 12 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX_VNNI = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | AVX512_BF16 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 |
+
+# grpc_cpu_p4-runtime-0.log
+0.00.001.886 I cmn  common_param: system_info: n_threads = 6 (n_threads_batch = 6) / 12 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX_VNNI = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | AVX512_BF16 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 |
+
+# grpc_rocm_flash_f16-runtime-0.log
+0.00.016.908 I ggml_cuda_init: found 1 ROCm devices (Total VRAM: 16188 MiB):
+0.00.016.941 I   Device 0: AMD Radeon RX 9070 XT, gfx1201 (0x1201), VMM: no, Wave Size: 32, VRAM: 16188 MiB
+0.00.018.272 I cmn  common_param: system_info: n_threads = 6 (n_threads_batch = 6) / 12 | ROCm : NO_VMM = 1 | FA_QUANTS = q4_0-q4_0,q8_0-q8_0,f16-f16,bf16-bf16 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX_VNNI = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | AVX512_BF16 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 |
+0.00.426.150 I llama_prepare_model_devices: using device ROCm0 (AMD Radeon RX 9070 XT) (0000:03:00.0) - 13803 MiB free
+0.00.538.651 I load_tensors: offloaded 29/29 layers to GPU
+0.00.538.660 I load_tensors:        ROCm0 model buffer size =   604.15 MiB
+0.01.203.261 I llama_kv_cache:      ROCm0 KV buffer size =   896.00 MiB
+Warning: Resource leak detected by SharedSignalPool, 2 Signals leaked.
+
+# grpc_rocm_p4-runtime-0.log
+0.00.016.657 I ggml_cuda_init: found 1 ROCm devices (Total VRAM: 16188 MiB):
+0.00.016.698 I   Device 0: AMD Radeon RX 9070 XT, gfx1201 (0x1201), VMM: no, Wave Size: 32, VRAM: 16188 MiB
+0.00.018.020 I cmn  common_param: system_info: n_threads = 6 (n_threads_batch = 6) / 12 | ROCm : NO_VMM = 1 | FA_QUANTS = q4_0-q4_0,q8_0-q8_0,f16-f16,bf16-bf16 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX_VNNI = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | AVX512_BF16 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 |
+0.00.455.503 I llama_prepare_model_devices: using device ROCm0 (AMD Radeon RX 9070 XT) (0000:03:00.0) - 13790 MiB free
+0.00.577.815 I load_tensors: offloaded 29/29 layers to GPU
+0.00.577.819 I load_tensors:        ROCm0 model buffer size =   604.15 MiB
+0.01.208.043 I llama_kv_cache:      ROCm0 KV buffer size =   896.00 MiB
+Warning: Resource leak detected by SharedSignalPool, 2 Signals leaked.
+
+# grpc_rocm_replicas2-runtime-0.log
+0.00.015.238 I ggml_cuda_init: found 1 ROCm devices (Total VRAM: 16188 MiB):
+0.00.015.272 I   Device 0: AMD Radeon RX 9070 XT, gfx1201 (0x1201), VMM: no, Wave Size: 32, VRAM: 16188 MiB
+0.00.016.584 I cmn  common_param: system_info: n_threads = 6 (n_threads_batch = 6) / 12 | ROCm : NO_VMM = 1 | FA_QUANTS = q4_0-q4_0,q8_0-q8_0,f16-f16,bf16-bf16 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX_VNNI = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | AVX512_BF16 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 |
+0.00.430.180 I llama_prepare_model_devices: using device ROCm0 (AMD Radeon RX 9070 XT) (0000:03:00.0) - 13616 MiB free
+0.00.529.655 I load_tensors: offloaded 29/29 layers to GPU
+0.00.529.660 I load_tensors:        ROCm0 model buffer size =   604.15 MiB
+0.01.163.075 I llama_kv_cache:      ROCm0 KV buffer size =   448.00 MiB
+Warning: Resource leak detected by SharedSignalPool, 2 Signals leaked.
+
+# grpc_rocm_shared2-runtime-0.log
+0.00.015.791 I ggml_cuda_init: found 1 ROCm devices (Total VRAM: 16188 MiB):
+0.00.015.829 I   Device 0: AMD Radeon RX 9070 XT, gfx1201 (0x1201), VMM: no, Wave Size: 32, VRAM: 16188 MiB
+0.00.017.285 I cmn  common_param: system_info: n_threads = 6 (n_threads_batch = 6) / 12 | ROCm : NO_VMM = 1 | FA_QUANTS = q4_0-q4_0,q8_0-q8_0,f16-f16,bf16-bf16 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX_VNNI = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | AVX512_BF16 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 |
+0.00.428.419 I llama_prepare_model_devices: using device ROCm0 (AMD Radeon RX 9070 XT) (0000:03:00.0) - 13806 MiB free
+0.00.526.234 I load_tensors: offloaded 29/29 layers to GPU
+0.00.526.238 I load_tensors:        ROCm0 model buffer size =   604.15 MiB
+0.01.159.186 I llama_kv_cache:      ROCm0 KV buffer size =   896.00 MiB
+Warning: Resource leak detected by SharedSignalPool, 2 Signals leaked.
+
+# rocm_batch_off-runtime-0.log
+0.00.015.643 I ggml_cuda_init: found 1 ROCm devices (Total VRAM: 16188 MiB):
+0.00.015.676 I   Device 0: AMD Radeon RX 9070 XT, gfx1201 (0x1201), VMM: no, Wave Size: 32, VRAM: 16188 MiB
+0.00.017.005 I cmn  common_param: system_info: n_threads = 6 (n_threads_batch = 6) / 12 | ROCm : NO_VMM = 1 | FA_QUANTS = q4_0-q4_0,q8_0-q8_0,f16-f16,bf16-bf16 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX_VNNI = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | AVX512_BF16 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 |
+0.00.419.012 I llama_prepare_model_devices: using device ROCm0 (AMD Radeon RX 9070 XT) (0000:03:00.0) - 13658 MiB free
+0.00.510.649 I load_tensors: offloaded 29/29 layers to GPU
+0.00.510.654 I load_tensors:        ROCm0 model buffer size =   604.15 MiB
+0.01.119.366 I llama_kv_cache:      ROCm0 KV buffer size =   896.00 MiB
+Warning: Resource leak detected by SharedSignalPool, 2 Signals leaked.
+
+# rocm_batch_on-runtime-0.log
+0.00.015.376 I ggml_cuda_init: found 1 ROCm devices (Total VRAM: 16188 MiB):
+0.00.015.408 I   Device 0: AMD Radeon RX 9070 XT, gfx1201 (0x1201), VMM: no, Wave Size: 32, VRAM: 16188 MiB
+0.00.016.763 I cmn  common_param: system_info: n_threads = 6 (n_threads_batch = 6) / 12 | ROCm : NO_VMM = 1 | FA_QUANTS = q4_0-q4_0,q8_0-q8_0,f16-f16,bf16-bf16 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX_VNNI = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | AVX512_BF16 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 |
+0.00.395.999 I llama_prepare_model_devices: using device ROCm0 (AMD Radeon RX 9070 XT) (0000:03:00.0) - 13666 MiB free
+0.00.492.545 I load_tensors: offloaded 29/29 layers to GPU
+0.00.492.550 I load_tensors:        ROCm0 model buffer size =   604.15 MiB
+0.01.120.874 I llama_kv_cache:      ROCm0 KV buffer size =   896.00 MiB
+Warning: Resource leak detected by SharedSignalPool, 2 Signals leaked.
+
+# rocm_flash_f16-runtime-0.log
+0.00.014.579 I ggml_cuda_init: found 1 ROCm devices (Total VRAM: 16188 MiB):
+0.00.014.611 I   Device 0: AMD Radeon RX 9070 XT, gfx1201 (0x1201), VMM: no, Wave Size: 32, VRAM: 16188 MiB
+0.00.015.852 I cmn  common_param: system_info: n_threads = 6 (n_threads_batch = 6) / 12 | ROCm : NO_VMM = 1 | FA_QUANTS = q4_0-q4_0,q8_0-q8_0,f16-f16,bf16-bf16 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX_VNNI = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | AVX512_BF16 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 |
+0.00.418.222 I llama_prepare_model_devices: using device ROCm0 (AMD Radeon RX 9070 XT) (0000:03:00.0) - 13617 MiB free
+0.00.511.981 I load_tensors: offloaded 29/29 layers to GPU
+0.00.511.988 I load_tensors:        ROCm0 model buffer size =   604.15 MiB
+0.01.144.441 I llama_kv_cache:      ROCm0 KV buffer size =   896.00 MiB
+Warning: Resource leak detected by SharedSignalPool, 2 Signals leaked.
+
+# rocm_flash_kv_q8-runtime-0.log
+0.00.015.633 I ggml_cuda_init: found 1 ROCm devices (Total VRAM: 16188 MiB):
+0.00.015.666 I   Device 0: AMD Radeon RX 9070 XT, gfx1201 (0x1201), VMM: no, Wave Size: 32, VRAM: 16188 MiB
+0.00.017.027 I cmn  common_param: system_info: n_threads = 6 (n_threads_batch = 6) / 12 | ROCm : NO_VMM = 1 | FA_QUANTS = q4_0-q4_0,q8_0-q8_0,f16-f16,bf16-bf16 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX_VNNI = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | AVX512_BF16 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 |
+0.00.454.723 I llama_prepare_model_devices: using device ROCm0 (AMD Radeon RX 9070 XT) (0000:03:00.0) - 13617 MiB free
+0.00.554.251 I load_tensors: offloaded 29/29 layers to GPU
+0.00.554.255 I load_tensors:        ROCm0 model buffer size =   604.15 MiB
+0.01.196.548 I llama_kv_cache:      ROCm0 KV buffer size =   476.00 MiB
+Warning: Resource leak detected by SharedSignalPool, 2 Signals leaked.
+
+# rocm_flash_p1-runtime-0.log
+0.00.018.665 I ggml_cuda_init: found 1 ROCm devices (Total VRAM: 16188 MiB):
+0.00.018.707 I   Device 0: AMD Radeon RX 9070 XT, gfx1201 (0x1201), VMM: no, Wave Size: 32, VRAM: 16188 MiB
+0.00.020.234 I cmn  common_param: system_info: n_threads = 6 (n_threads_batch = 6) / 12 | ROCm : NO_VMM = 1 | FA_QUANTS = q4_0-q4_0,q8_0-q8_0,f16-f16,bf16-bf16 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX_VNNI = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | AVX512_BF16 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 |
+0.00.439.702 I llama_prepare_model_devices: using device ROCm0 (AMD Radeon RX 9070 XT) (0000:03:00.0) - 13613 MiB free
+0.00.538.838 I load_tensors: offloaded 29/29 layers to GPU
+0.00.538.849 I load_tensors:        ROCm0 model buffer size =   604.15 MiB
+0.01.162.734 I llama_kv_cache:      ROCm0 KV buffer size =   224.00 MiB
+Warning: Resource leak detected by SharedSignalPool, 2 Signals leaked.
+
+# rocm_prefix_off-runtime-0.log
+0.00.015.728 I ggml_cuda_init: found 1 ROCm devices (Total VRAM: 16188 MiB):
+0.00.015.763 I   Device 0: AMD Radeon RX 9070 XT, gfx1201 (0x1201), VMM: no, Wave Size: 32, VRAM: 16188 MiB
+0.00.017.162 I cmn  common_param: system_info: n_threads = 6 (n_threads_batch = 6) / 12 | ROCm : NO_VMM = 1 | FA_QUANTS = q4_0-q4_0,q8_0-q8_0,f16-f16,bf16-bf16 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX_VNNI = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | AVX512_BF16 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 |
+0.00.422.528 I llama_prepare_model_devices: using device ROCm0 (AMD Radeon RX 9070 XT) (0000:03:00.0) - 13665 MiB free
+0.00.517.863 I load_tensors: offloaded 29/29 layers to GPU
+0.00.517.869 I load_tensors:        ROCm0 model buffer size =   604.15 MiB
+0.01.128.862 I llama_kv_cache:      ROCm0 KV buffer size =   224.00 MiB
+Warning: Resource leak detected by SharedSignalPool, 2 Signals leaked.
+
+# rocm_prefix_on-runtime-0.log
+0.00.017.599 I ggml_cuda_init: found 1 ROCm devices (Total VRAM: 16188 MiB):
+0.00.017.631 I   Device 0: AMD Radeon RX 9070 XT, gfx1201 (0x1201), VMM: no, Wave Size: 32, VRAM: 16188 MiB
+0.00.018.918 I cmn  common_param: system_info: n_threads = 6 (n_threads_batch = 6) / 12 | ROCm : NO_VMM = 1 | FA_QUANTS = q4_0-q4_0,q8_0-q8_0,f16-f16,bf16-bf16 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX_VNNI = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | AVX512_BF16 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 |
+0.00.431.515 I llama_prepare_model_devices: using device ROCm0 (AMD Radeon RX 9070 XT) (0000:03:00.0) - 13617 MiB free
+0.00.526.553 I load_tensors: offloaded 29/29 layers to GPU
+0.00.526.557 I load_tensors:        ROCm0 model buffer size =   604.15 MiB
+0.01.143.813 I llama_kv_cache:      ROCm0 KV buffer size =   224.00 MiB
+Warning: Resource leak detected by SharedSignalPool, 2 Signals leaked.
+
+# rocm_q8_p1-runtime-0.log
+0.00.017.620 I ggml_cuda_init: found 1 ROCm devices (Total VRAM: 16188 MiB):
+0.00.017.653 I   Device 0: AMD Radeon RX 9070 XT, gfx1201 (0x1201), VMM: no, Wave Size: 32, VRAM: 16188 MiB
+0.00.018.972 I cmn  common_param: system_info: n_threads = 6 (n_threads_batch = 6) / 12 | ROCm : NO_VMM = 1 | FA_QUANTS = q4_0-q4_0,q8_0-q8_0,f16-f16,bf16-bf16 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX_VNNI = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | AVX512_BF16 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 |
+0.00.615.143 I llama_prepare_model_devices: using device ROCm0 (AMD Radeon RX 9070 XT) (0000:03:00.0) - 13658 MiB free
+0.00.709.047 I load_tensors: offloaded 29/29 layers to GPU
+0.00.709.051 I load_tensors:        ROCm0 model buffer size =   604.15 MiB
+0.01.320.946 I llama_kv_cache:      ROCm0 KV buffer size =   224.00 MiB
+Warning: Resource leak detected by SharedSignalPool, 2 Signals leaked.
+
+# rocm_q8_p4-runtime-0.log
+0.00.017.686 I ggml_cuda_init: found 1 ROCm devices (Total VRAM: 16188 MiB):
+0.00.017.719 I   Device 0: AMD Radeon RX 9070 XT, gfx1201 (0x1201), VMM: no, Wave Size: 32, VRAM: 16188 MiB
+0.00.019.082 I cmn  common_param: system_info: n_threads = 6 (n_threads_batch = 6) / 12 | ROCm : NO_VMM = 1 | FA_QUANTS = q4_0-q4_0,q8_0-q8_0,f16-f16,bf16-bf16 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX_VNNI = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | BMI2 = 1 | AVX512 = 1 | AVX512_VBMI = 1 | AVX512_VNNI = 1 | AVX512_BF16 = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 |
+0.00.453.013 I llama_prepare_model_devices: using device ROCm0 (AMD Radeon RX 9070 XT) (0000:03:00.0) - 13665 MiB free
+0.00.545.589 I load_tensors: offloaded 29/29 layers to GPU
+0.00.545.596 I load_tensors:        ROCm0 model buffer size =   604.15 MiB
+0.01.179.112 I llama_kv_cache:      ROCm0 KV buffer size =   896.00 MiB
+Warning: Resource leak detected by SharedSignalPool, 2 Signals leaked.

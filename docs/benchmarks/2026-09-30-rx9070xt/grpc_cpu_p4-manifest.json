@@ -1,0 +1,66 @@
+{
+  "profile": {
+    "name": "grpc_cpu_p4",
+    "gpu": false,
+    "slots": 4,
+    "conc": [
+      4
+    ],
+    "grpc": true
+  },
+  "model": "/home/peco/models/Qwen3-0.6B-Q8_0.gguf",
+  "runtime_commands": [
+    [
+      "/home/peco/tools/llama.cpp/build/bin/llama-server",
+      "-m",
+      "/home/peco/models/Qwen3-0.6B-Q8_0.gguf",
+      "--alias",
+      "qwen3-0.6b",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "41799",
+      "-np",
+      "4",
+      "-c",
+      "8192",
+      "-t",
+      "6",
+      "-tb",
+      "6",
+      "-b",
+      "512",
+      "-ub",
+      "128",
+      "--metrics",
+      "-lv",
+      "4",
+      "--chat-template-kwargs",
+      "{\"enable_thinking\":false}",
+      "-fa",
+      "off",
+      "-cb",
+      "-ngl",
+      "0",
+      "--device",
+      "none",
+      "--no-kv-offload",
+      "--no-op-offload",
+      "--no-cache-prompt",
+      "--cache-ram",
+      "0"
+    ]
+  ],
+  "worker_status": [
+    {
+      "worker_id": "worker-0",
+      "endpoint": "127.0.0.1:45543",
+      "model_id": "qwen3-0.6b",
+      "device_type": "cpu",
+      "healthy": true,
+      "timestamp_ms": "1790768384827",
+      "max_concurrent_requests": 4
+    }
+  ],
+  "ok": true
+}

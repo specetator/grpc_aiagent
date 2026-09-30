@@ -18,9 +18,14 @@ struct HermesBridgeConfig {
     std::string inference_backend{"pi"};
     std::string inference_gateway{"127.0.0.1:9300"};
     std::string inference_model{"qwen3-0.6b"};
+    int inference_max_tokens{128};
+    int inference_temperature_milli{700};
+    bool inference_cache_prompt{true};
     bool streaming{true};
     int request_timeout_ms{120000};
     int reply_delivery_timeout_ms{5000};
+    int processing_workers{1};
+    int max_batch_records{16};
     std::string attachment_dir{"data/attachments"};
 };
 

@@ -1,0 +1,77 @@
+{
+  "profile": {
+    "name": "grpc_rocm_shared2",
+    "gpu": true,
+    "slots": 4,
+    "conc": [
+      4
+    ],
+    "grpc": true,
+    "fa": "on",
+    "workers": 2
+  },
+  "model": "/home/peco/models/Qwen3-0.6B-Q8_0.gguf",
+  "runtime_commands": [
+    [
+      "/home/peco/tools/llama.cpp/build-rocm/bin/llama-server",
+      "-m",
+      "/home/peco/models/Qwen3-0.6B-Q8_0.gguf",
+      "--alias",
+      "qwen3-0.6b",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "38195",
+      "-np",
+      "4",
+      "-c",
+      "8192",
+      "-t",
+      "6",
+      "-tb",
+      "6",
+      "-b",
+      "512",
+      "-ub",
+      "128",
+      "--metrics",
+      "-lv",
+      "4",
+      "--chat-template-kwargs",
+      "{\"enable_thinking\":false}",
+      "-fa",
+      "on",
+      "-cb",
+      "-ngl",
+      "99",
+      "--no-cache-prompt",
+      "--cache-ram",
+      "0"
+    ]
+  ],
+  "worker_status": [
+    {
+      "worker_id": "worker-0",
+      "endpoint": "127.0.0.1:33837",
+      "model_id": "qwen3-0.6b",
+      "device_type": "rocm",
+      "total_memory_bytes": "16974905344",
+      "free_memory_bytes": "12757356544",
+      "healthy": true,
+      "timestamp_ms": "1790768491320",
+      "max_concurrent_requests": 2
+    },
+    {
+      "worker_id": "worker-1",
+      "endpoint": "127.0.0.1:36371",
+      "model_id": "qwen3-0.6b",
+      "device_type": "rocm",
+      "total_memory_bytes": "16974905344",
+      "free_memory_bytes": "12757356544",
+      "healthy": true,
+      "timestamp_ms": "1790768491323",
+      "max_concurrent_requests": 2
+    }
+  ],
+  "ok": true
+}

@@ -14,6 +14,8 @@ class GenerationBackend {
   virtual bool Generate(const GenerateRequest& request,
       const std::atomic<bool>& cancelled,
       const std::function<bool(const GenerateChunk&)>& emit) = 0;
+  // Runtime probes execute outside the worker's active-request mutex.
+  virtual void GetRuntimeStatus(WorkerInfo*) {}
 };
 
 class MockGenerationBackend final : public GenerationBackend {

@@ -23,6 +23,8 @@ int main(int argc, char** argv) {
   std::string id = "worker-0", listen = "127.0.0.1:9400";
   std::string model = "mock-model", gateway = "127.0.0.1:9300";
   std::string backend = "mock", model_endpoint;
+  std::string device_type;
+  int capacity = 4, device_index = 0;
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
     if (arg == "--worker-id" && i + 1 < argc) id = argv[++i];
@@ -31,10 +33,13 @@ int main(int argc, char** argv) {
     else if (arg == "--gateway" && i + 1 < argc) gateway = argv[++i];
     else if (arg == "--backend" && i + 1 < argc) backend = argv[++i];
     else if (arg == "--model-endpoint" && i + 1 < argc) model_endpoint = argv[++i];
-    else { std::cerr << "usage: inference_worker [--worker-id id] [--listen host:port] [--model id] [--gateway host:port] [--backend mock|llamacpp] [--model-endpoint http://host:port]\n"; return 2; }
+    else if (arg == "--max-concurrent" && i + 1 < argc) capacity = std::stoi(argv[++i]);
+    else if (arg == "--device-type" && i + 1 < argc) device_type = argv[++i];
+    else if (arg == "--device-index" && i + 1 < argc) device_index = std::stoi(argv[++i]);
+    else { std::cerr << "usage: inference_worker [--worker-id id] [--listen host:port] [--model id] [--gateway host:port] [--backend mock|llamacpp|vllm] [--model-endpoint http://host:port] [--max-concurrent N] [--device-type cpu|rocm|cuda|cann] [--device-index N]\n"; return 2; }
   }
-  if ((backend != "mock" && backend != "llamacpp") ||
-      (backend == "llamacpp" && model_endpoint.empty())) {
+  if ((backend != "mock" && backend != "llamacpp" && backend != "vllm") ||
+      (backend != "mock" && model_endpoint.empty()) || capacity <= 0 || capacity > 1024 || device_index < 0) {
     std::cerr << "invalid worker backend or missing model endpoint\n";
     return 2;
   }
@@ -42,13 +47,15 @@ int main(int argc, char** argv) {
   info.set_worker_id(id);
   info.set_endpoint(listen);
   info.set_model_id(model);
-  info.set_device_type(backend == "mock" ? "cpu-mock" : "llamacpp");
+  info.set_device_type(device_type.empty() ? (backend == "mock" ? "cpu-mock" : backend) : device_type);
+  info.set_device_index(device_index);
+  info.set_max_concurrent_requests(capacity);
   info.set_healthy(true);
   std::unique_ptr<sparkpush::inference::GenerationBackend> generation;
   if (backend == "mock")
     generation = std::make_unique<sparkpush::inference::MockGenerationBackend>();
   else
-    generation = std::make_unique<sparkpush::inference::LlamaCppBackend>(model_endpoint);
+    generation = std::make_unique<sparkpush::inference::LlamaCppBackend>(model_endpoint, backend);
   sparkpush::inference::InferenceWorkerService service(info, std::move(generation));
   grpc::EnableDefaultHealthCheckService(true);
   grpc::ServerBuilder builder;

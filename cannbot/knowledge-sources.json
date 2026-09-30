@@ -18,7 +18,13 @@
       "id": "inference-serving-phase-one",
       "path": "docs/inference-serving.md",
       "authority": "canonical",
-      "topics": ["inference", "gateway", "worker", "streaming", "scheduler", "metrics"]
+      "topics": ["inference", "gateway", "worker", "streaming", "scheduler", "metrics", "rocm", "batching"]
+    },
+    {
+      "id": "inference-rx9070xt-performance",
+      "path": "docs/performance-report-2026-09-30-rx9070xt.md",
+      "authority": "snapshot",
+      "topics": ["inference", "rocm", "benchmark", "throughput", "latency", "resume"]
     },
     {
       "id": "inference-wire-contract",

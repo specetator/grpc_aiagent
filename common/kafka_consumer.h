@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <vector>
 #include "kafka_producer.h"
 
 namespace sparkpush {
@@ -40,6 +41,11 @@ public:
         int dead_letter_timeout_ms{5000};
         std::function<RecoveryRecord(const std::string&, const std::string&)>
             failure_recovery;
+        // Opt-in bounded parallel batches. Records with the same Kafka key
+        // execute serially; no offset is committed until the batch is durable.
+        int processing_workers{1};
+        int max_batch_records{16};
+        int batch_window_ms{10};
     };
 
     KafkaConsumer() = default;
@@ -63,7 +69,8 @@ private:
     // 主消费循环，阻塞拉取消息
     void Loop();
     // 根据消息错误码分发处理或记录错误
-    void HandleMessage(RdKafka::Message* message);
+    bool HandleMessage(RdKafka::Message* message, bool commit = true);
+    void ProcessBatch(std::vector<std::unique_ptr<RdKafka::Message>>& batch);
 
     std::unique_ptr<RdKafka::KafkaConsumer> consumer_;
     std::string topic_;

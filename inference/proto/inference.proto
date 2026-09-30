@@ -14,6 +14,10 @@ message WorkerInfo {
   uint64 kv_cache_bytes = 10;
   bool healthy = 11;
   int64 timestamp_ms = 12;
+  uint32 max_concurrent_requests = 13;
+  uint32 runtime_running_requests = 14;
+  uint32 runtime_waiting_requests = 15;
+  double kv_cache_usage_ratio = 16;
 }
 
 message RegisterWorkerRequest { WorkerInfo worker = 1; }
@@ -43,6 +47,12 @@ message GenerateChunk {
   string finish_reason = 5;
   string error = 6;
   int64 timestamp_ms = 7;
+  uint64 prompt_tokens = 8;
+  uint64 completion_tokens = 9;
+  uint64 cached_prompt_tokens = 10;
+  double runtime_prefill_ms = 11;
+  double runtime_decode_ms = 12;
+  string worker_id = 13;
 }
 message CancelRequest { string request_id = 1; }
 message CancelReply { bool cancelled = 1; }

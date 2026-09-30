@@ -59,8 +59,10 @@ Logic ── ai_request ──► hermes_bridge ──HTTP/SSE──► Pi gatew
 - 阅读索引：[`docs/spark-push-implementation.md`](docs/spark-push-implementation.md)
 
 完整的优化决策、状态机、指标定义和边界见 [`docs/reliability-optimization.md`](docs/reliability-optimization.md)。
-可选的 Phase 1 gRPC Inference Gateway / Mock Worker（默认不替代 Pi）见
-[`docs/inference-serving.md`](docs/inference-serving.md)。
+可选的 gRPC Inference Gateway / Worker、容量准入、Bridge 并发和 ROCm 运行入口见
+[`docs/inference-serving.md`](docs/inference-serving.md)；默认后端仍为 Pi。
+Qwen3-0.6B 在 RX 9070 XT 上的真实 CPU/ROCm、批处理、缓存和 Flash Attention 对照见
+[`实测报告`](docs/performance-report-2026-09-30-rx9070xt.md)。
 配套的运行、排障和验证操作见 [`scripts/00_prepare_and_run.md`](scripts/00_prepare_and_run.md)。
 原始 Demo 到当前工程化版本的逐阶段对比、简历写法和面试追问见
 [`docs/interview-project-evolution.md`](docs/interview-project-evolution.md)。

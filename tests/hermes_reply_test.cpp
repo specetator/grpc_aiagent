@@ -20,6 +20,17 @@ int main() {
         PreparedHermesReply prepared;
         std::string error;
         Require(PrepareHermesReply(source.dump(), 99, "Pi", &prepared, &error), "valid reply rejected");
+        auto measured = source;
+        measured["response_metadata"] = {{"usage", {{"prompt_tokens", 80}, {"completion_tokens", 128},
+            {"cached_prompt_tokens", -1}, {"secret", "not persisted"}}}, {"worker_id", "hip-0"},
+            {"api_key", "not persisted"}};
+        Require(PrepareHermesReply(measured.dump(), 99, "Pi", &prepared, &error), "usage reply rejected");
+        const auto measured_content = nlohmann::json::parse(prepared.message.content_json)["content"];
+        Require(measured_content["inference_usage"].size() == 2 &&
+                measured_content["inference_usage"]["completion_tokens"] == 128 &&
+                measured_content["inference_worker_id"] == "hip-0" &&
+                !measured_content.contains("api_key"), "unsafe or missing inference usage");
+        Require(PrepareHermesReply(source.dump(), 99, "Pi", &prepared, &error), "valid reply rejected");
         int allocations = 0, publishes = 0;
         std::string first_bytes;
         auto allocate = [&](Message* msg, bool* fresh) {
