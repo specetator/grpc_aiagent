@@ -164,7 +164,8 @@ bool LlamaCppBackend::Generate(const GenerateRequest& request,
   nlohmann::json body = {
       {"model", request.model()}, {"messages", messages}, {"stream", true},
       {"max_tokens", request.max_tokens() == 0 ? 128 : request.max_tokens()},
-      {"temperature", request.has_temperature() ? request.temperature() : 0.7f}};
+      {"temperature", request.sampling_temperature_case() == GenerateRequest::kTemperature
+          ? request.temperature() : 0.7f}};
   body["stream_options"] = {{"include_usage", true}};
   for (const auto& item : request.metadata()) {
     if (item.first == "seed") body["seed"] = std::stoi(item.second);

@@ -2,19 +2,19 @@ Internal ctest changing into directory: /home/peco/cppcode/grpc_aiagent/build-ws
 Test project /home/peco/cppcode/grpc_aiagent/build-wsl
       Start 10: kafka_failure_integration_test
       Start 11: kafka_parallel_integration_test
- 1/20 Test #11: kafka_parallel_integration_test ........   Passed   13.65 sec
+ 1/20 Test #11: kafka_parallel_integration_test ........   Passed   13.66 sec
       Start 15: agent_router_test
  2/20 Test #10: kafka_failure_integration_test .........   Passed   16.52 sec
       Start 14: pi_gateway_test
- 3/20 Test #14: pi_gateway_test ........................   Passed    2.67 sec
+ 3/20 Test #14: pi_gateway_test ........................   Passed    2.44 sec
       Start  3: inference_vllm_adapter_contract_test
  4/20 Test  #3: inference_vllm_adapter_contract_test ...   Passed    2.12 sec
       Start 13: agent_control_integration_test
  5/20 Test #13: agent_control_integration_test .........   Passed    0.72 sec
       Start  2: inference_llamacpp_adapter_test
- 6/20 Test #15: agent_router_test ......................   Passed    8.44 sec
+ 6/20 Test #15: agent_router_test ......................   Passed    8.41 sec
       Start  1: inference_tests
- 7/20 Test  #1: inference_tests ........................   Passed    0.69 sec
+ 7/20 Test  #1: inference_tests ........................   Passed    0.67 sec
       Start 20: redis_sequence_integration_test
  8/20 Test #20: redis_sequence_integration_test ........   Passed    0.11 sec
       Start  4: security_test
@@ -22,7 +22,7 @@ Test project /home/peco/cppcode/grpc_aiagent/build-wsl
       Start 12: hermes_sse_parser_test
 10/20 Test #12: hermes_sse_parser_test .................   Passed    0.02 sec
       Start  9: hermes_reply_test
-11/20 Test  #9: hermes_reply_test ......................   Passed    0.00 sec
+11/20 Test  #9: hermes_reply_test ......................   Passed    0.01 sec
       Start 16: client_reliability_contract_test
 12/20 Test #16: client_reliability_contract_test .......   Passed    0.02 sec
       Start 18: knowledge_catalog_test
@@ -39,8 +39,8 @@ Test project /home/peco/cppcode/grpc_aiagent/build-wsl
 18/20 Test  #7: rate_limiter_test ......................   Passed    0.00 sec
       Start 19: websocket_utils_test
 19/20 Test #19: websocket_utils_test ...................   Passed    0.00 sec
-20/20 Test  #2: inference_llamacpp_adapter_test ........   Passed    2.12 sec
+20/20 Test  #2: inference_llamacpp_adapter_test ........   Passed    2.11 sec
 
 100% tests passed, 0 tests failed out of 20
 
-Total Test time (real) =  24.15 sec
+Total Test time (real) =  23.92 sec
