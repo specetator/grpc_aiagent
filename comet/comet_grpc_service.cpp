@@ -7,7 +7,7 @@ namespace sparkpush {
 
 CometServiceImpl::CometServiceImpl(CometServer* server) : server_(server) {}
 
-size_t CometServiceImpl::ProcessPushRequest(
+int64_t CometServiceImpl::ProcessPushRequest(
     const ::sparkpush::PushToCometRequest& request) {
     if (!server_ || !server_->AcceptPushRequest(request.request_id())) {
         return 0;
@@ -18,7 +18,7 @@ size_t CometServiceImpl::ProcessPushRequest(
         for (const auto& target : request.targets()) {
             if (target.user_id() > 0) users.push_back(target.user_id());
         }
-        const size_t delivered = server_->PushToUsers(request.message(), users);
+        const int64_t delivered = server_->PushToUsers(request.message(), users);
         if (delivered > 0) {
             server_->ReportDeliveredToUsers(request.message(), users);
         }
@@ -31,7 +31,7 @@ size_t CometServiceImpl::ProcessPushRequest(
             const int64_t room_id = std::stoll(session_id.substr(2));
             if (room_id <= 0) return 0;
             const auto users = server_->GetRoomUserIds(room_id);
-            const size_t delivered = server_->PushToRoom(request.message(), room_id);
+            const int64_t delivered = server_->PushToRoom(request.message(), room_id);
             if (delivered > 0) {
                 server_->ReportDeliveredToUsers(request.message(), users);
             }
@@ -49,11 +49,11 @@ size_t CometServiceImpl::ProcessPushRequest(
 ::grpc::Status CometServiceImpl::PushToComet(
     ::grpc::ServerContext*, const ::sparkpush::PushToCometRequest* request,
     ::sparkpush::PushToCometReply* response) {
-    const size_t delivered = ProcessPushRequest(*request);
+    const int64_t delivered = ProcessPushRequest(*request);
     response->set_request_id(request->request_id());
-    response->set_delivered_count(static_cast<int32_t>(delivered));
-    response->mutable_error()->set_code(0);
-    response->mutable_error()->set_message("ok");
+    response->set_delivered_count(static_cast<int32_t>(std::max<int64_t>(0, delivered)));
+    response->mutable_error()->set_code(delivered < 0 ? 503 : 0);
+    response->mutable_error()->set_message(delivered < 0 ? "connection backpressure; retry delivery" : "ok");
     return ::grpc::Status::OK;
 }
 
@@ -77,12 +77,12 @@ size_t CometServiceImpl::ProcessPushRequest(
     MetricsRegistry::Instance().Set("spark_push_comet_push_stream_ready", 1);
     PushToCometRequest request;
     while (stream->Read(&request)) {
-        const size_t delivered = ProcessPushRequest(request);
+        const int64_t delivered = ProcessPushRequest(request);
         PushToCometReply reply;
         reply.set_request_id(request.request_id());
-        reply.set_delivered_count(static_cast<int32_t>(delivered));
-        reply.mutable_error()->set_code(0);
-        reply.mutable_error()->set_message("ok");
+        reply.set_delivered_count(static_cast<int32_t>(std::max<int64_t>(0, delivered)));
+        reply.mutable_error()->set_code(delivered < 0 ? 503 : 0);
+        reply.mutable_error()->set_message(delivered < 0 ? "connection backpressure; retry delivery" : "ok");
         if (!stream->Write(reply)) {
             break;
         }

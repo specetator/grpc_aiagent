@@ -1,0 +1,5 @@
+.tooling/
+.gradle/
+.kotlin/
+local.properties
+**/build/

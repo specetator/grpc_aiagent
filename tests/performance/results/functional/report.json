@@ -1,0 +1,118 @@
+{
+  "schema": 1,
+  "benchmark": "Spark Push local recipient-observed E2E",
+  "started_at_utc": "2026-10-02T15:13:50.177390+00:00",
+  "benchmarks": [],
+  "functional": [
+    {
+      "test": "independent_device_receipts",
+      "pass": true,
+      "seconds": 3.651,
+      "observed": "A persisted sparse receipt suppresses replay; unacknowledged B receives replay"
+    },
+    {
+      "test": "new_device_history_recovery",
+      "pass": true,
+      "seconds": 0.027,
+      "observed": "A new device receives history despite another device's receipt"
+    },
+    {
+      "test": "sparse_receipt_allocation_gap_no_loss",
+      "pass": true,
+      "seconds": 3.865,
+      "observed": "Allocation gap retained; sparse ACK of higher seq does not suppress uncommitted lower message"
+    },
+    {
+      "test": "device_recovery_multiple_pages",
+      "pass": true,
+      "seconds": 6.157,
+      "observed": "205 offline messages recover across the 200-message page boundary after client durable receipt"
+    },
+    {
+      "test": "idempotent_different_payload",
+      "pass": true,
+      "seconds": 0.089,
+      "observed": "Stable client ID returns the original message identity and durable original payload"
+    },
+    {
+      "test": "group_fanout_membership_authorization",
+      "pass": true,
+      "seconds": 0.508,
+      "observed": "Persisted group message fans out to members; authenticated nonmember RPC returns 403 and outsider receives no group message"
+    },
+    {
+      "test": "job_outage_accepted_event_recovery",
+      "pass": true,
+      "seconds": 5.184,
+      "observed": "Kafka accepted event survives Job outage and reaches recipient after restart"
+    },
+    {
+      "test": "accepted_identity_survives_redis_cache_loss",
+      "pass": true,
+      "seconds": 3.75,
+      "observed": "Accepted identity survives deleting only this test session's Redis allocator/cache keys while Job is stopped"
+    },
+    {
+      "test": "rpc_generation_fencing_and_lease_recovery",
+      "pass": true,
+      "seconds": 0.078,
+      "observed": "Stale VerifyToken and UserOffline cannot replace/remove epoch 2; matching heartbeat restores expired lease"
+    },
+    {
+      "test": "comet_503_durable_automatic_retry",
+      "pass": true,
+      "seconds": 9.436,
+      "observed": "Explicit 503 leaves a durable retry task, then delivers to an online legacy recipient without reconnect/sync"
+    },
+    {
+      "test": "last_close_generation_race",
+      "pass": true,
+      "seconds": 0.262,
+      "observed": "20 rapid last-close/reconnect cycles retain the latest route; legacy peer receives without device polling"
+    },
+    {
+      "test": "slow_reader_backpressure",
+      "pass": true,
+      "seconds": 9.488,
+      "observed": {
+        "payload_bytes_each": 65536,
+        "accepted_messages": 200,
+        "backpressure_rejections": 1.0,
+        "highwater_disconnects": 0,
+        "behavior": "Slow reader is disconnected at bounded queue/output budget"
+      }
+    },
+    {
+      "test": "comet_restart_device_recovery",
+      "pass": true,
+      "seconds": 0.211,
+      "observed": "Unacknowledged device message survives Comet process restart"
+    },
+    {
+      "test": "ai_delta_ephemeral_final_durable_idempotent",
+      "pass": true,
+      "seconds": 4.021,
+      "observed": "Synthetic Kafka ai_delta reaches UI with seq 0 and no history/receipt; ai_reply persists once, acknowledges and recovers on another device"
+    }
+  ],
+  "binary_sha256": {
+    "updated": {
+      "logic": "8a2d7ebc1a58574b39ca18bcfdb25a77376f605436b142dd1f540a862b7cb7f0",
+      "comet": "5ed44f2d67b8c3750bb2f5f05ec942435e97d84f4339c436c47a34b644bc81d9",
+      "job": "b1268b0e856c8c1b34d4290a53e372b5b6ef7afde3c310ce6188036254b35f72"
+    }
+  },
+  "environment": {
+    "platform": "Linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "cpu_count": 12,
+    "python": "3.12.3"
+  },
+  "notes": [
+    "Local loopback measurements; no production-capacity claim.",
+    "Account registration and connection setup excluded from latency and throughput.",
+    "Both variants tested sequentially using identical client workload.",
+    "Each sending connection uses a separate account; one common receiving connection.",
+    "Tokens and passwords are omitted from reports and latency samples."
+  ]
+}

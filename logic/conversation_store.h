@@ -1,17 +1,15 @@
 #pragma once
 
-#include <array>
 #include <cstddef>
 #include <memory>
-#include <mutex>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 #include "message_dao.h"
 #include "redis_store.h"
 #include "session_dao.h"
 #include "user_session_state_dao.h"
+#include "message_reservation.h"
 
 namespace sparkpush {
 
@@ -22,7 +20,8 @@ class ConversationStore {
     // 参数：对应的 DAO/Store 指针，均为外部生命周期管理
     // 返回：无
     ConversationStore(SessionDao* session_dao, MessageDao* message_dao,
-                      UserSessionStateDao* state_dao, RedisStore* redis_store);
+                      UserSessionStateDao* state_dao, RedisStore* redis_store,
+                      MessageReservation* reservation = nullptr);
 
     // 功能：获取或创建单聊会话，确保数据库存在对应 session
     // 参数：user1/user2 单聊双方；session 输出会话信息；err_msg 记录错误
@@ -48,7 +47,7 @@ class ConversationStore {
                        const std::string& client_msg_id, Message* message,
                        std::string* err_msg);
 
-    // 热路径：仅 Redis INCR 分配序号并构造 Message，不写 MySQL
+    // Reserve an immutable identity/sequence before Kafka acceptance; history is asynchronous.
     bool AppendMessageHotPath(const std::string& session_id, int64_t sender_id,
                               const std::string& msg_type,
                               const std::string& content_json,
@@ -92,6 +91,15 @@ class ConversationStore {
 
     bool GetDeliveredSeq(int64_t user_id, const std::string& session_id,
                          int64_t* delivered_seq, std::string* err_msg);
+    bool GetDeviceMessages(int64_t user_id, const std::string& device_id,
+                           const std::string& session_id, int limit,
+                           std::vector<Message>* messages, std::string* err_msg);
+    bool GetMaxMsgSeq(const std::string& session, int64_t* seq, std::string* err) {
+        return message_dao_ && message_dao_->GetMaxMsgSeq(session, seq, err);
+    }
+    bool MarkReceived(int64_t user_id, const std::string& device_id,
+                      const std::string& session_id, int64_t prefix,
+                      const std::vector<int64_t>& received, std::string* err_msg);
 
     // 功能：列出用户参与的所有单聊会话
     // 参数：user_id 用户；sessions 输出会话列表；err_msg 记录错误
@@ -110,11 +118,7 @@ class ConversationStore {
     MessageDao* message_dao_{nullptr};
     UserSessionStateDao* state_dao_{nullptr};
     RedisStore* redis_store_{nullptr};
-    // 不同会话并行校准 MySQL floor；同一会话仍由固定 shard 串行初始化。
-    static constexpr size_t kSeqSeedShardCount = 64;
-    std::array<std::mutex, kSeqSeedShardCount> seq_seed_mutexes_;
-    std::array<std::unordered_set<std::string>, kSeqSeedShardCount>
-        seq_seeded_sessions_;
+    MessageReservation* reservation_{nullptr};
 };
 
 }  // namespace sparkpush

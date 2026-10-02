@@ -1,0 +1,54 @@
+{
+  "platform": "Linux",
+  "kernel": "6.18.33.2-microsoft-standard-WSL2",
+  "cpu_model": "AMD Ryzen 5 9600X 6-Core Processor",
+  "logical_cpus": 12,
+  "memory": "MemTotal:       15932040 kB",
+  "mysql_version_and_durability": [
+    "8.0.46-0ubuntu0.24.04.4",
+    "innodb_buffer_pool_size\t134217728",
+    "innodb_doublewrite\tON",
+    "innodb_flush_log_at_trx_commit\t1",
+    "sync_binlog\t1"
+  ],
+  "binary_sha256": {
+    "baseline": {
+      "logic": {
+        "sha256": "0bf12d4d1d2cfd76ef13aecd52914318241432729ed1a536c19c1cc5090dfd36",
+        "bytes": 2446608
+      },
+      "comet": {
+        "sha256": "19c2c0cf19970fa3eb1b801bc705f3e0765e49d3a69e56f2d799d386439eb002",
+        "bytes": 1346576
+      },
+      "job": {
+        "sha256": "c0a87911fa6f7e2d5891c111ed380a0e34c9fe974c9a8a40a053c09699297bc7",
+        "bytes": 1163648
+      }
+    },
+    "updated": {
+      "logic": {
+        "sha256": "8a2d7ebc1a58574b39ca18bcfdb25a77376f605436b142dd1f540a862b7cb7f0",
+        "bytes": 2580720
+      },
+      "comet": {
+        "sha256": "5ed44f2d67b8c3750bb2f5f05ec942435e97d84f4339c436c47a34b644bc81d9",
+        "bytes": 1468512
+      },
+      "job": {
+        "sha256": "b1268b0e856c8c1b34d4290a53e372b5b6ef7afde3c310ce6188036254b35f72",
+        "bytes": 1395944
+      }
+    }
+  },
+  "source_files_sha256": {
+    "comet/comet_server.cpp": "afdec9200bba4747845581118f447ac95f8c1f6a324378e25a1f9de14e70f3a6",
+    "comet/comet_server.h": "76e7e7f5c2ea74164f969aeb7c4a06ebeac75329c994970164016eac66d1cccf",
+    "comet/comet_grpc_service.cpp": "9bdac4cf1f4eff1bdc97cb2581fea61fd65068f0e4827f3db5c802ef85c4c16a",
+    "job/service.cpp": "c117f1c99084f1fadad952fa654663171f1993850c42373cc605f49de586a391",
+    "logic/delivery_outbox.cpp": "a43a85955ab77480ba305d0da6815ca166813868a7fb951ab64d154ebfee02dd",
+    "logic/message_reservation.cpp": "ba901fd9c7e5ff8e9f3fba71d6791b5d2d923a0a31af7cd30d42755d6f243113",
+    "common/kafka_consumer.cpp": "f9f29380a51452ec027000595391b99fd24df418efbd65d86f460836f24b5997",
+    "tests/im_e2e_performance.py": "9d12c50397a6d457a015a52ebd86142e1531a6b2e27234a750bdd9d998360ed6"
+  }
+}

@@ -175,7 +175,9 @@ int RunLogic(const Config& cfg) {
         return 1;
     }
     std::string state_schema_err;
-    if (!state_dao.EnsureDeliveredSeqColumn(&state_schema_err)) {
+    if (!message_dao.EnsureClientIdIndex(&state_schema_err) ||
+        !state_dao.EnsureDeliveredSeqColumn(&state_schema_err) ||
+        !state_dao.EnsureReceivedSchema(&state_schema_err)) {
         LOG_ERROR << "Failed to ensure delivered cursor schema: "
                   << state_schema_err;
         return 1;
@@ -202,9 +204,14 @@ int RunLogic(const Config& cfg) {
         return 1;
     }
     RedisStore redis_store(&redis_pool);
+    MessageReservation message_reservation(&mysql_pool);
+    if (!message_reservation.EnsureSchema(&state_schema_err)) {
+        LOG_ERROR << "Failed to ensure message reservation schema: " << state_schema_err;
+        return 1;
+    }
 
     ConversationStore conversation_store(&session_dao, &message_dao, &state_dao,
-                                         &redis_store);
+                                         &redis_store, &message_reservation);
 
     // 启动 gRPC 服务器（LogicService）
     std::string grpc_addr =

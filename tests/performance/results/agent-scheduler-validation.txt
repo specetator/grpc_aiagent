@@ -1,0 +1,24 @@
+127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+.127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+.127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/agent/events/replay HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+....hermes_timing {"trace_id": "3a0d8faca729", "connect_ms": 27, "first_delta_ms": 47, "total_ms": 47, "chunk_count": 1, "finish_reason": "stop", "provider_output_bytes": 12, "provider_output_chars": 4}
+hermes_timing {"trace_id": "1c3e6a39ae64", "connect_ms": 22, "first_delta_ms": 46, "total_ms": 46, "chunk_count": 1, "finish_reason": "stop", "provider_output_bytes": 12, "provider_output_chars": 4}
+hermes_timing {"trace_id": "3c291c35f1a0", "error_type": "ValueError", "total_ms": 0}
+hermes_timing {"trace_id": "372fd37ba1d4", "connect_ms": 21, "first_delta_ms": 43, "total_ms": 43, "chunk_count": 1, "finish_reason": "stop", "provider_output_bytes": 12, "provider_output_chars": 4}
+hermes_timing {"trace_id": "bb47dc5dddd9", "connect_ms": 18, "first_delta_ms": 41, "total_ms": 41, "chunk_count": 1, "finish_reason": "stop", "provider_output_bytes": 12, "provider_output_chars": 4}
+.hermes_timing {"trace_id": "735408d6aa05", "error_type": "RuntimeError", "total_ms": 36}
+hermes_timing {"trace_id": "329e2bc300fb", "error_type": "RuntimeError", "total_ms": 50}
+hermes_timing {"trace_id": "435f11d9af14", "error_type": "RuntimeError", "total_ms": 58}
+.......hermes_timing {"trace_id": "142e2b9bb02b", "connect_ms": 20, "first_delta_ms": 44, "total_ms": 44, "chunk_count": 1, "finish_reason": "stop", "provider_output_bytes": 12, "provider_output_chars": 4}
+hermes_timing {"trace_id": "c60fbbfb0fbe", "connect_ms": 26, "first_delta_ms": 53, "total_ms": 53, "chunk_count": 1, "finish_reason": "stop", "provider_output_bytes": 12, "provider_output_chars": 4}
+hermes_timing {"trace_id": "05e510b3cb4d", "connect_ms": 16, "first_delta_ms": 38, "total_ms": 38, "chunk_count": 1, "finish_reason": "stop", "provider_output_bytes": 12, "provider_output_chars": 4}
+.hermes_timing {"trace_id": "1bf4c05fff75", "connect_ms": 33, "first_delta_ms": 72, "total_ms": 72, "chunk_count": 1, "finish_reason": "stop", "provider_output_bytes": 12, "provider_output_chars": 4}
+hermes_timing {"trace_id": "38b531433f14", "connect_ms": 41, "first_delta_ms": 66, "total_ms": 66, "chunk_count": 1, "finish_reason": "stop", "provider_output_bytes": 12, "provider_output_chars": 4}
+..................
+----------------------------------------------------------------------
+Ran 33 tests in 11.167s
+
+OK

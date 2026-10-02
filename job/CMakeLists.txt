@@ -6,6 +6,9 @@ add_executable(job_server
     service.cpp
     ../logic/message_dao.cpp
     ../logic/session_dao.cpp
+    ../logic/delivery_outbox.cpp
+    ../logic/group_dao.cpp
+    ../logic/redis_store.cpp
 )
 
 target_include_directories(job_server PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../logic)

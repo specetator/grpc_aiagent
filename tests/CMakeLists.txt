@@ -1,3 +1,4 @@
+find_package(Threads REQUIRED)
 add_executable(security_test
   security_test.cpp
   ${PROJECT_SOURCE_DIR}/common/security.cpp
@@ -125,3 +126,31 @@ add_test(NAME redis_sequence_integration_test
 set_tests_properties(redis_sequence_integration_test PROPERTIES
   SKIP_RETURN_CODE 77
 )
+
+add_executable(delivery_outbox_integration_test
+  delivery_outbox_integration_test.cpp
+  ${PROJECT_SOURCE_DIR}/logic/delivery_outbox.cpp)
+target_include_directories(delivery_outbox_integration_test PRIVATE ${PROJECT_SOURCE_DIR}/logic)
+target_link_libraries(delivery_outbox_integration_test PRIVATE spark_push_common spark_push_proto)
+add_test(NAME delivery_outbox_integration_test COMMAND delivery_outbox_integration_test)
+set_tests_properties(delivery_outbox_integration_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 45)
+
+add_executable(comet_budget_test comet_budget_test.cpp)
+target_include_directories(comet_budget_test PRIVATE ${PROJECT_SOURCE_DIR}/common)
+target_link_libraries(comet_budget_test PRIVATE Threads::Threads)
+add_test(NAME comet_budget_test COMMAND comet_budget_test)
+
+add_executable(device_receipt_integration_test device_receipt_integration_test.cpp
+  ${PROJECT_SOURCE_DIR}/logic/message_dao.cpp
+  ${PROJECT_SOURCE_DIR}/logic/user_session_state_dao.cpp)
+target_include_directories(device_receipt_integration_test PRIVATE ${PROJECT_SOURCE_DIR}/logic)
+target_link_libraries(device_receipt_integration_test PRIVATE spark_push_common)
+add_test(NAME device_receipt_integration_test COMMAND device_receipt_integration_test)
+set_tests_properties(device_receipt_integration_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
+
+add_executable(message_reservation_integration_test message_reservation_integration_test.cpp
+  ${PROJECT_SOURCE_DIR}/logic/message_reservation.cpp)
+target_include_directories(message_reservation_integration_test PRIVATE ${PROJECT_SOURCE_DIR}/logic)
+target_link_libraries(message_reservation_integration_test PRIVATE spark_push_common)
+add_test(NAME message_reservation_integration_test COMMAND message_reservation_integration_test)
+set_tests_properties(message_reservation_integration_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 45)

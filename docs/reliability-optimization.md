@@ -1,3 +1,10 @@
+# 2026-10-02 implementation update
+
+Current durable delivery, per-device receipts, Android SQLite queues and
+connection budgets are specified in [IM reliability upgrade](im-reliability-2026-10-02.md).
+That document supersedes older realtime dual-write and user-level recovery
+descriptions in this document for clients opting into device receipts.
+
 # 实时消息可靠性与投递优化
 
 > 这份文档记录根目录当前源码已经完成的优化，以及仍然没有被夸大的边界。更新日期：2026-08-09。

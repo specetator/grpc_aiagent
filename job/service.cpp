@@ -46,6 +46,31 @@ bool JobRunner::Init() {
     }
     session_dao_ = std::make_unique<SessionDao>(mysql_pool_.get());
     message_dao_ = std::make_unique<MessageDao>(mysql_pool_.get());
+    group_member_dao_ = std::make_unique<GroupMemberDao>(mysql_pool_.get());
+    delivery_outbox_ = std::make_unique<DeliveryOutbox>(mysql_pool_.get());
+    std::string schema_error;
+    if (!delivery_outbox_->EnsureSchema(&schema_error)) {
+        LOG_ERROR << "Job delivery outbox schema init failed: " << schema_error;
+        return false;
+    }
+    redis_pool_ = std::make_unique<RedisConnectionPool>();
+    RedisConfig redis_config;
+    redis_config.host = cfg_.redis_host;
+    redis_config.port = cfg_.redis_port;
+    redis_config.password = cfg_.redis_password;
+    redis_config.db = cfg_.redis_db;
+    redis_config.pool_size = cfg_.redis_pool_size;
+    redis_config.max_pool_size = cfg_.redis_max_pool_size;
+    redis_config.connect_timeout_ms = cfg_.redis_connect_timeout_ms;
+    redis_config.rw_timeout_ms = cfg_.redis_rw_timeout_ms;
+    redis_config.idle_timeout_ms = cfg_.redis_idle_timeout_ms;
+    redis_config.health_check_interval_ms = cfg_.redis_health_check_interval_ms;
+    if (!redis_pool_->Init(redis_config)) {
+        LOG_ERROR << "Job Redis routing pool init failed";
+        return false;
+    }
+    // Route changes matter immediately during retry/reconnect.
+    redis_store_ = std::make_unique<RedisStore>(redis_pool_.get(), 0);
 
     KafkaConsumer::Options consumer_opts;
     consumer_opts.enable_auto_commit = false;
@@ -83,6 +108,12 @@ bool JobRunner::Init() {
         return false;
     }
     consumer_opts.dead_letter_topic = cfg_.kafka_persist_topic + ".dlq";
+    consumer_opts.processing_cancelled = [this] { return !delivery_running_.load(); };
+    // Independent session keys group-commit concurrently; each key remains
+    // serial, and Kafka only commits a batch after every record is durable.
+    consumer_opts.processing_workers = std::clamp(cfg_.delivery_workers, 1, 32);
+    consumer_opts.max_batch_records = 64;
+    consumer_opts.batch_window_ms = 5;
     if (!persist_consumer_.Init(
             cfg_.kafka_brokers, cfg_.kafka_consumer_group + "_persist",
             cfg_.kafka_persist_topic,
@@ -103,6 +134,11 @@ void JobRunner::Start() {
     }
     if (cfg_.use_push_stream) InitStreams();
     streams_running_ = cfg_.use_push_stream && !streams_.empty();
+    delivery_running_ = true;
+    const int delivery_workers = std::clamp(cfg_.delivery_workers, 1, 32);
+    for (int worker = 0; worker < delivery_workers; ++worker) {
+        delivery_threads_.emplace_back(&JobRunner::DeliveryLoop, this);
+    }
     single_consumer_.Start();
     if (split_scene_topics_) group_consumer_.Start();
     broadcast_consumer_.Start();
@@ -112,11 +148,19 @@ void JobRunner::Start() {
 }
 
 void JobRunner::Stop() {
+    // Wake an in-flight SQL persistence retry before joining its Kafka thread.
+    delivery_running_ = false;
+    delivery_wait_cv_.notify_all();
     // 先停止 Kafka 回调，避免停止流后仍有新请求入队。
+    persist_consumer_.Stop();
     single_consumer_.Stop();
     if (split_scene_topics_) group_consumer_.Stop();
     broadcast_consumer_.Stop();
-    persist_consumer_.Stop();
+
+    for (auto& worker : delivery_threads_) {
+        if (worker.joinable()) worker.join();
+    }
+    delivery_threads_.clear();
 
     streams_running_ = false;
     for (auto& item : streams_) {
@@ -662,7 +706,7 @@ bool JobRunner::HandleBroadcastTask(const std::string& key,
     return ok;
 }
 
-bool JobRunner::PersistMessage(const PersistMessageRequest& request) {
+bool JobRunner::PersistMessage(const PersistMessageRequest& request, std::string* error) {
     if (!session_dao_ || !message_dao_) return false;
     const auto& pb = request.message();
     Message message;
@@ -692,6 +736,8 @@ bool JobRunner::PersistMessage(const PersistMessageRequest& request) {
                                                        &err)) {
             return true;
         }
+        if (error) *error = err;
+        if (err.rfind("message sequence collision", 0) == 0) return false;
         if (attempt < 3) {
             std::this_thread::sleep_for(
                 std::chrono::milliseconds(100 * (attempt + 1)));
@@ -711,13 +757,144 @@ bool JobRunner::HandlePersistMessage(const std::string& key,
         LOG_ERROR << "Invalid PersistMessageRequest; retain in durable DLQ";
         return false;
     }
-    const bool ok = PersistMessage(request);
-    if (ok) {
-        MetricsRegistry::Instance().Increment("spark_push_persist_success_total");
-    } else {
-        MetricsRegistry::Instance().Increment("spark_push_persist_failed_total");
+    const auto& message = request.message();
+    if (message.sender_id() <= 0 || message.msg_seq() <= 0 || message.session_id().empty() ||
+        message.session_id().size() > 128 || message.msg_id() != message.session_id() + "-" + std::to_string(message.msg_seq()) ||
+        (request.scene() != "single" && request.scene() != "chatroom") ||
+        (request.scene() == "single" && (request.user1_id() <= 0 || request.user2_id() <= 0 ||
+         message.session_id() != "s_" + std::to_string(std::min(request.user1_id(), request.user2_id())) +
+                                 "_" + std::to_string(std::max(request.user1_id(), request.user2_id())))) ||
+        (request.scene() == "chatroom" && (request.room_id() <= 0 ||
+         message.session_id() != "r_" + std::to_string(request.room_id())))) {
+        LOG_ERROR << "Invalid persistence event identity; retain in durable DLQ";
+        return false;
     }
-    return ok;
+    std::string error;
+    // Session, history and outbox share one COMMIT; a crash cannot expose a
+    // durable message without its delivery task. ClaimReady retains its gate.
+    int retry = 0;
+    while (delivery_running_) {
+        if (delivery_outbox_ && delivery_outbox_->PersistAtomically(request, &error)) {
+            MetricsRegistry::Instance().Increment("spark_push_persist_success_total");
+            delivery_wait_cv_.notify_all();
+            return true;
+        }
+        MetricsRegistry::Instance().Increment("spark_push_persist_failed_total");
+        if (error.rfind("invalid delivery persistence event", 0) == 0 ||
+            error.rfind("message sequence collision", 0) == 0) {
+            // Poison records remain visible in the existing durable DLQ.
+            return false;
+        }
+        MetricsRegistry::Instance().Increment("spark_push_persist_retry_total");
+        const int delay = std::min(3000, 100 * (1 << std::min(5, retry++)));
+        std::unique_lock<std::mutex> lock(delivery_wait_mutex_);
+        delivery_wait_cv_.wait_for(lock, std::chrono::milliseconds(delay),
+                                  [this] { return !delivery_running_; });
+    }
+    // KafkaConsumer must not commit or DLQ a callback cancelled by Stop.
+    return false;
+}
+
+bool JobRunner::DeliverTask(const DeliveryOutbox::Task& task, int lease_ms) {
+    if (!redis_store_ || !delivery_outbox_) return false;
+    const auto& event = task.request;
+    std::vector<int64_t> recipients(event.recipient_user_ids().begin(),
+                                    event.recipient_user_ids().end());
+    std::string error;
+    auto lease_refreshed_at = std::chrono::steady_clock::now();
+    const auto renew_if_due = [&] {
+        if (!delivery_running_) return false;
+        const auto now = std::chrono::steady_clock::now();
+        if (now - lease_refreshed_at < std::chrono::milliseconds(lease_ms / 3)) return true;
+        if (!delivery_outbox_->Renew(task, lease_ms, &error)) return false;
+        lease_refreshed_at = std::chrono::steady_clock::now();
+        return true;
+    };
+    if (recipients.empty()) {
+        if (event.scene() == "single") {
+            // Old Kafka events did not carry explicit fanout recipients.
+            recipients = {event.user1_id(), event.user2_id()};
+        } else if (!group_member_dao_ ||
+                   !group_member_dao_->ListRoomMembers(event.room_id(), &recipients, &error)) {
+            return false;
+        }
+    }
+    std::sort(recipients.begin(), recipients.end());
+    recipients.erase(std::unique(recipients.begin(), recipients.end()), recipients.end());
+    std::unordered_map<std::string, std::vector<int64_t>> routes;
+    size_t checked_recipients = 0;
+    for (int64_t user_id : recipients) {
+        if (++checked_recipients % 64 == 0 &&
+            !renew_if_due()) return false;
+        if (user_id <= 0) continue;
+        std::vector<std::string> comets;
+        if (!redis_store_->GetUserRoutes(user_id, &comets)) return false;
+        for (const auto& comet : comets) routes[comet].push_back(user_id);
+    }
+    for (const auto& route : routes) {
+        std::vector<int64_t> receiver_users, sender_users;
+        for (const auto user_id : route.second) {
+            if (event.ack_user_id() > 0 && user_id == event.ack_user_id()) sender_users.push_back(user_id);
+            else receiver_users.push_back(user_id);
+        }
+        auto push = [&](const std::vector<int64_t>& users, bool sender_sync) {
+            if (users.empty()) return true;
+            if (!renew_if_due()) return false;
+            PushToCometRequest request;
+            request.set_comet_id(route.first);
+            request.set_request_id(event.message().msg_id() + "@" + route.first +
+                                   (sender_sync ? "@sender_sync" : ""));
+            // A sender's other devices must not count as receiver delivery.
+            if (!sender_sync) {
+                request.set_ack_comet_id(event.ack_comet_id());
+                request.set_ack_user_id(event.ack_user_id());
+            }
+            request.set_scene(event.scene() == "single" ? "single" : "group");
+            *request.mutable_message() = event.message();
+            for (int64_t user_id : users) request.add_targets()->set_user_id(user_id);
+            return ProcessPushRequest(request);
+        };
+        if (!push(receiver_users, false) || !push(sender_users, true)) return false;
+    }
+    // No live route means that device receipt/offline sync owns delivery.
+    return true;
+}
+
+void JobRunner::DeliveryLoop() {
+    // Stream wait plus three unary attempts, backoffs and SQL renewal budget.
+    const int lease_ms = std::max(60000, cfg_.push_rpc_deadline_ms * 8 + 15000);
+    auto next_backlog = std::chrono::steady_clock::now();
+    while (delivery_running_) {
+        DeliveryOutbox::Task task;
+        bool found = false;
+        std::string error;
+        if (!delivery_outbox_->ClaimReady(lease_ms, &task, &found, &error)) {
+            MetricsRegistry::Instance().Increment("spark_push_delivery_outbox_claim_errors_total");
+        } else if (found) {
+            MetricsRegistry::Instance().Increment("spark_push_delivery_outbox_attempts_total");
+            const bool delivered = DeliverTask(task, lease_ms);
+            if (delivered && delivery_outbox_->Complete(task, &error)) {
+                MetricsRegistry::Instance().Increment("spark_push_delivery_outbox_completed_total");
+            } else {
+                // Never discard an online failure. The SQL task survives restart.
+                const int delay_ms = std::min(30000, 100 * (1 << std::min(8, task.attempts - 1)));
+                delivery_outbox_->Retry(task, delay_ms, &error);
+                MetricsRegistry::Instance().Increment("spark_push_delivery_outbox_retries_total");
+            }
+        }
+        const auto now = std::chrono::steady_clock::now();
+        if (now >= next_backlog) {
+            int64_t count = 0;
+            if (delivery_outbox_->Backlog(&count, &error)) {
+                MetricsRegistry::Instance().Set("spark_push_delivery_outbox_backlog", count);
+            }
+            next_backlog = now + std::chrono::seconds(2);
+        }
+        if (!found) {
+            std::unique_lock<std::mutex> lock(delivery_wait_mutex_);
+            delivery_wait_cv_.wait_for(lock, std::chrono::milliseconds(100));
+        }
+    }
 }
 
 }  // namespace sparkpush

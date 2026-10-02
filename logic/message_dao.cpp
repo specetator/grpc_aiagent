@@ -1,4 +1,5 @@
 #include "message_dao.h"
+#include "sql_helpers.h"
 
 #include <mysql/mysql.h>
 
@@ -12,6 +13,39 @@
 #include "logging.h"
 
 namespace sparkpush {
+bool MessageDao::EnsureClientIdIndex(std::string* err) {
+    if (!pool_) return false;
+    auto guard = pool_->Acquire(); auto* conn = guard.get();
+    std::vector<std::vector<std::string>> rows;
+    if (!SqlRows(conn, "SELECT 1 FROM information_schema.statistics WHERE table_schema=DATABASE() "
+        "AND table_name='message' AND index_name='idx_message_client' LIMIT 1", &rows, err)) return false;
+    return !rows.empty() || SqlExec(conn,
+        "ALTER TABLE message ADD INDEX idx_message_client(session_id,sender_id,client_msg_id)", err);
+}
+
+bool MessageDao::FindByClientId(const std::string& session, int64_t sender,
+    const std::string& client, Message* message, bool* found, std::string* err) {
+    if (!pool_ || !message || !found) return false;
+    *found = false;
+    if (client.empty()) return true;
+    int64_t seq = 0;
+    {
+        auto guard = pool_->Acquire();
+        auto* conn = guard.get();
+        if (!conn) { if (err) *err = "no MySQL connection"; return false; }
+        std::vector<std::vector<std::string>> rows;
+        if (!SqlRows(conn, "SELECT msg_seq FROM message WHERE session_id=" +
+            SqlQuote(conn, session) + " AND sender_id=" + std::to_string(sender) +
+            " AND BINARY client_msg_id=_binary" + SqlQuote(conn, client) + " ORDER BY msg_seq ASC LIMIT 1", &rows, err)) return false;
+        if (rows.empty()) return true;
+        seq = std::stoll(rows.front().front());
+    }
+    std::vector<Message> rows;
+    if (!ListMessagesAfter(session, seq - 1, 1, &rows, err) || rows.empty() || rows[0].msg_seq != seq) return false;
+    *message = std::move(rows.front());
+    *found = true;
+    return true;
+}
 namespace {
 
 // mysql_stmt_fetch reports MYSQL_DATA_TRUNCATED when the result buffer is
@@ -484,7 +518,8 @@ bool MessageDao::ListMessages(const std::string& session_id, int64_t anchor_seq,
 bool MessageDao::ListMessagesAfter(const std::string& session_id,
                                    int64_t after_seq, int limit,
                                    std::vector<Message>* messages,
-                                   std::string* err_msg) {
+                                   std::string* err_msg, int64_t user_id,
+                                   const std::string& device_id) {
     if (!pool_ || !messages || after_seq < 0) {
         if (err_msg) *err_msg = "invalid arguments";
         return false;
@@ -496,16 +531,23 @@ bool MessageDao::ListMessagesAfter(const std::string& session_id,
         if (err_msg) *err_msg = "no mysql connection";
         return false;
     }
-    const char* sql =
+    std::string sql =
         "SELECT session_id, msg_seq, sender_id, msg_type, content_json, "
         "timestamp_ms, client_msg_id FROM message WHERE session_id=? "
-        "AND msg_seq>? ORDER BY msg_seq ASC LIMIT ?";
+        "AND msg_seq>? ";
+    if (user_id > 0 && !device_id.empty()) {
+        if (!ValidDeviceId(device_id)) return false;
+        sql += "AND NOT EXISTS(SELECT 1 FROM device_receipt r WHERE r.user_id=" +
+            std::to_string(user_id) + " AND r.device_id=" + SqlQuote(conn, device_id) +
+            " AND r.session_id=message.session_id AND r.msg_seq=message.msg_seq) ";
+    }
+    sql += "ORDER BY msg_seq ASC LIMIT ?";
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
     if (!stmt) {
         if (err_msg) *err_msg = "mysql_stmt_init failed";
         return false;
     }
-    if (mysql_stmt_prepare(stmt, sql, strlen(sql)) != 0) {
+    if (mysql_stmt_prepare(stmt, sql.data(), sql.size()) != 0) {
         if (err_msg) *err_msg = mysql_stmt_error(stmt);
         mysql_stmt_close(stmt);
         return false;

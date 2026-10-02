@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 #include "mysql_pool.h"
 
@@ -31,6 +32,13 @@ class UserSessionStateDao {
 
     // 兼容已经初始化旧 schema 的本地开发库。
     bool EnsureDeliveredSeqColumn(std::string* err_msg);
+    bool EnsureReceivedSchema(std::string* err_msg);
+    bool GetReceivedSeq(int64_t user_id, const std::string& device_id,
+                        const std::string& session_id, int64_t* seq,
+                        std::string* err_msg);
+    bool MarkReceived(int64_t user_id, const std::string& device_id,
+                      const std::string& session_id, int64_t prefix,
+                      const std::vector<int64_t>& received, std::string* err_msg);
 
    private:
     MySqlConnectionPool* pool_{nullptr};

@@ -231,3 +231,7 @@ curl http://127.0.0.1:9203/metrics  # Comet
 - 单机 E2E 报告必须同时给出并发参数、accepted/delivered 数量、延迟分位数和数据库复核结果。
 
 不要写“exactly-once”“消息绝不丢”“百万并发”或把 socket send 速度当系统 QPS。当前仍是单 broker 教学环境，DLQ、统一 HTTP 鉴权、TLS 和多机容量验证尚未完成。
+The current IM recovery and device-storage design is documented in
+[IM reliability upgrade](docs/im-reliability-2026-10-02.md).
+
+源码学习入口：[逐步算法、数据结构与故障恢复](docs/learning/README.md)。包含核心运行时、可靠消息、Android 本地库、AI 调度和开源 IM 设计对照。

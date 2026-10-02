@@ -1,0 +1,149 @@
+$ cmake --build /home/peco/spark-im-test-20261002/build -j4
+[  1%] Built target ws_client_lib
+[  3%] Built target inference_proto
+[  6%] Built target spark_push_proto
+[  8%] Built target hermes_command_test
+[  9%] Built target security_test
+[ 11%] Built target hermes_sse_parser_test
+[ 12%] Built target hermes_reply_test
+[ 20%] Built target muduo_base
+[ 22%] Built target citation_validation_test
+[ 23%] Built target knowledge_catalog_test
+[ 25%] Built target websocket_utils_test
+[ 26%] Built target comet_budget_test
+[ 27%] Built target inference_cli
+[ 28%] Built target ws_client_cli
+[ 35%] Built target spark_push_common
+[ 36%] Built target e2e_bench
+[ 37%] Built target load_tester
+[ 47%] Built target muduo_net
+[ 48%] Built target connection_bench
+[ 49%] Built target room_fanout_bench
+[ 50%] Building CXX object load_test/CMakeFiles/storage_bench.dir/storage_bench.cpp.o
+[ 51%] Linking CXX executable kafka_delivery_bench
+[ 52%] Built target history_bench
+[ 53%] Linking CXX executable config_test
+[ 53%] Built target config_test
+[ 53%] Linking CXX executable image_attachment_test
+[ 53%] Built target kafka_delivery_bench
+[ 53%] Linking CXX executable rate_limiter_test
+[ 54%] Built target image_attachment_test
+[ 55%] Built target kafka_failure_integration_test
+[ 56%] Built target rate_limiter_test
+[ 57%] Built target kafka_parallel_integration_test
+[ 57%] Linking CXX executable agent_control_client_probe
+[ 58%] Building CXX object tests/CMakeFiles/redis_sequence_integration_test.dir/redis_sequence_integration_test.cpp.o
+[ 60%] Built target agent_control_client_probe
+[ 60%] Building CXX object tests/CMakeFiles/redis_sequence_integration_test.dir/__/logic/redis_store.cpp.o
+[ 60%] Built target web_demo
+[ 60%] Linking CXX executable delivery_outbox_integration_test
+[ 61%] Built target delivery_outbox_integration_test
+[ 61%] Linking CXX executable device_receipt_integration_test
+[ 61%] Building CXX object load_test/CMakeFiles/storage_bench.dir/__/logic/redis_store.cpp.o
+[ 63%] Built target device_receipt_integration_test
+[ 64%] Linking CXX executable message_reservation_integration_test
+[ 65%] Built target message_reservation_integration_test
+[ 67%] Built target muduo_http
+[ 68%] Linking CXX executable comet_server
+[ 72%] Built target job_server
+[ 76%] Built target inference_core
+[ 77%] Linking CXX executable redis_sequence_integration_test
+[ 77%] Linking CXX executable hermes_bridge
+[ 77%] Built target redis_sequence_integration_test
+[ 78%] Built target web_demo_server
+[ 80%] Built target comet_server
+[ 82%] Built target muduo_inspect
+[ 82%] Linking CXX executable inference_gateway
+[ 83%] Building CXX object logic/CMakeFiles/logic_server.dir/main.cpp.o
+[ 86%] Built target hermes_bridge
+[ 87%] Linking CXX executable inference_worker
+[ 88%] Built target inference_gateway
+[ 88%] Building CXX object logic/CMakeFiles/logic_server.dir/grpc_service.cpp.o
+[ 88%] Built target inference_worker
+[ 89%] Linking CXX executable inference_tests
+[ 89%] Linking CXX executable storage_bench
+[ 91%] Built target inference_tests
+[ 91%] Built target storage_bench
+[ 92%] Building CXX object logic/CMakeFiles/logic_server.dir/http_server.cpp.o
+[ 92%] Building CXX object logic/CMakeFiles/logic_server.dir/redis_store.cpp.o
+[ 92%] Building CXX object logic/CMakeFiles/logic_server.dir/conversation_store.cpp.o
+[ 92%] Linking CXX executable logic_server
+[100%] Built target logic_server
+exit_code=0
+$ python3 cannbot/scripts/validate_knowledge.py --strict
+knowledge validation passed: 49 source(s)
+exit_code=0
+$ python3 cannbot/scripts/test_pi_citations.py
+pi citation tests passed
+exit_code=0
+$ python3 cannbot/scripts/sync_pi_agent.py --install --pi-home /tmp/spark-pi-check-um0pp1kd
+spark-push-agent: installed (/tmp/spark-pi-check-um0pp1kd/skills/spark-push-agent)
+spark-push-knowledge: installed (/tmp/spark-pi-check-um0pp1kd/skills/spark-push-knowledge)
+cann-advisor: installed (/tmp/spark-pi-check-um0pp1kd/extensions/cann-advisor.ts)
+settings: installed (/tmp/spark-pi-check-um0pp1kd/settings.json)
+models: installed (/tmp/spark-pi-check-um0pp1kd/models.json)
+Pi Agent 同步完成。新会话或重启 Pi gateway 后生效。
+exit_code=0
+$ python3 cannbot/scripts/sync_pi_agent.py --check --pi-home /tmp/spark-pi-check-um0pp1kd
+spark-push-agent: current (/tmp/spark-pi-check-um0pp1kd/skills/spark-push-agent)
+spark-push-knowledge: current (/tmp/spark-pi-check-um0pp1kd/skills/spark-push-knowledge)
+cann-advisor: current (/tmp/spark-pi-check-um0pp1kd/extensions/cann-advisor.ts)
+settings: current (/tmp/spark-pi-check-um0pp1kd/settings.json)
+models: present (/tmp/spark-pi-check-um0pp1kd/models.json)
+exit_code=0
+$ ctest --test-dir /home/peco/spark-im-test-20261002/build --output-on-failure
+Internal ctest changing into directory: /home/peco/spark-im-test-20261002/build
+Test project /home/peco/spark-im-test-20261002/build
+      Start  1: inference_tests
+ 1/24 Test  #1: inference_tests ........................   Passed    0.70 sec
+      Start  2: inference_llamacpp_adapter_test
+ 2/24 Test  #2: inference_llamacpp_adapter_test ........   Passed    2.19 sec
+      Start  3: inference_vllm_adapter_contract_test
+ 3/24 Test  #3: inference_vllm_adapter_contract_test ...   Passed    2.18 sec
+      Start  4: security_test
+ 4/24 Test  #4: security_test ..........................   Passed    0.08 sec
+      Start  5: config_test
+ 5/24 Test  #5: config_test ............................   Passed    0.00 sec
+      Start  6: image_attachment_test
+ 6/24 Test  #6: image_attachment_test ..................   Passed    0.00 sec
+      Start  7: rate_limiter_test
+ 7/24 Test  #7: rate_limiter_test ......................   Passed    0.00 sec
+      Start  8: hermes_command_test
+ 8/24 Test  #8: hermes_command_test ....................   Passed    0.00 sec
+      Start  9: hermes_reply_test
+ 9/24 Test  #9: hermes_reply_test ......................   Passed    0.01 sec
+      Start 10: kafka_failure_integration_test
+10/24 Test #10: kafka_failure_integration_test .........   Passed   26.77 sec
+      Start 11: kafka_parallel_integration_test
+11/24 Test #11: kafka_parallel_integration_test ........   Passed   33.54 sec
+      Start 12: hermes_sse_parser_test
+12/24 Test #12: hermes_sse_parser_test .................   Passed    0.04 sec
+      Start 13: agent_control_integration_test
+13/24 Test #13: agent_control_integration_test .........   Passed    0.87 sec
+      Start 14: pi_gateway_test
+14/24 Test #14: pi_gateway_test ........................   Passed    4.37 sec
+      Start 15: agent_router_test
+15/24 Test #15: agent_router_test ......................   Passed    9.01 sec
+      Start 16: client_reliability_contract_test
+16/24 Test #16: client_reliability_contract_test .......   Passed    0.03 sec
+      Start 17: citation_validation_test
+17/24 Test #17: citation_validation_test ...............   Passed    0.00 sec
+      Start 18: knowledge_catalog_test
+18/24 Test #18: knowledge_catalog_test .................   Passed    0.00 sec
+      Start 19: websocket_utils_test
+19/24 Test #19: websocket_utils_test ...................   Passed    0.00 sec
+      Start 20: redis_sequence_integration_test
+20/24 Test #20: redis_sequence_integration_test ........   Passed    0.12 sec
+      Start 21: delivery_outbox_integration_test
+21/24 Test #21: delivery_outbox_integration_test .......   Passed    1.38 sec
+      Start 22: comet_budget_test
+22/24 Test #22: comet_budget_test ......................   Passed    0.01 sec
+      Start 23: device_receipt_integration_test
+23/24 Test #23: device_receipt_integration_test ........   Passed    0.21 sec
+      Start 24: message_reservation_integration_test
+24/24 Test #24: message_reservation_integration_test ...   Passed    1.82 sec
+
+100% tests passed, 0 tests failed out of 24
+
+Total Test time (real) =  83.38 sec
+exit_code=0

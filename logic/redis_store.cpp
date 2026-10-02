@@ -6,7 +6,6 @@
 #include "logging.h"
 
 namespace sparkpush {
-
 // 写入 token -> user_id 映射
 bool RedisStore::SetToken(const std::string& token, int64_t user_id,
                           int ttl_seconds) {
@@ -138,7 +137,8 @@ bool RedisStore::RevokeUserTokens(int64_t user_id, int* revoked_count) {
     }
 
     redisReply* cleanup = static_cast<redisReply*>(redisCommand(
-        ctx, "DEL user:tokens:%lld route:user:%lld",
+        ctx, "DEL user:tokens:%lld route:user:%lld route:leased:%lld route:epochs:%lld",
+        static_cast<long long>(user_id), static_cast<long long>(user_id),
         static_cast<long long>(user_id), static_cast<long long>(user_id)));
     if (!cleanup) return false;
     const bool cleanup_ok = cleanup->type != REDIS_REPLY_ERROR;
@@ -150,14 +150,29 @@ bool RedisStore::RevokeUserTokens(int64_t user_id, int* revoked_count) {
 }
 
 // 记录用户路由 comet
-bool RedisStore::AddRoute(int64_t user_id, const std::string& comet_id) {
+bool RedisStore::AddRoute(int64_t user_id, const std::string& comet_id, const std::string& generation) {
     if (!pool_) return false;
     auto guard = pool_->Acquire();
     redisContext* ctx = guard.get();
     if (!ctx) return false;
-    redisReply* reply = (redisReply*)redisCommand(
-        ctx, "SADD route:user:%lld %s", static_cast<long long>(user_id),
-        comet_id.c_str());
+    const char* script = R"lua(
+local old=redis.call('HGET',KEYS[2],ARGV[1])
+local gen=ARGV[2]
+if old then
+ local ob,oc=string.match(old,'^(.-):(%d+)$')
+ local nb,nc=string.match(gen,'^(.-):(%d+)$')
+ if ob and nb and ob==nb and tonumber(oc)>tonumber(nc) then return 1 end
+end
+local t=redis.call('TIME'); local now=t[1]*1000+math.floor(t[2]/1000)
+redis.call('HSET',KEYS[2],ARGV[1],gen)
+redis.call('ZADD',KEYS[1],now+60000,ARGV[1])
+redis.call('PEXPIRE',KEYS[1],120000); redis.call('PEXPIRE',KEYS[2],120000)
+return 1
+)lua";
+    redisReply* reply = (redisReply*)redisCommand(ctx,
+        "EVAL %s 2 route:leased:%lld route:epochs:%lld %s %s", script,
+        static_cast<long long>(user_id), static_cast<long long>(user_id),
+        comet_id.c_str(), generation.empty() ? "legacy" : generation.c_str());
     if (!reply) {
         LOG_ERROR << "Redis SADD route failed";
         return false;
@@ -169,14 +184,16 @@ bool RedisStore::AddRoute(int64_t user_id, const std::string& comet_id) {
 }
 
 // 移除用户路由
-bool RedisStore::RemoveRoute(int64_t user_id, const std::string& comet_id) {
+bool RedisStore::RemoveRoute(int64_t user_id, const std::string& comet_id, const std::string& generation) {
     if (!pool_) return false;
     auto guard = pool_->Acquire();
     redisContext* ctx = guard.get();
     if (!ctx) return false;
-    redisReply* reply = (redisReply*)redisCommand(
-        ctx, "SREM route:user:%lld %s", static_cast<long long>(user_id),
-        comet_id.c_str());
+    redisReply* reply = (redisReply*)redisCommand(ctx,
+        "EVAL %s 2 route:leased:%lld route:epochs:%lld %s %s",
+        "if redis.call('HGET',KEYS[2],ARGV[1])==ARGV[2] then redis.call('ZREM',KEYS[1],ARGV[1]); redis.call('HDEL',KEYS[2],ARGV[1]) end return 1",
+        static_cast<long long>(user_id), static_cast<long long>(user_id), comet_id.c_str(),
+        generation.empty() ? "legacy" : generation.c_str());
     if (!reply) {
         LOG_ERROR << "Redis SREM route failed";
         return false;
@@ -185,6 +202,25 @@ bool RedisStore::RemoveRoute(int64_t user_id, const std::string& comet_id) {
     freeReplyObject(reply);
     if (ok) InvalidateRouteCache(user_id);
     return ok;
+}
+
+bool RedisStore::RefreshRoute(int64_t uid, const std::string& comet, const std::string& generation, bool* missing) {
+    if (missing) *missing = false;
+    if (!pool_ || generation.empty()) return false;
+    auto guard = pool_->Acquire(); auto* ctx = guard.get(); if (!ctx) return false;
+    const char* script = R"lua(
+local old=redis.call('HGET',KEYS[2],ARGV[1])
+if not old then return 0 end
+if old and old~=ARGV[2] then return 1 end
+local t=redis.call('TIME'); local now=t[1]*1000+math.floor(t[2]/1000)
+redis.call('HSET',KEYS[2],ARGV[1],ARGV[2]); redis.call('ZADD',KEYS[1],now+60000,ARGV[1])
+redis.call('PEXPIRE',KEYS[1],120000); redis.call('PEXPIRE',KEYS[2],120000); return 1
+)lua";
+    auto* reply = (redisReply*)redisCommand(ctx, "EVAL %s 2 route:leased:%lld route:epochs:%lld %s %s", script,
+        static_cast<long long>(uid), static_cast<long long>(uid), comet.c_str(), generation.c_str());
+    bool ok = reply && reply->type == REDIS_REPLY_INTEGER;
+    if (ok && missing) *missing = reply->integer == 0;
+    if (reply) freeReplyObject(reply); if (ok) InvalidateRouteCache(uid); return ok;
 }
 
 void RedisStore::InvalidateRouteCache(int64_t user_id) {
@@ -228,7 +264,9 @@ bool RedisStore::GetUserRoutesFromRedis(int64_t user_id,
     redisContext* ctx = guard.get();
     if (!ctx) return false;
     redisReply* reply = (redisReply*)redisCommand(
-        ctx, "SMEMBERS route:user:%lld", static_cast<long long>(user_id));
+        ctx, "EVAL %s 1 route:leased:%lld",
+        "local t=redis.call('TIME'); local now=t[1]*1000+math.floor(t[2]/1000); redis.call('ZREMRANGEBYSCORE',KEYS[1],'-inf',now); return redis.call('ZRANGEBYSCORE',KEYS[1],now+1,'+inf')",
+        static_cast<long long>(user_id));
     if (!reply) {
         LOG_ERROR << "Redis SMEMBERS route failed";
         return false;
@@ -337,7 +375,9 @@ bool RedisStore::SetSessionLastSeq(const std::string& session_id,
     redisContext* ctx = guard.get();
     if (!ctx) return false;
     redisReply* reply = (redisReply*)redisCommand(
-        ctx, "SET session:last_seq:%s %lld", session_id.c_str(),
+        ctx, "EVAL %s 1 session:last_seq:%s %lld",
+        "local old=tonumber(redis.call('GET',KEYS[1]) or '0'); if tonumber(ARGV[1])>old then redis.call('SET',KEYS[1],ARGV[1]) end return 1",
+        session_id.c_str(),
         static_cast<long long>(last_seq));
     if (!reply) {
         LOG_ERROR << "Redis SET session:last_seq failed";

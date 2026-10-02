@@ -35,6 +35,8 @@ public:
         int max_processing_attempts{3};
         // 业务处理重试的退避时间（ms）。
         int processing_retry_backoff_ms{100};
+        // A business owner can cancel independently of the consumer Stop call.
+        std::function<bool()> processing_cancelled;
         // Opt-in durable failure handling. Requires manual commits. On DLQ
         // delivery/commit failure halt and leave the group; never skip a record.
         std::string dead_letter_topic;

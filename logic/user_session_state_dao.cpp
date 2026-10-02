@@ -1,4 +1,5 @@
 #include "user_session_state_dao.h"
+#include "sql_helpers.h"
 
 #include <mysql/mysql.h>
 
@@ -7,6 +8,70 @@
 #include "logging.h"
 
 namespace sparkpush {
+
+bool UserSessionStateDao::EnsureReceivedSchema(std::string* err) {
+    auto guard = pool_->Acquire();
+    auto* conn = guard.get();
+    return SqlExec(conn,
+        "CREATE TABLE IF NOT EXISTS device_session_state ("
+        "user_id BIGINT NOT NULL, device_id VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, "
+        "session_id VARCHAR(128) NOT NULL, received_seq BIGINT NOT NULL DEFAULT 0, "
+        "updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3), "
+        "PRIMARY KEY(user_id,device_id,session_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4", err) &&
+        SqlExec(conn,
+        "CREATE TABLE IF NOT EXISTS device_receipt ("
+        "user_id BIGINT NOT NULL, device_id VARCHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL, "
+        "session_id VARCHAR(128) NOT NULL, msg_seq BIGINT NOT NULL, "
+        "PRIMARY KEY(user_id,device_id,session_id,msg_seq)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4", err);
+}
+
+bool UserSessionStateDao::GetReceivedSeq(int64_t uid, const std::string& device,
+    const std::string& session, int64_t* seq, std::string* err) {
+    if (!pool_ || uid <= 0 || !ValidDeviceId(device) || session.empty() || !seq) return false;
+    auto guard = pool_->Acquire();
+    auto* conn = guard.get();
+    std::vector<std::vector<std::string>> rows;
+    if (!conn) { if (err) *err = "no MySQL connection"; return false; }
+    if (!SqlRows(conn, "SELECT received_seq FROM device_session_state WHERE user_id=" +
+        std::to_string(uid) + " AND device_id=" + SqlQuote(conn, device) +
+        " AND session_id=" + SqlQuote(conn, session), &rows, err)) return false;
+    *seq = rows.empty() ? 0 : std::stoll(rows.front().front());
+    return true;
+}
+
+bool UserSessionStateDao::MarkReceived(int64_t uid, const std::string& device,
+    const std::string& session, int64_t prefix, const std::vector<int64_t>& received,
+    std::string* err) {
+    if (!pool_ || uid <= 0 || !ValidDeviceId(device) || session.empty() ||
+        session.size() > 128 || prefix < 0 || received.size() > 256) return false;
+    for (auto seq : received) if (seq <= 0) return false;
+    auto guard = pool_->Acquire();
+    auto* conn = guard.get();
+    if (!conn) return false;
+    const std::string values = std::to_string(uid) + "," + SqlQuote(conn, device) +
+        "," + SqlQuote(conn, session);
+    if (!SqlExec(conn, "START TRANSACTION", err)) return false;
+    bool ok = SqlExec(conn, "INSERT INTO device_session_state(user_id,device_id,session_id,received_seq) "
+        "VALUES(" + values + "," + std::to_string(prefix) + ") ON DUPLICATE KEY UPDATE "
+        "received_seq=GREATEST(received_seq,VALUES(received_seq))", err);
+    if (ok && !received.empty()) {
+        std::string sql = "INSERT IGNORE INTO device_receipt(user_id,device_id,session_id,msg_seq) VALUES";
+        for (size_t i = 0; i < received.size(); ++i) {
+            if (i) sql += ",";
+            sql += "(" + values + "," + std::to_string(received[i]) + ")";
+        }
+        ok = SqlExec(conn, sql, err);
+    }
+    // Compact receipts strictly beneath an explicitly confirmed contiguous
+    // prefix. Never promote a sparse maximum across an allocation/arrival gap.
+    if (ok) ok = SqlExec(conn, "DELETE r FROM device_receipt r JOIN device_session_state s "
+        "USING(user_id,device_id,session_id) WHERE r.user_id=" + std::to_string(uid) +
+        " AND r.device_id=" + SqlQuote(conn, device) + " AND r.session_id=" + SqlQuote(conn, session) +
+        " AND r.msg_seq<=s.received_seq", err);
+    if (!ok) { SqlExec(conn, "ROLLBACK", nullptr); return false; }
+    if (!SqlExec(conn, "COMMIT", err)) { SqlExec(conn, "ROLLBACK", nullptr); return false; }
+    return true;
+}
 
 // 插入或更新用户会话已读序列
 bool UserSessionStateDao::UpsertReadSeq(int64_t user_id,

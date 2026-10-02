@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -78,13 +79,21 @@ private data class ClientRequestTiming(
 class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.Listener {
     private val prefs = app.getSharedPreferences("spark_native", Context.MODE_PRIVATE)
     private val client = SparkClient()
+    private val messageStore = SparkMessageStore(app)
+    private val deviceId = prefs.getString("device_id", null) ?: UUID.randomUUID().toString().also {
+        check(prefs.edit().putString("device_id", it).commit()) { "设备身份保存失败" }
+    }
+    @Volatile private var activeScope = ""
+    private var outboxJob: Job? = null
+    private var lastReceiptSendAtMs = 0L
+    private var lastReceiptScope = ""
     private val _ui = MutableStateFlow(SparkUiState())
     val ui = _ui.asStateFlow()
     private var reconnectJob: Job? = null
     // One ordered worker parses WebSocket frames and mutates stream state.
     // This avoids one coroutine and one JSON parse racing for every delta.
     private val eventDispatcher = Dispatchers.Default.limitedParallelism(1)
-    private val eventQueue = Channel<String>(MAX_EVENT_QUEUE)
+    private val eventQueue = Channel<Pair<String, String>>(MAX_EVENT_QUEUE)
     private var eventJob: Job? = null
     private var streamFlushJob: Job? = null
     private val terminalStreamRequests = LinkedHashSet<String>()
@@ -93,20 +102,41 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
     private val timingsByRequestId = ConcurrentHashMap<String, ClientRequestTiming>()
     private val timingSamples = ArrayDeque<Long>()
     private val realtimeBacklog = AtomicBoolean(false)
-    private val cursors = mutableMapOf<String, Long>()
-    private val seenSequences = mutableMapOf<String, MutableSet<Long>>()
 
     init {
         eventJob = viewModelScope.launch(eventDispatcher) {
-            for (raw in eventQueue) {
+            for ((scope, raw) in eventQueue) {
+                if (scope.isBlank() || scope != activeScope) continue
                 try {
-                    handleEvent(JSONObject(raw))
-                } catch (_: Exception) {
-                    _ui.update { it.copy(notice = "收到无法解析的实时消息") }
+                    handleEvent(JSONObject(raw), scope)
+                } catch (error: Exception) {
+                    if (scope != activeScope) continue
+                    if (error is android.database.SQLException) {
+                        // No receive ACK was emitted. Reconnect requests the missing durable frame
+                        // again once storage recovers, even if this was the last live message.
+                        client.close()
+                        _ui.update { it.copy(connection = ConnectionState.RECONNECTING, notice = "本地消息保存失败，等待恢复后重新同步") }
+                        scheduleReconnect()
+                    } else {
+                        _ui.update { it.copy(notice = "收到无法解析的实时消息") }
+                    }
                 }
             }
         }
         ensureStreamFlushLoop()
+        outboxJob = viewModelScope.launch(eventDispatcher) {
+            while (isActive) {
+                delay(1000)
+                val scope = activeScope
+                if (scope.isBlank() || _ui.value.connection != ConnectionState.CONNECTED) continue
+                try {
+                    flushReceiveReceipts(scope)
+                    flushOutbox(scope)
+                } catch (e: Exception) {
+                    _ui.update { it.copy(notice = "本地消息恢复等待重试：${e.message.orEmpty().take(120)}") }
+                }
+            }
+        }
         val server = prefs.getString("server", null)
         val uid = prefs.getLong("user_id", 0)
         val token = prefs.getString("token", null)
@@ -115,6 +145,7 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
             _ui.update { it.copy(serverInput = server, screen = if (uid > 0 && !token.isNullOrBlank()) Screen.HOME else Screen.AUTH) }
             if (uid > 0 && !token.isNullOrBlank() && client.configure(server)) {
                 val auth = AuthSession(uid, token, name.ifBlank { "用户 $uid" })
+                activeScope = "${client.currentEndpoint()?.logicBase}|${auth.userId}"
                 _ui.update { it.copy(auth = auth, screen = Screen.HOME, notice = "正在恢复登录状态…") }
                 viewModelScope.launch {
                     applySessionRestore(auth, verifySession(auth))
@@ -133,10 +164,12 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
 
     fun continueToAuth() {
         val value = _ui.value.serverInput.trim()
+        val previousEndpoint = client.currentEndpoint()?.logicBase
         if (!client.configure(value)) {
             _ui.update { it.copy(error = "请输入有效的服务器地址，例如 http://100.89.19.125") }
             return
         }
+        if (previousEndpoint != null && previousEndpoint != client.currentEndpoint()?.logicBase) clearStoredAuth()
         val normalized = client.currentEndpoint()?.input ?: value
         prefs.edit().putString("server", normalized).apply()
         _ui.update { it.copy(serverInput = normalized, screen = Screen.AUTH, error = null) }
@@ -201,6 +234,7 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
 
     private suspend fun applySessionRestore(auth: AuthSession, result: SessionRestoreResult) {
         withContext(eventDispatcher) {
+            if (_ui.value.auth != auth) return@withContext
             when (result.kind) {
                 SessionRestoreKind.VALID -> onAuthenticated(auth)
                 SessionRestoreKind.INVALID_TOKEN -> {
@@ -219,6 +253,8 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
                             connection = ConnectionState.DISCONNECTED
                         )
                     }
+                    loadLocalSessions(auth, activeScope)
+                    scheduleReconnect()
                 }
             }
         }
@@ -530,6 +566,8 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
     }
 
     private fun clearStoredAuth() {
+        activeScope = ""
+        reconnectJob?.cancel()
         viewModelScope.launch(eventDispatcher) { clearStreams(null, "logout", showFailure = false) }
         client.close()
         prefs.edit().remove("user_id").remove("token").remove("name").apply()
@@ -537,14 +575,29 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
     }
 
     private fun onAuthenticated(auth: AuthSession) {
+        activeScope = "${client.currentEndpoint()?.logicBase}|${auth.userId}"
+        val scope = activeScope
+        viewModelScope.launch(eventDispatcher) { loadLocalSessions(auth, scope) }
         _ui.update { it.copy(auth = auth, screen = Screen.HOME, loading = false, error = null, notice = "正在连接 Spark Push…", restoreRetryAvailable = false) }
         connectSocket(auth)
         loadSessions(auth)
     }
 
+    private fun loadLocalSessions(auth: AuthSession, scope: String) {
+        if (scope != activeScope || scope.isBlank()) return
+        val peers = messageStore.sessions(scope).mapNotNull { sid ->
+            val ids = sid.removePrefix("s_").split('_').mapNotNull { it.toLongOrNull() }
+            if (!sid.startsWith("s_") || ids.size != 2 || auth.userId !in ids) null
+            else ids.firstOrNull { it != auth.userId }
+        }.filter { it > 0 && !isDesktopAgent(it) }
+        val conversations = (listOf(ANDROID_HERMES_ID, ANDROID_PI_ID) + peers).distinct()
+            .map { knownConversation(auth.userId, it) }
+        _ui.update { if (scope == activeScope) it.copy(conversations = (conversations + it.conversations).distinctBy { c -> c.sessionId }) else it }
+    }
+
     private fun connectSocket(auth: AuthSession) {
         reconnectJob?.cancel()
-        client.connect(auth.token, this)
+        client.connect(auth.token, deviceId, auth.userId, this)
     }
 
     private fun scheduleReconnect() {
@@ -552,12 +605,13 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
         reconnectJob = viewModelScope.launch {
             delay(1800)
             val auth = _ui.value.auth ?: return@launch
-            client.connect(auth.token, this@SparkViewModel)
+            client.connect(auth.token, deviceId, auth.userId, this@SparkViewModel)
         }
     }
 
     private fun loadSessions(auth: AuthSession? = null) {
         val session = auth ?: _ui.value.auth ?: return
+        val scope = activeScope
         viewModelScope.launch {
             try {
                 val response = client.post("/api/session/list_single", JSONObject().put("user_id", session.userId), session.token)
@@ -576,12 +630,12 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
                 val fixed = listOf(knownConversation(session.userId, ANDROID_HERMES_ID), knownConversation(session.userId, ANDROID_PI_ID))
                 val conversations = (fixed + serverList).distinctBy { it.sessionId }
                 _ui.update { current ->
-                    if (current.auth?.userId != session.userId) current
+                    if (scope != activeScope || current.auth?.userId != session.userId) current
                     else current.copy(conversations = conversations, notice = if (current.connection == ConnectionState.CONNECTED) null else current.notice)
                 }
             } catch (e: Exception) {
                 _ui.update { current ->
-                    if (current.auth?.userId != session.userId) current
+                    if (scope != activeScope || current.auth?.userId != session.userId) current
                     else current.copy(notice = "会话列表暂不可用：${e.message ?: "网络错误"}")
                 }
             }
@@ -594,6 +648,18 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
             viewModelScope.launch(eventDispatcher) { clearStreams(previous, "session_switch", showFailure = false) }
         }
         _ui.update { it.copy(screen = Screen.CHAT, selected = conversation, messages = emptyList(), hasHistory = false, loading = true, loadingMore = false, error = null, draft = "") }
+        val scope = activeScope
+        viewModelScope.launch(eventDispatcher) {
+            if (scope == activeScope && scope.isNotBlank()) {
+                val local = messageStore.timeline(scope, conversation.sessionId).mapNotNull { stored ->
+                    parseMessage(stored.wire, conversation.sessionId)?.copy(state = stored.state)
+                }
+                applyHistory(conversation, true, local)
+                if (_ui.value.connection == ConnectionState.CONNECTED) {
+                    client.sync(conversation.sessionId, messageStore.cursor(scope, conversation.sessionId))
+                }
+            }
+        }
         loadHistory(conversation, true)
         refreshUnread()
         if (_ui.value.connection != ConnectionState.CONNECTED) _ui.value.auth?.let { connectSocket(it) }
@@ -843,6 +909,7 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
 
     private fun loadHistory(conversation: Conversation, initial: Boolean) {
         val auth = _ui.value.auth ?: return
+        val scope = activeScope
         val anchor = if (initial) 0 else (_ui.value.messages.firstOrNull { it.seq > 0 }?.seq ?: return)
         _ui.update { it.copy(loading = initial, loadingMore = !initial, error = null) }
         viewModelScope.launch {
@@ -859,11 +926,20 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
                     }
                 }
                 withContext(eventDispatcher) {
+                    if (scope != activeScope || scope.isBlank()) return@withContext
+                    val wires = buildList {
+                        for (i in 0 until array.length()) {
+                            val original = array.optJSONObject(i) ?: continue
+                            durableWire(original, conversation.sessionId)?.let { add(it) }
+                        }
+                    }
+                    messageStore.save(scope, wires, auth.userId)
+                    flushReceiveReceipts(scope)
                     applyHistory(conversation, initial, parsed)
                 }
             } catch (e: SparkHttpException) {
                 if (initial && (e.statusCode == 404 || e.bodyCode == 404)) {
-                    withContext(eventDispatcher) { applyHistory(conversation, true, emptyList()) }
+                    withContext(eventDispatcher) { if (scope == activeScope) applyHistory(conversation, true, emptyList()) }
                 } else {
                     withContext(eventDispatcher) {
                         _ui.update { current ->
@@ -891,9 +967,6 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
             "length_audit stage=android_history_display session=${conversation.sessionId} " +
                 "message_count=${parsed.size} bytes=${historyBytes} chars=${historyChars}"
         )
-        parsed.filter { it.seq > 0 }.maxOfOrNull { it.seq }?.let {
-            cursors[conversation.sessionId] = maxOf(cursors[conversation.sessionId] ?: 0, it)
-        }
         val now = nowNanos()
         for (message in parsed) {
             val requestId = message.clientMsgId.removePrefix("hermes:").takeIf {
@@ -906,18 +979,12 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
         _ui.update { current ->
             if (current.selected?.sessionId != conversation.sessionId) current
             else {
-                val transients = current.messages.filter {
-                    it.streaming || it.state == DeliveryState.SENDING || it.state == DeliveryState.ACCEPTED
+                val kept = current.messages.filter { old -> parsed.none { sameMessage(old, it) } }
+                val monotonic = parsed.map { message ->
+                    if (current.messages.any { old -> sameMessage(old, message) && old.state == DeliveryState.DELIVERED }) message.copy(state = DeliveryState.DELIVERED) else message
                 }
-                val historyKeys = parsed.map { messageKey(it) }.toSet()
-                val kept = if (initial) transients.filter { messageKey(it) !in historyKeys } else emptyList()
-                val merged = if (initial) {
-                    (parsed + kept).distinctBy { messageKey(it) }
-                        .sortedWith(compareBy<ChatMessage> { it.seq == 0L }.thenBy { it.seq })
-                } else {
-                    (parsed + current.messages).distinctBy { messageKey(it) }
-                        .sortedWith(compareBy<ChatMessage> { it.seq == 0L }.thenBy { it.seq })
-                }
+                val merged = (monotonic + kept).distinctBy { messageKey(it) }
+                    .sortedWith(compareBy<ChatMessage> { it.seq == 0L }.thenBy { it.seq }.thenBy { it.timestampMs })
                 current.copy(
                     messages = merged,
                     hasHistory = merged.any { it.seq > 0L },
@@ -982,34 +1049,14 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
         }
         val pending = current.pendingImages
         if (text.isBlank() && pending.isEmpty()) return false
-        if (current.connection != ConnectionState.CONNECTED) {
-            _ui.update { it.copy(error = "实时连接尚未建立，请稍候重试") }
-            return false
-        }
-        viewModelScope.launch {
+        val scope = activeScope
+        if (scope.isBlank()) return false
+        viewModelScope.launch(eventDispatcher) {
             try {
-                val attachments = org.json.JSONArray()
-                val parsed = mutableListOf<ImageAttachment>()
-                for (image in pending) {
-                    val response = client.post(
-                        "/api/attachment/upload",
-                        JSONObject().put("session_id", selected.sessionId).put("name", image.name).put("data", image.data),
-                        auth.token
-                    )
-                    val data = response.optJSONObject("data") ?: throw IllegalStateException("图片上传失败")
-                    val item = ImageAttachment(
-                        data.optString("id"),
-                        data.optString("name"),
-                        data.optString("mime"),
-                        data.optInt("bytes")
-                    )
-                    parsed += item
-                    attachments.put(JSONObject().put("id", item.id).put("name", item.name).put("mime", item.mime).put("bytes", item.bytes))
-                }
-                val bodyText = text.trim().ifBlank { if (parsed.isNotEmpty()) "请查看这张图片。" else "" }
-                val clientId = "${System.currentTimeMillis()}-${UUID.randomUUID().toString().take(8)}"
+                if (scope != activeScope) return@launch
+                val bodyText = text.trim().ifBlank { if (pending.isNotEmpty()) "请查看这张图片。" else "" }
+                val clientId = UUID.randomUUID().toString()
                 val content = JSONObject().put("text", bodyText)
-                if (parsed.isNotEmpty()) content.put("attachments", attachments)
                 if (action != null) {
                     val actionJson = JSONObject().put("kind", action.id)
                     action.value?.let { actionJson.put("value", it) }
@@ -1018,23 +1065,85 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
                     content.put("agent_action", actionJson)
                 }
                 val payload = JSONObject().put("type", "single_chat").put("to_user_id", selected.peerId).put("client_msg_id", clientId).put("content", content)
+                if (pending.isNotEmpty()) payload.put("_local_images", JSONArray().apply {
+                    pending.forEach { put(JSONObject().put("name", it.name).put("mime", it.mime).put("data", it.data)) }
+                })
                 val optimistic = ChatMessage(
                     clientMsgId = clientId, sessionId = selected.sessionId, senderId = auth.userId,
-                    timestampMs = System.currentTimeMillis(), text = bodyText, state = DeliveryState.SENDING,
-                    attachments = parsed
+                    timestampMs = System.currentTimeMillis(), text = bodyText, state = DeliveryState.SENDING
                 )
-                _ui.update { it.copy(messages = it.messages + optimistic, draft = "", pendingImages = emptyList(), error = null) }
-                registerTiming(clientId, selected.sessionId, selected.agent, nowNanos())
-                val sent = client.send(payload)
-                if (!sent) {
-                    updateMessage(clientId) { it.copy(state = DeliveryState.FAILED) }
-                    completeTimingForClient(clientId, "send_failed")
+                // Persist the stable ID, complete frame and local attachment bytes before any network work.
+                messageStore.enqueue(scope, payload, canonicalWire(JSONObject().put("content", content), optimistic))
+                _ui.update { state ->
+                    if (activeScope != scope) state else state.copy(
+                        messages = if (state.selected?.sessionId == selected.sessionId) state.messages + optimistic else state.messages,
+                        draft = if (state.selected?.sessionId == selected.sessionId && state.draft.trim() == text.trim()) "" else state.draft,
+                        pendingImages = state.pendingImages.filter { it !in pending }, error = null,
+                        notice = if (state.connection != ConnectionState.CONNECTED) "消息已保存，将在连接恢复后发送" else null
+                    )
                 }
+                registerTiming(clientId, selected.sessionId, selected.agent, nowNanos())
             } catch (exc: Exception) {
                 _ui.update { it.copy(error = exc.message ?: "图片发送失败") }
             }
         }
         return true
+    }
+
+    private fun flushReceiveReceipts(scope: String, force: Boolean = false) {
+        if (scope != activeScope || _ui.value.connection != ConnectionState.CONNECTED) return
+        val now = SystemClock.elapsedRealtime()
+        if (!force && lastReceiptScope == scope && now - lastReceiptSendAtMs < 1000) return
+        lastReceiptScope = scope
+        lastReceiptSendAtMs = now
+        for ((session, sequences) in messageStore.receipts(scope)) {
+            if (!client.received(session, messageStore.cursor(scope, session), sequences, scope)) break
+        }
+    }
+
+    private suspend fun flushOutbox(scope: String) {
+        val auth = _ui.value.auth ?: return
+        for (entry in messageStore.due(scope, System.currentTimeMillis())) {
+            if (scope != activeScope || _ui.value.connection != ConnectionState.CONNECTED) return
+            // An ACK timeout follows the same bounded retry path as a failed socket send.
+            messageStore.recordAttempt(scope, entry, System.currentTimeMillis())
+            try {
+                val images = entry.frame.optJSONArray("_local_images")
+                if (images != null) {
+                    val attachments = entry.frame.getJSONObject("content").optJSONArray("attachments") ?: JSONArray()
+                    for (i in 0 until images.length()) {
+                        val image = images.getJSONObject(i)
+                        if (image.optBoolean("uploaded")) continue
+                        val response = client.post("/api/attachment/upload", JSONObject()
+                            .put("session_id", entry.sessionId).put("name", image.getString("name"))
+                            .put("data", image.getString("data")), auth.token)
+                        val code = response.optInt("code", -1)
+                        if (code != 0) throw SparkHttpException(200, code, response.optString("message", "图片上传失败"))
+                        if (scope != activeScope) return
+                        val data = response.getJSONObject("data")
+                        check(data.optString("id").isNotBlank()) { "图片上传响应缺少 ID" }
+                        attachments.put(JSONObject().put("id", data.getString("id")).put("name", data.optString("name"))
+                            .put("mime", data.optString("mime")).put("bytes", data.optInt("bytes")))
+                        image.put("uploaded", true).remove("data")
+                        entry.frame.getJSONObject("content").put("attachments", attachments)
+                        // Persist each upload result so a later upload failure does not repeat earlier uploads.
+                        messageStore.replaceFrame(scope, entry.clientId, entry.frame)
+                    }
+                    entry.frame.remove("_local_images")
+                    messageStore.replaceFrame(scope, entry.clientId, entry.frame)
+                    updateMessage(entry.clientId) { it.copy(attachments = parseAttachments(entry.frame.getJSONObject("content").optJSONArray("attachments"))) }
+                }
+                if (scope == activeScope) client.send(entry.frame, scope)
+            } catch (e: SparkHttpException) {
+                if (scope != activeScope) return
+                if (!e.networkFailure && e.statusCode < 500 && e.bodyCode < 500 &&
+                    e.statusCode !in listOf(408, 429) && e.bodyCode !in listOf(408, 429)) {
+                    messageStore.setState(scope, entry.clientId, DeliveryState.FAILED)
+                    updateMessage(entry.clientId) { it.copy(state = DeliveryState.FAILED) }
+                    completeTimingForClient(entry.clientId, "upload_rejected")
+                }
+            }
+        }
     }
 
     fun sendAgentAction(action: AgentAction) {
@@ -1076,15 +1185,21 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
     }
 
     override fun onState(state: ConnectionState) {
+        val scopeAtCallback = activeScope
         viewModelScope.launch(eventDispatcher) {
+            if (scopeAtCallback.isBlank() || scopeAtCallback != activeScope) return@launch
             if (state == ConnectionState.RECONNECTING || state == ConnectionState.DISCONNECTED) {
                 clearStreams(null, "disconnect", showFailure = true)
             }
             _ui.update { it.copy(connection = state, notice = if (state == ConnectionState.CONNECTED) null else it.notice) }
             if (state == ConnectionState.CONNECTED) {
                 realtimeBacklog.set(false)
+                val scope = activeScope
+                if (scope.isBlank()) return@launch
+                // Repeat both sparse receipts and explicit sync after process/socket restart.
+                flushReceiveReceipts(scope, force = true)
                 val selected = _ui.value.selected
-                if (selected != null) client.sync(selected.sessionId, cursors[selected.sessionId] ?: 0)
+                if (selected != null) client.sync(selected.sessionId, messageStore.cursor(scope, selected.sessionId))
                 _ui.value.auth?.let { loadSessions(it) }
             } else if (state == ConnectionState.RECONNECTING && _ui.value.auth != null) scheduleReconnect()
         }
@@ -1092,11 +1207,15 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
 
     override fun onEvent(raw: String) {
         if (realtimeBacklog.get() && looksLikeStreamDelta(raw)) return
-        val accepted = eventQueue.trySend(raw)
+        val accepted = eventQueue.trySend(activeScope to raw)
         if (accepted.isSuccess) return
         if (realtimeBacklog.compareAndSet(false, true)) {
             viewModelScope.launch(eventDispatcher) {
                 stopStreamPreviews("实时通道积压，已停止临时预览，等待最终消息或历史同步", "event_queue_overflow")
+                // Reconnect replays unacknowledged durable frames, including other conversations.
+                client.close()
+                _ui.update { it.copy(connection = ConnectionState.RECONNECTING) }
+                scheduleReconnect()
             }
         }
     }
@@ -1109,42 +1228,64 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
     }
 
     override fun onFailure(message: String) {
+        val scopeAtCallback = activeScope
         viewModelScope.launch(eventDispatcher) {
+            if (scopeAtCallback.isBlank() || scopeAtCallback != activeScope) return@launch
             clearStreams(null, "failure", showFailure = true)
             _ui.update { it.copy(notice = message.take(180)) }
         }
     }
 
-    private fun handleEvent(event: JSONObject) {
+    private fun handleEvent(event: JSONObject, scope: String) {
+        if (scope != activeScope) return
         when (event.optString("type")) {
             "accepted_ack" -> {
                 val clientId = event.optString("client_msg_id")
                 if (clientId.isNotBlank()) {
+                    messageStore.accepted(scope, event)
+                    flushReceiveReceipts(scope)
                     recordAccepted(event)
-                    updateMessage(clientId) { it.copy(msgId = event.optString("msg_id"), seq = event.optLong("msg_seq", it.seq), state = DeliveryState.ACCEPTED) }
+                    updateMessage(clientId) { it.copy(msgId = event.optString("msg_id"), seq = event.optLong("msg_seq", it.seq), state = if (it.state == DeliveryState.DELIVERED) DeliveryState.DELIVERED else DeliveryState.ACCEPTED) }
                 }
             }
             "delivered_ack" -> {
                 val clientId = event.optString("client_msg_id")
                 if (clientId.isNotBlank()) {
+                    messageStore.setState(scope, clientId, DeliveryState.DELIVERED)
                     timingsByClientId[clientId]?.let { if (!it.agent) completeTiming(it, "delivered") }
                     updateMessage(clientId) { it.copy(state = DeliveryState.DELIVERED) }
                 }
             }
-            "hermes_delta" -> handleDelta(event)
+            "hermes_delta", "ai_delta" -> handleDelta(event)
+            "received_ack_ok" -> {
+                val sequences = event.optJSONArray("received_seqs") ?: JSONArray()
+                messageStore.confirmReceipts(scope, event.optString("session_id"), event.optLong("msg_seq"),
+                    (0 until sequences.length()).map { sequences.optLong(it) }.filter { it > 0 })
+            }
             "error" -> {
                 val clientId = event.optString("client_msg_id")
                 val requestId = event.optString("request_id")
                 if (requestId.isNotBlank()) discardStreamById(requestId, "Hermes 请求失败，请重试", "error")
                 if (clientId.isNotBlank()) {
-                    completeTimingForClient(clientId, "error")
-                    updateMessage(clientId) { it.copy(state = DeliveryState.FAILED) }
+                    val code = event.optInt("code", 0)
+                    if (code != 429 && code != 408 && code < 500 && code != 0) {
+                        messageStore.setState(scope, clientId, DeliveryState.FAILED)
+                        completeTimingForClient(clientId, "error")
+                        updateMessage(clientId) { it.copy(state = DeliveryState.FAILED) }
+                    }
                 }
                 _ui.update { it.copy(error = event.optString("message", "服务端发送失败")) }
             }
             "sync_end", "ack" -> Unit
-            else -> parseMessage(event, event.optString("session_id").ifBlank { null })?.let { incoming ->
-                observeSequence(incoming)
+            else -> {
+                // Invisible control records still occupy a durable sequence and must be receipted.
+                val durable = durableWire(event, event.optString("session_id").ifBlank { null })
+                if (durable != null) {
+                    messageStore.save(scope, listOf(durable), scope.substringAfterLast('|').toLongOrNull())
+                    flushReceiveReceipts(scope)
+                }
+                if (scope != activeScope) return
+                parseMessage(event, event.optString("session_id").ifBlank { null })?.let { incoming ->
                 val requestId = incoming.clientMsgId
                     .removePrefix("hermes:")
                     .takeIf { incoming.clientMsgId.startsWith("hermes:") && it.isNotBlank() }
@@ -1176,6 +1317,7 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
                     }
                 }
                 mergeIncoming(incoming)
+                }
             }
         }
     }
@@ -1273,8 +1415,8 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
         accumulator?.let { flushAccumulator(it, now, force = true) }
         _ui.update { state ->
             val streamKey = requestId?.let { "stream:$it" }.orEmpty()
-            val idx = state.messages.indexOfFirst { messageKey(it) == messageKey(message) || (streamKey.isNotEmpty() && it.clientMsgId == streamKey) }
-            val delivered = message.copy(state = DeliveryState.DELIVERED, streaming = false)
+            val idx = state.messages.indexOfFirst { sameMessage(it, message) || (streamKey.isNotEmpty() && it.clientMsgId == streamKey) }
+            val delivered = message.copy(state = if (idx >= 0 && state.messages[idx].state == DeliveryState.DELIVERED) DeliveryState.DELIVERED else message.state, streaming = false)
             if (idx >= 0) {
                 state.copy(messages = state.messages.toMutableList().also { it[idx] = delivered }, hasHistory = state.hasHistory || message.seq > 0L)
             } else {
@@ -1292,22 +1434,6 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
             completeTimingForRequest(requestId, "completed")
         }
         realtimeBacklog.set(false)
-    }
-
-    private fun observeSequence(message: ChatMessage) {
-        if (message.seq <= 0) return
-        val sid = message.sessionId
-        val seen = seenSequences.getOrPut(sid) { mutableSetOf() }
-        seen += message.seq
-        if (seen.size > 4096) {
-            seen.clear()
-            client.sync(sid, cursors[sid] ?: 0)
-            return
-        }
-        var cursor = cursors[sid] ?: 0
-        while (seen.remove(cursor + 1)) cursor++
-        cursors[sid] = cursor
-        if (message.seq > cursor + 1) client.sync(sid, cursor)
     }
 
     private fun extractRawMessageText(obj: JSONObject): String {
@@ -1374,6 +1500,7 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
             timestamp,
             displayText,
             content?.optString("format") == "markdown" || outer?.optString("format") == "markdown",
+            state = if (sender == _ui.value.auth?.userId) DeliveryState.ACCEPTED else DeliveryState.DELIVERED,
             agentCard = card,
             citations = citations,
             attachments = attachments
@@ -1498,18 +1625,55 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
         else -> "t:${message.sessionId}:${message.senderId}:${message.timestampMs}:${message.text}"
     }
 
+    private fun sameMessage(a: ChatMessage, b: ChatMessage): Boolean = a.sessionId == b.sessionId && (
+        (a.msgId.isNotBlank() && a.msgId == b.msgId) ||
+            (a.clientMsgId.isNotBlank() && a.clientMsgId == b.clientMsgId) ||
+            (a.seq > 0 && a.seq == b.seq)
+        )
+
+    private fun canonicalWire(original: JSONObject, message: ChatMessage): JSONObject = JSONObject(original.toString())
+        .put("session_id", message.sessionId).put("msg_id", message.msgId)
+        .put("client_msg_id", message.clientMsgId).put("msg_seq", message.seq)
+        .put("sender_id", message.senderId).put("timestamp_ms", message.timestampMs)
+
+    private fun durableWire(original: JSONObject, sessionOverride: String?): JSONObject? {
+        if (original.optString("type") in listOf("ai_delta", "hermes_delta")) return null
+        parseMessage(original, sessionOverride)?.let { if (it.seq > 0) return canonicalWire(original, it) }
+        val raw = original.opt("content")
+        val outer = when (raw) {
+            is JSONObject -> raw
+            is String -> try { JSONObject(raw) } catch (_: Exception) { null }
+            else -> null
+        }
+        val seq = original.optLong("msg_seq").takeIf { it > 0 } ?: outer?.optLong("msg_seq") ?: 0L
+        val sid = sessionOverride?.takeIf { it.isNotBlank() } ?: original.optString("session_id")
+        if (seq <= 0 || sid.isBlank()) return null
+        return JSONObject(original.toString()).put("session_id", sid).put("msg_seq", seq)
+            .put("msg_id", original.optString("msg_id").ifBlank { outer?.optString("msg_id").orEmpty() })
+            .put("client_msg_id", original.optString("client_msg_id").ifBlank { outer?.optString("client_msg_id").orEmpty() })
+            .put("sender_id", original.optLong("sender_id", original.optLong("from_user_id"))
+                .takeIf { it > 0 } ?: outer?.optLong("from_user_id") ?: 0L)
+    }
+
     fun logout() { adminLogout(); clearStoredAuth() }
     fun reconnect() { _ui.value.auth?.let { connectSocket(it) } }
 
     override fun onCleared() {
+        val cleanupJobs = viewModelScope.coroutineContext[Job]?.children?.toList().orEmpty()
         eventQueue.close()
         eventJob?.cancel()
         streamFlushJob?.cancel()
+        outboxJob?.cancel()
         streamAccumulators.clear()
         timingsByClientId.clear()
         timingsByRequestId.clear()
         terminalStreamRequests.clear()
         client.close()
+        // Join canceled workers before closing SQLite; HTTP cancellation may still be unwinding.
+        CoroutineScope(Dispatchers.IO).launch {
+            cleanupJobs.forEach { it.join() }
+            messageStore.close()
+        }
         super.onCleared()
     }
 }

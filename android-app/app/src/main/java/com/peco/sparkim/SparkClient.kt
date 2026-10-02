@@ -40,11 +40,13 @@ class SparkClient {
         .build()
     private var endpoint: Endpoint? = null
     private var socket: WebSocket? = null
+    @Volatile private var socketHandle: Pair<String, WebSocket>? = null
     private val connectionGeneration = AtomicLong(0L)
     private val jsonType = "application/json; charset=utf-8".toMediaType()
 
     fun configure(value: String): Boolean {
         val parsed = Endpoint.parse(value) ?: return false
+        if (endpoint != null && endpoint != parsed) close()
         endpoint = parsed
         return true
     }
@@ -90,7 +92,7 @@ class SparkClient {
         }
     }
 
-    fun connect(token: String, listener: Listener) {
+    fun connect(token: String, deviceId: String, userId: Long, listener: Listener) {
         val base = endpoint ?: run {
             listener.onFailure("服务器地址未设置")
             return
@@ -99,11 +101,13 @@ class SparkClient {
         // socket has already opened. Give every socket a generation and ignore
         // stale callbacks so a reconnect cannot roll the UI back to RECONNECTING.
         val generation = connectionGeneration.incrementAndGet()
+        socketHandle = null
         socket?.cancel()
         socket = null
         listener.onState(ConnectionState.CONNECTING)
         val encoded = URLEncoder.encode(token, Charsets.UTF_8.name())
-        val request = Request.Builder().url(base.wsUrl + "?token=" + encoded).build()
+        val device = URLEncoder.encode(deviceId, Charsets.UTF_8.name())
+        val request = Request.Builder().url(base.wsUrl + "?token=" + encoded + "&device_id=" + device + "&receive_ack=1").build()
         socket = http.newWebSocket(request, object : WebSocketListener() {
             private fun isCurrent(webSocket: WebSocket): Boolean =
                 connectionGeneration.get() == generation && socket === webSocket
@@ -136,16 +140,29 @@ class SparkClient {
                 listener.onFailure(t.message ?: "WebSocket 连接失败")
             }
         })
+        socket?.let { socketHandle = ("${base.logicBase}|$userId") to it }
     }
 
-    fun send(payload: JSONObject): Boolean = socket?.send(payload.toString()) == true
+    fun send(payload: JSONObject, expectedScope: String? = null): Boolean {
+        // Capture endpoint/account together with the exact socket. A concurrent account switch
+        // cannot send an old account's outbox frame through the replacement connection.
+        val handle = socketHandle ?: return false
+        if (expectedScope != null && expectedScope != handle.first) return false
+        return handle.second.send(payload.toString())
+    }
 
     fun sync(sessionId: String, afterSeq: Long) {
         send(JSONObject().put("type", "sync").put("session_id", sessionId).put("after_seq", afterSeq).put("limit", 100))
     }
 
+    fun received(sessionId: String, prefix: Long, sequences: List<Long>, scope: String): Boolean = send(
+        JSONObject().put("type", "received_ack").put("session_id", sessionId)
+            .put("msg_seq", prefix).put("received_seqs", org.json.JSONArray(sequences.take(256))), scope
+    )
+
     fun close() {
         connectionGeneration.incrementAndGet()
+        socketHandle = null
         socket?.cancel()
         socket = null
     }

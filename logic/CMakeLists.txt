@@ -17,6 +17,7 @@ add_executable(logic_server
   message_dao.cpp
   user_session_state_dao.cpp
   conversation_store.cpp
+  message_reservation.cpp
   model.cpp
   attachment_dao.cpp
 )
