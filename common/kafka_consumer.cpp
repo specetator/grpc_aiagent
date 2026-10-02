@@ -8,6 +8,7 @@
 #include <chrono>
 #include <thread>
 #include <vector>
+#include <map>
 #include <unordered_map>
 #include <nlohmann/json.hpp>
 
@@ -154,6 +155,8 @@ void KafkaConsumer::Loop() {
 
 // 按错误码分类处理 Kafka 消息，确保业务回调后再提交位点。
 bool KafkaConsumer::HandleMessage(RdKafka::Message* message, bool commit) {
+    const auto cancelled = [this] { return !running_ ||
+        (options_.processing_cancelled && options_.processing_cancelled()); };
     switch (message->err()) {
         case RdKafka::ERR_NO_ERROR: {
             const auto timestamp = message->timestamp();
@@ -175,6 +178,7 @@ bool KafkaConsumer::HandleMessage(RdKafka::Message* message, bool commit) {
             bool handled = !callback_;
             const int attempts = std::max(1, options_.max_processing_attempts);
             for (int attempt = 1; callback_ && attempt <= attempts; ++attempt) {
+                if (cancelled()) return false;
                 try {
                     handled = callback_(key, value);
                 } catch (...) {
@@ -182,6 +186,8 @@ bool KafkaConsumer::HandleMessage(RdKafka::Message* message, bool commit) {
                     LOG_ERROR << "Kafka business callback threw topic=" << topic_;
                     handled = false;
                 }
+                // Shutdown is not a poison event: leave the offset for replay.
+                if (cancelled()) return false;
                 if (handled) {
                     break;
                 }
@@ -196,6 +202,7 @@ bool KafkaConsumer::HandleMessage(RdKafka::Message* message, bool commit) {
                 }
             }
 
+            if (cancelled()) return false;
             if (!handled) {
                 LOG_ERROR << "Kafka processing exhausted topic="
                           << message->topic_name()
@@ -243,6 +250,7 @@ bool KafkaConsumer::HandleMessage(RdKafka::Message* message, bool commit) {
             // Durable mode requires business success or confirmed DLQ delivery.
             // Other consumers retain their existing best-effort failure policy.
             if (commit && !options_.enable_auto_commit && consumer_) {
+                if (cancelled()) return false;
                 RdKafka::ErrorCode commit_err = consumer_->commitSync(message);
                 if (commit_err != RdKafka::ERR_NO_ERROR) {
                     LOG_ERROR << "Kafka offset commit failed: "
@@ -305,13 +313,31 @@ void KafkaConsumer::ProcessBatch(std::vector<std::unique_ptr<RdKafka::Message>>&
         failed_ = true; running_ = false;
         return;
     }
+    // Shutdown may begin after the final callback succeeds. Do not advance its
+    // offsets: a replacement can replay the durable work idempotently.
+    if (!running_ || (options_.processing_cancelled && options_.processing_cancelled())) return;
+    std::map<std::pair<std::string, int32_t>, int64_t> next_offsets;
     for (const auto& record : batch) {
-        const auto error = consumer_->commitSync(record.get());
-        if (error != RdKafka::ERR_NO_ERROR) {
-            LOG_ERROR << "Parallel Kafka batch commit failed topic=" << topic_;
-            failed_ = true; running_ = false;
-            return;
-        }
+        auto& next = next_offsets[{record->topic_name(), record->partition()}];
+        next = std::max(next, record->offset() + 1);
+    }
+    std::vector<RdKafka::TopicPartition*> offsets;
+    offsets.reserve(next_offsets.size());
+    for (const auto& entry : next_offsets) {
+        offsets.push_back(RdKafka::TopicPartition::create(
+            entry.first.first, entry.first.second, entry.second));
+    }
+    // Kafka stores the NEXT offset, not the final processed record offset.
+    // One synchronous request covers all partitions only after every lane is
+    // durable, avoiding a broker round trip for every record in the batch.
+    const auto error = consumer_->commitSync(offsets);
+    const bool partition_failed = std::any_of(offsets.begin(), offsets.end(),
+        [](const auto* partition) { return partition->err() != RdKafka::ERR_NO_ERROR; });
+    RdKafka::TopicPartition::destroy(offsets);
+    if (error != RdKafka::ERR_NO_ERROR || partition_failed) {
+        LOG_ERROR << "Parallel Kafka batch commit failed topic=" << topic_;
+        failed_ = true; running_ = false;
+        return;
     }
     MetricsRegistry::Instance().Set("spark_push_kafka_batch_records_" + topic_, 0);
 }

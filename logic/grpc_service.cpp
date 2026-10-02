@@ -11,6 +11,7 @@
 #include "metrics.h"
 #include "text_metrics.h"
 #include "image_attachment.h"
+#include "sql_helpers.h"
 
 namespace sparkpush {
 
@@ -157,6 +158,11 @@ bool LogicServiceImpl::GetActiveUser(int64_t user_id, User* user,
     ::sparkpush::VerifyTokenReply* response) {
     LOG_INFO << "VerifyToken called for comet_id=" << request->comet_id();
     const std::string& token = request->token();
+    if (request->comet_id().empty() || request->comet_id().size() > 128 ||
+        request->route_generation().size() > 128) {
+        SetError(response->mutable_error(), 400, "invalid Comet route identity");
+        return ::grpc::Status::OK;
+    }
     if (!redis_store_) {
         SetError(response->mutable_error(), 500, "redis store not initialized");
         return ::grpc::Status::OK;
@@ -184,7 +190,9 @@ bool LogicServiceImpl::GetActiveUser(int64_t user_id, User* user,
     response->set_user_id(uid);
     SetError(response->mutable_error(), 0, "ok");
     // 记录路由到 Redis
-    redis_store_->AddRoute(uid, request->comet_id());
+    if (!redis_store_->AddRoute(uid, request->comet_id(), request->route_generation())) {
+        SetError(response->mutable_error(), 503, "online route registration failed");
+    }
     return ::grpc::Status::OK;
 }
 
@@ -211,7 +219,9 @@ void LogicServiceImpl::FillChatMessage(const Message& message,
 bool LogicServiceImpl::PersistToTopic(const Message& message,
                                       const std::string& scene, int64_t user1,
                                       int64_t user2, int64_t room_id,
-                                      std::string* err) {
+                                      std::string* err, const std::string& ack_comet_id,
+                                      int64_t ack_user_id,
+                                      const std::vector<int64_t>& recipients) {
     if (!persist_producer_) {
         if (err) *err = "persist Kafka producer not initialized";
         return false;
@@ -222,6 +232,9 @@ bool LogicServiceImpl::PersistToTopic(const Message& message,
     request.set_user1_id(user1);
     request.set_user2_id(user2);
     request.set_room_id(room_id);
+    request.set_ack_comet_id(ack_comet_id);
+    request.set_ack_user_id(ack_user_id);
+    for (const auto user_id : recipients) request.add_recipient_user_ids(user_id);
     std::string payload;
     if (!request.SerializeToString(&payload)) {
         if (err) *err = "serialize PersistMessageRequest failed";
@@ -547,7 +560,7 @@ void LogicServiceImpl::HandleUpstreamMessage(
         return;
     }
 
-    std::unordered_map<std::string, std::vector<int64_t>> comet_to_users;
+    std::vector<int64_t> recipients;
     std::string err;
     std::string session_id;
     int64_t single_u1 = 0, single_u2 = 0, room_id = 0;
@@ -565,6 +578,7 @@ void LogicServiceImpl::HandleUpstreamMessage(
         if (single_u1 > single_u2) std::swap(single_u1, single_u2);
         session_id = "s_" + std::to_string(single_u1) + "_" +
                      std::to_string(single_u2);
+        recipients = {single_u1, single_u2};
         hermes_target = agent_bot_users_.count(to_user) != 0;
         if (hermes_target) {
             if (!hermes_enabled_ || !hermes_request_producer_) {
@@ -579,16 +593,6 @@ void LogicServiceImpl::HandleUpstreamMessage(
                          "Hermes Bot is disabled or unavailable");
                 return;
             }
-        } else {
-            std::vector<std::string> comets;
-            if (!redis_store_->GetUserRoutes(to_user, &comets)) {
-                LOG_ERROR << "GetUserRoutes failed for user "
-                          << std::to_string(to_user);
-            } else {
-                for (const auto& cid : comets) {
-                    comet_to_users[cid].push_back(to_user);
-                }
-            }
         }
     } else if (scene == "chatroom") {
         room_id = request.group_id();
@@ -598,33 +602,22 @@ void LogicServiceImpl::HandleUpstreamMessage(
             return;
         }
         session_id = "r_" + std::to_string(room_id);
-        std::vector<std::string> room_comets;
-        bool use_room_comets = false;
-        if (redis_store_->GetRoomComets(room_id, &room_comets) &&
-            !room_comets.empty()) {
-            use_room_comets = true;
+        bool member = false;
+        if (!group_member_dao_ ||
+            !group_member_dao_->IsMember(room_id, from_user, &member, &err)) {
+            SetError(response->mutable_error(), 500, "room membership lookup failed");
+            return;
         }
-        if (use_room_comets) {
-            for (const auto& cid : room_comets) {
-                comet_to_users[cid];
-            }
-        } else {
-            std::vector<int64_t> members;
-            if (group_member_dao_) {
-                if (!group_member_dao_->ListRoomMembers(room_id, &members,
-                                                        &err)) {
-                    LOG_ERROR << "ListRoomMembers failed: " << err;
-                }
-            }
-            for (int64_t uid : members) {
-                std::vector<std::string> comets;
-                if (!redis_store_->GetUserRoutes(uid, &comets)) {
-                    continue;
-                }
-                for (const auto& cid : comets) {
-                    comet_to_users[cid].push_back(uid);
-                }
-            }
+        if (!member) {
+            SetError(response->mutable_error(), 403, "sender is not a member of this room");
+            return;
+        }
+        if (!group_member_dao_->ListRoomMembers(room_id, &recipients, &err)) {
+            SetError(response->mutable_error(), 500, "room recipient snapshot failed");
+            return;
+        }
+        if (std::find(recipients.begin(), recipients.end(), from_user) == recipients.end()) {
+            recipients.push_back(from_user);
         }
     } else {
         SetError(response->mutable_error(), 400, "unsupported scene");
@@ -659,6 +652,7 @@ void LogicServiceImpl::HandleUpstreamMessage(
     try {
         auto j = nlohmann::json::parse(push_json);
         j["msg_id"] = msg.msg_id;
+        j["session_id"] = msg.session_id;
         j["msg_seq"] = msg.msg_seq;
         j["create_time"] = msg.timestamp_ms;
         j["from_user_id"] = from_user;
@@ -678,7 +672,8 @@ void LogicServiceImpl::HandleUpstreamMessage(
 
     // accepted_ack 的边界是持久化事件已经收到 Kafka delivery report；
     // 这一步替代 Logic 本地线程池，Logic 崩溃后仍可由 Job 从 topic 重放。
-    if (!PersistToTopic(msg, scene, single_u1, single_u2, room_id, &err)) {
+    if (!PersistToTopic(msg, scene, single_u1, single_u2, room_id, &err,
+                        request.source_comet_id(), from_user, recipients)) {
         MetricsRegistry::Instance().Increment(
             "spark_push_persist_events_failed_total");
         SetError(response->mutable_error(), 503, err);
@@ -726,62 +721,9 @@ void LogicServiceImpl::HandleUpstreamMessage(
         return;
     }
 
-    if (comet_to_users.empty()) {
-        SetError(response->mutable_error(), 0, "accepted for offline storage");
-        return;
-    }
-    KafkaProducer* realtime_producer =
-        scene == "single" ? producer_ : group_producer_;
-    if (!realtime_producer) {
-        SetError(response->mutable_error(), 503,
-                 "scene Kafka producer not ready");
-        return;
-    }
-
-    size_t accepted_routes = 0;
-    for (const auto& kv : comet_to_users) {
-        const std::string& comet_id = kv.first;
-        const auto& users = kv.second;
-        PushToCometRequest req;
-        req.set_comet_id(comet_id);
-        req.set_request_id(msg.msg_id + "@" + comet_id);
-        req.set_ack_comet_id(request.source_comet_id());
-        req.set_ack_user_id(from_user);
-        req.set_scene(scene == "single" ? "single" : "group");
-        *req.mutable_message() = *cm;
-        for (int64_t uid : users) {
-            auto* target = req.add_targets();
-            target->set_user_id(uid);
-        }
-        std::string payload;
-        if (!req.SerializeToString(&payload)) {
-            LOG_ERROR << "Serialize PushToCometRequest failed";
-            continue;
-        }
-        if (!realtime_producer->Send(comet_id, payload)) {
-            LOG_ERROR << "Kafka send failed for comet " << comet_id;
-        } else {
-            ++accepted_routes;
-        }
-    }
-    if (accepted_routes == 0) {
-        // 消息已经在 persist topic 中 durable；实时 topic 暂时不可用时，
-        // 客户端仍拿到 accepted_ack，重连后由 cursor/offline sync 补齐。
-        MetricsRegistry::Instance().Increment(
-            "spark_push_realtime_enqueue_failed_total_" + scene);
-        SetError(response->mutable_error(), 0,
-                 "accepted; realtime delivery pending");
-        return;
-    }
-    if (accepted_routes != comet_to_users.size()) {
-        LOG_ERROR << "Kafka accepted only " << accepted_routes << "/"
-                  << comet_to_users.size() << " routes for msg_id="
-                  << msg.msg_id;
-    }
-    MetricsRegistry::Instance().Increment("spark_push_realtime_enqueued_total_" +
-                                         scene,
-                                         static_cast<int64_t>(accepted_routes));
-    SetError(response->mutable_error(), 0, "ok");
+    // Job atomically hands persistence to its SQL delivery outbox. Online
+    // delivery retries are rebuilt from this one durable event after restart.
+    SetError(response->mutable_error(), 0, "accepted; delivery scheduled");
 }
 
 bool LogicServiceImpl::HandleHermesReply(const std::string& payload,
@@ -835,7 +777,8 @@ bool LogicServiceImpl::HandleHermesReply(const std::string& payload,
                     msg->timestamp_ms, msg->client_msg_id, msg, fresh, &err);
             },
             [this, user1, user2, &err](const Message& msg) {
-                return PersistToTopic(msg, "single", user1, user2, 0, &err);
+                return PersistToTopic(msg, "single", user1, user2, 0, &err,
+                                      "", 0, {user1, user2});
             })) {
         LOG_ERROR << "Persist Hermes reply failed request_id=" << request_id << ": " << err;
         MetricsRegistry::Instance().Increment("spark_push_hermes_errors_total");
@@ -857,32 +800,7 @@ bool LogicServiceImpl::HandleHermesReply(const std::string& payload,
     MarkHermesStreamCompleted(request_id);
     RememberHermesMessage(message);
 
-    std::vector<std::string> comets;
-    if (!redis_store_ || !redis_store_->GetUserRoutes(user_id, &comets)) {
-        LOG_ERROR << "Get Hermes recipient routes failed user_id="
-                  << std::to_string(user_id);
-        return false;
-    }
-    ChatMessage chat_message;
-    FillChatMessage(message, &chat_message);
-    for (const auto& comet_id : comets) {
-        PushToCometRequest request;
-        request.set_comet_id(comet_id);
-        request.set_request_id(message.msg_id + "@" + comet_id);
-        request.set_scene("single");
-        *request.mutable_message() = chat_message;
-        request.add_targets()->set_user_id(user_id);
-
-        std::string push_payload;
-        if (!request.SerializeToString(&push_payload) ||
-            !producer_ || !producer_->Send(comet_id, push_payload)) {
-            LOG_ERROR << "Enqueue Hermes reply to Comet failed comet_id="
-                      << comet_id << ", request_id=" << request_id;
-            continue;
-        }
-        MetricsRegistry::Instance().Increment(
-            "spark_push_hermes_realtime_enqueued_total");
-    }
+    // Final replies use the same durable delivery recovery as human messages.
     MetricsRegistry::Instance().Increment(
         ok ? "spark_push_hermes_replies_total"
            : "spark_push_hermes_errors_total");
@@ -1072,9 +990,44 @@ bool LogicServiceImpl::HandleHermesDelta(const std::string& payload,
     ::grpc::ServerContext*, const ::sparkpush::UserOfflineRequest* request,
     ::sparkpush::SimpleReply* response) {
     if (redis_store_) {
-        redis_store_->RemoveRoute(request->user_id(), request->comet_id());
+        if (!redis_store_->RemoveRoute(request->user_id(), request->comet_id(),
+                                       request->route_generation())) {
+            SetError(response->mutable_error(), 503, "online route removal failed");
+            return ::grpc::Status::OK;
+        }
     }
     SetError(response->mutable_error(), 0, "ok");
+    return ::grpc::Status::OK;
+}
+
+::grpc::Status LogicServiceImpl::RefreshRoutes(
+    ::grpc::ServerContext*, const RefreshRoutesRequest* request,
+    SimpleReply* response) {
+    if (!redis_store_ || request->comet_id().empty() || request->comet_id().size() > 128 ||
+        request->leases_size() > 256) {
+        SetError(response->mutable_error(), 400, "invalid route lease batch");
+        return ::grpc::Status::OK;
+    }
+    // Validate the whole batch before applying any refresh.
+    for (const auto& lease : request->leases()) {
+        if (lease.user_id() <= 0 || lease.generation().empty() || lease.generation().size() > 128) {
+            SetError(response->mutable_error(), 400, "invalid route lease identity");
+            return ::grpc::Status::OK;
+        }
+    }
+    for (const auto& lease : request->leases()) {
+        bool missing = false;
+        if (!redis_store_->RefreshRoute(lease.user_id(), request->comet_id(), lease.generation(), &missing)) {
+            SetError(response->mutable_error(), 503, "route lease refresh failed");
+            return ::grpc::Status::OK;
+        }
+        if (missing) {
+            SetError(response->mutable_error(), 409, "route registration absent; reconnect and authenticate");
+            return ::grpc::Status::OK;
+        }
+    }
+    SetError(response->mutable_error(), 0, "ok");
+    MetricsRegistry::Instance().Increment("spark_push_route_lease_refresh_total");
     return ::grpc::Status::OK;
 }
 
@@ -1279,6 +1232,10 @@ bool LogicServiceImpl::HandleHermesDelta(const std::string& payload,
                  "offline sync dependencies/user_id are missing");
         return ::grpc::Status::OK;
     }
+    if (!request->device_id().empty() && !ValidDeviceId(request->device_id())) {
+        SetError(response->mutable_error(), 400, "invalid device_id");
+        return ::grpc::Status::OK;
+    }
     const int limit = std::max(1, std::min(request->limit() > 0
                                                ? request->limit()
                                                : 100,
@@ -1292,7 +1249,8 @@ bool LogicServiceImpl::HandleHermesDelta(const std::string& payload,
     std::vector<int64_t> room_ids;
     if (!group_member_dao_->ListUserChatrooms(request->user_id(), &room_ids,
                                               &err)) {
-        LOG_WARN << "ListUserChatrooms for offline sync failed: " << err;
+        SetError(response->mutable_error(), 500, err);
+        return ::grpc::Status::OK;
     }
     for (int64_t room_id : room_ids) {
         Session room;
@@ -1305,19 +1263,21 @@ bool LogicServiceImpl::HandleHermesDelta(const std::string& payload,
     int remaining = limit;
     for (const auto& session : sessions) {
         if (remaining <= 0) break;
-        int64_t delivered_seq = 0;
-        if (!store_->GetDeliveredSeq(request->user_id(), session.id,
-                                     &delivered_seq, &err)) {
-            LOG_WARN << "GetDeliveredSeq failed for session " << session.id
-                     << ": " << err;
-            continue;
-        }
         std::vector<Message> messages;
-        if (!store_->GetMessagesAfter(session.id, delivered_seq, remaining,
-                                      &messages, &err)) {
-            LOG_WARN << "offline message query failed for session " << session.id
-                     << ": " << err;
-            continue;
+        if (!request->device_id().empty()) {
+            if (!store_->GetDeviceMessages(request->user_id(), request->device_id(), session.id,
+                                           remaining, &messages, &err)) {
+                SetError(response->mutable_error(), 500, err);
+                return ::grpc::Status::OK;
+            }
+        } else {
+            // Old clients retain the server-queued delivery cursor contract.
+            int64_t delivered_seq = 0;
+            if (!store_->GetDeliveredSeq(request->user_id(), session.id, &delivered_seq, &err) ||
+                !store_->GetMessagesAfter(session.id, delivered_seq, remaining, &messages, &err)) {
+                SetError(response->mutable_error(), 500, err);
+                return ::grpc::Status::OK;
+            }
         }
         for (const auto& message : messages) {
             FillChatMessage(message, response->add_messages());
@@ -1327,6 +1287,61 @@ bool LogicServiceImpl::HandleHermesDelta(const std::string& payload,
     response->set_has_more(remaining == 0 && !sessions.empty());
     SetError(response->mutable_error(), 0, "ok");
     MetricsRegistry::Instance().Increment("spark_push_offline_sync_total");
+    return ::grpc::Status::OK;
+}
+
+::grpc::Status LogicServiceImpl::MarkReceived(
+    ::grpc::ServerContext*, const MarkReceivedRequest* request,
+    SimpleReply* response) {
+    if (!store_ || !group_member_dao_ || request->user_id() <= 0 ||
+        !ValidDeviceId(request->device_id()) || request->session_id().empty() ||
+        request->session_id().size() > 128 || request->msg_seq() < 0 ||
+        request->received_seqs_size() > 256) {
+        SetError(response->mutable_error(), 400, "invalid device receipt");
+        return ::grpc::Status::OK;
+    }
+    Session session;
+    std::string error;
+    if (!store_->GetSessionById(request->session_id(), &session, &error)) {
+        SetError(response->mutable_error(), 404, "session not found");
+        return ::grpc::Status::OK;
+    }
+    bool authorized = session.type == SessionType::kSingle &&
+        (session.user1_id == request->user_id() || session.user2_id == request->user_id());
+    if (!authorized && session.group_id > 0) {
+        if (!group_member_dao_->IsMember(session.group_id, request->user_id(), &authorized, &error)) {
+            SetError(response->mutable_error(), 500, error);
+            return ::grpc::Status::OK;
+        }
+    }
+    if (!authorized) {
+        SetError(response->mutable_error(), 403, "user is not a member of this session");
+        return ::grpc::Status::OK;
+    }
+    int64_t max_seq = 0;
+    if (!store_->GetMaxMsgSeq(request->session_id(), &max_seq, &error)) {
+        SetError(response->mutable_error(), 500, error);
+        return ::grpc::Status::OK;
+    }
+    if (request->msg_seq() > max_seq) {
+        SetError(response->mutable_error(), 400, "device receipt exceeds persisted message sequence");
+        return ::grpc::Status::OK;
+    }
+    std::vector<int64_t> received;
+    for (const auto seq : request->received_seqs()) {
+        if (seq <= 0 || seq > max_seq) {
+            SetError(response->mutable_error(), 400, "invalid sparse device receipt sequence");
+            return ::grpc::Status::OK;
+        }
+        received.push_back(seq);
+    }
+    if (!store_->MarkReceived(request->user_id(), request->device_id(), request->session_id(),
+                              request->msg_seq(), received, &error)) {
+        SetError(response->mutable_error(), 500, error);
+        return ::grpc::Status::OK;
+    }
+    SetError(response->mutable_error(), 0, "ok");
+    MetricsRegistry::Instance().Increment("spark_push_device_receipt_total");
     return ::grpc::Status::OK;
 }
 

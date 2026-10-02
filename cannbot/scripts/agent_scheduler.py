@@ -92,6 +92,8 @@ class SessionScheduler:
                 raise TimeoutError("Agent 队列已满，请稍后重试")
             self.session_waiters[session_id] = waiting + 1
             self.metrics.queued += 1
+        acquired = False
+        queued = True
         try:
             while True:
                 remaining = deadline - time.monotonic()
@@ -107,6 +109,9 @@ class SessionScheduler:
                         and self.agent_inflight.get(agent_id, 0) < self.max_per_agent
                     )
                     if can_run:
+                        acquired = True
+                        queued = False
+                        self.metrics.queued -= 1
                         self.session_running.add(session_id)
                         self.inflight += 1
                         self.agent_inflight[agent_id] = self.agent_inflight.get(agent_id, 0) + 1
@@ -128,9 +133,9 @@ class SessionScheduler:
                     self.session_waiters.pop(session_id, None)
                 else:
                     self.session_waiters[session_id] = waiting - 1
-                if self.metrics.queued > 0:
+                if queued:
                     self.metrics.queued -= 1
-                if session_id in self.session_running:
+                if acquired:
                     self.session_running.discard(session_id)
                     self.inflight = max(0, self.inflight - 1)
                     self.agent_inflight[agent_id] = max(0, self.agent_inflight.get(agent_id, 0) - 1)

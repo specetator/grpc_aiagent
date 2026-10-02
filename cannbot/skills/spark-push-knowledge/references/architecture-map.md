@@ -9,8 +9,10 @@
 | 总体架构、组件边界、启动入口 | `README.md`、`docs/spark-push-architecture.md`、`scripts/00_prepare_and_run.md` | `CMakeLists.txt`、各组件 `main.cpp` |
 | Inference Gateway、Worker、容量准入、会话路由、ROCm 和批处理 | `docs/inference-serving.md` | `inference/proto/inference.proto`、`inference/gateway/`、`inference/worker/`、`hermes_bridge/grpc_inference_client.cpp`、`inference/scripts/` |
 | RX 9070 XT 真实 CPU/ROCm 性能、优化消融和简历证据 | `docs/performance-report-2026-09-30-rx9070xt.md` | `inference/benchmarks/`、`docs/benchmarks/2026-09-30-rx9070xt/` |
+| 逐步源码学习、真实容器与核心算法、本次性能证据 | `docs/learning/README.md`、`docs/learning/01-core-runtime.md` 至 `05-open-source-designs.md`、`docs/performance-report-2026-10-02-im.md` | 根目录 common/comet/logic/job、Android 本地库、Pi scheduler、inference gateway |
 | 队列/哈希/Lua/握手等逐步算法 | `docs/spark-push-internals.md` | `common/thread_pool.cpp`、`common/mysql_pool.cpp`、`logic/redis_store.cpp`、`comet/comet_server.cpp`、`job/service.cpp` |
 | WebSocket 接入、ACK、断线补偿 | `docs/reliability-optimization.md`、`docs/spark-push-internals.md` | `comet/comet_server.cpp`、`comet/comet_grpc_service.cpp` |
+| 自动投递恢复、设备连续/稀疏回执、Android SQLite 发送队列与连接背压 | `docs/im-reliability-2026-10-02.md` | `logic/message_reservation.cpp`、`logic/delivery_outbox.cpp`、`logic/user_session_state_dao.cpp`、`job/service.cpp`、`comet/comet_server.cpp`、`android-app/app/src/main/java/com/peco/sparkim/SparkMessageStore.kt` |
 | 序号、幂等、会话历史、AI 请求编排 | `docs/reliability-optimization.md`、`docs/spark-push-internals.md`、`docs/hermes-integration.md` | `logic/grpc_service.cpp`、`logic/redis_store.cpp`、`logic/conversation_store.cpp` |
 | Kafka 消费、持久化、Job→Comet 推送 | `docs/reliability-optimization.md`、`docs/spark-push-internals.md` | `job/service.cpp`、`common/kafka_consumer.cpp` |
 | Wire contract 与 RPC | — | `proto/spark_push.proto` |

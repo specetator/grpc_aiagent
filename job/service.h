@@ -1,10 +1,13 @@
 #pragma once
 
 #include "config.h"
+#include "delivery_outbox.h"
+#include "group_dao.h"
 #include "kafka_consumer.h"
 #include "message_dao.h"
 #include "metrics_http_server.h"
 #include "mysql_pool.h"
+#include "redis_store.h"
 #include "session_dao.h"
 #include "spark_push.grpc.pb.h"
 #include "thread_pool.h"
@@ -57,7 +60,9 @@ namespace sparkpush {
         bool HandlePersistMessage(const std::string& key,
                                   const std::string& value);
 
-        bool PersistMessage(const PersistMessageRequest& request);
+        bool PersistMessage(const PersistMessageRequest& request, std::string* error = nullptr);
+        void DeliveryLoop();
+        bool DeliverTask(const DeliveryOutbox::Task& task, int lease_ms);
 
         // 将解析好的 PushToCometRequest 发送到指定 Comet。
         bool ProcessPushRequest(const PushToCometRequest& req);
@@ -92,6 +97,14 @@ namespace sparkpush {
         std::unique_ptr<MySqlConnectionPool> mysql_pool_;
         std::unique_ptr<SessionDao> session_dao_;
         std::unique_ptr<MessageDao> message_dao_;
+        std::unique_ptr<GroupMemberDao> group_member_dao_;
+        std::unique_ptr<RedisConnectionPool> redis_pool_;
+        std::unique_ptr<RedisStore> redis_store_;
+        std::unique_ptr<DeliveryOutbox> delivery_outbox_;
+        std::atomic<bool> delivery_running_{false};
+        std::vector<std::thread> delivery_threads_;
+        std::mutex delivery_wait_mutex_;
+        std::condition_variable delivery_wait_cv_;
 
         struct PromiseState {
             std::mutex mutex;

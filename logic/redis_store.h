@@ -28,8 +28,9 @@ class RedisStore {
     bool RevokeUserTokens(int64_t user_id, int* revoked_count = nullptr);
 
     // 功能：添加/移除/获取用户路由 comet 集合
-    bool AddRoute(int64_t user_id, const std::string& comet_id);
-    bool RemoveRoute(int64_t user_id, const std::string& comet_id);
+    bool AddRoute(int64_t user_id, const std::string& comet_id, const std::string& generation = "");
+    bool RemoveRoute(int64_t user_id, const std::string& comet_id, const std::string& generation = "");
+    bool RefreshRoute(int64_t user_id, const std::string& comet_id, const std::string& generation, bool* missing = nullptr);
     // 带本地缓存（shared_mutex + TTL），对齐 06 优化
     bool GetUserRoutes(int64_t user_id, std::vector<std::string>* comets);
     void InvalidateRouteCache(int64_t user_id);

@@ -45,6 +45,7 @@ message DanmakuMessage {
 message VerifyTokenRequest {
   string token = 1;
   string comet_id = 2;
+  string route_generation = 3;
 }
 
 message VerifyTokenReply {
@@ -76,6 +77,7 @@ message UpstreamMessageReply {
 message UserOfflineRequest {
   int64 user_id = 1;
   string comet_id = 2;
+  string route_generation = 3;
 }
 
 message SimpleReply {
@@ -112,6 +114,27 @@ message UserDeliveredCursor {
 message SyncOfflineRequest {
   int64 user_id = 1;
   int32 limit = 2;
+  // Empty preserves the legacy server-queued delivery cursor.
+  string device_id = 3;
+}
+
+// Only authenticated Comet connections may report these identities. A receipt
+// confirms local durable processing, unlike ACK_STAGE_DELIVERED (server queue).
+message MarkReceivedRequest {
+  int64 user_id = 1;
+  string device_id = 2;
+  string session_id = 3;
+  int64 msg_seq = 4; // contiguous numeric prefix, never the greatest seen seq
+  repeated int64 received_seqs = 5; // sparse receipts preserve allocation gaps
+}
+
+message RouteLease {
+  int64 user_id = 1;
+  string generation = 2;
+}
+message RefreshRoutesRequest {
+  string comet_id = 1;
+  repeated RouteLease leases = 2;
 }
 
 message SyncOfflineReply {
@@ -175,6 +198,8 @@ service LogicService {
   rpc SyncMessages(SyncMessagesRequest) returns (SyncMessagesReply);
   rpc SyncOffline(SyncOfflineRequest) returns (SyncOfflineReply);
   rpc MarkDelivered(MarkDeliveredRequest) returns (SimpleReply);
+  rpc MarkReceived(MarkReceivedRequest) returns (SimpleReply);
+  rpc RefreshRoutes(RefreshRoutesRequest) returns (SimpleReply);
   // 双向流模式（高性能）
   rpc MessageStream(stream StreamMessage) returns (stream StreamResponse);
 }
@@ -215,6 +240,9 @@ message PersistMessageRequest {
   int64 user1_id = 3;
   int64 user2_id = 4;
   int64 room_id = 5;
+  string ack_comet_id = 6;
+  int64 ack_user_id = 7;
+  repeated int64 recipient_user_ids = 8;
 }
 
 message PushStreamReply {

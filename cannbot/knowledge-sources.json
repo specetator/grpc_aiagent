@@ -3,6 +3,19 @@
   "description": "Curated truth sources packaged for the Spark Push Pi knowledge skill.",
   "sources": [
     {
+      "id": "im-device-delivery",
+      "path": "docs/im-reliability-2026-10-02.md",
+      "authority": "canonical",
+      "topics": [
+        "ack",
+        "device-cursor",
+        "outbox",
+        "android",
+        "backpressure",
+        "recovery"
+      ]
+    },
+    {
       "id": "project-overview",
       "path": "README.md",
       "authority": "canonical",
@@ -262,6 +275,13 @@
         "performance",
         "isolation"
       ]
-    }
+    },
+    {"path":"docs/learning/README.md","topics":["learning","architecture","algorithms"],"authority":"canonical","id":"im-learning-guide"},
+    {"path":"docs/learning/01-core-runtime.md","topics":["learning","network","data-structures"],"authority":"canonical","id":"im-learning-core"},
+    {"path":"docs/learning/02-reliable-message-pipeline.md","topics":["learning","kafka","delivery","cursor"],"authority":"canonical","id":"im-learning-delivery"},
+    {"path":"docs/learning/03-android-local-store.md","topics":["learning","android","sqlite","outbox"],"authority":"canonical","id":"im-learning-android"},
+    {"path":"docs/learning/04-agent-and-inference.md","topics":["learning","agent","inference","scheduler"],"authority":"canonical","id":"im-learning-ai"},
+    {"path":"docs/learning/05-open-source-designs.md","topics":["learning","im","open-source"],"authority":"canonical","id":"im-open-source-designs"},
+    {"path":"docs/performance-report-2026-10-02-im.md","topics":["im","performance","reliability","validation"],"authority":"snapshot","id":"im-performance-20261002"}
   ]
 }

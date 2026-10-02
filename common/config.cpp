@@ -247,6 +247,12 @@ Config LoadConfig(const std::string& path) {
             cfg.comet_grpc_port = std::stoi(value);
         } else if (key == "comet_grpc_pool_size") {
             cfg.comet_grpc_pool_size = std::stoi(value);
+        } else if (key == "comet_max_pending_bytes") {
+            cfg.comet_max_pending_bytes = std::stoi(value);
+        } else if (key == "comet_grpc_queue_max") {
+            cfg.comet_grpc_queue_max = std::stoi(value);
+        } else if (key == "comet_grpc_queue_bytes") {
+            cfg.comet_grpc_queue_bytes = std::stoi(value);
         } else if (key == "use_grpc_stream") {
             cfg.use_grpc_stream = (value == "true" || value == "1");
         } else if (key == "grpc_stream_count") {
@@ -267,6 +273,8 @@ Config LoadConfig(const std::string& path) {
             cfg.push_stream_reconnect_max_ms = std::stoi(value);
         } else if (key == "push_rpc_deadline_ms") {
             cfg.push_rpc_deadline_ms = std::stoi(value);
+        } else if (key == "delivery_workers") {
+            cfg.delivery_workers = std::stoi(value);
         } else if (key == "persist_kafka_timeout_ms") {
             cfg.persist_kafka_timeout_ms = std::stoi(value);
         } else if (key == "single_rate_per_sec") {

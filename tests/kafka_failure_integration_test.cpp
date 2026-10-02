@@ -167,6 +167,31 @@ int main() {
         commit_failure.Stop();
         Require(processed == 1 && Committed(cluster, "commit-group", "commit-failure") < 0,
                 "later commit skipped unconfirmed source offset");
+        cluster.Topic("cancelled"); cluster.Topic("cancelled.dlq");
+        Seed(cluster, "cancelled");
+        std::atomic<bool> cancelled{false};
+        std::atomic<int> cancel_calls{0};
+        options.dead_letter_topic = "cancelled.dlq";
+        options.processing_cancelled = [&] { return cancelled.load(); };
+        sparkpush::KafkaConsumer cancelling;
+        Require(cancelling.Init(cluster.brokers, "cancelled-group", "cancelled",
+            [&](const std::string&, const std::string&) {
+                ++cancel_calls; cancelled = true; return false;
+            }, options), "cancellation consumer init failed");
+        cancelling.Start();
+        Wait([&] { return cancel_calls.load() == 1; }, "cancellation callback did not run");
+        cancelling.Stop();
+        Require(Committed(cluster, "cancelled-group", "cancelled") < 0,
+                "cancelled callback committed or dead-lettered source");
+        options.processing_cancelled = {};
+        options.dead_letter_topic.clear();
+        std::atomic<int> resumed{0};
+        sparkpush::KafkaConsumer resumed_consumer;
+        Require(resumed_consumer.Init(cluster.brokers, "cancelled-group", "cancelled",
+            [&](const std::string&, const std::string&) { ++resumed; return true; }, options), "cancel replay init");
+        resumed_consumer.Start();
+        Wait([&] { return resumed.load() == 2; }, "cancelled records were not replayed");
+        resumed_consumer.Stop();
         std::cout << "Kafka durable failure integration tests passed\n";
         return 0;
     } catch (const std::exception& e) {

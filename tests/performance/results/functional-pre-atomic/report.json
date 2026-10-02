@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "benchmark": "Spark Push local recipient-observed E2E",
+  "started_at_utc": "2026-10-02T14:55:58.663609+00:00",
+  "benchmarks": [],
+  "functional": [
+    {
+      "test": "independent_device_receipts",
+      "pass": false,
+      "seconds": 15.027,
+      "error": "TimeoutError: Expected WebSocket event absent"
+    },
+    {
+      "test": "new_device_history_recovery",
+      "pass": false,
+      "seconds": 8.003,
+      "error": "TimeoutError: Expected WebSocket event absent"
+    },
+    {
+      "test": "sparse_receipt_allocation_gap_no_loss",
+      "pass": false,
+      "seconds": 15.139,
+      "error": "TimeoutError: Expected WebSocket event absent"
+    },
+    {
+      "test": "device_recovery_multiple_pages",
+      "pass": false,
+      "seconds": 35.729,
+      "error": "TimeoutError: Offline messages did not finish persistence"
+    },
+    {
+      "test": "idempotent_different_payload",
+      "pass": false,
+      "seconds": 10.029,
+      "error": "TimeoutError: Expected WebSocket event absent"
+    }
+  ],
+  "binary_sha256": {
+    "updated": {
+      "logic": "8a2d7ebc1a58574b39ca18bcfdb25a77376f605436b142dd1f540a862b7cb7f0",
+      "comet": "5ed44f2d67b8c3750bb2f5f05ec942435e97d84f4339c436c47a34b644bc81d9",
+      "job": "8849fcb1783e69afd6fbc34941a26666b59ebbdf70fc9a15a785eeb4c7bbd8ed"
+    }
+  },
+  "environment": {
+    "platform": "Linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "cpu_count": 12,
+    "python": "3.12.3"
+  },
+  "notes": [
+    "Local loopback measurements; no production-capacity claim.",
+    "Account registration and connection setup excluded from latency and throughput.",
+    "Both variants tested sequentially using identical client workload.",
+    "Each sending connection uses a separate account; one common receiving connection.",
+    "Tokens and passwords are omitted from reports and latency samples."
+  ]
+}

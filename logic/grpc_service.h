@@ -88,6 +88,14 @@ class LogicServiceImpl final : public sparkpush::LogicService::Service {
         ::grpc::ServerContext* context,
         const ::sparkpush::MarkDeliveredRequest* request,
         ::sparkpush::SimpleReply* response) override;
+    ::grpc::Status MarkReceived(
+        ::grpc::ServerContext* context,
+        const ::sparkpush::MarkReceivedRequest* request,
+        ::sparkpush::SimpleReply* response) override;
+    ::grpc::Status RefreshRoutes(
+        ::grpc::ServerContext* context,
+        const ::sparkpush::RefreshRoutesRequest* request,
+        ::sparkpush::SimpleReply* response) override;
 
     // Hermes Bridge 的最终回复回到普通单聊消息链路：落盘后再投递到 Comet。
     // 返回 false 会让 Kafka consumer 保留消息，等待后续重试。
@@ -111,7 +119,9 @@ class LogicServiceImpl final : public sparkpush::LogicService::Service {
     void FillChatMessage(const Message& message, ChatMessage* output);
     bool PersistToTopic(const Message& message, const std::string& scene,
                         int64_t user1, int64_t user2, int64_t room_id,
-                        std::string* err);
+                        std::string* err, const std::string& ack_comet_id = "",
+                        int64_t ack_user_id = 0,
+                        const std::vector<int64_t>& recipients = {});
     bool BuildHermesRequest(const Message& current, nlohmann::json* request,
                             std::string* err);
     bool EnqueueHermesRequest(const Message& current, std::string* err);

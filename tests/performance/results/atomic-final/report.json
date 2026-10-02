@@ -1,0 +1,219 @@
+{
+  "schema": 1,
+  "benchmark": "Spark Push local recipient-observed E2E",
+  "started_at_utc": "2026-10-02T15:00:34.674360+00:00",
+  "benchmarks": [
+    {
+      "variant": "updated",
+      "connections": 8,
+      "messages_per_connection": 20,
+      "expected": 160,
+      "sent": 160,
+      "accepted": 160,
+      "recipient_received_unique": 160,
+      "errors": 0,
+      "pass": true,
+      "elapsed_seconds": 2.794628,
+      "recipient_messages_per_second": 57.253,
+      "recipient_p50_ms": 1710.079,
+      "recipient_p95_ms": 2599.144,
+      "recipient_p99_ms": 2723.535,
+      "accepted_p50_ms": 651.784,
+      "accepted_p95_ms": 1089.837,
+      "setup_seconds_excluded": 1.091,
+      "receiver_connections": 1,
+      "mode": "legacy_wire_comparison",
+      "warmup": "one recipient-confirmed message before timing",
+      "sender_accounts": 8,
+      "latency_boundary": "before sender socket send to receiver frame parsed",
+      "updated_extra_behavior": "persisted messages also fan out to the sender's other devices"
+    },
+    {
+      "variant": "updated",
+      "connections": 32,
+      "messages_per_connection": 20,
+      "expected": 640,
+      "sent": 640,
+      "accepted": 640,
+      "recipient_received_unique": 640,
+      "errors": 0,
+      "pass": true,
+      "elapsed_seconds": 10.622693,
+      "recipient_messages_per_second": 60.248,
+      "recipient_p50_ms": 5260.227,
+      "recipient_p95_ms": 10079.85,
+      "recipient_p99_ms": 10350.609,
+      "accepted_p50_ms": 1746.007,
+      "accepted_p95_ms": 3351.847,
+      "setup_seconds_excluded": 1.847,
+      "receiver_connections": 1,
+      "mode": "legacy_wire_comparison",
+      "warmup": "one recipient-confirmed message before timing",
+      "sender_accounts": 32,
+      "latency_boundary": "before sender socket send to receiver frame parsed",
+      "updated_extra_behavior": "persisted messages also fan out to the sender's other devices"
+    },
+    {
+      "variant": "updated",
+      "connections": 128,
+      "messages_per_connection": 20,
+      "expected": 2560,
+      "sent": 2560,
+      "accepted": 1696,
+      "recipient_received_unique": 2560,
+      "errors": 864,
+      "pass": false,
+      "elapsed_seconds": 52.02713,
+      "recipient_messages_per_second": 49.205,
+      "recipient_p50_ms": 27147.803,
+      "recipient_p95_ms": 49915.402,
+      "recipient_p99_ms": 51339.476,
+      "accepted_p50_ms": 4204.564,
+      "accepted_p95_ms": 7720.854,
+      "setup_seconds_excluded": 6.221,
+      "receiver_connections": 1,
+      "mode": "legacy_wire_comparison",
+      "warmup": "one recipient-confirmed message before timing",
+      "sender_accounts": 128,
+      "latency_boundary": "before sender socket send to receiver frame parsed",
+      "updated_extra_behavior": "persisted messages also fan out to the sender's other devices"
+    },
+    {
+      "variant": "updated",
+      "connections": 256,
+      "messages_per_connection": 20,
+      "expected": 5120,
+      "sent": 5120,
+      "accepted": 1720,
+      "recipient_received_unique": 3006,
+      "errors": 3400,
+      "pass": false,
+      "elapsed_seconds": 60.690172,
+      "recipient_messages_per_second": 49.53,
+      "recipient_p50_ms": 32526.575,
+      "recipient_p95_ms": 58420.296,
+      "recipient_p99_ms": 59799.6,
+      "accepted_p50_ms": 4278.011,
+      "accepted_p95_ms": 7673.946,
+      "setup_seconds_excluded": 11.415,
+      "receiver_connections": 1,
+      "mode": "legacy_wire_comparison",
+      "warmup": "one recipient-confirmed message before timing",
+      "sender_accounts": 256,
+      "latency_boundary": "before sender socket send to receiver frame parsed",
+      "updated_extra_behavior": "persisted messages also fan out to the sender's other devices"
+    }
+  ],
+  "functional": [
+    {
+      "test": "independent_device_receipts",
+      "pass": true,
+      "seconds": 3.786,
+      "observed": "A persisted sparse receipt suppresses replay; unacknowledged B receives replay"
+    },
+    {
+      "test": "new_device_history_recovery",
+      "pass": true,
+      "seconds": 0.03,
+      "observed": "A new device receives history despite another device's receipt"
+    },
+    {
+      "test": "sparse_receipt_allocation_gap_no_loss",
+      "pass": true,
+      "seconds": 8.968,
+      "observed": "Allocation gap retained; sparse ACK of higher seq does not suppress uncommitted lower message"
+    },
+    {
+      "test": "device_recovery_multiple_pages",
+      "pass": true,
+      "seconds": 6.464,
+      "observed": "205 offline messages recover across the 200-message page boundary after client durable receipt"
+    },
+    {
+      "test": "idempotent_different_payload",
+      "pass": true,
+      "seconds": 1.981,
+      "observed": "Stable client ID returns the original message identity and durable original payload"
+    },
+    {
+      "test": "group_fanout_membership_authorization",
+      "pass": true,
+      "seconds": 3.094,
+      "observed": "Persisted group message fans out to members; authenticated nonmember RPC returns 403 and outsider receives no group message"
+    },
+    {
+      "test": "job_outage_accepted_event_recovery",
+      "pass": true,
+      "seconds": 8.388,
+      "observed": "Kafka accepted event survives Job outage and reaches recipient after restart"
+    },
+    {
+      "test": "accepted_identity_survives_redis_cache_loss",
+      "pass": true,
+      "seconds": 6.034,
+      "observed": "Accepted identity survives deleting only this test session's Redis allocator/cache keys while Job is stopped"
+    },
+    {
+      "test": "rpc_generation_fencing_and_lease_recovery",
+      "pass": true,
+      "seconds": 0.096,
+      "observed": "Stale VerifyToken and UserOffline cannot replace/remove epoch 2; matching heartbeat restores expired lease"
+    },
+    {
+      "test": "comet_503_durable_automatic_retry",
+      "pass": true,
+      "seconds": 10.126,
+      "observed": "Explicit 503 leaves a durable retry task, then delivers to an online legacy recipient without reconnect/sync"
+    },
+    {
+      "test": "last_close_generation_race",
+      "pass": true,
+      "seconds": 0.238,
+      "observed": "20 rapid last-close/reconnect cycles retain the latest route; legacy peer receives without device polling"
+    },
+    {
+      "test": "slow_reader_backpressure",
+      "pass": true,
+      "seconds": 11.767,
+      "observed": {
+        "payload_bytes_each": 65536,
+        "accepted_messages": 200,
+        "backpressure_rejections": 1.0,
+        "highwater_disconnects": 0,
+        "behavior": "Slow reader is disconnected at bounded queue/output budget"
+      }
+    },
+    {
+      "test": "comet_restart_device_recovery",
+      "pass": true,
+      "seconds": 0.261,
+      "observed": "Unacknowledged device message survives Comet process restart"
+    },
+    {
+      "test": "ai_delta_ephemeral_final_durable_idempotent",
+      "pass": true,
+      "seconds": 5.393,
+      "observed": "Synthetic Kafka ai_delta reaches UI with seq 0 and no history/receipt; ai_reply persists once, acknowledges and recovers on another device"
+    }
+  ],
+  "binary_sha256": {
+    "updated": {
+      "logic": "8a2d7ebc1a58574b39ca18bcfdb25a77376f605436b142dd1f540a862b7cb7f0",
+      "comet": "5ed44f2d67b8c3750bb2f5f05ec942435e97d84f4339c436c47a34b644bc81d9",
+      "job": "fc8ca6062f71045263e3c52f47ed5a304ed226bb1cf1865caf71a7000902e52b"
+    }
+  },
+  "environment": {
+    "platform": "Linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "cpu_count": 12,
+    "python": "3.12.3"
+  },
+  "notes": [
+    "Local loopback measurements; no production-capacity claim.",
+    "Account registration and connection setup excluded from latency and throughput.",
+    "Both variants tested sequentially using identical client workload.",
+    "Each sending connection uses a separate account; one common receiving connection.",
+    "Tokens and passwords are omitted from reports and latency samples."
+  ]
+}

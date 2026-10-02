@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.peco.sparkim.SparkMessageStoreTest" tests="8" skipped="0" failures="0" errors="0" timestamp="2026-10-02T14:28:37.235Z" hostname="PC-202504061237" time="21.629">
+  <properties/>
+  <testcase name="selfSyncOnlyMeansAcceptedAndDeliveredAckSurvivesAckReordering" classname="com.peco.sparkim.SparkMessageStoreTest" time="14.54"/>
+  <testcase name="sparseReceiptsSurviveRestartAndOnlyServerConfirmationRemovesThem" classname="com.peco.sparkim.SparkMessageStoreTest" time="0.118"/>
+  <testcase name="ephemeralDeltaCannotEnterDurableStoreAndBatchFailureRollsBackCursor" classname="com.peco.sparkim.SparkMessageStoreTest" time="0.085"/>
+  <testcase name="malformedAckRollsBackAndTransientFailureKeepsStableRetryFrame" classname="com.peco.sparkim.SparkMessageStoreTest" time="0.091"/>
+  <testcase name="benchmarkDurableTransactionsAndTimelineReads" classname="com.peco.sparkim.SparkMessageStoreTest" time="6.562"/>
+  <testcase name="recentHistoryCannotSkipMissingPrefixAndLateMessagesFillGap" classname="com.peco.sparkim.SparkMessageStoreTest" time="0.097"/>
+  <testcase name="endpointAndAccountIsolationAndNonSelectedSessionPersistence" classname="com.peco.sparkim.SparkMessageStoreTest" time="0.068"/>
+  <testcase name="processRestartReplaysSameIdAndAcceptedAckReconcilesOptimisticIdentity" classname="com.peco.sparkim.SparkMessageStoreTest" time="0.067"/>
+  <system-out><![CDATA[ANDROID_SQLITE_BENCHMARK={"environment":"Robolectric Android 28 native SQLite on WSL; not a physical phone","generated_at_utc":"2026-10-02T14:28:58.599553318Z","java_version":"17.0.20.1","os_arch":"amd64","messages":5000,"batch_size":50,"transactions":100,"payload_bytes_per_message":1024,"total_write_ms":5136.609911,"messages_per_second":973.404655333579,"transaction_p50_ms":52.298173,"transaction_p95_ms":98.684589,"timeline_read_200_average_ms":13.40939864,"transaction_samples_ms":[79.677882,9.106183,10.848721,8.306262,8.06049,9.41864,8.079507,7.391379,7.178641,8.200574,8.736115,10.076204,8.125256,7.843464,8.493594,10.782925,8.619039,9.476556,8.672564,9.174157,10.615394,9.512277,11.276706,12.536236,15.352028,10.778138,15.096607,27.666491,33.38644,32.597859,31.949109,36.165667,35.359943,35.369976,36.33165,39.128001,38.40153,40.739227,41.609187,42.116095,45.451336,43.853314,44.47005,46.088368,46.791009,46.671698,47.127198,49.424089,51.235477,50.984944,52.298173,54.176658,55.360775,54.794884,55.648863,56.565506,57.861124,57.438797,59.401159,59.61283,61.170512,62.39576,63.122897,64.681829,65.848691,67.140447,66.746857,67.582702,69.767204,69.729995,71.543555,72.79694,72.733187,73.813461,77.759495,75.739735,75.973186,78.175583,79.094174,78.110908,81.339569,80.919475,83.634811,105.126197,88.87556,90.682233,93.297845,100.78622,92.047974,93.433885,95.001536,91.774158,99.088032,93.848327,103.262763,98.275087,97.487045,97.887982,99.421487,98.684589]}
+]]></system-out>
+  <system-err><![CDATA[[Robolectric] WARN: Android SDK 36 requires Java 21 (have Java 17). Tests won't be run on SDK 36 unless explicitly requested.
+]]></system-err>
+</testsuite>

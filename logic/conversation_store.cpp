@@ -9,17 +9,30 @@
 
 namespace sparkpush {
 
+bool ConversationStore::GetDeviceMessages(int64_t uid, const std::string& device,
+    const std::string& session, int limit, std::vector<Message>* messages, std::string* err) {
+    int64_t prefix = 0;
+    return state_dao_ && message_dao_ &&
+        state_dao_->GetReceivedSeq(uid, device, session, &prefix, err) &&
+        message_dao_->ListMessagesAfter(session, prefix, limit, messages, err, uid, device);
+}
+bool ConversationStore::MarkReceived(int64_t uid, const std::string& device,
+    const std::string& session, int64_t prefix, const std::vector<int64_t>& received, std::string* err) {
+    return state_dao_ && state_dao_->MarkReceived(uid, device, session, prefix, received, err);
+}
+
 // 功能：构造封装对象，保存各类 DAO/Redis 句柄
 // 参数：session_dao 会话 DAO；message_dao 消息 DAO；state_dao 已读
 // DAO；redis_store Redis 封装
 ConversationStore::ConversationStore(SessionDao* session_dao,
                                      MessageDao* message_dao,
                                      UserSessionStateDao* state_dao,
-                                     RedisStore* redis_store)
+                                     RedisStore* redis_store,
+                                     MessageReservation* reservation)
     : session_dao_(session_dao),
       message_dao_(message_dao),
       state_dao_(state_dao),
-      redis_store_(redis_store) {}
+      redis_store_(redis_store), reservation_(reservation) {}
 
 // 功能：获取或创建单聊会话，直接委托 SessionDao
 // 返回：true 表示成功，false 写入 err_msg
@@ -87,7 +100,7 @@ bool ConversationStore::AppendMessage(const Session& session, int64_t sender_id,
     return true;
 }
 
-// 热路径：Redis INCR 取号，不阻塞 MySQL
+// Reserve identity durably; Job still owns asynchronous history/delivery writes.
 bool ConversationStore::AppendMessageHotPath(
     const std::string& session_id, int64_t sender_id,
     const std::string& msg_type, const std::string& content_json,
@@ -99,58 +112,25 @@ bool ConversationStore::AppendMessageHotPath(
         return false;
     }
 
-    int64_t seq = 0;
-    bool allocated_new = false;
-    bool allocated = false;
-
-    // 每个 Logic 进程首次看到会话时必须查询 MySQL MAX，并通过 Lua 将 Redis
-    // 计数器提升到至少该值。即使 Redis 中存在落后的旧 key，也不会再从旧值取号。
-    {
-        const size_t shard =
-            std::hash<std::string>{}(session_id) % kSeqSeedShardCount;
-        std::lock_guard<std::mutex> lk(seq_seed_mutexes_[shard]);
-        auto& seeded_sessions = seq_seeded_sessions_[shard];
-        if (seeded_sessions.find(session_id) == seeded_sessions.end()) {
-            int64_t max_seq = 0;
-            std::string seed_err;
-            if (!message_dao_->GetMaxMsgSeq(session_id, &max_seq, &seed_err)) {
-                if (err_msg) *err_msg = "load MySQL max msg_seq: " + seed_err;
-                return false;
-            }
-            allocated = redis_store_->AllocateSessionMsgSeq(
-                session_id, sender_id, client_msg_id, max_seq, 24 * 3600, &seq,
-                &allocated_new);
-            if (!allocated) {
-                if (err_msg) *err_msg = "atomic Redis sequence allocation failed";
-                return false;
-            }
-            seeded_sessions.insert(session_id);
-        }
-    }
-
-    if (!allocated &&
-        !redis_store_->AllocateSessionMsgSeq(
-            session_id, sender_id, client_msg_id, 0, 24 * 3600, &seq,
-            &allocated_new)) {
-        if (err_msg) *err_msg = "atomic Redis sequence allocation failed";
-        return false;
-    }
-    if (seq <= 0) {
-        if (err_msg) *err_msg = "Redis returned invalid msg_seq";
-        return false;
-    }
-
-    Message msg;
-    msg.session_id = session_id;
-    msg.msg_seq = seq;
-    msg.sender_id = sender_id;
-    msg.msg_type = msg_type;
-    msg.content_json = content_json;
-    msg.timestamp_ms = timestamp_ms;
-    msg.client_msg_id = client_msg_id;
-    msg.msg_id = session_id + "-" + std::to_string(seq);
-    *message = msg;
-    *is_new = allocated_new;
+    if (!reservation_) { if (err_msg) *err_msg = "durable message reservation unavailable"; return false; }
+    bool found = false;
+    // Compatible with messages persisted before the reservation ledger upgrade.
+    if (!message_dao_->FindByClientId(session_id, sender_id, client_msg_id, message, &found, err_msg)) return false;
+    if (found) { *is_new = false; return true; }
+    Message candidate;
+    candidate.session_id = session_id;
+    candidate.sender_id = sender_id;
+    candidate.msg_type = msg_type;
+    candidate.content_json = content_json;
+    candidate.timestamp_ms = timestamp_ms;
+    candidate.client_msg_id = client_msg_id;
+    int64_t floor = 0;
+    if (!message_dao_->GetMaxMsgSeq(session_id, &floor, err_msg)) return false;
+    // Include the previous Redis allocator's pending range during rolling upgrades.
+    int64_t cached_floor = 0;
+    if (redis_store_->GetSessionLastSeq(session_id, &cached_floor)) floor = std::max(floor, cached_floor);
+    if (!reservation_->Reserve(candidate, floor, message, is_new, err_msg)) return false;
+    redis_store_->SetSessionLastSeq(session_id, message->msg_seq);
     return true;
 }
 

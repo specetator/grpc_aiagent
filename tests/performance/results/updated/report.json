@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "benchmark": "Spark Push local recipient-observed E2E",
+  "started_at_utc": "2026-10-02T14:54:02.818233+00:00",
+  "benchmarks": [
+    {
+      "variant": "updated",
+      "connections": 8,
+      "messages_per_connection": 20,
+      "expected": 160,
+      "sent": 160,
+      "accepted": 160,
+      "recipient_received_unique": 160,
+      "errors": 0,
+      "pass": true,
+      "elapsed_seconds": 11.464327,
+      "recipient_messages_per_second": 13.956,
+      "recipient_p50_ms": 5891.522,
+      "recipient_p95_ms": 10899.849,
+      "recipient_p99_ms": 11312.761,
+      "accepted_p50_ms": 672.636,
+      "accepted_p95_ms": 1160.407,
+      "setup_seconds_excluded": 3.777,
+      "receiver_connections": 1,
+      "mode": "legacy_wire_comparison",
+      "warmup": "one recipient-confirmed message before timing",
+      "sender_accounts": 8,
+      "latency_boundary": "before sender socket send to receiver frame parsed",
+      "updated_extra_behavior": "persisted messages also fan out to the sender's other devices"
+    },
+    {
+      "variant": "updated",
+      "connections": 32,
+      "messages_per_connection": 20,
+      "expected": 640,
+      "sent": 640,
+      "accepted": 640,
+      "recipient_received_unique": 640,
+      "errors": 0,
+      "pass": true,
+      "elapsed_seconds": 44.340444,
+      "recipient_messages_per_second": 14.434,
+      "recipient_p50_ms": 22643.3,
+      "recipient_p95_ms": 42189.936,
+      "recipient_p99_ms": 43743.9,
+      "accepted_p50_ms": 1806.201,
+      "accepted_p95_ms": 3128.846,
+      "setup_seconds_excluded": 2.234,
+      "receiver_connections": 1,
+      "mode": "legacy_wire_comparison",
+      "warmup": "one recipient-confirmed message before timing",
+      "sender_accounts": 32,
+      "latency_boundary": "before sender socket send to receiver frame parsed",
+      "updated_extra_behavior": "persisted messages also fan out to the sender's other devices"
+    }
+  ],
+  "functional": [],
+  "binary_sha256": {
+    "updated": {
+      "logic": "8a2d7ebc1a58574b39ca18bcfdb25a77376f605436b142dd1f540a862b7cb7f0",
+      "comet": "5ed44f2d67b8c3750bb2f5f05ec942435e97d84f4339c436c47a34b644bc81d9",
+      "job": "8849fcb1783e69afd6fbc34941a26666b59ebbdf70fc9a15a785eeb4c7bbd8ed"
+    }
+  },
+  "environment": {
+    "platform": "Linux",
+    "release": "6.18.33.2-microsoft-standard-WSL2",
+    "cpu_count": 12,
+    "python": "3.12.3"
+  },
+  "notes": [
+    "Local loopback measurements; no production-capacity claim.",
+    "Account registration and connection setup excluded from latency and throughput.",
+    "Both variants tested sequentially using identical client workload.",
+    "Each sending connection uses a separate account; one common receiving connection.",
+    "Tokens and passwords are omitted from reports and latency samples."
+  ]
+}

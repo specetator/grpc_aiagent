@@ -35,7 +35,7 @@ public:
             override;
 
 private:
-    size_t ProcessPushRequest(const ::sparkpush::PushToCometRequest& request);
+    int64_t ProcessPushRequest(const ::sparkpush::PushToCometRequest& request);
     // 外部注入的 comet 服务实例，生命周期由调用方管理。
     CometServer* server_;
 };

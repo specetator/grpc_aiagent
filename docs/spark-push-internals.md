@@ -1,5 +1,9 @@
 # Spark Push 小模块技术细节
 
+> 2026-10-02 更新：消息身份分配已采用 SQL reservation，Job 采用原子 message/outbox 与设备接收回执。
+> 旧章节中的 Redis 分配、旧在线路由和投递去重描述需对照[当前实现合同](im-reliability-2026-10-02.md)。
+> 逐步算法与数据结构讲解从[新的源码学习指南](learning/README.md)开始。
+
 这份文档按**具体数据结构、逐步算法、容量和失败路径**描述实现。大框架见
 [`spark-push-architecture.md`](spark-push-architecture.md)。
 

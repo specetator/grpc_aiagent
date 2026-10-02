@@ -11,6 +11,7 @@ namespace sparkpush {
 class MessageDao {
    public:
     explicit MessageDao(MySqlConnectionPool* pool) : pool_(pool) {}
+    bool EnsureClientIdIndex(std::string* err);
 
     // 功能：插入一条消息记录
     // 参数：message 消息体；err_msg 错误信息
@@ -28,7 +29,11 @@ class MessageDao {
     // 按 msg_seq 正序读取 after_seq 之后的消息，用于游标补偿和离线补推。
     bool ListMessagesAfter(const std::string& session_id, int64_t after_seq,
                            int limit, std::vector<Message>* messages,
-                           std::string* err_msg);
+                           std::string* err_msg, int64_t user_id = 0,
+                           const std::string& device_id = "");
+    bool FindByClientId(const std::string& session_id, int64_t sender_id,
+                        const std::string& client_msg_id, Message* message,
+                        bool* found, std::string* err_msg);
 
     // 查询会话当前最大 msg_seq（无消息时 *max_seq=0）
     bool GetMaxMsgSeq(const std::string& session_id, int64_t* max_seq,

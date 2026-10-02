@@ -1,0 +1,86 @@
+{
+  "generated_at_utc": "2026-10-02T14:55:28.1640482Z",
+  "command": "./gradlew assembleDebug testDebugUnitTest --no-daemon --console=plain",
+  "build_result": "SUCCESS",
+  "test_count": 8,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "test_timestamp_utc": "2026-10-02T14:54:32.517Z",
+  "benchmark_timestamp_utc": "2026-10-02T14:54:49.344737800Z",
+  "apk": {
+    "path": "app/build/outputs/apk/debug/app-debug.apk",
+    "bytes": 12195955,
+    "sha256": "0ae2bac2562fa582371f2f799e6c7f3876e197e1c557e7aa3966dd9c39c8c03a"
+  },
+  "source_sha256": [
+    {
+      "path": "app/src/main/AndroidManifest.xml",
+      "sha256": "154488d29e4b8a2d8d287b564d2bb4edb780199a8baa530a863b6c60512a5dd1"
+    },
+    {
+      "path": "app/src/main/java/com/peco/sparkim/MainActivity.kt",
+      "sha256": "e7cea8bf9446a3b28b436e83dd7c924f876aacb2cfa1a5bbab7b7630298a04fc"
+    },
+    {
+      "path": "app/src/main/java/com/peco/sparkim/SparkClient.kt",
+      "sha256": "31ebc275b4fd4d20122ca1ec34526e97e5447f8b1fc7bc224c856c3b275788f7"
+    },
+    {
+      "path": "app/src/main/java/com/peco/sparkim/SparkMessageStore.kt",
+      "sha256": "2832692dff7eb9aa8674f38671539ed3d74429f903aefde5487c30ee485f7b47"
+    },
+    {
+      "path": "app/src/main/java/com/peco/sparkim/SparkModels.kt",
+      "sha256": "eb09206b4d0361de23c013d43e1ea3b5595df89a269353a50166db5c12ad4776"
+    },
+    {
+      "path": "app/src/main/java/com/peco/sparkim/SparkReliability.kt",
+      "sha256": "1ebe3567fc2cb036340a46371ca48a630a41e7db1ab4d810e94481b90653d540"
+    },
+    {
+      "path": "app/src/main/java/com/peco/sparkim/SparkViewModel.kt",
+      "sha256": "949570138c78f9f5a1c9edf8769cbcdf7e5fce044d9b88170a098f72131ba1a4"
+    },
+    {
+      "path": "app/src/main/res/values/strings.xml",
+      "sha256": "5960a545b1330b4fc9447cb80a98b14338722d742f39595614c3f00540bb175d"
+    },
+    {
+      "path": "app/src/main/res/values/styles.xml",
+      "sha256": "a78163c8919ce8646b993432d193e7baa19e84092fc777d8f0c389a5d0f9d307"
+    },
+    {
+      "path": "app/src/main/res/xml/network_security_config.xml",
+      "sha256": "9a07ecf5e58662caca25d9d9bfc63f215350f3847b7e7d89eb0e6df3eeed0878"
+    },
+    {
+      "path": "app/src/test/java/com/peco/sparkim/SparkMessageStoreTest.kt",
+      "sha256": "e092d0e938517c765ee89461a5c64d61404b587bdff147eaeb3f649564cd3468"
+    },
+    {
+      "path": "app/build.gradle",
+      "sha256": "88c58df45e7af0e3c2681258f24ac8a822e802b2524c345c7b4d7feb84898d31"
+    },
+    {
+      "path": "build.gradle",
+      "sha256": "b52659f60dfd41291ecea8ef9789750bc22097c4f77e1c087c70d2ec3adfa915"
+    },
+    {
+      "path": "settings.gradle",
+      "sha256": "e50bf38b0857d82f2403b69b2e99b3fdf4ec18012bb6f689b54e34d328e94103"
+    },
+    {
+      "path": "gradle.properties",
+      "sha256": "bcec3f41f03e1fcecc807afe61c5e1e8c922a1dfd8141bb684431b93b82770fa"
+    },
+    {
+      "path": "gradle/wrapper/gradle-wrapper.properties",
+      "sha256": "cdab1ffb439219b1db125e3c99a86cf2424f8762b9b3faa404ed061e3635ecde"
+    }
+  ],
+  "test_junit_sha256": "572e13a0144f5e58e31a49dfbd2ab11fd65ff8532b0a143322838a7a6d9e119b",
+  "benchmark_sha256": "57ed716dae38d57da151b537ea900a22e1274254a171efa7d2dde327414039f4",
+  "physical_device_tested": false,
+  "notes": "Final source compiled and packaged; eight Robolectric Android 28 native SQLite tests passed. SDK 36 compilation uses private JDK 17; no physical Android phone UI exercised."
+}

@@ -70,6 +70,9 @@ struct Config {
     int comet_grpc_port{0};
     // Comet 异步 Unary gRPC 线程池
     int comet_grpc_pool_size{4};
+    int comet_max_pending_bytes{8 * 1024 * 1024};
+    int comet_grpc_queue_max{256};
+    int comet_grpc_queue_bytes{16 * 1024 * 1024};
     // Comet↔Logic 双向流（对齐 06）
     bool use_grpc_stream{false};
     int grpc_stream_count{4};
@@ -83,6 +86,7 @@ struct Config {
     int push_stream_reconnect_base_ms{200};
     int push_stream_reconnect_max_ms{5000};
     int push_rpc_deadline_ms{2000};
+    int delivery_workers{8};
 
     // Logic 写入持久化 topic 时等待 broker delivery report 的超时。
     int persist_kafka_timeout_ms{5000};

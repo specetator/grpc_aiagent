@@ -32,6 +32,95 @@ class FakeAgent:
         return agent_event('assistant_final',{'text':'ok'})
 
 
+class SchedulerOwnershipTests(unittest.TestCase):
+    def test_same_session_waiter_timeout_cannot_release_running_owner(self):
+        scheduler = SessionScheduler(max_inflight=2, max_queue=4,
+                                     queue_timeout_s=2, max_per_agent=2)
+        owner_started, release_owner, third_started = (threading.Event() for _ in range(3))
+        third_queued = threading.Event()
+        errors = []
+        def owner():
+            owner_started.set()
+            if not release_owner.wait(3):
+                raise TimeoutError("test owner was not released")
+        def run(session, timeout, fn, progress=None):
+            try:
+                scheduler.run(session, "pi", timeout, progress, fn)
+            except Exception as exc:
+                errors.append(exc)
+        first = threading.Thread(target=run, args=("same", 2, owner))
+        third = threading.Thread(target=run, args=("same", 2, third_started.set,
+            lambda text: third_queued.set() if text.startswith("排队") else None))
+        first.start()
+        try:
+            self.assertTrue(owner_started.wait(1))
+            with self.assertRaises(TimeoutError):
+                scheduler.run("same", "pi", 0.03, None,
+                              lambda: self.fail("timed-out waiter must not execute"))
+            with scheduler.cv:
+                self.assertEqual(scheduler.session_running, {"same"})
+                self.assertEqual(scheduler.inflight, 1)
+                self.assertEqual(scheduler.agent_inflight, {"pi": 1})
+                self.assertEqual(scheduler.metrics.queued, 0)
+            third.start()
+            self.assertTrue(third_queued.wait(1))
+            self.assertFalse(third_started.wait(0.05), "third job entered the owner's session")
+        finally:
+            release_owner.set()
+            first.join(2)
+            if third.ident is not None:
+                third.join(2)
+        self.assertFalse(first.is_alive())
+        self.assertFalse(third.is_alive())
+        self.assertTrue(third_started.is_set())
+        self.assertEqual(errors, [])
+        self.assertEqual(scheduler.inflight, 0)
+        self.assertEqual(scheduler.metrics.queued, 0)
+
+    def test_running_and_waiting_capacity_count_each_request_once(self):
+        scheduler = SessionScheduler(max_inflight=2, max_queue=3,
+                                     queue_timeout_s=2, max_per_agent=2)
+        started, release, waiter_queued = (threading.Event() for _ in range(3))
+        errors = []
+        def owner():
+            started.set()
+            if not release.wait(3):
+                raise TimeoutError("test owner was not released")
+        def run(fn, progress=None):
+            try:
+                scheduler.run("same", "pi", 2, progress, fn)
+            except Exception as exc:
+                errors.append(exc)
+        first = threading.Thread(target=run, args=(owner,))
+        second = threading.Thread(target=run, args=(lambda: None,
+            lambda text: waiter_queued.set() if text.startswith("排队") else None))
+        first.start()
+        try:
+            self.assertTrue(started.wait(1))
+            second.start()
+            self.assertTrue(waiter_queued.wait(1))
+            def independent():
+                with scheduler.cv:
+                    self.assertEqual(scheduler.inflight, 2)
+                    self.assertEqual(scheduler.metrics.queued, 1)
+                    self.assertEqual(scheduler.agent_inflight, {"pi": 2})
+                with self.assertRaises(TimeoutError):
+                    scheduler.run("fourth", "pi", 0.03, None, lambda: None)
+            scheduler.run("other", "pi", 1, None, independent)
+        finally:
+            release.set()
+            first.join(2)
+            if second.ident is not None:
+                second.join(2)
+        self.assertEqual(errors, [])
+        self.assertFalse(first.is_alive())
+        self.assertFalse(second.is_alive())
+        self.assertEqual(scheduler.inflight, 0)
+        self.assertEqual(scheduler.metrics.queued, 0)
+        self.assertEqual(scheduler.agent_inflight, {})
+        self.assertEqual(scheduler.session_running, set())
+
+
 class RouterTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory()

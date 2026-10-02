@@ -1,0 +1,5 @@
+variant,connections,messages_per_connection,sender_inflight_window,expected,accepted,recipient_received_unique,errors,pass,elapsed_seconds,recipient_messages_per_second,recipient_p50_ms,recipient_p95_ms,recipient_p99_ms,accepted_p50_ms,accepted_p95_ms
+updated,8,20,1,160,160,160,0,True,2.710157,59.037,1042.907,1622.627,1749.981,39.5,113.998
+updated,32,20,1,640,640,640,0,True,13.193736,48.508,5977.321,10149.194,10410.766,137.684,234.358
+updated,128,20,1,2560,2560,2560,0,True,55.815023,45.866,26128.272,43320.562,44447.928,564.621,694.399
+updated,256,20,1,5120,5120,5120,0,True,113.56784,45.083,44877.324,87624.923,90770.107,1141.206,1321.924

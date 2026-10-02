@@ -309,7 +309,7 @@ private fun ChatScreen(state: SparkUiState, vm: SparkViewModel) {
             listState.scrollToItem(tailIndex)
         }
     }
-    var draft by remember(selected.sessionId) { mutableStateOf("") }
+    val draft = state.draft
     Column(Modifier.fillMaxSize()) {
         ChatTopBar(selected, state.connection, state.unreadCount, vm)
         HorizontalDivider(color = SparkLine)
@@ -373,7 +373,7 @@ private fun ChatScreen(state: SparkUiState, vm: SparkViewModel) {
             Spacer(Modifier.width(8.dp))
             OutlinedTextField(
                 value = draft,
-                onValueChange = { draft = it },
+                onValueChange = vm::setDraft,
                 modifier = Modifier.weight(1f).heightIn(min = 54.dp, max = 118.dp),
                 placeholder = { Text(if (selected.agent) "输入问题，或粘贴/选择截图" else "输入消息或选择图片…") },
                 shape = RoundedCornerShape(18.dp),
@@ -385,7 +385,7 @@ private fun ChatScreen(state: SparkUiState, vm: SparkViewModel) {
                 enabled = draft.isNotBlank() || state.pendingImages.isNotEmpty(),
                 onClick = {
                     val outgoing = draft.trim()
-                    if ((outgoing.isNotEmpty() || state.pendingImages.isNotEmpty()) && vm.sendMessage(outgoing)) draft = ""
+                    if (outgoing.isNotEmpty() || state.pendingImages.isNotEmpty()) vm.sendMessage(outgoing)
                 }
             )
         }
