@@ -56,6 +56,7 @@ Logic ── ai_request ──► hermes_bridge ──HTTP/SSE──► Pi gatew
 
 - 大框架（模块职责、完整链路、输入输出）：[`docs/spark-push-architecture.md`](docs/spark-push-architecture.md)
 - Logic 内部分层（HTTP/gRPC 适配、共享业务 Service、Repository/DAO、兼容与测试）：[`docs/logic-business-layer.md`](docs/logic-business-layer.md)
+- 完整项目解释、技术复习、简历与发布记录：[`项目指引与简历书写`](docs/project-guide-and-resume.md)
 - 小模块（Lua 取号、连接表、PushStream 队列、SHA1 握手、TreeMap 合并、图片附件等逐步算法）：[`docs/spark-push-internals.md`](docs/spark-push-internals.md)
 - 阅读索引：[`docs/spark-push-implementation.md`](docs/spark-push-implementation.md)
 

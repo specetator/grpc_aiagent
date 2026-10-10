@@ -3,6 +3,12 @@
   "description": "Curated truth sources packaged for the Spark Push Pi knowledge skill.",
   "sources": [
     {
+      "id": "project-guide-and-resume",
+      "path": "docs/project-guide-and-resume.md",
+      "authority": "canonical",
+      "topics": ["architecture", "guide", "resume", "review", "services", "cuda", "release"]
+    },
+    {
       "id": "project-overview",
       "path": "README.md",
       "authority": "canonical",
