@@ -1,0 +1,109 @@
+{
+  "definition": "Median total output tokens / measured trial duration; all trial failures retained.",
+  "results": {
+    "grpc_cpu_flash_f16-c4": {
+      "file": "grpc_cpu_flash_f16-c4.json",
+      "successful": 36,
+      "failed": 0,
+      "throughput_median": 102.45442857343963,
+      "throughput_min": 102.20472333573436,
+      "throughput_max": 103.56630298656918,
+      "requests_per_s_median": 0.8004252232299971,
+      "completion_tokens": 4608,
+      "prompt_tokens": 2562,
+      "cached_prompt_tokens": 0,
+      "worker_counts": {
+        "worker-0": 36
+      },
+      "ttft_ms": {
+        "p50": 1044.633496494498,
+        "p95": 1099.2312792805023,
+        "p99": 1101.509465216077,
+        "mean": 848.8104979462353
+      },
+      "e2e_ms": {
+        "p50": 4979.6860525384545,
+        "p95": 5058.722311980091,
+        "p99": 5067.414700231166,
+        "mean": 4978.719136029314
+      },
+      "tpot_ms": {
+        "p50": 31.367309019794526,
+        "p95": 36.80029780902775,
+        "p99": 37.34114127637869,
+        "mean": 32.518965654197466
+      },
+      "single_request_decode_tokens_per_s": 31.880324811061865
+    },
+    "grpc_cuda_flash_f16-c4": {
+      "file": "grpc_cuda_flash_f16-c4.json",
+      "successful": 36,
+      "failed": 0,
+      "throughput_median": 596.0440206793943,
+      "throughput_min": 595.9339329987471,
+      "throughput_max": 596.6266621323709,
+      "requests_per_s_median": 4.656593911557768,
+      "completion_tokens": 4608,
+      "prompt_tokens": 2562,
+      "cached_prompt_tokens": 0,
+      "worker_counts": {
+        "worker-0": 36
+      },
+      "ttft_ms": {
+        "p50": 43.082071002572775,
+        "p95": 65.01990300603211,
+        "p99": 67.36175690602977,
+        "mean": 46.54991988920503
+      },
+      "e2e_ms": {
+        "p50": 857.9166065028403,
+        "p95": 868.3236892684363,
+        "p99": 869.0631720790407,
+        "mean": 856.2360462528886
+      },
+      "tpot_ms": {
+        "p50": 6.381099417349176,
+        "p95": 6.590324436936813,
+        "p99": 6.63807058764629,
+        "mean": 6.375481309950264
+      },
+      "single_request_decode_tokens_per_s": 156.71280677451315
+    },
+    "grpc_cuda_p4-c4": {
+      "file": "grpc_cuda_p4-c4.json",
+      "successful": 36,
+      "failed": 0,
+      "throughput_median": 470.1604374080702,
+      "throughput_min": 467.577479981848,
+      "throughput_max": 498.158502927105,
+      "requests_per_s_median": 3.6731284172505485,
+      "completion_tokens": 4608,
+      "prompt_tokens": 2562,
+      "cached_prompt_tokens": 0,
+      "worker_counts": {
+        "worker-0": 36
+      },
+      "ttft_ms": {
+        "p50": 59.15970902424306,
+        "p95": 69.77129948791116,
+        "p99": 78.06826610467397,
+        "mean": 49.5482070594638
+      },
+      "e2e_ms": {
+        "p50": 1079.8828399856575,
+        "p95": 1102.2464295092504,
+        "p99": 1107.4123940808931,
+        "mean": 1066.9501113039182
+      },
+      "tpot_ms": {
+        "p50": 8.036275287241287,
+        "p95": 8.415016179306683,
+        "p99": 8.465138124737441,
+        "mean": 8.011038616098066
+      },
+      "single_request_decode_tokens_per_s": 124.43575714580611
+    }
+  },
+  "failed_profiles": {},
+  "startup_failure_attempts": {}
+}

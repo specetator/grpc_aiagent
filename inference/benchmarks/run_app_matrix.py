@@ -161,6 +161,10 @@ def main():
     p.add_argument('--out', required=True)
     p.add_argument('--cpu-bin', default='/home/peco/tools/llama.cpp/build/bin/llama-server')
     p.add_argument('--rocm-bin', default='/home/peco/tools/llama.cpp/build-rocm/bin/llama-server')
+    p.add_argument('--accelerator', choices=['rocm', 'cuda'], default='rocm')
+    p.add_argument('--gateway-managed-only', action='store_true')
+    p.add_argument('--cuda-bin', default='/home/peco/tools/llama.cpp/build-cuda/bin/llama-server')
+    p.add_argument('--redis-port', type=int, default=6379)
     p.add_argument('--model', default='/home/peco/models/Qwen3-0.6B-Q8_0.gguf')
     p.add_argument('--secret-file', required=True, help='External JSON with mysql_password')
     p.add_argument('--brokers', default='127.0.0.1:29092')
@@ -172,20 +176,31 @@ def main():
     p.add_argument('--repeats', type=int, default=3)
     p.add_argument('--only', nargs='*')
     args = p.parse_args()
+    if args.requests < 1 or args.repeats < 1: p.error('requests and repeats must be positive')
     out = Path(args.out).resolve(); out.mkdir(parents=True,exist_ok=True)
     private = Path(args.secret_file).resolve().parent/'app-configs'; private.mkdir(exist_ok=True)
-    env = dict(os.environ, HIP_VISIBLE_DEVICES='0', SPARK_PUSH_HERMES_ENABLED='true',
+    env = dict(os.environ, SPARK_PUSH_HERMES_ENABLED='true',
                SPARK_PUSH_HERMES_STREAMING='true', SPARK_PUSH_INFERENCE_BACKEND='grpc',
                SPARK_PUSH_MYSQL_PASSWORD=json.loads(Path(args.secret_file).read_text())['mysql_password'])
-    env['LD_LIBRARY_PATH'] = '/opt/rocm/lib:'+env.get('LD_LIBRARY_PATH','')
+    gpu_bin = args.cuda_bin if args.accelerator == 'cuda' else args.rocm_bin
+    if args.accelerator == 'rocm':
+        env['HIP_VISIBLE_DEVICES'] = env.get('HIP_VISIBLE_DEVICES', '0')
+        env['LD_LIBRARY_PATH'] = '/opt/rocm/lib:'+env.get('LD_LIBRARY_PATH','')
+    else:
+        env['CUDA_VISIBLE_DEVICES'] = env.get('CUDA_VISIBLE_DEVICES', '0')
     profiles = [('app_cpu_bridge1',False,1,False), ('app_rocm_bridge1',True,1,False),
                 ('app_rocm_bridge4',True,4,False), ('app_rocm_flash_bridge4',True,4,True),
                 ('app_cpu_flash_bridge4',False,4,True)]
+    profiles = [(name.replace('rocm', args.accelerator), gpu, workers, flash)
+                for name, gpu, workers, flash in profiles]
+    if args.only and set(args.only) - {profile[0] for profile in profiles}:
+        p.error('unknown app profile')
     failed = False
     for label, gpu, workers, flash in profiles:
         if args.only and label not in args.only: continue
         processes, logs = [], []; manifest = {'label':label, 'gpu':gpu,
-            'bridge_workers':workers, 'flash_attention':flash}
+            'bridge_workers':workers, 'flash_attention':flash, 'accelerator':args.accelerator,
+            'gateway_managed_only':args.gateway_managed_only}
         def launch(cmd, name):
             log = open(out/f'{label}-{name}.log','w'); logs.append(log)
             process = subprocess.Popen(cmd,env=env,cwd=ROOT,stdout=log,stderr=subprocess.STDOUT)
@@ -201,7 +216,8 @@ def main():
                       'mysql_password':'${SPARK_PUSH_MYSQL_PASSWORD}'}
             configs = {
                 'logic':dict(common, listen_addr='127.0.0.1',listen_port=ports['logic'],http_port=ports['http'],
-                    redis_db=args.redis_db, hermes_enabled='true', agent_bot_users='',
+                    redis_db=args.redis_db, redis_port=args.redis_port,
+                    hermes_enabled='true', agent_bot_users='',
                     kafka_ai_request_topic=topics['ai_request'],kafka_ai_delta_topic=topics['ai_delta'],
                     kafka_ai_reply_topic=topics['ai_reply']),
                 'comet':dict(listen_addr='127.0.0.1',listen_port=ports['ws'],comet_grpc_port=ports['comet'],
@@ -213,20 +229,25 @@ def main():
                     inference_gateway=f'127.0.0.1:{ports["gateway"]}',inference_model='qwen3-0.6b',
                     processing_workers=workers,max_batch_records=16,hermes_streaming='true',
                     inference_temperature_milli=0,inference_max_tokens=128,inference_cache_prompt='false')}
-            runtime = [args.rocm_bin if gpu else args.cpu_bin,
+            runtime = [gpu_bin if gpu else args.cpu_bin,
                        '-m',args.model,'--alias','qwen3-0.6b',
                        '--host','127.0.0.1','--port',str(ports['runtime']),'-np','4','-c','8192',
-                       '-t','6','-tb','6','-b','512','-ub','128','--metrics','-fa','on' if flash else 'off','-cb',
+                       '-t','6','-tb','6','-b','512','-ub','128','--metrics','-lv','4','-fa','on' if flash else 'off','-cb',
                        '--no-cache-prompt','--cache-ram','0','--chat-template-kwargs','{"enable_thinking":false}']
-            runtime += ['-ngl','99'] if gpu else ['-ngl','0','--device','none','--no-kv-offload','--no-op-offload']
+            runtime += ['-ngl','99','--device','CUDA0' if args.accelerator == 'cuda' else 'ROCm0'] if gpu else ['-ngl','0','--device','none','--no-kv-offload','--no-op-offload']
             manifest['runtime_command'] = runtime
             proc = launch(runtime,'runtime'); wait_health(f'http://127.0.0.1:{ports["runtime"]}',proc)
-            launch([str(ROOT/'build-wsl/inference/inference_gateway'),'--listen',f'127.0.0.1:{ports["gateway"]}',
-                    '--metrics-port',str(ports['gm'])],'gateway'); time.sleep(.2)
+            if gpu and 'offloaded 29/29 layers to GPU' not in (out/f'{label}-runtime.log').read_text():
+                raise RuntimeError('expected all Qwen3 layers on GPU; refusing CPU fallback results')
+            gateway_cmd = [str(ROOT/'build-wsl/inference/inference_gateway'),'--listen',f'127.0.0.1:{ports["gateway"]}',
+                    '--metrics-port',str(ports['gm'])]
+            if args.gateway_managed_only: gateway_cmd.append('--gateway-managed-only')
+            manifest['gateway_command'] = gateway_cmd
+            launch(gateway_cmd,'gateway'); time.sleep(.2)
             launch([str(ROOT/'build-wsl/inference/inference_worker'),'--listen',f'127.0.0.1:{ports["worker"]}',
                     '--gateway',f'127.0.0.1:{ports["gateway"]}','--worker-id','app-worker',
                     '--model','qwen3-0.6b','--backend','llamacpp','--model-endpoint',f'http://127.0.0.1:{ports["runtime"]}',
-                    '--max-concurrent','4','--device-type','rocm' if gpu else 'cpu'],'worker')
+                    '--max-concurrent','4','--device-type',args.accelerator if gpu else 'cpu'],'worker')
             for service in ['logic','comet','job','hermes_bridge']:
                 config = write_config(private,service,configs[service])
                 binary = 'hermes_bridge' if service == 'hermes_bridge' else service+'_server'

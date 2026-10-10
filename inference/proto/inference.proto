@@ -18,6 +18,8 @@ message WorkerInfo {
   uint32 runtime_running_requests = 14;
   uint32 runtime_waiting_requests = 15;
   double kv_cache_usage_ratio = 16;
+  // nvml (device-wide), cuda_driver (OS/context accounting), hip, unavailable.
+  string memory_probe_source = 17;
 }
 
 message RegisterWorkerRequest { WorkerInfo worker = 1; }

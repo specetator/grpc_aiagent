@@ -7,12 +7,13 @@
 #include <string>
 #include <thread>
 
+#include "attachment_dao.h"
+#include "audit_log_dao.h"
 #include "config.h"
 #include "conversation_store.h"
-#include "grpc_keepalive.h"
-#include "audit_log_dao.h"
 #include "danmaku_dao.h"
 #include "group_dao.h"
+#include "grpc_keepalive.h"
 #include "grpc_service.h"
 #include "http_server.h"
 #include "kafka_consumer.h"
@@ -22,11 +23,19 @@
 #include "mysql_pool.h"
 #include "redis_pool.h"
 #include "redis_store.h"
+#include "repositories/dao_repositories.h"
+#include "services/admin_service.h"
+#include "services/attachment_service.h"
+#include "services/conversation_service.h"
+#include "services/danmaku_service.h"
+#include "services/knowledge_service.h"
+#include "services/message_service.h"
+#include "services/room_service.h"
+#include "services/user_service.h"
 #include "session_dao.h"
 #include "thread_pool.h"
 #include "user_dao.h"
 #include "user_session_state_dao.h"
-#include "attachment_dao.h"
 
 namespace {
 
@@ -40,8 +49,7 @@ void PrintUsage(const char* prog) {
 }
 
 // 解析命令行配置路径，支持 -c/--config/位置参数
-ArgParseResult ParseConfigPath(int argc, char** argv,
-                               std::string* config_path) {
+ArgParseResult ParseConfigPath(int argc, char** argv, std::string* config_path) {
     const std::string default_path = "conf/logic.conf";
     *config_path = default_path;
     bool positional_used = false;
@@ -90,8 +98,7 @@ int RunLogic(const Config& cfg) {
 
     // 广播任务 Kafka producer（写入 broadcast_task topic）
     KafkaProducer broadcast_producer;
-    if (!broadcast_producer.Init(cfg.kafka_brokers,
-                                 cfg.kafka_broadcast_topic)) {
+    if (!broadcast_producer.Init(cfg.kafka_brokers, cfg.kafka_broadcast_topic)) {
         LOG_ERROR << "Failed to initialize Kafka broadcast producer";
         return 1;
     }
@@ -108,8 +115,7 @@ int RunLogic(const Config& cfg) {
     // 内部启动，使 Hermes 回复可以复用普通单聊的落盘与 Comet 路由。
     KafkaProducer hermes_request_producer;
     if (cfg.hermes_enabled &&
-        !hermes_request_producer.Init(cfg.kafka_brokers,
-                                      cfg.kafka_ai_request_topic)) {
+        !hermes_request_producer.Init(cfg.kafka_brokers, cfg.kafka_ai_request_topic)) {
         LOG_ERROR << "Failed to initialize Kafka Hermes request producer";
         return 1;
     }
@@ -136,22 +142,21 @@ int RunLogic(const Config& cfg) {
     UserDao user_dao(&mysql_pool);
     std::string user_schema_err;
     if (!user_dao.EnsureUserCenterSchema(&user_schema_err)) {
-        LOG_ERROR << "Failed to ensure user center schema: "
-                  << user_schema_err;
+        LOG_ERROR << "Failed to ensure user center schema: " << user_schema_err;
         return 1;
     }
     std::string hermes_user_err;
-    if (!user_dao.EnsureHermesBotUser(cfg.hermes_bot_user_id,
-                                      kHermesBotAccount, kHermesBotName,
-                                      &hermes_user_err)) {
+    if (!user_dao.EnsureHermesBotUser(cfg.hermes_bot_user_id, kHermesBotAccount,
+                                      kHermesBotName, &hermes_user_err)) {
         LOG_ERROR << "Failed to ensure Hermes Bot user: " << hermes_user_err;
         return 1;
     }
     AuditLogDao audit_log_dao(&mysql_pool);
     for (const auto& bot : cfg.agent_bot_users) {
         if (bot.first == cfg.hermes_bot_user_id) continue;
-        if (!user_dao.EnsureHermesBotUser(bot.first, "agent_bot_" + std::to_string(bot.first),
-                                        bot.second, &hermes_user_err)) {
+        if (!user_dao.EnsureHermesBotUser(bot.first,
+                                          "agent_bot_" + std::to_string(bot.first),
+                                          bot.second, &hermes_user_err)) {
             LOG_ERROR << "Failed to ensure Agent contact: " << hermes_user_err;
             return 1;
         }
@@ -170,14 +175,12 @@ int RunLogic(const Config& cfg) {
     AttachmentDao attachment_dao(&mysql_pool, cfg.attachment_dir);
     std::string attachment_schema_err;
     if (!attachment_dao.EnsureSchema(&attachment_schema_err)) {
-        LOG_ERROR << "Failed to ensure attachment schema: "
-                  << attachment_schema_err;
+        LOG_ERROR << "Failed to ensure attachment schema: " << attachment_schema_err;
         return 1;
     }
     std::string state_schema_err;
     if (!state_dao.EnsureDeliveredSeqColumn(&state_schema_err)) {
-        LOG_ERROR << "Failed to ensure delivered cursor schema: "
-                  << state_schema_err;
+        LOG_ERROR << "Failed to ensure delivered cursor schema: " << state_schema_err;
         return 1;
     }
 
@@ -206,17 +209,38 @@ int RunLogic(const Config& cfg) {
     ConversationStore conversation_store(&session_dao, &message_dao, &state_dao,
                                          &redis_store);
 
-    // 启动 gRPC 服务器（LogicService）
-    std::string grpc_addr =
-        cfg.listen_addr + ":" + std::to_string(cfg.listen_port);
-    grpc::ServerBuilder builder;
-    auto service = std::make_unique<LogicServiceImpl>(
-        &conversation_store, &group_member_dao, &user_dao, &single_producer,
+    // Composition root: storage -> business services -> HTTP/gRPC adapters.
+    // Both transports share these exact instances and business-state owners.
+    DaoUserRepository users(&user_dao, &redis_store, &audit_log_dao);
+    DaoConversationRepository conversations(&conversation_store, &group_member_dao);
+    DaoAttachmentRepository attachments(&attachment_dao);
+    UserService::Options user_options;
+    user_options.admin_account = cfg.admin_account;
+    user_options.admin_password = cfg.admin_password;
+    user_options.bot_users.insert(cfg.hermes_bot_user_id);
+    for (const auto& bot : cfg.agent_bot_users)
+        user_options.bot_users.insert(bot.first);
+    UserService user_service(&users, std::move(user_options));
+    ConversationService conversation_service(&conversations);
+    AttachmentService attachment_service(&attachments, &conversation_service);
+    MessageService message_service(
+        &conversation_store, &group_member_dao, &user_service, &single_producer,
         &group_producer, &broadcast_producer, &persist_producer, &redis_store,
         cfg.rate_limit, cfg.persist_kafka_timeout_ms,
-        cfg.hermes_enabled ? &hermes_request_producer : nullptr,
-        cfg.hermes_enabled, cfg.hermes_bot_user_id, cfg.agent_bot_users,
-        &attachment_dao);
+        cfg.hermes_enabled ? &hermes_request_producer : nullptr, cfg.hermes_enabled,
+        cfg.hermes_bot_user_id, cfg.agent_bot_users, &attachment_service);
+    RoomService room_service(&conversation_store, &group_dao, &group_member_dao,
+                             &redis_store);
+    AdminService admin_service(&user_dao, &redis_store, &audit_log_dao);
+    DanmakuService danmaku_service(&conversation_store, &danmaku_dao, &group_member_dao,
+                                   &group_producer, &redis_store);
+    KnowledgeService knowledge_service(cfg.cann_knowledge_root);
+
+    // 启动 gRPC 服务器（LogicService）
+    std::string grpc_addr = cfg.listen_addr + ":" + std::to_string(cfg.listen_port);
+    grpc::ServerBuilder builder;
+    auto service = std::make_unique<LogicServiceImpl>(
+        &user_service, &conversation_service, &message_service, &room_service);
 
     KafkaConsumer hermes_reply_consumer;
     KafkaConsumer hermes_delta_consumer;
@@ -227,11 +251,10 @@ int RunLogic(const Config& cfg) {
         hermes_consumer_options.max_processing_attempts = 3;
         hermes_consumer_options.dead_letter_topic = cfg.kafka_ai_reply_topic + ".dlq";
         if (!hermes_reply_consumer.Init(
-                cfg.kafka_brokers,
-                cfg.kafka_consumer_group + "_hermes_reply",
+                cfg.kafka_brokers, cfg.kafka_consumer_group + "_hermes_reply",
                 cfg.kafka_ai_reply_topic,
-                [&service](const std::string& key, const std::string& payload) {
-                    return service->HandleHermesReply(payload, key);
+                [&message_service](const std::string& key, const std::string& payload) {
+                    return message_service.HandleHermesReply(payload, key);
                 },
                 hermes_consumer_options)) {
             LOG_ERROR << "Failed to initialize Kafka Hermes reply consumer";
@@ -240,11 +263,10 @@ int RunLogic(const Config& cfg) {
         // ai_delta is ephemeral; it must not use the durable reply DLQ.
         hermes_consumer_options.dead_letter_topic.clear();
         if (!hermes_delta_consumer.Init(
-                cfg.kafka_brokers,
-                cfg.kafka_consumer_group + "_hermes_delta",
+                cfg.kafka_brokers, cfg.kafka_consumer_group + "_hermes_delta",
                 cfg.kafka_ai_delta_topic,
-                [&service](const std::string& key, const std::string& payload) {
-                    return service->HandleHermesDelta(payload, key);
+                [&message_service](const std::string& key, const std::string& payload) {
+                    return message_service.HandleHermesDelta(payload, key);
                 },
                 hermes_consumer_options)) {
             LOG_ERROR << "Failed to initialize Kafka Hermes delta consumer";
@@ -261,15 +283,12 @@ int RunLogic(const Config& cfg) {
     muduo::net::EventLoop loop;
     // HTTP 监听端口从配置中读取（http_port），避免隐式使用 listen_port+1
     muduo::net::InetAddress httpAddr(cfg.http_port);
-    HttpApiServer httpServer(&loop, httpAddr, &conversation_store, &user_dao,
-                             &group_dao, &group_member_dao, &redis_store,
-                             &group_producer, &broadcast_producer, &danmaku_dao,
-                             &audit_log_dao, cfg.cann_knowledge_root,
-                             cfg.admin_account,
-                             cfg.admin_password, &attachment_dao);
+    HttpApiServer httpServer(
+        &loop, httpAddr,
+        {user_service, conversation_service, attachment_service, message_service,
+         room_service, admin_service, danmaku_service, knowledge_service});
     httpServer.start();
-    LOG_INFO << "Logic HTTP server listening on port "
-             << std::to_string(cfg.http_port);
+    LOG_INFO << "Logic HTTP server listening on port " << std::to_string(cfg.http_port);
 
     // gRPC 使用单独线程阻塞 Wait，muduo EventLoop 在当前线程运行
     std::thread grpc_thread([&server]() { server->Wait(); });

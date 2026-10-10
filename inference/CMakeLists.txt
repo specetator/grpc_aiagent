@@ -22,6 +22,23 @@ add_executable(inference_cli client/main.cpp)
 target_link_libraries(inference_cli PRIVATE inference_proto)
 
 if(BUILD_TESTING)
+  add_library(inference_fake_cuda SHARED tests/fake_cuda_driver.cpp)
+  set_target_properties(inference_fake_cuda PROPERTIES OUTPUT_NAME cuda SOVERSION 1
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/test-driver)
+  add_library(inference_fake_nvml SHARED tests/fake_nvml.cpp)
+  set_target_properties(inference_fake_nvml PROPERTIES OUTPUT_NAME nvidia-ml SOVERSION 1
+    LIBRARY_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/test-driver)
+  add_executable(gpu_memory_probe_test tests/gpu_memory_probe_test.cpp)
+  target_link_libraries(gpu_memory_probe_test PRIVATE inference_core)
+  foreach(probe_case IN ITEMS success init sample nvml)
+    add_test(NAME inference_cuda_probe_${probe_case} COMMAND gpu_memory_probe_test)
+    set_tests_properties(inference_cuda_probe_${probe_case} PROPERTIES
+      ENVIRONMENT "LD_LIBRARY_PATH=$<TARGET_FILE_DIR:inference_fake_cuda>")
+    if(NOT probe_case STREQUAL "success")
+      set_property(TEST inference_cuda_probe_${probe_case} APPEND PROPERTY
+        ENVIRONMENT "SPARK_TEST_CUDA_FAIL=${probe_case}")
+    endif()
+  endforeach()
   find_package(Python3 3.10 COMPONENTS Interpreter REQUIRED)
   add_executable(inference_tests tests/inference_tests.cpp
     ${PROJECT_SOURCE_DIR}/hermes_bridge/grpc_inference_client.cpp)

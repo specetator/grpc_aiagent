@@ -4,19 +4,13 @@
 #include <string>
 #include <vector>
 
+#include "model.h"
 #include "mysql_pool.h"
 
 namespace sparkpush {
 
 // 对应 sql/schema.sql 中的 im_group / group_member 表，当前仅使用 group_type=1
 // 作为聊天室
-struct ImGroup {
-    int64_t id{0};
-    std::string name;
-    int64_t owner_id{0};
-    int group_type{0};
-};
-
 class GroupDao {
    public:
     explicit GroupDao(MySqlConnectionPool* pool) : pool_(pool) {}
@@ -24,8 +18,8 @@ class GroupDao {
     // 功能：创建聊天室（group_type=1）
     // 参数：name 房间名；owner_id 创建者；group_id 输出新房间 id；err_msg
     // 错误信息 返回：成功 true，失败 false
-    bool CreateChatroom(const std::string& name, int64_t owner_id,
-                        int64_t* group_id, std::string* err_msg);
+    bool CreateChatroom(const std::string& name, int64_t owner_id, int64_t* group_id,
+                        std::string* err_msg);
 
     // 功能：按 id 查询聊天室信息
     // 参数：group_id 房间 id；g 输出房间结构；err_msg 错误信息

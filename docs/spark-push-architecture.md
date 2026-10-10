@@ -174,7 +174,13 @@ Comet 不持久化消息，不分配序号。socket 已连接不代表消息已 
 
 ### 3.2 Logic：权威编排层
 
-源码：`logic/grpc_service.cpp`、`logic/conversation_store.cpp`、`logic/redis_store.cpp`、`logic/http_server.cpp`、`logic/attachment_dao.cpp`。
+业务源码：`logic/services/`；协议入口：`logic/grpc_service.cpp` / `logic/http_server.cpp`；
+数据访问：`logic/repositories/`、`logic/conversation_store.cpp`、`logic/redis_store.cpp`、`logic/*_dao.cpp`。
+
+2026-10-09 起，Logic 内部按“协议适配 → 业务 Service → Repository/DAO”分层。
+UserService 共享 HTTP/realtime 鉴权，ConversationService 共享历史/同步/附件会话权限，
+MessageService 统一 Unary/Streaming/Kafka Agent 回复的业务编排。实例由 `main.cpp` 集中构造；
+完整职责、兼容边界与测试见 [`logic-business-layer.md`](logic-business-layer.md)。
 
 Logic 是消息事实的编排者：
 

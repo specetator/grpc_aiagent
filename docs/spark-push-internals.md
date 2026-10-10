@@ -41,7 +41,7 @@ msg_id     = session_id + "-" + msg_seq
 
 落点：
 
-- Logic 热路径：`logic/grpc_service.cpp` `HandleUpstreamMessage`
+- Logic 热路径：`logic/services/message_service.cpp` `MessageService::Submit`；`logic/grpc_service.cpp` 只转换请求与响应
 - MySQL 补 session：`SessionDao::GetOrCreateSingleSession`（内部再次 swap）
 - Android：`SparkModels.kt` `singleSessionId()`
 - WebDemo：`buildSingleSessionId()`
@@ -791,7 +791,7 @@ Agent 路径在第 4 步之后分叉：`ai_request`（图片仅为 id）→ Brid
 ### 31.5 图片附件与截图问答
 
 - **解决的问题**：聊天和 Agent 需要看图，但不能把 base64 放进 WebSocket/Kafka/`content_json`，否则撑爆帧、日志和 MySQL 热路径。
-- **源码入口**：`logic/http_server.cpp` `handleAttachmentUpload` / `handleAttachmentGet`；`logic/grpc_service.cpp` `AuthorizeMessageImages`、`BuildHermesRequest`；`common/image_attachment.cpp`；`hermes_bridge/main.cpp` `LoadPiImagesFromDir`；`cannbot/scripts/pi_gateway.py` `normalize_prompt_images`。
+- **源码入口**：`logic/http_server.cpp` `handleAttachmentUpload` / `handleAttachmentGet`；`logic/services/attachment_service.cpp` `AuthorizeMessageImages`；`logic/services/message_service.cpp` `BuildHermesRequest`；`common/image_attachment.cpp`；`hermes_bridge/main.cpp` `LoadPiImagesFromDir`；`cannbot/scripts/pi_gateway.py` `normalize_prompt_images`。
 - **数据结构**：磁盘文件名为 `att_` + 24 hex（`RAND_bytes(12)`）；MySQL `attachment` 存 owner/session/mime/sha256；聊天 JSON 只保留 `{id,name,mime,bytes}` 数组，上限 4。
 - **操作步骤**：见第 32 节。
 - **锁与线程**：上传走 Logic HTTP 线程；热路径只读元数据。Bridge 与 Logic 必须共用同一 `attachment_dir`（进程 cwd 下 `data/attachments`）。
@@ -813,7 +813,7 @@ Agent 路径在第 4 步之后分叉：`ai_request`（图片仅为 id）→ Brid
 
 ## 32. 图片附件：上传、绑定、视觉输入
 
-源码：`common/image_attachment.cpp`、`logic/attachment_dao.cpp`、`logic/http_server.cpp`、`logic/grpc_service.cpp`、`hermes_bridge/main.cpp`、`cannbot/scripts/pi_gateway.py`。
+源码：`common/image_attachment.cpp`、`logic/attachment_dao.cpp`、`logic/http_server.cpp`、`logic/services/attachment_service.cpp`、`logic/services/message_service.cpp`、`hermes_bridge/main.cpp`、`cannbot/scripts/pi_gateway.py`。
 
 ### 32.1 魔数与 id
 
@@ -852,7 +852,9 @@ CreateImage：写 <id>.tmp → rename → INSERT attachment
 
 ### 32.3 发送路径绑定
 
-`HandleUpstreamMessage` 在 Redis 取号**之前**调用 `AuthorizeMessageImages`：
+`MessageService::Submit` 在 Redis 取号**之前**调用 `AttachmentService::AuthorizeMessageImages`；
+历史、同步和附件访问的共享权限由 `ConversationService::CheckAccess` 提供，完整分层见
+[`logic-business-layer.md`](logic-business-layer.md)：
 
 ```text
 ExtractImageRefs：content.attachments 或包装后的 content.content.attachments

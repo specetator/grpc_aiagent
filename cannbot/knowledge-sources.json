@@ -18,13 +18,31 @@
       "id": "inference-serving-phase-one",
       "path": "docs/inference-serving.md",
       "authority": "canonical",
-      "topics": ["inference", "gateway", "worker", "streaming", "scheduler", "metrics", "rocm", "batching"]
+      "topics": ["inference", "gateway", "worker", "streaming", "scheduler", "metrics", "rocm", "cuda", "batching"]
     },
     {
       "id": "inference-rx9070xt-performance",
       "path": "docs/performance-report-2026-09-30-rx9070xt.md",
       "authority": "snapshot",
       "topics": ["inference", "rocm", "benchmark", "throughput", "latency", "resume"]
+    },
+    {
+      "id": "inference-rtx3060-performance",
+      "path": "docs/performance-report-2026-10-07-rtx3060.md",
+      "authority": "snapshot",
+      "topics": ["inference", "cuda", "benchmark", "throughput", "latency", "resume", "gpu-memory"]
+    },
+    {
+      "id": "inference-gpu-memory-probe",
+      "path": "inference/worker/gpu_memory_probe.cpp",
+      "authority": "code",
+      "topics": ["inference", "cuda", "rocm", "gpu-memory", "context", "telemetry"]
+    },
+    {
+      "id": "inference-worker-registry",
+      "path": "inference/gateway/worker_registry.cpp",
+      "authority": "code",
+      "topics": ["inference", "admission", "heartbeat", "capacity", "gateway-managed-only"]
     },
     {
       "id": "inference-wire-contract",
@@ -196,9 +214,99 @@
     },
     {
       "id": "logic-message-orchestration",
-      "path": "logic/grpc_service.cpp",
+      "path": "logic/services/message_service.cpp",
       "authority": "code",
       "topics": ["logic", "message", "ack", "hermes", "persistence"]
+    },
+    {
+      "id": "logic-business-layer",
+      "path": "docs/logic-business-layer.md",
+      "authority": "canonical",
+      "topics": ["logic", "architecture", "service", "repository", "maintenance", "testing"]
+    },
+    {
+      "id": "logic-grpc-adapter",
+      "path": "logic/grpc_service.cpp",
+      "authority": "code",
+      "topics": ["logic", "grpc", "adapter", "streaming", "sync"]
+    },
+    {
+      "id": "logic-http-adapter",
+      "path": "logic/http_server.cpp",
+      "authority": "code",
+      "topics": ["logic", "http", "adapter", "api", "authentication"]
+    },
+    {
+      "id": "logic-user-rules",
+      "path": "logic/services/user_service.cpp",
+      "authority": "code",
+      "topics": ["logic", "user", "authentication", "token", "password", "cache"]
+    },
+    {
+      "id": "logic-conversation-rules",
+      "path": "logic/services/conversation_service.cpp",
+      "authority": "code",
+      "topics": ["logic", "authorization", "membership", "history", "cursor", "offline"]
+    },
+    {
+      "id": "logic-attachment-rules",
+      "path": "logic/services/attachment_service.cpp",
+      "authority": "code",
+      "topics": ["logic", "attachments", "authorization", "ownership", "images"]
+    },
+    {
+      "id": "logic-repository-ports",
+      "path": "logic/services/repositories.h",
+      "authority": "code",
+      "topics": ["logic", "repository", "interfaces", "testing"]
+    },
+    {
+      "id": "logic-room-rules",
+      "path": "logic/services/room_service.cpp",
+      "authority": "code",
+      "topics": ["logic", "room", "membership", "subscription", "presence"]
+    },
+    {
+      "id": "logic-admin-rules",
+      "path": "logic/services/admin_service.cpp",
+      "authority": "code",
+      "topics": ["logic", "admin", "token", "audit", "user-status"]
+    },
+    {
+      "id": "logic-danmaku-rules",
+      "path": "logic/services/danmaku_service.cpp",
+      "authority": "code",
+      "topics": ["logic", "danmaku", "legacy", "persistence"]
+    },
+    {
+      "id": "logic-knowledge-rules",
+      "path": "logic/services/knowledge_service.cpp",
+      "authority": "code",
+      "topics": ["logic", "knowledge", "catalog", "document"]
+    },
+    {
+      "id": "logic-repository-adapters",
+      "path": "logic/repositories/dao_repositories.cpp",
+      "authority": "code",
+      "topics": ["logic", "repository", "dao", "storage"]
+    },
+    {
+      "id": "logic-composition-root",
+      "path": "logic/main.cpp",
+      "authority": "code",
+      "topics": ["logic", "composition", "lifetime", "startup", "services"]
+    },
+    {
+      "id": "logic-domain-model",
+      "path": "logic/model.h",
+      "authority": "code",
+      "topics": ["logic", "model", "dto", "user", "message", "attachment"]
+    },
+    {
+      "id": "logic-shared-business-rules",
+      "path": "logic/services/business_rules.h",
+      "authority": "code",
+      "topics": ["logic", "authorization", "admin", "reuse"]
     },
     {
       "id": "hermes-command-semantics",

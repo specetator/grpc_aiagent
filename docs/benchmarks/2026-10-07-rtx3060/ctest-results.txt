@@ -1,0 +1,54 @@
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/11.2-spark_push/build-wsl
+Test project /home/peco/cppcode/fenbushi/11.2-spark_push/build-wsl
+      Start  1: inference_cuda_probe_success
+ 1/24 Test  #1: inference_cuda_probe_success ...........   Passed    0.00 sec
+      Start  2: inference_cuda_probe_init
+ 2/24 Test  #2: inference_cuda_probe_init ..............   Passed    0.00 sec
+      Start  3: inference_cuda_probe_sample
+ 3/24 Test  #3: inference_cuda_probe_sample ............   Passed    0.00 sec
+      Start  4: inference_cuda_probe_nvml
+ 4/24 Test  #4: inference_cuda_probe_nvml ..............   Passed    0.00 sec
+      Start  5: inference_tests
+ 5/24 Test  #5: inference_tests ........................   Passed    0.71 sec
+      Start  6: inference_llamacpp_adapter_test
+ 6/24 Test  #6: inference_llamacpp_adapter_test ........   Passed    1.11 sec
+      Start  7: inference_vllm_adapter_contract_test
+ 7/24 Test  #7: inference_vllm_adapter_contract_test ...   Passed    1.09 sec
+      Start  8: security_test
+ 8/24 Test  #8: security_test ..........................   Passed    0.10 sec
+      Start  9: config_test
+ 9/24 Test  #9: config_test ............................   Passed    0.00 sec
+      Start 10: image_attachment_test
+10/24 Test #10: image_attachment_test ..................   Passed    0.00 sec
+      Start 11: rate_limiter_test
+11/24 Test #11: rate_limiter_test ......................   Passed    0.00 sec
+      Start 12: hermes_command_test
+12/24 Test #12: hermes_command_test ....................   Passed    0.00 sec
+      Start 13: hermes_reply_test
+13/24 Test #13: hermes_reply_test ......................   Passed    0.01 sec
+      Start 14: kafka_failure_integration_test
+14/24 Test #14: kafka_failure_integration_test .........   Passed   17.17 sec
+      Start 15: kafka_parallel_integration_test
+15/24 Test #15: kafka_parallel_integration_test ........   Passed   13.65 sec
+      Start 16: hermes_sse_parser_test
+16/24 Test #16: hermes_sse_parser_test .................   Passed    0.02 sec
+      Start 17: agent_control_integration_test
+17/24 Test #17: agent_control_integration_test .........   Passed    0.68 sec
+      Start 18: pi_gateway_test
+18/24 Test #18: pi_gateway_test ........................   Passed    2.53 sec
+      Start 19: agent_router_test
+19/24 Test #19: agent_router_test ......................   Passed    6.81 sec
+      Start 20: client_reliability_contract_test
+20/24 Test #20: client_reliability_contract_test .......   Passed    0.02 sec
+      Start 21: citation_validation_test
+21/24 Test #21: citation_validation_test ...............   Passed    0.00 sec
+      Start 22: knowledge_catalog_test
+22/24 Test #22: knowledge_catalog_test .................   Passed    0.00 sec
+      Start 23: websocket_utils_test
+23/24 Test #23: websocket_utils_test ...................   Passed    0.00 sec
+      Start 24: redis_sequence_integration_test
+24/24 Test #24: redis_sequence_integration_test ........   Passed    0.10 sec
+
+100% tests passed, 0 tests failed out of 24
+
+Total Test time (real) =  44.02 sec

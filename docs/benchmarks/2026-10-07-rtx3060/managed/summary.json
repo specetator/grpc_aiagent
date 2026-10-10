@@ -1,0 +1,189 @@
+{
+  "definition": "Median total output tokens / measured trial duration; all trial failures retained.",
+  "results": {
+    "app_cpu_flash_bridge4-c4": {
+      "file": "app_cpu_flash_bridge4-c4.json",
+      "successful": 36,
+      "failed": 0,
+      "throughput_median": 80.17571774670759,
+      "throughput_min": 76.88467544960886,
+      "throughput_max": 82.74021681352109,
+      "requests_per_s_median": 0.626372794896153,
+      "completion_tokens": 4608,
+      "prompt_tokens": 2130,
+      "cached_prompt_tokens": 0,
+      "worker_counts": {
+        "app-worker": 36
+      },
+      "ttft_ms": {
+        "p50": 1954.539680009475,
+        "p95": 4308.553664246574,
+        "p99": 5112.787139968714,
+        "mean": 2219.328234222808
+      },
+      "e2e_ms": {
+        "p50": 5790.455440466758,
+        "p95": 7789.708548240014,
+        "p99": 8222.805666172644,
+        "mean": 5855.600947358956
+      },
+      "tpot_ms": {
+        "p50": 30.666930940851024,
+        "p95": 34.85660912426863,
+        "p99": 36.22172766334861,
+        "mean": 28.63206860737124
+      },
+      "accepted_ack_ms": {
+        "p50": 15.676413517212495,
+        "p95": 20.11862776998896,
+        "p99": 21.10203034826554,
+        "mean": 16.133485806575564
+      },
+      "single_request_decode_tokens_per_s": 32.60841464471141
+    },
+    "app_cuda_flash_bridge4-c4": {
+      "file": "app_cuda_flash_bridge4-c4.json",
+      "successful": 36,
+      "failed": 0,
+      "throughput_median": 384.00805571997046,
+      "throughput_min": 382.5127769338381,
+      "throughput_max": 389.0180763363472,
+      "requests_per_s_median": 3.000062935312269,
+      "completion_tokens": 4608,
+      "prompt_tokens": 2130,
+      "cached_prompt_tokens": 0,
+      "worker_counts": {
+        "app-worker": 36
+      },
+      "ttft_ms": {
+        "p50": 446.479811478639,
+        "p95": 818.4024432412116,
+        "p99": 819.8328844009666,
+        "mean": 441.69445471682894
+      },
+      "e2e_ms": {
+        "p50": 1231.2896795046981,
+        "p95": 1518.477322999388,
+        "p99": 1527.2259671386564,
+        "mean": 1203.2867616136273
+      },
+      "tpot_ms": {
+        "p50": 5.5836993741700205,
+        "p95": 7.086305307063061,
+        "p99": 7.153763548896362,
+        "mean": 5.996789818085027
+      },
+      "accepted_ack_ms": {
+        "p50": 18.447366019245237,
+        "p95": 24.74421747319866,
+        "p99": 26.986611032043584,
+        "mean": 18.79760297500373
+      },
+      "single_request_decode_tokens_per_s": 179.09273637222694
+    },
+    "grpc_cpu_flash_f16-c4": {
+      "file": "grpc_cpu_flash_f16-c4.json",
+      "successful": 36,
+      "failed": 0,
+      "throughput_median": 102.87525749778654,
+      "throughput_min": 102.63260681378004,
+      "throughput_max": 102.90997215081185,
+      "requests_per_s_median": 0.8037129492014573,
+      "completion_tokens": 4608,
+      "prompt_tokens": 2562,
+      "cached_prompt_tokens": 0,
+      "worker_counts": {
+        "worker-0": 36
+      },
+      "ttft_ms": {
+        "p50": 910.229414497735,
+        "p95": 1083.5067095031263,
+        "p99": 1135.183899855474,
+        "mean": 838.4124289409051
+      },
+      "e2e_ms": {
+        "p50": 4952.287853491725,
+        "p95": 5081.293772745994,
+        "p99": 5096.789172542049,
+        "mean": 4974.918290191757
+      },
+      "tpot_ms": {
+        "p50": 32.051337901438686,
+        "p95": 36.26827027969058,
+        "p99": 37.02129866929237,
+        "mean": 32.570912293313796
+      },
+      "single_request_decode_tokens_per_s": 31.19994563331826
+    },
+    "grpc_cuda_flash_f16-c4": {
+      "file": "grpc_cuda_flash_f16-c4.json",
+      "successful": 36,
+      "failed": 0,
+      "throughput_median": 591.6061370582395,
+      "throughput_min": 590.4712215345304,
+      "throughput_max": 598.4426880287156,
+      "requests_per_s_median": 4.621922945767496,
+      "completion_tokens": 4608,
+      "prompt_tokens": 2562,
+      "cached_prompt_tokens": 0,
+      "worker_counts": {
+        "worker-0": 36
+      },
+      "ttft_ms": {
+        "p50": 46.83833397575654,
+        "p95": 67.00227597320918,
+        "p99": 69.2845810961444,
+        "mean": 44.59028225392103
+      },
+      "e2e_ms": {
+        "p50": 858.3529079915024,
+        "p95": 878.0585597705794,
+        "p99": 878.996597166406,
+        "mean": 859.6949834431548
+      },
+      "tpot_ms": {
+        "p50": 6.383982968496481,
+        "p95": 6.6217393425291435,
+        "p99": 6.733340537290118,
+        "mean": 6.4181472534585335
+      },
+      "single_request_decode_tokens_per_s": 156.64202190619477
+    },
+    "grpc_cuda_p4-c4": {
+      "file": "grpc_cuda_p4-c4.json",
+      "successful": 36,
+      "failed": 0,
+      "throughput_median": 496.5795052462942,
+      "throughput_min": 494.90990559430855,
+      "throughput_max": 500.9032952840731,
+      "requests_per_s_median": 3.8795273847366736,
+      "completion_tokens": 4608,
+      "prompt_tokens": 2562,
+      "cached_prompt_tokens": 0,
+      "worker_counts": {
+        "worker-0": 36
+      },
+      "ttft_ms": {
+        "p50": 59.913814009632915,
+        "p95": 71.89958878734615,
+        "p99": 72.96176995441783,
+        "mean": 52.61402069461636
+      },
+      "e2e_ms": {
+        "p50": 1029.3985635216814,
+        "p95": 1040.0502144912025,
+        "p99": 1047.0969828631496,
+        "mean": 1026.472538890731
+      },
+      "tpot_ms": {
+        "p50": 7.648662582413829,
+        "p95": 7.838774677003939,
+        "p99": 7.905935006139169,
+        "mean": 7.668177308630824
+      },
+      "single_request_decode_tokens_per_s": 130.74181129381336
+    }
+  },
+  "failed_profiles": {},
+  "startup_failure_attempts": {}
+}

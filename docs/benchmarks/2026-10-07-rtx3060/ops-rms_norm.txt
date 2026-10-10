@@ -1,0 +1,26 @@
+Testing 2 devices
+
+Backend 1/2: CUDA0
+  Device description: NVIDIA GeForce RTX 3060
+  Device memory: 12287 MB (11247 MB free)
+
+  RMS_NORM(type=f32,ne=[64,5,4,3],v=0,eps=0.000000,inplace=0): OK
+  RMS_NORM(type=f32,ne=[64,5,4,3],v=1,eps=0.000000,inplace=0): OK
+  RMS_NORM(type=f32,ne=[64,5,4,3],v=0,eps=0.000001,inplace=0): OK
+  RMS_NORM(type=f32,ne=[64,5,4,3],v=1,eps=0.000001,inplace=0): OK
+  RMS_NORM(type=f32,ne=[64,5,4,3],v=0,eps=0.000100,inplace=0): OK
+  RMS_NORM(type=f32,ne=[64,5,4,3],v=1,eps=0.000100,inplace=0): OK
+  RMS_NORM(type=f32,ne=[64,5,4,3],v=0,eps=0.100000,inplace=0): OK
+  RMS_NORM(type=f32,ne=[64,5,4,3],v=1,eps=0.100000,inplace=0): OK
+  RMS_NORM(type=f32,ne=[64,5,4,3],v=0,eps=10.000000,inplace=0): OK
+  RMS_NORM(type=f32,ne=[64,5,4,3],v=1,eps=10.000000,inplace=0): OK
+  RMS_NORM(type=f32,ne=[64,5,4,3],v=0,eps=0.000001,inplace=1): OK
+  11/11 tests passed
+  Backend CUDA0: OK
+Backend 2/2: CPU
+  Skipping
+2/2 backends passed
+OK
+ggml_cuda_init: found 1 CUDA devices (Total VRAM: 12287 MiB):
+  Device 0: NVIDIA GeForce RTX 3060, compute capability 8.6, VMM: yes, VRAM: 12287 MiB
+ggml_backend_cuda_graph_compute: CUDA graph warmup complete

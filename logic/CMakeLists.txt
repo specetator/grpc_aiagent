@@ -1,13 +1,10 @@
 cmake_minimum_required(VERSION 3.14)
 
-add_executable(logic_server
-  main.cpp
-  grpc_service.cpp
+add_library(spark_push_logic STATIC
   hermes_command.cpp
   hermes_reply.cpp
   citation_validation.cpp
   knowledge_catalog.cpp
-  http_server.cpp
   audit_log_dao.cpp
   user_dao.cpp
   redis_store.cpp
@@ -19,12 +16,25 @@ add_executable(logic_server
   conversation_store.cpp
   model.cpp
   attachment_dao.cpp
+  repositories/dao_repositories.cpp
+  services/user_service.cpp
+  services/conversation_service.cpp
+  services/attachment_service.cpp
+  services/message_service.cpp
+  services/admin_service.cpp
+  services/danmaku_service.cpp
+  services/knowledge_service.cpp
+  services/room_service.cpp
 )
+
+target_include_directories(spark_push_logic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(spark_push_logic PUBLIC spark_push_common spark_push_proto)
+
+add_executable(logic_server main.cpp grpc_service.cpp http_server.cpp)
 
 target_link_libraries(logic_server
   PRIVATE
-    spark_push_common
-    spark_push_proto
+    spark_push_logic
     muduo_net
     muduo_http
     muduo_base

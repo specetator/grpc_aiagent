@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-"""Run controlled CPU/HIP comparisons and serving optimizations on real models."""
+"""Run controlled CPU/HIP/CUDA comparisons and serving optimizations on real models."""
 import argparse
+import hashlib
 import json
 import os
 import socket
@@ -34,12 +35,17 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--cpu-bin', default='/home/peco/tools/llama.cpp/build/bin/llama-server')
     parser.add_argument('--rocm-bin', default='/home/peco/tools/llama.cpp/build-rocm/bin/llama-server')
+    parser.add_argument('--accelerator', choices=['rocm', 'cuda'], default='rocm')
+    parser.add_argument('--cuda-bin', default='/home/peco/tools/llama.cpp/build-cuda/bin/llama-server')
+    parser.add_argument('--build-dir', type=Path, default=ROOT/'build-wsl')
+    parser.add_argument('--gateway-managed-only', action='store_true')
     parser.add_argument('--model', default='/home/peco/models/Qwen3-0.6B-Q8_0.gguf')
     parser.add_argument('--out', required=True)
     parser.add_argument('--only', nargs='*')
     parser.add_argument('--requests', type=int, default=12)
     parser.add_argument('--repeats', type=int, default=3)
     args = parser.parse_args()
+    if args.requests < 1 or args.repeats < 1: parser.error('requests and repeats must be positive')
     out = Path(args.out).resolve(); out.mkdir(parents=True, exist_ok=True)
     profiles = [
         dict(name='cpu_q8_p1', gpu=False, slots=1, conc=[1,4]),
@@ -61,19 +67,36 @@ def main():
         dict(name='grpc_rocm_flash_f16', gpu=True, slots=4, conc=[4], grpc=True, fa='on'),
         dict(name='grpc_rocm_shared2', gpu=True, slots=4, conc=[4], grpc=True, fa='on', workers=2),
     ]
-    env = dict(os.environ, HIP_VISIBLE_DEVICES='0')
-    env['LD_LIBRARY_PATH'] = '/opt/rocm/lib:' + env.get('LD_LIBRARY_PATH', '')
+    for profile in profiles:
+        profile['name'] = profile['name'].replace('rocm', args.accelerator)
+    names = {profile['name'] for profile in profiles}
+    if args.only and set(args.only) - names:
+        parser.error(f'unknown profiles: {sorted(set(args.only) - names)}')
+    if not Path(args.model).is_file(): parser.error('model file does not exist')
+    with open(args.model, 'rb') as model_file:
+        digest = hashlib.sha256()
+        for block in iter(lambda: model_file.read(1024 * 1024), b''): digest.update(block)
+        model_sha256 = digest.hexdigest()
+    env = dict(os.environ)
+    gpu_bin = args.cuda_bin if args.accelerator == 'cuda' else args.rocm_bin
+    if args.accelerator == 'rocm':
+        env['HIP_VISIBLE_DEVICES'] = env.get('HIP_VISIBLE_DEVICES', '0')
+        env['LD_LIBRARY_PATH'] = '/opt/rocm/lib:' + env.get('LD_LIBRARY_PATH', '')
+    else:
+        env['CUDA_VISIBLE_DEVICES'] = env.get('CUDA_VISIBLE_DEVICES', '0')
     failed = False
     for profile in profiles:
         name = profile['name']
         if args.only and name not in args.only: continue
         processes, files = [], []
-        manifest = {'profile': profile, 'model': args.model, 'runtime_commands': []}
+        manifest = {'profile': profile, 'model': args.model, 'accelerator': args.accelerator,
+                    'model_sha256': model_sha256, 'gateway_managed_only':args.gateway_managed_only,
+                    'runtime_commands': []}
         try:
             urls = []
             for replica in range(profile.get('replicas', 1)):
                 port = free_port(); url = f'http://127.0.0.1:{port}'; urls.append(url)
-                cmd = [args.rocm_bin if profile['gpu'] else args.cpu_bin,
+                cmd = [gpu_bin if profile['gpu'] else args.cpu_bin,
                        '-m', args.model, '--alias', 'qwen3-0.6b', '--host', '127.0.0.1',
                        '--port', str(port), '-np', str(profile['slots']),
                        '-c', str(profile['slots']*2048), '-t', '6', '-tb', '6',
@@ -81,7 +104,8 @@ def main():
                        '--chat-template-kwargs', '{"enable_thinking":false}',
                        '-fa', profile.get('fa', 'off'),
                        '-cb' if profile.get('cb', True) else '-nocb']
-                if profile['gpu']: cmd += ['-ngl', '99']
+                if profile['gpu']:
+                    cmd += ['-ngl', '99', '--device', 'CUDA0' if args.accelerator == 'cuda' else 'ROCm0']
                 else: cmd += ['-ngl', '0', '--device', 'none', '--no-kv-offload', '--no-op-offload']
                 if profile.get('cache'): cmd += ['--cache-prompt']
                 else: cmd += ['--no-cache-prompt', '--cache-ram', '0']
@@ -90,12 +114,20 @@ def main():
                 log = open(out/f'{name}-runtime-{replica}.log', 'w'); files.append(log)
                 proc = subprocess.Popen(cmd, env=env, stdout=log, stderr=subprocess.STDOUT)
                 processes.append(proc); wait_health(url, proc)
+                if profile['gpu']:
+                    log.flush()
+                    evidence = Path(log.name).read_text()
+                    if 'offloaded 29/29 layers to GPU' not in evidence:
+                        raise RuntimeError('expected all Qwen3 layers on GPU; refusing CPU fallback results')
             transport = 'http'; gateway = None
             if profile.get('grpc'):
                 transport = 'grpc'; gp, mp = free_port(), free_port(); gateway = f'127.0.0.1:{gp}'
                 log = open(out/f'{name}-gateway.log', 'w'); files.append(log)
-                processes.append(subprocess.Popen([str(ROOT/'build-wsl/inference/inference_gateway'),
-                    '--listen', gateway, '--metrics-port', str(mp), '--max-queue', '64'],
+                gateway_cmd = [str(args.build_dir/'inference/inference_gateway'),
+                    '--listen', gateway, '--metrics-port', str(mp), '--max-queue', '64']
+                if args.gateway_managed_only: gateway_cmd.append('--gateway-managed-only')
+                manifest['gateway_command'] = gateway_cmd
+                processes.append(subprocess.Popen(gateway_cmd,
                     stdout=log, stderr=subprocess.STDOUT, env=env))
                 time.sleep(.2)
                 worker_endpoints = []
@@ -103,12 +135,12 @@ def main():
                     url = urls[i % len(urls)]
                     wp = free_port(); worker_endpoints.append(f'127.0.0.1:{wp}')
                     log = open(out/f'{name}-worker-{i}.log', 'w'); files.append(log)
-                    processes.append(subprocess.Popen([str(ROOT/'build-wsl/inference/inference_worker'),
+                    processes.append(subprocess.Popen([str(args.build_dir/'inference/inference_worker'),
                         '--worker-id', f'worker-{i}', '--listen', worker_endpoints[-1],
                         '--gateway', gateway, '--model', 'qwen3-0.6b', '--backend', 'llamacpp',
                         '--model-endpoint', url, '--max-concurrent',
                         str(profile['slots']//profile.get('workers', 1)),
-                        '--device-type', 'rocm' if profile['gpu'] else 'cpu'],
+                        '--device-type', args.accelerator if profile['gpu'] else 'cpu'],
                         stdout=log, stderr=subprocess.STDOUT, env=env))
                 time.sleep(1.5)
             for concurrency in profile['conc']:
@@ -116,7 +148,7 @@ def main():
                     '--transport', transport, '--url', urls[0], '--label', name,
                     '--concurrency', str(concurrency), '--requests', str(args.requests),
                     '--repeats', str(args.repeats), '--out', str(out/f'{name}-c{concurrency}.json')]
-                if gateway: cmd += ['--gateway', gateway, '--proto-dir', str(ROOT/'build-wsl/python-proto')]
+                if gateway: cmd += ['--gateway', gateway, '--proto-dir', str(args.build_dir/'python-proto')]
                 if profile.get('mixed'): cmd += ['--mixed-lengths']
                 if profile.get('prefix'):
                     prompt = out/'prefix-prompt.txt'
@@ -131,7 +163,7 @@ def main():
             if gateway:
                 (out/f'{name}-gateway-metrics.txt').write_bytes(
                     urllib.request.urlopen(f'http://127.0.0.1:{mp}/metrics').read())
-                sys.path.insert(0, str(ROOT/'build-wsl/python-proto'))
+                sys.path.insert(0, str(args.build_dir/'python-proto'))
                 import grpc, inference_pb2 as pb, inference_pb2_grpc as rpc
                 from google.protobuf.json_format import MessageToDict
                 manifest['worker_status'] = []

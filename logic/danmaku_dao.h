@@ -3,18 +3,10 @@
 #include <string>
 #include <vector>
 
+#include "model.h"
 #include "mysql_pool.h"
 
 namespace sparkpush {
-
-struct DanmakuItem {
-    int64_t id;
-    std::string video_id;
-    int64_t timeline_ms;
-    int64_t sender_id;
-    std::string content_json;
-    int64_t timestamp_ms;
-};
 
 // 弹幕 DAO：操作 video_danmaku 表
 class DanmakuDao {
@@ -33,9 +25,9 @@ class DanmakuDao {
     // 参数：video_id 视频标识；out_list 输出结果；err_msg 错误信息；
     //       from_ms 起始毫秒（含）；to_ms 结束毫秒（开）；limit 上限
     // 返回：成功 true，失败 false
-    bool ListDanmaku(const std::string& video_id,
-                     std::vector<DanmakuItem>* out_list, std::string* err_msg,
-                     int64_t from_ms = 0, int64_t to_ms = 0, int limit = 5000);
+    bool ListDanmaku(const std::string& video_id, std::vector<DanmakuItem>* out_list,
+                     std::string* err_msg, int64_t from_ms = 0, int64_t to_ms = 0,
+                     int limit = 5000);
 
    private:
     MySqlConnectionPool* pool_;

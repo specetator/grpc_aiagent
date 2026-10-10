@@ -75,6 +75,21 @@ void RegistryAndScheduler() {
   Check(registry.FindWorkersForModel("mock-model").empty(), "heartbeat expiry");
   Check(!registry.ListWorkers()[0].healthy(), "expired unhealthy");
   Check(registry.Remove("a"), "remove");
+  WorkerRegistry managed(std::chrono::milliseconds(25), true);
+  auto owned = MakeWorker("owned"); owned.set_max_concurrent_requests(1);
+  Check(managed.Register(owned) && managed.ChangeRunning("owned",1), "managed lease reserved");
+  owned.set_running_requests(1);
+  Check(managed.Heartbeat(owned), "busy heartbeat observed");
+  Check(!scheduler.SelectWorker(MakeRequest("full"),managed.ListWorkers()), "managed cap enforced");
+  Check(managed.ChangeRunning("owned",-1), "managed lease released");
+  Check(managed.ListWorkers()[0].running_requests() == 0 &&
+        scheduler.SelectWorker(MakeRequest("after-complete"),managed.ListWorkers()).has_value(),
+        "completed lease admits immediately despite stale busy heartbeat");
+  owned.set_healthy(false); managed.Heartbeat(owned);
+  Check(managed.FindWorkersForModel("mock-model").empty(), "managed mode preserves health filtering");
+  owned.set_healthy(true); managed.Heartbeat(owned);
+  std::this_thread::sleep_for(std::chrono::milliseconds(35));
+  Check(managed.FindWorkersForModel("mock-model").empty(), "managed mode preserves TTL");
 }
 class BlockingBackend final : public GenerationBackend {
  public:

@@ -12,8 +12,9 @@ namespace sparkpush::inference {
 
 class WorkerRegistry {
  public:
-  explicit WorkerRegistry(std::chrono::milliseconds timeout = std::chrono::seconds(5))
-      : timeout_(timeout) {}
+  explicit WorkerRegistry(std::chrono::milliseconds timeout = std::chrono::seconds(5),
+                          bool gateway_managed_only = false)
+      : timeout_(timeout), gateway_managed_only_(gateway_managed_only) {}
   bool Register(const WorkerInfo& worker);
   bool Heartbeat(const WorkerInfo& worker);
   bool Remove(const std::string& worker_id);
@@ -30,6 +31,7 @@ class WorkerRegistry {
   WorkerInfo Snapshot(const Entry& entry,
                       std::chrono::steady_clock::time_point now) const;
   const std::chrono::milliseconds timeout_;
+  const bool gateway_managed_only_;
   mutable std::mutex mutex_;
   std::unordered_map<std::string, Entry> workers_;
 };

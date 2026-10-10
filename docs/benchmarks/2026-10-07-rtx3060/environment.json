@@ -1,0 +1,71 @@
+{
+  "schema": "sparkpush.cuda_environment.v1",
+  "time_utc": "2026-10-07T09:08:12.610728+00:00",
+  "platform": "Linux-6.18.40.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+  "python": "3.11.15",
+  "model": {
+    "path": "/home/peco/models/Qwen3-0.6B-local-Q8_0.gguf",
+    "bytes": 804753248,
+    "sha256": "e93ae7f33194c36ef20c13b9d4492a9888ddf9b1d9b0884f63d789ffcd43c51c"
+  },
+  "cpu": {
+    "command": [
+      "lscpu"
+    ],
+    "exit_code": 0,
+    "output": "Architecture:                            x86_64\nCPU op-mode(s):                          32-bit, 64-bit\nAddress sizes:                           39 bits physical, 48 bits virtual\nByte Order:                              Little Endian\nCPU(s):                                  12\nOn-line CPU(s) list:                     0-11\nVendor ID:                               GenuineIntel\nModel name:                              12th Gen Intel(R) Core(TM) i5-12400F\nCPU family:                              6\nModel:                                   151\nThread(s) per core:                      2\nCore(s) per socket:                      6\nSocket(s):                               1\nStepping:                                2\nBogoMIPS:                                4992.00\nFlags:                                   fpu vme de pse tsc msr pae mce cx8 apic sep mtrr pge mca cmov pat pse36 clflush mmx fxsr sse sse2 ss ht syscall nx pdpe1gb rdtscp lm arch_perfmon rep_good nopl xtopology cpuid tsc_known_freq pni pclmulqdq ssse3 fma cx16 pdcm pcid sse4_1 sse4_2 movbe popcnt aes xsave avx f16c rdrand hypervisor lahf_lm abm 3dnowprefetch ssbd ibrs ibpb stibp ibrs_enhanced fsgsbase bmi1 avx2 smep bmi2 erms invpcid rdseed adx smap clflushopt clwb sha_ni xsaveopt xsavec xgetbv1 xsaves umip gfni vaes vpclmulqdq rdpid fsrm md_clear flush_l1d arch_capabilities\nHypervisor vendor:                       Microsoft\nVirtualization type:                     full\nL1d cache:                               288 KiB (6 instances)\nL1i cache:                               192 KiB (6 instances)\nL2 cache:                                7.5 MiB (6 instances)\nL3 cache:                                18 MiB (1 instance)\nNUMA node(s):                            1\nNUMA node0 CPU(s):                       0-11\nVulnerability Gather data sampling:      Not affected\nVulnerability Ghostwrite:                Not affected\nVulnerability Indirect target selection: Not affected\nVulnerability Itlb multihit:             Not affected\nVulnerability L1tf:                      Not affected\nVulnerability Mds:                       Not affected\nVulnerability Meltdown:                  Not affected\nVulnerability Mmio stale data:           Not affected\nVulnerability Old microcode:             Not affected\nVulnerability Reg file data sampling:    Not affected\nVulnerability Retbleed:                  Mitigation; Enhanced IBRS\nVulnerability Spec rstack overflow:      Not affected\nVulnerability Spec store bypass:         Mitigation; Speculative Store Bypass disabled via prctl\nVulnerability Spectre v1:                Mitigation; usercopy/swapgs barriers and __user pointer sanitization\nVulnerability Spectre v2:                Mitigation; Enhanced / Automatic IBRS; IBPB conditional; PBRSB-eIBRS SW sequence; BHI BHI_DIS_S\nVulnerability Srbds:                     Not affected\nVulnerability Tsa:                       Not affected\nVulnerability Tsx async abort:           Not affected\nVulnerability Vmscape:                   Not affected"
+  },
+  "gpu": {
+    "command": [
+      "nvidia-smi",
+      "--query-gpu=name,driver_version,memory.total,memory.used,compute_cap",
+      "--format=csv,noheader"
+    ],
+    "exit_code": 0,
+    "output": "NVIDIA GeForce RTX 3060, 577.00, 12288 MiB, 2344 MiB, 8.6"
+  },
+  "toolkit": {
+    "command": [
+      "/home/peco/tools/cuda-12.9/bin/nvcc",
+      "--version"
+    ],
+    "exit_code": 0,
+    "output": "nvcc: NVIDIA (R) Cuda compiler driver\nCopyright (c) 2005-2025 NVIDIA Corporation\nBuilt on Wed_Apr__9_19:24:57_PDT_2025\nCuda compilation tools, release 12.9, V12.9.41\nBuild cuda_12.9.r12.9/compiler.35813241_0"
+  },
+  "engine_commit": {
+    "command": [
+      "git",
+      "-C",
+      "/home/peco/tools/llama.cpp",
+      "rev-parse",
+      "HEAD"
+    ],
+    "exit_code": 0,
+    "output": "6c7a87f7e5e5cd75b8a641c3471f2dee84a6ed17"
+  },
+  "cpu_runtime": {
+    "command": [
+      "/home/peco/tools/llama.cpp/build-cpu/bin/llama-server",
+      "--version"
+    ],
+    "exit_code": 0,
+    "output": "version: 0.5.0-dev (build 11235, commit 6c7a87f7e)\nbuilt with GNU 11.4.0 for Linux x86_64"
+  },
+  "cuda_runtime": {
+    "command": [
+      "/home/peco/tools/llama.cpp/build-cuda/bin/llama-server",
+      "--version"
+    ],
+    "exit_code": 0,
+    "output": "version: 0.5.0-dev (build 11235, commit 6c7a87f7e)\nbuilt with GNU 11.4.0 for Linux x86_64"
+  },
+  "packages": {
+    "grpcio": "1.84.0",
+    "grpcio-tools": "1.62.3",
+    "protobuf": "4.25.9",
+    "websockets": "17.2",
+    "torch": "2.11.0+cpu",
+    "transformers": "4.57.6",
+    "gguf": "0.19.0"
+  }
+}

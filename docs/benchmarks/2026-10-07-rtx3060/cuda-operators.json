@@ -1,0 +1,97 @@
+{
+  "schema": "sparkpush.cuda_ops.v1",
+  "reference": "llama.cpp test-backend-ops CPU backend",
+  "cases": {
+    "matmul_q8_f16": {
+      "command": [
+        "/home/peco/tools/llama.cpp/build-cuda/bin/test-backend-ops",
+        "test",
+        "-b",
+        "CUDA0",
+        "-o",
+        "MUL_MAT",
+        "-p",
+        "type_a=(q8_0|f16),type_b=f32,m=16,"
+      ],
+      "exit_code": 0,
+      "duration_s": 1.0219290580134839,
+      "selected": 119,
+      "passed": 119,
+      "skipped": 0,
+      "ok": true
+    },
+    "rms_norm": {
+      "command": [
+        "/home/peco/tools/llama.cpp/build-cuda/bin/test-backend-ops",
+        "test",
+        "-b",
+        "CUDA0",
+        "-o",
+        "RMS_NORM",
+        "-p",
+        "type=f32,ne=\\[(64|128|1024|4096),"
+      ],
+      "exit_code": 0,
+      "duration_s": 0.431333999033086,
+      "selected": 11,
+      "passed": 11,
+      "skipped": 0,
+      "ok": true
+    },
+    "rope_head128": {
+      "command": [
+        "/home/peco/tools/llama.cpp/build-cuda/bin/test-backend-ops",
+        "test",
+        "-b",
+        "CUDA0",
+        "-o",
+        "ROPE",
+        "-p",
+        "type=f32,ne_a=\\[128,"
+      ],
+      "exit_code": 0,
+      "duration_s": 0.7807177790091373,
+      "selected": 119,
+      "passed": 109,
+      "skipped": 10,
+      "ok": true
+    },
+    "flash_f16": {
+      "command": [
+        "/home/peco/tools/llama.cpp/build-cuda/bin/test-backend-ops",
+        "test",
+        "-b",
+        "CUDA0",
+        "-o",
+        "FLASH_ATTN_EXT",
+        "-p",
+        "hsk=128,hsv=128,nh=(8|1),nr23=\\[(4|8),1\\],kv=(1024|2048|4096),nb=(1|32|64),.*type_K=f16,type_V=f16,"
+      ],
+      "exit_code": 0,
+      "duration_s": 0.8463688610354438,
+      "selected": 7,
+      "passed": 7,
+      "skipped": 0,
+      "ok": true
+    },
+    "flash_q8": {
+      "command": [
+        "/home/peco/tools/llama.cpp/build-cuda/bin/test-backend-ops",
+        "test",
+        "-b",
+        "CUDA0",
+        "-o",
+        "FLASH_ATTN_EXT",
+        "-p",
+        "hsk=128,hsv=128,.*type_K=q8_0,type_V=q8_0,"
+      ],
+      "exit_code": 0,
+      "duration_s": 0.8235953849507496,
+      "selected": 6,
+      "passed": 6,
+      "skipped": 0,
+      "ok": true
+    }
+  },
+  "ok": true
+}

@@ -6,6 +6,10 @@ target_include_directories(security_test PRIVATE ${PROJECT_SOURCE_DIR}/common)
 target_link_libraries(security_test PRIVATE OpenSSL::Crypto)
 add_test(NAME security_test COMMAND security_test)
 
+add_executable(logic_business_service_test logic_business_service_test.cpp)
+target_link_libraries(logic_business_service_test PRIVATE spark_push_logic)
+add_test(NAME logic_business_service_test COMMAND logic_business_service_test)
+
 add_executable(config_test config_test.cpp)
 target_link_libraries(config_test PRIVATE spark_push_common)
 add_test(NAME config_test COMMAND config_test)
@@ -55,6 +59,8 @@ target_include_directories(hermes_sse_parser_test PRIVATE
 add_test(NAME hermes_sse_parser_test COMMAND hermes_sse_parser_test)
 
 find_package(Python3 3.10 COMPONENTS Interpreter REQUIRED)
+add_test(NAME logic_layer_contract_test
+  COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/logic_layer_contract_test.py)
 add_executable(agent_control_client_probe
   agent_control_client_probe.cpp
   ${PROJECT_SOURCE_DIR}/hermes_bridge/hermes_client.cpp

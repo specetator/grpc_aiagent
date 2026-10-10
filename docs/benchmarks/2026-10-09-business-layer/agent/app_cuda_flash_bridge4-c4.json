@@ -1,0 +1,193 @@
+{
+  "schema": "sparkpush.app_benchmark.v1",
+  "configuration": {
+    "out": "docs/benchmarks/2026-10-09-business-layer/agent",
+    "cpu_bin": "/home/peco/tools/llama.cpp/build-cpu/bin/llama-server",
+    "rocm_bin": "/home/peco/tools/llama.cpp/build-rocm/bin/llama-server",
+    "accelerator": "cuda",
+    "gateway_managed_only": true,
+    "cuda_bin": "/home/peco/tools/llama.cpp/build-cuda/bin/llama-server",
+    "redis_port": 6381,
+    "model": "/home/peco/models/Qwen3-0.6B-local-Q8_0.gguf",
+    "secret_file": "/home/peco/.cache/spark-push-cuda/benchmark-secret.json",
+    "brokers": "127.0.0.1:29092",
+    "mysql_port": 3308,
+    "mysql_user": "root",
+    "mysql_db": "spark_push",
+    "redis_db": 11,
+    "requests": 4,
+    "repeats": 1,
+    "only": [
+      "app_cuda_flash_bridge4"
+    ],
+    "label": "app_cuda_flash_bridge4",
+    "concurrency": 4,
+    "bridge_workers": 4,
+    "max_tokens": 128,
+    "temperature": 0,
+    "cache_prompt": false
+  },
+  "prompt_sha256": "3d1ec305f6931a6119c7b01a0c67d8c7629e1706c41586b50a9efee5651ee0c3",
+  "warmup": {
+    "summary": {
+      "duration_s": 1.57575233199168,
+      "successful": 2,
+      "failed": 0,
+      "requests_per_s": 1.269234992958627,
+      "output_tokens_per_s": 162.46207909870427,
+      "accepted_ack_ms": {
+        "mean": 17.53200899111107,
+        "p50": 17.53200899111107,
+        "p95": 17.772621317999437,
+        "p99": 17.794009080389515
+      },
+      "ttft_ms": {
+        "mean": 108.27607149258256,
+        "p50": 108.27607149258256,
+        "p95": 150.14062404516153,
+        "p99": 153.86191760539077
+      },
+      "e2e_ms": {
+        "mean": 787.7068580128253,
+        "p50": 787.7068580128253,
+        "p95": 878.008256299654,
+        "p99": 886.0350472584832
+      },
+      "tpot_ms": {
+        "mean": 5.349848712757817,
+        "p50": 5.349848712757817,
+        "p95": 5.7312411988542715,
+        "p99": 5.765142753173957
+      }
+    },
+    "requests": [
+      {
+        "index": 0,
+        "ok": true,
+        "completion_tokens": 128,
+        "prompt_tokens": 59,
+        "cached_prompt_tokens": 0,
+        "accepted_ack_ms": 17.264661961235106,
+        "ttft_ms": 154.79224099544808,
+        "e2e_ms": 888.0417449981906,
+        "tpot_ms": 5.773618141753878,
+        "worker_id": "app-worker",
+        "final_msg_id": "s_900000000001_900000000291-2",
+        "output_sha256": "fc800234ac9a02f50dee97855c086606b11ffeb5edf4a99d2a0e98e77f4657e6",
+        "output_preview": "Certainly! An **Inference Serving Architecture** is a design pattern used in **machine learning and natural language processing** to handle inference tasks efficiently. It is a cen"
+      },
+      {
+        "index": 1,
+        "ok": true,
+        "completion_tokens": 128,
+        "prompt_tokens": 59,
+        "cached_prompt_tokens": 0,
+        "accepted_ack_ms": 17.799356020987034,
+        "ttft_ms": 61.75990198971704,
+        "e2e_ms": 687.37197102746,
+        "tpot_ms": 4.926079283761755,
+        "worker_id": "app-worker",
+        "final_msg_id": "s_900000000001_900000000292-2",
+        "output_sha256": "d5c63f96d5b5c0f7558185f366ac76148be97af339294b900121bde444be0028",
+        "output_preview": "Certainly! An **Inference Serving Architecture** is a design pattern used in **machine learning and natural language processing** to handle inference tasks efficiently. It is a cen"
+      }
+    ]
+  },
+  "trials": [
+    {
+      "summary": {
+        "duration_s": 1.0381334059638903,
+        "successful": 4,
+        "failed": 0,
+        "requests_per_s": 3.853069342553392,
+        "output_tokens_per_s": 493.19287584683417,
+        "accepted_ack_ms": {
+          "mean": 20.94429699354805,
+          "p50": 20.919202477671206,
+          "p95": 21.05508543900214,
+          "p99": 21.067548281280324
+        },
+        "ttft_ms": {
+          "mean": 94.80501773941796,
+          "p50": 102.56455949274823,
+          "p95": 104.13459969568066,
+          "p99": 104.24294793396257
+        },
+        "e2e_ms": {
+          "mean": 1026.6544345067814,
+          "p50": 1026.9791574974079,
+          "p95": 1036.647234071279,
+          "p99": 1037.5605220359284
+        },
+        "tpot_ms": {
+          "mean": 7.337396982420184,
+          "p50": 7.330452496237232,
+          "p95": 7.427716803760818,
+          "p99": 7.438612097927449
+        }
+      },
+      "requests": [
+        {
+          "index": 0,
+          "ok": true,
+          "completion_tokens": 128,
+          "prompt_tokens": 59,
+          "cached_prompt_tokens": 0,
+          "accepted_ack_ms": 21.07066399184987,
+          "ttft_ms": 103.3671330078505,
+          "e2e_ms": 1023.7802040064707,
+          "tpot_ms": 7.2473470157371676,
+          "worker_id": "app-worker",
+          "final_msg_id": "s_900000000001_900000000293-2",
+          "output_sha256": "c9d4be365cddec28d499b7b0a7d26ffbc90367899961861876b57cdcdfa26f5b",
+          "output_preview": "Certainly! An **Inference Serving Architecture** is a design pattern used in **machine learning and natural language processing** to handle inference tasks efficiently. It is a cen"
+        },
+        {
+          "index": 1,
+          "ok": true,
+          "completion_tokens": 128,
+          "prompt_tokens": 59,
+          "cached_prompt_tokens": 0,
+          "accepted_ack_ms": 20.966806972865015,
+          "ttft_ms": 69.82091697864234,
+          "e2e_ms": 1014.870579005219,
+          "tpot_ms": 7.441335921469108,
+          "worker_id": "app-worker",
+          "final_msg_id": "s_900000000001_900000000294-2",
+          "output_sha256": "490b01f31db9e7fe20e3874c7ae556e4cf75cc455f3e9f33cb9c3198f8f49430",
+          "output_preview": "Certainly! An **Inference Serving Architecture** is a design pattern used in **machine learning and natural language processing** to handle inference tasks efficiently. It is a cen"
+        },
+        {
+          "index": 2,
+          "ok": true,
+          "completion_tokens": 128,
+          "prompt_tokens": 59,
+          "cached_prompt_tokens": 0,
+          "accepted_ack_ms": 20.871597982477397,
+          "ttft_ms": 101.76198597764596,
+          "e2e_ms": 1030.178110988345,
+          "tpot_ms": 7.310363189060622,
+          "worker_id": "app-worker",
+          "final_msg_id": "s_900000000001_900000000295-2",
+          "output_sha256": "e6ad9c2c31bdc7bce39e122130293bee770058b4a179e9864cc99b21fff2fe51",
+          "output_preview": "Certainly! An **Inference Serving Architecture** is a design pattern used in **machine learning and natural language processing** to handle inference tasks efficiently. It is a cen"
+        },
+        {
+          "index": 3,
+          "ok": true,
+          "completion_tokens": 128,
+          "prompt_tokens": 59,
+          "cached_prompt_tokens": 0,
+          "accepted_ack_ms": 20.86811902699992,
+          "ttft_ms": 104.27003499353305,
+          "e2e_ms": 1037.7888440270908,
+          "tpot_ms": 7.350541803413841,
+          "worker_id": "app-worker",
+          "final_msg_id": "s_900000000001_900000000296-2",
+          "output_sha256": "d5c63f96d5b5c0f7558185f366ac76148be97af339294b900121bde444be0028",
+          "output_preview": "Certainly! An **Inference Serving Architecture** is a design pattern used in **machine learning and natural language processing** to handle inference tasks efficiently. It is a cen"
+        }
+      ]
+    }
+  ]
+}

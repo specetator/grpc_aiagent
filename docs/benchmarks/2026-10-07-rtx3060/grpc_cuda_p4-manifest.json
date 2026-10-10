@@ -1,0 +1,68 @@
+{
+  "profile": {
+    "name": "grpc_cuda_p4",
+    "gpu": true,
+    "slots": 4,
+    "conc": [
+      4
+    ],
+    "grpc": true
+  },
+  "model": "/home/peco/models/Qwen3-0.6B-local-Q8_0.gguf",
+  "accelerator": "cuda",
+  "model_sha256": "e93ae7f33194c36ef20c13b9d4492a9888ddf9b1d9b0884f63d789ffcd43c51c",
+  "runtime_commands": [
+    [
+      "/home/peco/tools/llama.cpp/build-cuda/bin/llama-server",
+      "-m",
+      "/home/peco/models/Qwen3-0.6B-local-Q8_0.gguf",
+      "--alias",
+      "qwen3-0.6b",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "54283",
+      "-np",
+      "4",
+      "-c",
+      "8192",
+      "-t",
+      "6",
+      "-tb",
+      "6",
+      "-b",
+      "512",
+      "-ub",
+      "128",
+      "--metrics",
+      "-lv",
+      "4",
+      "--chat-template-kwargs",
+      "{\"enable_thinking\":false}",
+      "-fa",
+      "off",
+      "-cb",
+      "-ngl",
+      "99",
+      "--device",
+      "CUDA0",
+      "--no-cache-prompt",
+      "--cache-ram",
+      "0"
+    ]
+  ],
+  "worker_status": [
+    {
+      "worker_id": "worker-0",
+      "endpoint": "127.0.0.1:54117",
+      "model_id": "qwen3-0.6b",
+      "device_type": "cuda",
+      "total_memory_bytes": "12884377600",
+      "free_memory_bytes": "11793334272",
+      "healthy": true,
+      "timestamp_ms": "1791364768209",
+      "max_concurrent_requests": 4
+    }
+  ],
+  "ok": true
+}

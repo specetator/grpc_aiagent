@@ -1,9 +1,11 @@
-# Inference Serving: gRPC admission and ROCm runtime
+# Inference Serving: gRPC admission and ROCm/CUDA runtimes
 
 ## Scope and ownership
 
 Current root source implementation, verified in WSL Ubuntu 24.04 on 2026-09-30.
 Real CPU/HIP results are in the [RX 9070 XT report](performance-report-2026-09-30-rx9070xt.md).
+CUDA development and RTX 3060 validation (2026-10-07) are in the
+[CUDA report](performance-report-2026-10-07-rtx3060.md).
 Mock and HTTP fixtures are correctness tests, not GPU evidence.
 
 ```text
@@ -35,6 +37,17 @@ running/waiting requests and device memory pressure. Worker ID breaks ties.
 Gateway reserves capacity under its admission lock before opening a worker RPC
 and releases it on every return path. The worker independently enforces
 `--max-concurrent` (default 4), including direct RPCs.
+
+Optional `--gateway-managed-only` assumes **one Gateway exclusively owns all
+generation traffic for its workers**. Admission running counts then use local
+RPC reservations, avoiding up to one heartbeat interval of stale-full capacity
+after completion. Health/TTL/memory/runtime telemetry remain heartbeat-driven;
+Worker capacity guards are unchanged. Default mode still uses the maximum of
+reported running load and local reservations. Do not enable exclusive mode for
+workers shared by multiple Gateways or bypassed by direct generation clients;
+violating that assumption can cause Worker `RESOURCE_EXHAUSTED` rejections.
+Prometheus `inference_gateway_managed_only` records the chosen mode. Both matrix
+scripts support this flag and record it in manifests; see CUDA report A/B data.
 
 Gateway defaults: `--max-queue 64`, `--queue-timeout-ms 30000`. Full queues return
 `RESOURCE_EXHAUSTED`, waiting deadlines return `DEADLINE_EXCEEDED`, missing
@@ -69,7 +82,12 @@ Keep engine/model outside the repository. Build scripts print the engine commit
 and use actual SDK backends. Match engine commit and GGUF across CPU/HIP tests.
 Missing SDK guards fail: ROCm needs `/opt/rocm`, CUDA needs `nvcc`, CANN needs
 `ASCEND_TOOLKIT_HOME`. `AMDGPU_TARGETS` defaults to `gfx1201` for RX 9070 XT.
-Only CPU and ROCm/HIP were measured here; CUDA/CANN require actual devices.
+CPU/ROCm and CPU/CUDA have separate dated reports; CANN remains unmeasured.
+The script checks the pinned commit; `LLAMA_COMMIT` allows an explicit override.
+CUDA uses `CUDA_TOOLKIT_ROOT` and `CUDA_ARCHITECTURES` (default 86 for RTX 3060).
+`setup_cuda_toolkit.sh` installs checksum-verified CUDA 12.9 components without
+sudo or a GPU driver. `prepare_local_model.sh` converts existing HF weights offline.
+Use `KV_CACHE_TYPE=f16|q8_0` when launching runtimes; do not confuse cache precision with model precision.
 
 ```bash
 cmake -S . -B build-wsl
@@ -144,9 +162,16 @@ in `inference_{prompt,completion,cached_prompt}_tokens_total`.
 `inference_chunk_interval_ms` measures transport chunks, **not token TPOT**.
 
 Worker GetStatus probes `/health` and optional `/metrics` for engine queues/KV.
-Actual `hipMemGetInfo` samples whole-device memory through an optional dynamic HIP
-dependency, including other processes. Unknown values remain zero. CPU builds
-do not link ROCm. Metrics are process-local, without persistent storage or worker labels.
+HIP uses optional dynamic `hipMemGetInfo`. CUDA prefers NVML device memory counters,
+matching the CUDA device's PCI identity rather than its visible ordinal. If NVML
+is unavailable, it falls back to CUDA Driver `cuMemGetInfo_v2`, retaining/releasing
+a primary context and restoring each calling thread's context. On the tested WSL
+host the Driver fallback omits other processes' allocations: it is **not** a
+reliable global-free or OOM-capacity guarantee. `WorkerInfo.memory_probe_source`
+(backward-compatible field 17) distinguishes `nvml`, `cuda_driver`, `hip`, and
+`unavailable`. Failed values remain zero (unknown), never stale capacity. NVML
+counters include OS/driver-managed effects and are not live KV usage. Serving
+binaries link neither SDK. Metrics are process-local, without persistent storage or worker labels.
 
 ## Reproduce and test
 
@@ -163,7 +188,11 @@ mkdir -p build-wsl/python-proto
 ```
 
 `run_app_matrix.py` also requires real initialized MySQL/Kafka/Redis. See `--help`
-and report deployment parameters. An external JSON secret file supplies
+and report deployment parameters.
+Use `--accelerator cuda --cuda-bin /path/to/cuda/llama-server` on both matrix scripts.
+The CUDA matrix explicitly selects CUDA0 and verifies all 29 Qwen3 layers offloaded.
+`real_runtime_test.py` is an opt-in real-GPU integration check, not a CTest mock.
+An external JSON secret file supplies
 `mysql_password`; never commit it. Registration/connections/warmups are outside
 serving timing. Scripts require runtime tokens, not characters/events. Raw JSON,
 manifests, metrics and ignored logs are saved. Scripts stop only their own

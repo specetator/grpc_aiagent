@@ -1,0 +1,61 @@
+{
+  "app_cpu_flash_bridge4-runtime.log": {
+    "log_sha256": "eb7a4efb5f8746db17bc1020652fbbdc56a2a3763a48a6fdbe04d4e8e13de87a",
+    "lines": [
+      "0.00.452.450 I load_tensors:   CPU_Mapped model buffer size =   761.80 MiB"
+    ]
+  },
+  "app_cuda_flash_bridge4-runtime.log": {
+    "log_sha256": "0a40915446466f5f37aca42941a771c922604dd08860d54d64bf5731bd503e45",
+    "lines": [
+      "0.00.052.130 I ggml_cuda_init: found 1 CUDA devices (Total VRAM: 12287 MiB):",
+      "0.00.507.136 I llama_prepare_model_devices: using device CUDA0 (NVIDIA GeForce RTX 3060) (0000:01:00.0) - 11247 MiB free",
+      "0.00.652.184 I load_tensors: offloaded 29/29 layers to GPU",
+      "0.00.652.188 I load_tensors:   CPU_Mapped model buffer size =   157.65 MiB",
+      "0.00.652.189 I load_tensors:        CUDA0 model buffer size =   604.15 MiB",
+      "0.00.766.279 I llama_kv_cache:      CUDA0 KV buffer size =   896.00 MiB",
+      "0.00.797.453 I sched_reserve:      CUDA0 compute buffer size =     7.00 MiB"
+    ]
+  },
+  "grpc_cpu_flash_f16-runtime-0.log": {
+    "log_sha256": "5010397b2ef027ad4a21b869577a66312cfe26b8b2b71593c6917ef0de933b90",
+    "lines": [
+      "0.00.457.786 I load_tensors:   CPU_Mapped model buffer size =   761.80 MiB"
+    ]
+  },
+  "grpc_cuda_flash_f16-runtime-0.log": {
+    "log_sha256": "4c79635306ce19bee3abf4c18adf3eedf7470245b76056b72923551cb5204b32",
+    "lines": [
+      "0.00.057.455 I ggml_cuda_init: found 1 CUDA devices (Total VRAM: 12287 MiB):",
+      "0.00.495.243 I llama_prepare_model_devices: using device CUDA0 (NVIDIA GeForce RTX 3060) (0000:01:00.0) - 11247 MiB free",
+      "0.00.646.400 I load_tensors: offloaded 29/29 layers to GPU",
+      "0.00.646.404 I load_tensors:   CPU_Mapped model buffer size =   157.65 MiB",
+      "0.00.646.404 I load_tensors:        CUDA0 model buffer size =   604.15 MiB",
+      "0.00.763.451 I llama_kv_cache:      CUDA0 KV buffer size =   896.00 MiB",
+      "0.00.794.126 I sched_reserve:      CUDA0 compute buffer size =     7.00 MiB"
+    ]
+  },
+  "grpc_cuda_p4-runtime-0.log": {
+    "log_sha256": "453196c815c490ff1ae4bc5df1b2a8585fc290f80b826da2ed46804d55ef19f5",
+    "lines": [
+      "0.00.047.856 I ggml_cuda_init: found 1 CUDA devices (Total VRAM: 12287 MiB):",
+      "0.00.468.157 I llama_prepare_model_devices: using device CUDA0 (NVIDIA GeForce RTX 3060) (0000:01:00.0) - 11247 MiB free",
+      "0.00.613.169 I load_tensors: offloaded 29/29 layers to GPU",
+      "0.00.613.173 I load_tensors:   CPU_Mapped model buffer size =   157.65 MiB",
+      "0.00.613.174 I load_tensors:        CUDA0 model buffer size =   604.15 MiB",
+      "0.00.767.937 I llama_kv_cache:      CUDA0 KV buffer size =   896.00 MiB",
+      "0.00.799.861 I sched_reserve:      CUDA0 compute buffer size =    21.00 MiB"
+    ]
+  },
+  "real-runtime.log": {
+    "log_sha256": "857e5d153a4bcb7cb9c43bd720592e3b08eef86a026308cc0c933a7b92a6dd07",
+    "lines": [
+      "0.00.459.249 I llama_prepare_model_devices: using device CUDA0 (NVIDIA GeForce RTX 3060) (0000:01:00.0) - 11247 MiB free",
+      "0.00.624.123 I load_tensors: offloaded 29/29 layers to GPU",
+      "0.00.624.127 I load_tensors:   CPU_Mapped model buffer size =   157.65 MiB",
+      "0.00.624.127 I load_tensors:        CUDA0 model buffer size =   604.15 MiB",
+      "0.00.738.705 I llama_kv_cache:      CUDA0 KV buffer size =   224.00 MiB",
+      "0.00.752.428 I sched_reserve:      CUDA0 compute buffer size =    28.01 MiB"
+    ]
+  }
+}

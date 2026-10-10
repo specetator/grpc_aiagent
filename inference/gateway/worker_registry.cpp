@@ -41,8 +41,11 @@ WorkerInfo WorkerRegistry::Snapshot(
     const Entry& entry, std::chrono::steady_clock::time_point now) const {
   WorkerInfo info = entry.info;
   if (now - entry.last_heartbeat > timeout_) info.set_healthy(false);
-  info.set_running_requests(std::max<uint32_t>(
-      info.running_requests(), entry.active_gateway_requests));
+  // In an exclusively gateway-managed fleet, local RPC leases are the live
+  // admission truth. Heartbeat load can remain full up to one second after all
+  // those RPCs complete. Default mode still accounts for reported/direct load.
+  info.set_running_requests(gateway_managed_only_ ? entry.active_gateway_requests :
+      std::max<uint32_t>(info.running_requests(), entry.active_gateway_requests));
   return info;
 }
 

@@ -5,49 +5,41 @@
 #include <muduo/net/http/HttpResponse.h>
 #include <muduo/net/http/HttpServer.h>
 
-#include "conversation_store.h"
-#include "audit_log_dao.h"
-#include "danmaku_dao.h"
-#include "group_dao.h"
-#include "kafka_producer.h"
-#include "redis_store.h"
-#include "user_dao.h"
-#include "attachment_dao.h"
+#include "services/admin_service.h"
+#include "services/attachment_service.h"
+#include "services/conversation_service.h"
+#include "services/danmaku_service.h"
+#include "services/knowledge_service.h"
+#include "services/message_service.h"
+#include "services/room_service.h"
+#include "services/user_service.h"
 
 namespace sparkpush {
 
+// Composition root supplies business services, never DAOs or network clients.
+struct LogicHttpServices {
+    UserService& users;
+    ConversationService& conversations;
+    AttachmentService& attachments;
+    MessageService& messages;
+    RoomService& rooms;
+    AdminService& admin;
+    DanmakuService& danmaku;
+    KnowledgeService& knowledge;
+};
+
+// HTTP adapter: request parsing, bearer extraction and response serialization.
 class HttpApiServer {
    public:
-    // 功能：构造 HTTP API 服务，注入业务依赖
-    // 参数：loop 事件循环；listenAddr 监听地址；store 会话存储；user_dao 用户
-    // DAO；
-    //       group_dao 群 DAO；group_member_dao 成员 DAO；redis_store 路由存储；
-    //       group_producer 群聊 Kafka；broadcast_producer 广播 Kafka
-    //       Kafka；danmaku_dao 弹幕 DAO
-    // 返回：无
-    HttpApiServer(muduo::net::EventLoop* loop,
-                  const muduo::net::InetAddress& listenAddr,
-                  ConversationStore* store, UserDao* user_dao,
-                  GroupDao* group_dao, GroupMemberDao* group_member_dao,
-                  RedisStore* redis_store, KafkaProducer* group_producer,
-                  KafkaProducer* broadcast_producer, DanmakuDao* danmaku_dao,
-                  AuditLogDao* audit_log_dao,
-                  std::string cann_knowledge_root = {},
-                  std::string admin_account = {},
-                  std::string admin_password = {},
-                  AttachmentDao* attachment_dao = nullptr);
-
-    // 功能：启动 HTTP 服务监听
-    // 参数：无
-    // 返回：无
+    HttpApiServer(muduo::net::EventLoop* loop, const muduo::net::InetAddress& address,
+                  LogicHttpServices services);
     void start();
 
    private:
     // 功能：统一请求入口，路由到具体处理函数
     // 参数：req 请求；resp 响应
     // 返回：无
-    void onRequest(const muduo::net::HttpRequest& req,
-                   muduo::net::HttpResponse* resp);
+    void onRequest(const muduo::net::HttpRequest& req, muduo::net::HttpResponse* resp);
 
     // 账号体系：登录 / 注册
     // 功能：处理登录
@@ -109,8 +101,7 @@ class HttpApiServer {
     void handleChatroomOnlineCount(const muduo::net::HttpRequest& req,
                                    muduo::net::HttpResponse* resp);
 
-    // 弹幕相关：接受前端 HTTP 请求，写入 DB + 内存模型，并通过 Kafka 推送给
-    // comet 功能：发送弹幕
+    // 弹幕协议适配；持久化和推送由 DanmakuService 编排。
     void handleDanmakuSend(const muduo::net::HttpRequest& req,
                            muduo::net::HttpResponse* resp);
     // 功能：拉取弹幕
@@ -142,25 +133,19 @@ class HttpApiServer {
     void handleAdminListAuditLogs(const muduo::net::HttpRequest& req,
                                   muduo::net::HttpResponse* resp);
 
-    bool requireUser(const muduo::net::HttpRequest& req,
-                     muduo::net::HttpResponse* resp, int64_t* user_id);
+    bool requireUser(const muduo::net::HttpRequest& req, muduo::net::HttpResponse* resp,
+                     int64_t* user_id);
     bool requireAdmin(const muduo::net::HttpRequest& req,
                       muduo::net::HttpResponse* resp);
 
-    ConversationStore* store_;
-    UserDao* user_dao_;
-    GroupDao* group_dao_;
-    GroupMemberDao* group_member_dao_;
-    RedisStore* redis_store_;
-    KafkaProducer* group_producer_;
-    KafkaProducer* broadcast_producer_;
-    DanmakuDao* danmaku_dao_;
-    AuditLogDao* audit_log_dao_;
-    AttachmentDao* attachment_dao_{nullptr};
-    std::string cann_knowledge_root_;
-    std::string admin_account_;
-    std::string admin_password_;
+    UserService* user_service_;
+    ConversationService* conversation_service_;
+    AttachmentService* attachment_service_;
+    MessageService* message_service_;
+    RoomService* room_service_;
+    AdminService* admin_service_;
+    DanmakuService* danmaku_service_;
+    KnowledgeService* knowledge_service_;
     muduo::net::HttpServer server_;
 };
-
 }  // namespace sparkpush

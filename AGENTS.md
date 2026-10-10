@@ -37,6 +37,17 @@
 - Do not edit generated build output or vendored Muduo/nlohmann sources unless
   the user explicitly places them in scope.
 
+## Logic layer boundaries
+
+- Keep HTTP/gRPC handlers as protocol adapters. Put reusable business rules and
+  use-case orchestration in `logic/services/`; do not add direct DAO, Redis or
+  Kafka operations to the adapters.
+- Reuse UserService authentication, ConversationService session access and
+  AttachmentService ownership rules. Resolve actor IDs from trusted credentials,
+  not client body fields. Compose shared instances in `logic/main.cpp`.
+- Preserve existing wire errors and legacy endpoint semantics unless the task
+  explicitly includes a migration. See `docs/logic-business-layer.md` for limits.
+
 ## Common validation
 
 ```bash

@@ -1,11 +1,58 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <mutex>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 namespace sparkpush {
+
+inline constexpr int kUserStatusActive = 1;
+inline constexpr int kUserStatusDisabled = 2;
+inline constexpr int kUserStatusDeleted = 3;
+inline constexpr int64_t kAdminUserId = 900000000000LL;
+inline constexpr int64_t kHermesBotUserId = 900000000001LL;
+inline constexpr const char* kHermesBotAccount = "hermes_bot";
+inline constexpr const char* kHermesBotName = "Pi Agent";
+
+inline const char* UserStatusName(int status) {
+    switch (status) {
+        case kUserStatusActive:
+            return "active";
+        case kUserStatusDisabled:
+            return "disabled";
+        case kUserStatusDeleted:
+            return "deleted";
+        default:
+            return "unknown";
+    }
+}
+
+struct ImGroup {
+    int64_t id{0};
+    std::string name;
+    int64_t owner_id{0};
+    int group_type{0};
+};
+struct DanmakuItem {
+    int64_t id;
+    std::string video_id;
+    int64_t timeline_ms;
+    int64_t sender_id;
+    std::string content_json;
+    int64_t timestamp_ms;
+};
+struct AuditLogRecord {
+    int64_t id{0};
+    int64_t actor_user_id{0};
+    int64_t target_user_id{0};
+    std::string action;
+    std::string reason;
+    std::string metadata_json;
+    std::string created_at;
+};
 
 struct User {
     int64_t id{0};
@@ -44,6 +91,19 @@ struct Message {
     std::string client_msg_id;
 };
 
+// Storage-neutral attachment metadata shared by repositories and services.
+struct StoredAttachment {
+    std::string id;
+    int64_t owner_user_id{0};
+    std::string session_id;
+    std::string display_name;
+    std::string mime;
+    std::size_t bytes{0};
+    std::string sha256;
+    std::string storage_key;
+    std::string status;
+};
+
 struct UserSessionState {
     int64_t read_seq{0};
 };
@@ -57,8 +117,7 @@ class InMemoryModel {
     // 功能：注册或返回已存在用户（内存模型）
     // 参数：account 账号；password 明文/Hash
     // 返回：用户结构
-    User RegisterOrGetUser(const std::string& account,
-                           const std::string& password);
+    User RegisterOrGetUser(const std::string& account, const std::string& password);
     // 功能：根据用户 id 获取用户
     User GetUserById(int64_t user_id);
 
@@ -69,13 +128,12 @@ class InMemoryModel {
     Session GetOrCreateRoomSession(int64_t room_id);
     // 功能：向会话追加一条消息并分配 seq
     Message AppendMessage(const Session& session, int64_t sender_id,
-                          const std::string& msg_type,
-                          const std::string& content_json, int64_t now_ms,
-                          const std::string& client_msg_id);
+                          const std::string& msg_type, const std::string& content_json,
+                          int64_t now_ms, const std::string& client_msg_id);
 
     // 功能：按时间倒序分页获取历史消息
-    std::vector<Message> GetHistory(const std::string& session_id,
-                                    int64_t anchor_seq, int limit);
+    std::vector<Message> GetHistory(const std::string& session_id, int64_t anchor_seq,
+                                    int limit);
 
     // 会话列表（给 Web / App 拉取最近会话列表使用，简单内存实现）
     // 一对一会话列表：当前用户参与的所有单聊会话
@@ -94,8 +152,7 @@ class InMemoryModel {
 
     // 未读与已读
     // 功能：标记已读
-    void MarkRead(int64_t user_id, const std::string& session_id,
-                  int64_t read_seq);
+    void MarkRead(int64_t user_id, const std::string& session_id, int64_t read_seq);
     // 功能：获取未读数
     int64_t GetUnread(int64_t user_id, const std::string& session_id);
 

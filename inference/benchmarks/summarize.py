@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Summarize raw benchmark trials without dropping failures or selecting best runs."""
 import argparse
+import hashlib
 import json
+import re
 import statistics
 from pathlib import Path
 from bench_serving import percentile
@@ -11,6 +13,8 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('directory')
     p.add_argument('--plot', action='store_true')
+    p.add_argument('--accelerator', choices=['rocm', 'cuda'], default='rocm')
+    p.add_argument('--title', default=None)
     args = p.parse_args(); directory = Path(args.directory)
     results = {}
     for path in sorted(directory.glob('*-c*.json')):
@@ -31,6 +35,7 @@ def main():
         for field in ['ttft_ms','e2e_ms','tpot_ms','accepted_ack_ms']:
             values = [r[field] for r in good if field in r]
             if values: row[field] = {'p50':percentile(values,.5),'p95':percentile(values,.95),
+                                    'p99':percentile(values,.99),
                                     'mean':statistics.mean(values)}
         if row.get('tpot_ms',{}).get('p50',0) > 0:
             row['single_request_decode_tokens_per_s'] = 1000/row['tpot_ms']['p50']
@@ -41,12 +46,24 @@ def main():
                'startup_failure_attempts':{p.stem:json.loads(p.read_text())
                                             for p in directory.glob('*-startup-failure.json')}}
     (directory/'summary.json').write_text(json.dumps(payload,indent=2)+'\n')
-    lines = ['| Profile | token/s (median; min–max) | TTFT p50 / p95 ms | E2E p50 ms | Failures |',
-             '|---|---:|---:|---:|---:|']
+    # Logs are ignored by Git. Persist only allowlisted startup evidence, not
+    # prompts, arbitrary provider data or the full log contents.
+    evidence = {}
+    pattern = re.compile(r'ggml_cuda_init:|using device CUDA|offloaded \d+/\d+ layers to GPU|'
+                         r'(?:CUDA\d+|CPU_Mapped) (?:model|KV|compute) buffer size')
+    for path in sorted(directory.glob('*runtime*.log')):
+        raw = path.read_bytes()
+        selected = [line for line in raw.decode(errors='replace').splitlines() if pattern.search(line)]
+        if selected: evidence[path.name] = {'log_sha256':hashlib.sha256(raw).hexdigest(), 'lines':selected}
+    if evidence:
+        (directory/'runtime-evidence.json').write_text(json.dumps(evidence,indent=2)+'\n')
+    lines = ['| Profile | token/s (median; min–max) | Request/s | TTFT p50 / p95 / p99 ms | E2E p50 / p99 ms | Failures |',
+             '|---|---:|---:|---:|---:|---:|']
     for key,r in results.items():
         lines.append(f'| {key} | {r["throughput_median"]:.2f}; {r["throughput_min"]:.2f}–{r["throughput_max"]:.2f} '
-                     f'| {r.get("ttft_ms",{}).get("p50",0):.1f} / {r.get("ttft_ms",{}).get("p95",0):.1f} '
-                     f'| {r.get("e2e_ms",{}).get("p50",0):.1f} | {r["failed"]}/{r["successful"]+r["failed"]} |')
+                     f'| {r["requests_per_s_median"]:.3f} '
+                     f'| {r.get("ttft_ms",{}).get("p50",0):.1f} / {r.get("ttft_ms",{}).get("p95",0):.1f} / {r.get("ttft_ms",{}).get("p99",0):.1f} '
+                     f'| {r.get("e2e_ms",{}).get("p50",0):.1f} / {r.get("e2e_ms",{}).get("p99",0):.1f} | {r["failed"]}/{r["successful"]+r["failed"]} |')
     (directory/'tables.md').write_text('\n'.join(lines)+'\n')
     if args.plot:
         import matplotlib
@@ -56,6 +73,8 @@ def main():
                   ('cpu_flash_f16-c4','CPU, FA on'),('rocm_flash_f16-c4','ROCm, FA on'),
                   ('grpc_cpu_flash_f16-c4','gRPC CPU, FA on'),('grpc_rocm_flash_f16-c4','gRPC ROCm, FA on'),
                   ('app_cpu_flash_bridge4-c4','IM CPU, FA on'),('app_rocm_flash_bridge4-c4','IM ROCm, FA on')]
+        labels = [(key.replace('rocm', args.accelerator),
+                   label.replace('ROCm', args.accelerator.upper())) for key,label in labels]
         labels = [(key,label) for key,label in labels if key in results]
         fig,ax = plt.subplots(figsize=(9,5.4),layout='constrained')
         values = [results[k]['throughput_median'] for k,_ in labels]
@@ -69,7 +88,7 @@ def main():
                         xytext=(6,0),textcoords='offset points',va='center')
         ax.invert_yaxis(); ax.set_xlim(0,max(values)*1.18)
         ax.set_xlabel('Aggregate output tokens / second (median of 3 trials)')
-        ax.set_title('Qwen3-0.6B Q8_0 — Ryzen 9600X vs RX 9070 XT / ROCm 7.2')
+        ax.set_title(args.title or f'Qwen3-0.6B Q8_0 — CPU vs {args.accelerator.upper()}')
         ax.grid(axis='x',alpha=.2); ax.set_axisbelow(True)
         fig.savefig(directory/'throughput.png',dpi=180)
         fig.savefig(directory/'throughput.svg')

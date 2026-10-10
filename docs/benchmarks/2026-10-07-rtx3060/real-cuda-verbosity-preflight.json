@@ -1,0 +1,8 @@
+{
+  "schema": "sparkpush.real_cuda_test.v1",
+  "checks": {
+    "full_gpu_offload": false
+  },
+  "ok": false,
+  "error": "full_gpu_offload"
+}

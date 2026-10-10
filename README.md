@@ -55,6 +55,7 @@ Logic ── ai_request ──► hermes_bridge ──HTTP/SSE──► Pi gatew
 设计文档分成两层：
 
 - 大框架（模块职责、完整链路、输入输出）：[`docs/spark-push-architecture.md`](docs/spark-push-architecture.md)
+- Logic 内部分层（HTTP/gRPC 适配、共享业务 Service、Repository/DAO、兼容与测试）：[`docs/logic-business-layer.md`](docs/logic-business-layer.md)
 - 小模块（Lua 取号、连接表、PushStream 队列、SHA1 握手、TreeMap 合并、图片附件等逐步算法）：[`docs/spark-push-internals.md`](docs/spark-push-internals.md)
 - 阅读索引：[`docs/spark-push-implementation.md`](docs/spark-push-implementation.md)
 
@@ -63,6 +64,8 @@ Logic ── ai_request ──► hermes_bridge ──HTTP/SSE──► Pi gatew
 [`docs/inference-serving.md`](docs/inference-serving.md)；默认后端仍为 Pi。
 Qwen3-0.6B 在 RX 9070 XT 上的真实 CPU/ROCm、批处理、缓存和 Flash Attention 对照见
 [`实测报告`](docs/performance-report-2026-09-30-rx9070xt.md)。
+RTX 3060 12GB 的本地 HF 模型复用、CUDA 显存采样、算子验证与 CPU/CUDA 对照见
+[`CUDA 实测报告`](docs/performance-report-2026-10-07-rtx3060.md)。
 配套的运行、排障和验证操作见 [`scripts/00_prepare_and_run.md`](scripts/00_prepare_and_run.md)。
 原始 Demo 到当前工程化版本的逐阶段对比、简历写法和面试追问见
 [`docs/interview-project-evolution.md`](docs/interview-project-evolution.md)。
@@ -214,7 +217,7 @@ curl http://127.0.0.1:9203/metrics  # Comet
 2. `proto/spark_push.proto`：ACK、游标、持久化事件和 gRPC 服务；
 3. [`docs/spark-push-internals.md`](docs/spark-push-internals.md)：从 Redis Lua、连接表、PushStream 队列追到函数；
 4. `comet/comet_server.cpp`：WebSocket 握手、上行解析、缺口同步和离线补推；
-5. `logic/grpc_service.cpp`、`logic/redis_store.cpp`、`logic/conversation_store.cpp`：序号、幂等、场景路由；
+5. `logic/services/`：鉴权、会话权限、消息编排；`logic/grpc_service.cpp` / `http_server.cpp` 只做协议适配，`logic/redis_store.cpp` / `conversation_store.cpp` 保存底层实现；
 6. `job/service.cpp`、`common/kafka_consumer.cpp`：consumer group、PushStream、offset 和落库；
 7. `load_test/e2e_bench.cpp`：如何区分 accepted、delivered ACK 和真实接收。
 

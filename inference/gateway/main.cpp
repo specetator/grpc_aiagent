@@ -20,6 +20,7 @@ void Stop(int) { running = false; }
 int main(int argc, char** argv) {
   std::string listen = "127.0.0.1:9300";
   int metrics_port = 9301;
+  bool gateway_managed_only = false;
   sparkpush::inference::AdmissionOptions admission;
   for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
@@ -29,9 +30,11 @@ int main(int argc, char** argv) {
     else if (arg == "--queue-timeout-ms" && i + 1 < argc)
       admission.queue_timeout = std::chrono::milliseconds(std::stoi(argv[++i]));
     else if (arg == "--no-session-affinity") admission.session_affinity = false;
-    else { std::cerr << "usage: inference_gateway [--listen host:port] [--metrics-port port] [--max-queue N] [--queue-timeout-ms N] [--no-session-affinity]\n"; return 2; }
+    else if (arg == "--gateway-managed-only") gateway_managed_only = true;
+    else { std::cerr << "usage: inference_gateway [--listen host:port] [--metrics-port port] [--max-queue N] [--queue-timeout-ms N] [--no-session-affinity] [--gateway-managed-only]\n"; return 2; }
   }
-  sparkpush::inference::WorkerRegistry registry;
+  sparkpush::inference::WorkerRegistry registry(std::chrono::seconds(5), gateway_managed_only);
+  sparkpush::MetricsRegistry::Instance().Set("inference_gateway_managed_only", gateway_managed_only ? 1 : 0);
   sparkpush::inference::LeastLoadedScheduler scheduler;
   if (!admission.max_queue || admission.max_queue > 4096 || admission.queue_timeout.count() <= 0)
     return 2;

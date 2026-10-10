@@ -4,19 +4,10 @@
 #include <string>
 #include <vector>
 
+#include "model.h"
 #include "mysql_pool.h"
 
 namespace sparkpush {
-
-struct AuditLogRecord {
-    int64_t id{0};
-    int64_t actor_user_id{0};
-    int64_t target_user_id{0};
-    std::string action;
-    std::string reason;
-    std::string metadata_json;
-    std::string created_at;
-};
 
 // 用户中心审计日志 DAO。日志只追加，不提供业务层 UPDATE/DELETE。
 class AuditLogDao {
@@ -30,8 +21,7 @@ class AuditLogDao {
                 const std::string& metadata_json, std::string* err_msg);
 
     bool List(int offset, int limit, int64_t target_user_id,
-              std::vector<AuditLogRecord>* records, int* total,
-              std::string* err_msg);
+              std::vector<AuditLogRecord>* records, int* total, std::string* err_msg);
 
    private:
     MySqlConnectionPool* pool_;

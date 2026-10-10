@@ -5,14 +5,6 @@
 
 namespace sparkpush {
 
-inline constexpr int kUserStatusActive = 1;
-inline constexpr int kUserStatusDisabled = 2;
-inline constexpr int kUserStatusDeleted = 3;
-inline constexpr int64_t kAdminUserId = 900000000000LL;
-inline constexpr int64_t kHermesBotUserId = 900000000001LL;
-inline constexpr const char* kHermesBotAccount = "hermes_bot";
-inline constexpr const char* kHermesBotName = "Pi Agent";
-
 // 简单用户 DAO：目前只操作单库，后续可在这里加入分库分表路由
 class UserDao {
    public:
@@ -34,8 +26,7 @@ class UserDao {
                     std::string* err_msg);
 
     // 功能：按账号查询用户
-    bool GetUserByAccount(const std::string& account, User* user,
-                          std::string* err_msg);
+    bool GetUserByAccount(const std::string& account, User* user, std::string* err_msg);
 
     // 功能：按 id 查询用户
     bool GetUserById(int64_t user_id, User* user, std::string* err_msg);
@@ -52,8 +43,7 @@ class UserDao {
     bool UpdateStatus(int64_t user_id, int status, std::string* err_msg);
 
     // 管理员修改昵称。
-    bool UpdateName(int64_t user_id, const std::string& name,
-                    std::string* err_msg);
+    bool UpdateName(int64_t user_id, const std::string& name, std::string* err_msg);
 
    private:
     MySqlConnectionPool* pool_;

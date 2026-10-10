@@ -1,0 +1,48 @@
+{
+  "schema": "sparkpush.real_cuda_test.v1",
+  "gateway_managed_only": true,
+  "checks": {
+    "full_gpu_offload": true,
+    "real_memory_sample": true,
+    "nvml_device_wide_probe": true,
+    "nvml_total_matches_nvidia_smi": true,
+    "ordered_request_identified_stream": true,
+    "single_terminal_and_exact_usage": true,
+    "nonempty_output": true,
+    "delta_before_cancel": true,
+    "cancel_rpc": true,
+    "cancelled_status": true,
+    "capacity_released_after_cancel": true,
+    "deadline_status": true,
+    "capacity_released_after_deadline": true,
+    "real_request_queued": true,
+    "bounded_queue_rejects_overflow": true,
+    "queued_cancel_rpc": true,
+    "queued_cancel_status": true,
+    "owner_cancel_status": true,
+    "capacity_released_after_queue_test": true,
+    "stale_worker_removed": true,
+    "worker_reregistration_recovers_service": true
+  },
+  "worker_status": {
+    "worker_id": "cuda-test",
+    "endpoint": "127.0.0.1:55327",
+    "model_id": "qwen3-0.6b",
+    "device_type": "cuda",
+    "total_memory_bytes": "12884901888",
+    "free_memory_bytes": "9214324736",
+    "healthy": true,
+    "timestamp_ms": "1791365888057",
+    "max_concurrent_requests": 1,
+    "memory_probe_source": "nvml"
+  },
+  "nvidia_smi_memory": [
+    {
+      "pci_bus_id": "00000000:01:00.0",
+      "total_mib": "12288",
+      "used_mib": "3328",
+      "free_mib": "8788"
+    }
+  ],
+  "ok": true
+}
