@@ -800,6 +800,7 @@ void CometServer::HandleHandshake(const TcpConnectionPtr& conn, Buffer* buf) {
     ConnContext ctx = std::any_cast<ConnContext>(conn->getContext());
     ctx.state = ConnContext::kOpen;
     ctx.user_id = user_id;
+    ctx.auth_token = token;
     conn->setContext(ctx);
 
     {
@@ -1017,6 +1018,7 @@ void CometServer::OnTextMessage(const TcpConnectionPtr& conn,
     req.set_scene(scene);
     req.set_client_msg_id(meta.client_msg_id);
     req.set_source_comet_id(comet_id_);
+    if (scene == "chatroom") req.set_auth_token(ctx.auth_token);
     if (scene == "single") {
         req.set_to_user_id(meta.to_user_id);
     } else if (scene == "chatroom") {

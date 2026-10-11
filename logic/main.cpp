@@ -16,6 +16,8 @@
 #include "grpc_keepalive.h"
 #include "grpc_service.h"
 #include "http_server.h"
+#include "repositories/room_agent_repository.h"
+#include "services/room_agent_service.h"
 #include "kafka_consumer.h"
 #include "kafka_producer.h"
 #include "logging.h"
@@ -169,6 +171,15 @@ int RunLogic(const Config& cfg) {
     DanmakuDao danmaku_dao(&mysql_pool);
     GroupDao group_dao(&mysql_pool);
     GroupMemberDao group_member_dao(&mysql_pool);
+    MySqlRoomAgentRepository room_agent_repository(&mysql_pool, &group_dao, &group_member_dao);
+    std::string room_schema_error;
+    if (!room_agent_repository.EnsureSchema(&room_schema_error)) {
+        LOG_ERROR << "Failed to ensure room Agent schema: " << room_schema_error;
+        return 1;
+    }
+    RoomAgentService room_agent_service(&room_agent_repository, cfg.hermes_bot_user_id,
+                                       cfg.hermes_enabled && cfg.room_agent_enabled);
+    OperatorTaskService operator_task_service(&room_agent_repository);
     SessionDao session_dao(&mysql_pool);
     MessageDao message_dao(&mysql_pool);
     UserSessionStateDao state_dao(&mysql_pool);
@@ -228,7 +239,7 @@ int RunLogic(const Config& cfg) {
         &group_producer, &broadcast_producer, &persist_producer, &redis_store,
         cfg.rate_limit, cfg.persist_kafka_timeout_ms,
         cfg.hermes_enabled ? &hermes_request_producer : nullptr, cfg.hermes_enabled,
-        cfg.hermes_bot_user_id, cfg.agent_bot_users, &attachment_service);
+        cfg.hermes_bot_user_id, cfg.agent_bot_users, &attachment_service, &room_agent_service);
     RoomService room_service(&conversation_store, &group_dao, &group_member_dao,
                              &redis_store);
     AdminService admin_service(&user_dao, &redis_store, &audit_log_dao);
@@ -286,7 +297,8 @@ int RunLogic(const Config& cfg) {
     HttpApiServer httpServer(
         &loop, httpAddr,
         {user_service, conversation_service, attachment_service, message_service,
-         room_service, admin_service, danmaku_service, knowledge_service});
+         room_service, admin_service, danmaku_service, knowledge_service,
+         &room_agent_service, &operator_task_service});
     httpServer.start();
     LOG_INFO << "Logic HTTP server listening on port " << std::to_string(cfg.http_port);
 

@@ -17,6 +17,8 @@ add_library(spark_push_logic STATIC
   model.cpp
   attachment_dao.cpp
   repositories/dao_repositories.cpp
+  repositories/room_agent_repository.cpp
+  services/room_agent_service.cpp
   services/user_service.cpp
   services/conversation_service.cpp
   services/attachment_service.cpp

@@ -1,0 +1,28 @@
+{
+  "schema": "sparkpush.room_agent_e2e.v1",
+  "ok": true,
+  "model_adapter": "REAL installed Pi, configured default provider/model",
+  "actual_test_runner": "bubblewrap + g++ precision executable",
+  "agent_executions": 2,
+  "room_members_tested": 2,
+  "checks": [
+    "/api/register live success",
+    "/api/register live success",
+    "/api/login live success",
+    "/api/admin/chatroom/create live success",
+    "/api/chatroom/join live success",
+    "/api/chatroom/join live success",
+    "/api/chatroom/agent/configure live success",
+    "live model final delivered to both members",
+    "/api/chatroom/agent/task live success",
+    "real Pi source checkpoint persisted",
+    "live model final delivered to both members",
+    "/api/chatroom/agent/task live success",
+    "real Pi source checkpoint persisted",
+    "real Pi invoked sandbox runner and persisted passing receipt",
+    "second user used unchanged shared source version",
+    "real users retain one room task"
+  ],
+  "checks_passed": 16,
+  "duration_s": 18.84216868004296
+}

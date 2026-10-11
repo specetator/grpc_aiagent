@@ -50,6 +50,11 @@ Service 决定：账号状态、会话可见性、附件归属、分页边界、
 | 管理员用户中心 | `services/admin_service.*`：SetStatus、UpdateName、RevokeTokens、ListUsers、ListAudit | UserDao、RedisStore、AuditLogDao |
 | 旧弹幕 API | `services/danmaku_service.*`：Send、List | DanmakuDao、ConversationStore、RedisStore、KafkaProducer |
 | CANN 原文 | `services/knowledge_service.*`：Document | `knowledge_catalog.cpp` 与 catalog 文件 |
+| 房间共享 Agent / 算子交接 | `services/room_agent_service.*`：RoomAgentService、OperatorTaskService | RoomAgentRepository → MySqlRoomAgentRepository |
+
+2026-10-11 的新增协作服务、API、权限和真实验收见
+[`room-agent-collaboration.md`](room-agent-collaboration.md)。房间上行使用 Comet 注入的 auth_token
+复核真实 Actor；HTTP/gRPC 仍只做 DTO 转换，不能从消息正文取得开发权限。
 
 共用定义：`model.h` 保存 User / Session / Message / StoredAttachment 等模型和账号状态；
 `services/service_status.h` 返回业务 code/message，**不是 HTTP 状态或 grpc::Status**；

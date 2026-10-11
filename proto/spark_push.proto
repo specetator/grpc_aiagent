@@ -63,6 +63,9 @@ message UpstreamMessageRequest {
   int64 timeline_ms = 7;     // 弹幕时间轴
   string content_json = 8;
   string source_comet_id = 9;  // 来源 Comet，用于回传 delivered_ack
+  // Transport-only bearer from the authenticated WS connection. Required for
+  // room messages; never copied into content_json, Kafka, history or logs.
+  string auth_token = 10;
 }
 
 message UpstreamMessageReply {

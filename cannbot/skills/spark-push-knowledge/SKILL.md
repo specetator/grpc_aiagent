@@ -31,7 +31,7 @@ metadata:
 ## 必须保持的语义
 
 - `accepted_ack` 与 `delivered_ack` 是两个阶段，不能相互替代。
-- `ai_delta` 只提供流式体验，不落消息历史、不推进游标；最终 `ai_reply` 才进入普通单聊的
+- `ai_delta` 只提供流式体验，不落消息历史、不推进游标；最终 `ai_reply` 才进入单聊或协作房间的
   持久化、实时投递和离线恢复链路。
 - Spark Push 管理鉴权、会话、`msg_seq`、幂等和历史。Agent runtime 只生成答案。
 - 当前 `hermes_bridge` 调用本机 Pi gateway 的 OpenAI-compatible Chat Completions HTTP/SSE；

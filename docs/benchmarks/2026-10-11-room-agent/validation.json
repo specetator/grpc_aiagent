@@ -1,0 +1,44 @@
+{
+  "schema": "sparkpush.room_agent_validation.v1",
+  "date": "2026-10-11",
+  "scope": "root mainline, not teaching subsets",
+  "base_commit": "d2b44a3d573637a839a67156518127ddc943da5d",
+  "build": {
+    "command": "cmake --build build-wsl -j2",
+    "ok": true
+  },
+  "ctest": {
+    "command": "SPARK_PUSH_RUN_REDIS_TESTS=1 SPARK_PUSH_REDIS_PORT=6381 ctest --test-dir build-wsl --output-on-failure",
+    "passed": 29,
+    "total": 29,
+    "skipped": 0,
+    "duration_s": 44.56
+  },
+  "focused": {
+    "cpp_service_assertions": 36,
+    "python_room_tests": 10,
+    "pi_typescript_tool_guard": "passed including within-turn write/test mutex",
+    "web_ui_dom_contract": "passed; not full-browser validation",
+    "live_cann_knowledge": {
+      "pages": 4,
+      "codepoints": 931,
+      "citation_validation": "passed"
+    }
+  },
+  "limits": [
+    "Single Logic and single Gateway, not distributed workspace leases",
+    "Default feature disabled; existing private Agent configs unchanged",
+    "Real Pi uses installed deepseek/deepseek-flash, not Qwen CUDA benchmarking",
+    "Actual runner executes host C++ Add with bubblewrap; no Ascend NPU/device/remote test",
+    "No transactional AI request outbox or exactly-once guarantee",
+    "Turn unknown after unconfirmed side effects is not automatically retried",
+    "Tool path guard is not full OS sandbox for Pi worker",
+    "No throughput/QPS or team productivity benchmark"
+  ],
+  "review_fixes": [
+    "Waiting-ticket timeout cannot release active turn ownership",
+    "Pi tools explicit allowlist includes CANN custom tools and fixed runner",
+    "Room raw gRPC requires bearer matching actor before acceptance",
+    "Within-turn file writes and test runner mutually exclude; test checks unchanged source revision"
+  ]
+}

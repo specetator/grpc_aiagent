@@ -214,6 +214,7 @@ class HermesBridgeRunner {
             reply["session_id"] = request.value("session_id", "");
             reply["user_id"] = request.value("user_id", 0LL);
             reply["bot_user_id"] = request.value("bot_user_id", 0LL);
+            if (request.contains("collaboration")) reply["collaboration"] = request["collaboration"];
             reply["client_msg_id"] = request.value("client_msg_id", "");
             const auto messages =
                 request.value("messages", nlohmann::json::array());
@@ -224,6 +225,7 @@ class HermesBridgeRunner {
             const std::string command_name = command.value("name", "");
             HermesChatOptions chat_options;
             chat_options.request_id = request_id;
+            chat_options.collaboration = request.value("collaboration", nlohmann::json());
             chat_options.retry = call_model && command_name == "retry";
             chat_options.session_id = request.value("session_id", "");
             chat_options.context_start_seq =
@@ -333,6 +335,7 @@ class HermesBridgeRunner {
                 };
                 delta["agent_event"] =
                     projected_event("assistant_delta", delta_buffer, delta_count);
+                if (request.contains("collaboration")) delta["collaboration"] = request["collaboration"];
                 if (!PublishDelta(request_id, delta)) {
                     delta_publish_failed = true;
                     MetricsRegistry::Instance().Increment(
@@ -372,6 +375,7 @@ class HermesBridgeRunner {
                 progress["agent_event"] = projected_event(
                     "assistant_progress", status,
                     progress["delta_index"].get<int>());
+                if (request.contains("collaboration")) progress["collaboration"] = request["collaboration"];
                 if (!PublishDelta(request_id, progress)) delta_publish_failed = true;
             };
             bool ok = true;

@@ -1,0 +1,170 @@
+{
+  "schema": "sparkpush.tested_source_manifest.v1",
+  "date": "2026-10-11",
+  "files": [
+    {
+      "path": ".env.example",
+      "sha256": "fd811ed9eb3479be599c8d181a6f3402645033ebb174099710179af42767b444"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "sha256": "3819cec3e1cf42b4a86d2815d98c3673ddf8492f9c47949a4e95faabd6a8b405"
+    },
+    {
+      "path": "cannbot/pi/extensions/room-workspace.ts",
+      "sha256": "ddbf19b287d2d18d3adbbd7993035e5f4caa4ca179576a5ec2328509fcd59a99"
+    },
+    {
+      "path": "cannbot/pi/room-system-prompt.md",
+      "sha256": "b4130b2ab1a3a2d20a736da058f99675e14c88af80bc5559c67d80e4c750f689"
+    },
+    {
+      "path": "cannbot/scripts/agent_router.py",
+      "sha256": "2a174427cad77732101bc61980b15d08ef6b71a8c8a9feb2186512819e032fb9"
+    },
+    {
+      "path": "cannbot/scripts/agent_scheduler.py",
+      "sha256": "e9bf48ab4cdf6106863d2234d5b1d648e416a511fe4a75e12d5de4a9b8a36ec9"
+    },
+    {
+      "path": "cannbot/scripts/pi_gateway.py",
+      "sha256": "00bdce39a4b352d18c42c9bcfed7db1f47afaa0ffd76b14b2ccca65a8ec6f5e0"
+    },
+    {
+      "path": "cannbot/scripts/room_agent.py",
+      "sha256": "ba2a41a4342703ffc86ba5fdb8ea0a6384e7e6a34af10b3c6bed7238d4d53ba6"
+    },
+    {
+      "path": "cannbot/scripts/test_room_agent.py",
+      "sha256": "5e7f7a44e59ee7caac3d604938a36467b9bf72b91c5b351859b45f216fbd91e5"
+    },
+    {
+      "path": "comet/comet_server.cpp",
+      "sha256": "570796f1fc6920cc06f51de22150eaced874ed8fe521fd58339d7184564bdfcc"
+    },
+    {
+      "path": "comet/comet_server.h",
+      "sha256": "013ac3ea01f9a31c98111f8cc06a82d1003ec18e77b76f3c8394a2919ea81c85"
+    },
+    {
+      "path": "common/config.cpp",
+      "sha256": "b6b20c0b7965aecb5905cf7ac6aaeaf90bfb136d626bc3e92143845b0bf68907"
+    },
+    {
+      "path": "common/config.h",
+      "sha256": "863e52003352d7bdf6c6164ff6300b03caf9f0325201474b9ce254f8d4b9cb40"
+    },
+    {
+      "path": "conf/logic.conf",
+      "sha256": "fc96c90202904b4145dd4e6da49360fd2f30a5f2174958af6d4197d9f74b1e01"
+    },
+    {
+      "path": "hermes_bridge/hermes_client.cpp",
+      "sha256": "2aa2639416c47a9affbb23b6e81feb2a88986f496d163c295cf64549cd07d296"
+    },
+    {
+      "path": "hermes_bridge/hermes_client.h",
+      "sha256": "31fa258e8b27c00fd56c2f5125d1dc49761e71824d2ddc12812080b710f4f7e5"
+    },
+    {
+      "path": "hermes_bridge/main.cpp",
+      "sha256": "6a3ce9d6c0cac659c98150568a7099fd2f426b3e8278c3978cd55f5a328b3345"
+    },
+    {
+      "path": "logic/CMakeLists.txt",
+      "sha256": "006c0dc8099025adbd8aa91df6f069a1e13768c7cf7b0294df5ba009971ad41f"
+    },
+    {
+      "path": "logic/grpc_service.cpp",
+      "sha256": "93944c735e1ec5d2bcefa8e62fe118f56bda49ed9a4b89031e850fe2bb4a8f3d"
+    },
+    {
+      "path": "logic/hermes_reply.cpp",
+      "sha256": "962d0eb57316024d13ea250c499572fe0f4b24868db97d20e1e924568afd3406"
+    },
+    {
+      "path": "logic/hermes_reply.h",
+      "sha256": "e7222333a38a40518294e455fd0c165aa9d5b663a808961dc65cdb86c11ebc01"
+    },
+    {
+      "path": "logic/http_server.cpp",
+      "sha256": "4b0191bfb06ba245fc2b36b845cf779600f1a1b8f036dbf403b106361c6baff9"
+    },
+    {
+      "path": "logic/http_server.h",
+      "sha256": "68447d37c808ded351c89d032ca845305f9990905c85d4a7f0fa96088d6449e0"
+    },
+    {
+      "path": "logic/main.cpp",
+      "sha256": "3e2ee28869939793c7c006b99bbbd035ac319f6d1a8e40c9425da13a4bd2b4e3"
+    },
+    {
+      "path": "logic/repositories/room_agent_repository.cpp",
+      "sha256": "0933d735bd93ead11ad7cd7112ecff717bf5dd27442236271865ddb10a39df14"
+    },
+    {
+      "path": "logic/repositories/room_agent_repository.h",
+      "sha256": "76b8ebcc6c4483b513121ac03d22da6923e16760633a528b84064bca0db0303f"
+    },
+    {
+      "path": "logic/services/message_service.cpp",
+      "sha256": "909554c6a02328c16cdacdecae2d0b11cf8e4e0d8098b0682121fe618fdd6e91"
+    },
+    {
+      "path": "logic/services/message_service.h",
+      "sha256": "858226727d4ed09b6e9cd65fb4a604cfdf8a5fe802e0b4a234f1d35f037aff54"
+    },
+    {
+      "path": "logic/services/room_agent_service.cpp",
+      "sha256": "1da76f4bc85ad8aadb8c8bf5704508ecb7efd6c976e4d9f07f9cb052b61e61ee"
+    },
+    {
+      "path": "logic/services/room_agent_service.h",
+      "sha256": "3f72b42500751e4513b7b2e6394e609ec572f0e70f870b66f957baf19dde9344"
+    },
+    {
+      "path": "proto/spark_push.proto",
+      "sha256": "fb2cf48df91db283228594fbc19d12db5337b579e0e5bd29d99f0f20b33b68dd"
+    },
+    {
+      "path": "sql/migrations/20261011_room_agent.sql",
+      "sha256": "28d29f284e8168b6843ec36ee5522bb6d66955abf76d28003612a1d220c7ba58"
+    },
+    {
+      "path": "sql/schema.sql",
+      "sha256": "202185250120b684ce3e138bba7a496701b9bb3f1ad78ced15c1086ce46a965b"
+    },
+    {
+      "path": "tests/CMakeLists.txt",
+      "sha256": "bac6205d2a30a8e06b02bc9f78e3090c0e4174589d2f6567d8f81f993960b45f"
+    },
+    {
+      "path": "tests/room_agent_channel_test.cjs",
+      "sha256": "74b75a7efa7b7c1e11d8d9cfccb9821ace5d73a7162a51abc8b4b2fd9c5a1b88"
+    },
+    {
+      "path": "tests/room_agent_e2e.py",
+      "sha256": "46da54db0f2a9d08c58c748cb050e2c90774e634c9437e74d6c599fc2575af6a"
+    },
+    {
+      "path": "tests/room_agent_live_pi.py",
+      "sha256": "e719095407223946e77333192f18e4aed51a474cffa5d0cfd6c760b8988cfc93"
+    },
+    {
+      "path": "tests/room_agent_service_test.cpp",
+      "sha256": "0ef8e5bdf9fdb4eea94fb01ce1d004bf3f7c255f68d5626434e26f77c8828fa2"
+    },
+    {
+      "path": "tests/room_workspace_test.cjs",
+      "sha256": "263b560112ed57de4a0b0827edd8eb273d8bd63b8ff88484c4f38523c5183a3c"
+    },
+    {
+      "path": "web_demo/static/chatroom.html",
+      "sha256": "8e2157c9fb115086a3646b86ac440fefe795cde2efcbb8207f25496f013416e7"
+    },
+    {
+      "path": "web_demo/static/room_agent_channel.js",
+      "sha256": "3070ea070601d8341cc9e5c29b265dc5a9e55d280f1ebef9feb08a8ebd74a861"
+    }
+  ]
+}

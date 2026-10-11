@@ -22,6 +22,10 @@
   cursor. Only final `ai_reply` enters normal message persistence and delivery.
 - Spark Push owns authentication, membership, sequencing, idempotency, history,
   and delivery. Pi Agent owns reasoning, tools, Skills, and model access.
+- Room Agent scopes come only from Logic after bearer and membership checks;
+  never derive tool permission from prompts or treat WS presence as membership.
+  Keep private Agent owner ACLs unchanged. Test receipts must identify the
+  source revision; human handoff notes are not proof of passing tests.
 
 ## Pi Agent workflow
 

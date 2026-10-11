@@ -97,6 +97,7 @@ struct Config {
     // Hermes Bot 集成。API Key 和 Hermes 地址由 Bridge 进程单独读取，
     // Logic 只负责把 AI 请求写入 Kafka 并消费 AI 回复。
     bool hermes_enabled{false};
+    bool room_agent_enabled{false};
     int64_t hermes_bot_user_id{900000000001LL};
     // Additional independent Agent contacts; the primary Pi contact keeps its ID.
     std::map<int64_t, std::string> agent_bot_users{{900000000101LL, "Hermes · technical"}};

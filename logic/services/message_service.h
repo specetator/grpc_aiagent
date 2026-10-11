@@ -21,6 +21,7 @@ class UserService;
 class KafkaProducer;
 class RedisStore;
 class AttachmentService;
+class RoomAgentService;
 struct UpstreamCommand {
     std::string scene;
     int64_t from_user_id{0};
@@ -29,6 +30,7 @@ struct UpstreamCommand {
     std::string content_json;
     std::string client_msg_id;
     std::string source_comet_id;
+    std::string auth_token;
 };
 struct UpstreamResult {
     ServiceStatus status;
@@ -55,7 +57,7 @@ class MessageService {
                    const RateLimitConfig& rate_limit, int persist_timeout_ms,
                    KafkaProducer* agent_requests, bool agent_enabled,
                    int64_t agent_user_id, std::map<int64_t, std::string> agent_users,
-                   AttachmentService* attachments);
+                   AttachmentService* attachments, RoomAgentService* room_agents = nullptr);
     UpstreamResult Submit(const UpstreamCommand& command);
     // Compatibility path: old HTTP API synchronously persists a text message,
     // with no accepted/delivered ACK or realtime fanout. Do not route it through
@@ -85,6 +87,8 @@ class MessageService {
     bool GetActiveUser(int64_t user, User* result, std::string* error);
     bool AuthorizeMessageImages(int64_t user, const std::string& session,
                                 const std::string& content, std::string* error);
+    bool AgentRoutes(int64_t room, int64_t user,
+                     std::map<std::string, std::vector<int64_t>>* routes);
 
     ConversationStore* store_;
     GroupMemberDao* group_member_dao_;
@@ -96,6 +100,7 @@ class MessageService {
     KafkaProducer* hermes_request_producer_;
     RedisStore* redis_store_;
     AttachmentService* attachment_service_;
+    RoomAgentService* room_agent_service_;
     SceneRateLimiter rate_limiter_;
     int persist_kafka_timeout_ms_;
     bool hermes_enabled_;

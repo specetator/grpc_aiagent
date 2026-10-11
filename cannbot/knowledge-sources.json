@@ -3,6 +3,36 @@
   "description": "Curated truth sources packaged for the Spark Push Pi knowledge skill.",
   "sources": [
     {
+      "id": "room-agent-collaboration",
+      "path": "docs/room-agent-collaboration.md",
+      "authority": "canonical",
+      "topics": ["agent", "room", "cann", "collaboration", "handoff", "workspace", "authorization"]
+    },
+    {
+      "id": "room-agent-business-service",
+      "path": "logic/services/room_agent_service.cpp",
+      "authority": "code",
+      "topics": ["room", "agent", "services", "authorization", "checkpoint", "idempotency"]
+    },
+    {
+      "id": "room-agent-repository",
+      "path": "logic/repositories/room_agent_repository.cpp",
+      "authority": "code",
+      "topics": ["room", "mysql", "checkpoint", "transaction", "revision"]
+    },
+    {
+      "id": "room-agent-workspace",
+      "path": "cannbot/scripts/room_agent.py",
+      "authority": "code",
+      "topics": ["room", "pi", "workspace", "sandbox", "tests", "checkpoint"]
+    },
+    {
+      "id": "room-agent-tool-guard",
+      "path": "cannbot/pi/extensions/room-workspace.ts",
+      "authority": "code",
+      "topics": ["room", "pi", "authorization", "tools", "concurrency"]
+    },
+    {
       "id": "project-guide-and-resume",
       "path": "docs/project-guide-and-resume.md",
       "authority": "canonical",

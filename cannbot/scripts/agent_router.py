@@ -415,6 +415,10 @@ class AgentRouter:
         if self.bot_agents and len(self.bot_agents)!=len(self.entries):
             raise ValueError("all Agents must have independent contact IDs")
         self.locks = SessionLocks()
+        import contextvars
+        self.room_scope = contextvars.ContextVar("room_scope", default=None)
+        self.room_adapter = None
+        self.room_binding_lock = threading.Lock()
         self.scheduler = SessionScheduler.from_env()
         try:
             reclaimed = self.store.reclaim_running_turns(0)
@@ -423,6 +427,11 @@ class AgentRouter:
             pass
 
     def _identity(self, session):
+        if isinstance(session, str) and session.startswith("r_"):
+            scope = self.room_scope.get()
+            if not scope or session != f"r_{scope['room_id']}":
+                raise ValueError("authenticated room scope required")
+            return scope["owner_user_id"], scope["bot_user_id"]
         # Spark currently has one local tenant and direct bot conversations.
         # Never infer identity from the user-controlled message body.
         match = re.fullmatch(r"s_([1-9][0-9]*)_([1-9][0-9]*)", session) if isinstance(session,str) else None
@@ -437,6 +446,9 @@ class AgentRouter:
 
     def _visible(self, session):
         uid,_ = self._identity(session)
+        if session.startswith("r_"):
+            return {key:entry for key,entry in self.entries.items()
+                    if not entry["owner_user_ids"] and self.bot_agents.get(self.room_scope.get()["bot_user_id"]) == key}
         return {key:entry for key,entry in self.entries.items()
                 if not entry["owner_user_ids"] or uid in entry["owner_user_ids"]}
 
@@ -486,18 +498,54 @@ class AgentRouter:
         route = canonical_route(self.tenant_id, self.channel_id, session, user_id, key)
         revision = saved.get("revision", 0) if isinstance(saved, dict) else 0
         mode = "contact" if self.bot_agents else "sticky"
-        persisted = self.store.bind_route(route, mode, session, revision)
+        backend = session
+        if session.startswith("r_"):
+            backend = "room_" + str(self.room_scope.get()["room_id"]) + "_" + self.room_scope.get()["task_id"]
+        persisted = self.store.bind_route(route, mode, backend, revision)
         return {**route, "mode": mode,
                 "selection_source": "contact" if self.bot_agents else saved.get("source", "persisted"),
                 "revision": persisted.get("revision", revision),
                 "backend_session_ref": persisted.get("backend_session_ref", session)}
 
     def describe_route(self, session, message=None, timeout_s=30):
+        if isinstance(session, str) and session.startswith("r_"):
+            # Immutable room binding needs no execution lock. Waiting here
+            # would prevent the subsequent scheduler from reporting progress.
+            return self._describe_route(session, message)
         # Gateway calls this before sending SSE headers. Serializing the
         # first-message decision here prevents two concurrent hub requests
         # from selecting different Agents before the chat lock is acquired.
         with self.locks.hold(session, timeout_s):
             return self._describe_route(session, message)
+
+    def authorize_room(self, session, scope):
+        """Called ONLY after Gateway bearer authentication, with Logic's scope.
+
+        Never infer room identity or tool permission from prompt text. Private
+        owner ACLs remain intact; shared rooms may bind only a public Pi Agent.
+        """
+        if not isinstance(scope, dict) or self.room_adapter is None:
+            raise ValueError("room Agent workspace is not configured")
+        for name in ("room_id", "owner_user_id", "actor_user_id", "bot_user_id"):
+            if type(scope.get(name)) is not int or not 0 < scope[name] < 2**53:
+                raise ValueError("invalid room identity")
+        if (session != f"r_{scope['room_id']}" or
+                not isinstance(scope.get("task_id"), str) or
+                not re.fullmatch(r"[a-f0-9]{32}", scope["task_id"]) or
+                type(scope.get("can_develop")) is not bool):
+            raise ValueError("invalid room scope")
+        key = self.bot_agents.get(scope["bot_user_id"])
+        if key not in self.entries or self.entries[key]["owner_user_ids"]:
+            raise ValueError("private Agent cannot be shared in a room")
+        if self.entries[key].get("runtime", "pi_rpc") != "pi_rpc":
+            raise ValueError("shared room requires a Pi runtime")
+        binding = {k:scope[k] for k in ("room_id", "owner_user_id", "bot_user_id", "task_id")}
+        with self.room_binding_lock:
+            previous = self.store.get("room_binding", session)
+            if previous and previous != binding:
+                raise ValueError("room task binding is immutable")
+            self.store.put("room_binding", session, binding)
+        self.room_scope.set(dict(scope))
 
     def record_event(self, event):
         return self.store.append_event(event)
@@ -580,6 +628,7 @@ class AgentRouter:
     def chat(self,message,on_delta,timeout_s,provider=None,model=None,session_id="",
              context_start_seq=0,retry=False,on_progress=None,request_id="",images=None):
         self._visible(session_id)
+        room_scope = self.room_scope.get() if session_id.startswith("r_") else None
         started=time.monotonic()
         try:
             agent_hint,_ = self._selected(session_id)
@@ -593,6 +642,7 @@ class AgentRouter:
                     "route_key": route["route_key"], "agent_id": agent_hint,
                     "message": message, "retry": retry,
                     "context_start_seq": context_start_seq,
+                    **({"room_scope": room_scope} if room_scope else {}),
                     "images": len(images or [])}, ensure_ascii=False,
                     sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
                 if existing.get("input_hash") != input_hash:
@@ -614,6 +664,7 @@ class AgentRouter:
                     "route_key": route["route_key"], "agent_id": key,
                     "message": message, "retry": retry,
                     "context_start_seq": context_start_seq,
+                    **({"room_scope": room_scope} if room_scope else {}),
                     "images": len(images or [])}, ensure_ascii=False,
                     sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
                 turn = (self.store.begin_turn(request_id, route["route_key"], input_hash)
@@ -633,7 +684,8 @@ class AgentRouter:
                 try:
                     if on_progress:
                         on_progress(self.entries[key]["name"] + " · 正在生成")
-                    text, metadata = self.adapters[key].chat(
+                    adapter = self.room_adapter.for_scope(room_scope) if room_scope else self.adapters[key]
+                    text, metadata = adapter.chat(
                         message, on_delta, max(0, timeout_s-(time.monotonic()-started)),
                         None, None, route["backend_session_ref"], 0, retry=retry,
                         on_progress=on_progress, request_id=request_id,
@@ -645,6 +697,8 @@ class AgentRouter:
                         "context_revision":context["context_revision"],
                         "context_message_count":len(context["recent_messages"]),
                         "queue_wait_ms": int((time.monotonic()-started)*1000)}
+                    if room_scope:
+                        metadata["actor_user_id"] = room_scope["actor_user_id"]
                     if request_id:
                         self.store.complete_turn(request_id, data["text"], metadata)
                     return data["text"], metadata
@@ -698,6 +752,10 @@ def load_router(path: Path, pi, state_root: Path):
             adapters[entry["id"]]=HermesHttpAdapter(entry,store)
         else:
             raise ValueError("unsupported Agent runtime")
-    return AgentRouter(config["agents"], adapters, store,
+    router = AgentRouter(config["agents"], adapters, store,
         config.get("default_agent", "pi"), config.get("bot_user_id", 900000000001),
         config.get("tenant_id", "local"), config.get("channel_id", "spark_pc"))
+    if os.environ.get("SPARK_PUSH_ROOM_WORKSPACE_ROOT"):
+        from room_agent import RoomPiFactory
+        router.room_adapter = RoomPiFactory(pi, Path(os.environ["SPARK_PUSH_ROOM_WORKSPACE_ROOT"]))
+    return router

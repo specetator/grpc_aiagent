@@ -37,6 +37,7 @@ using muduo::net::TcpServer;
 struct ConnContext {
     enum State { kHandshake, kOpen } state{kHandshake};
     int64_t user_id{0};
+    std::string auth_token;
 };
 
 class CometServer {

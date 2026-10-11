@@ -1034,6 +1034,9 @@ def make_handler(state: GatewayState):
                 self._json(400, {"error": {"message": f"invalid json: {exc}"}})
                 return
             if path == "/v1/agent/control":
+                if str(request.get("session_id", "")).startswith("r_"):
+                    self._json(403, {"error": {"message": "shared room controls are disabled"}})
+                    return
                 try:
                     self._json(200, state.rpc.control(request, timeout_s=120 if request.get("operation")=="restart_agent" else 30))
                 except ValueError as exc:
@@ -1058,6 +1061,14 @@ def make_handler(state: GatewayState):
                     self._json(502, {"error": {"message": "Agent event replay failed"}})
                 return
             retry = request.get("turn_operation") == "retry"
+            if str(request.get("session_id", "")).startswith("r_") or "collaboration" in request:
+                try:
+                    if retry or not str(request.get("session_id", "")).startswith("r_"):
+                        raise ValueError("invalid shared room operation")
+                    state.rpc.authorize_room(request.get("session_id"), request.get("collaboration"))
+                except (ValueError, AttributeError):
+                    self._json(403, {"error": {"message": "invalid or disabled room Agent scope"}})
+                    return
             messages = request.get("messages") or []
             if not isinstance(messages, list) or (not messages and not retry):
                 self._json(400, {"error": {"message": "messages are empty"}})

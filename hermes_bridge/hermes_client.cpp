@@ -431,6 +431,7 @@ bool HermesClient::Chat(const nlohmann::json& messages,
     };
     if (options.retry) request_body["turn_operation"] = "retry";
     if (!options.request_id.empty()) request_body["request_id"] = options.request_id;
+    if (options.collaboration.is_object()) request_body["collaboration"] = options.collaboration;
     if (!options.provider.empty()) {
         request_body["provider"] = options.provider;
     }
@@ -548,6 +549,7 @@ bool HermesClient::ChatStream(
     };
     if (options.retry) request_body["turn_operation"] = "retry";
     if (!options.request_id.empty()) request_body["request_id"] = options.request_id;
+    if (options.collaboration.is_object()) request_body["collaboration"] = options.collaboration;
     if (!options.provider.empty()) {
         request_body["provider"] = options.provider;
     }

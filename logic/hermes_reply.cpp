@@ -19,7 +19,8 @@ int64_t PositiveId(const nlohmann::json& value) {
 
 bool PrepareHermesReply(const std::string& payload, int64_t bot_user_id,
                        const std::string& bot_name, PreparedHermesReply* out,
-                       std::string* error) {
+                       std::string* error,
+                       const nlohmann::json* authorized_room_request) {
     if (!out || !error) return false;
     *out = {};
     *error = "invalid ai_reply envelope";
@@ -33,7 +34,13 @@ bool PrepareHermesReply(const std::string& payload, int64_t bot_user_id,
             user_id == bot_user_id || completed_at_ms == 0 ||
             PositiveId(reply.at("bot_user_id")) != bot_user_id ||
             !reply.at("ok").is_boolean()) return false;
-        const std::string session_id = "s_" + std::to_string(std::min(user_id, bot_user_id)) +
+        const bool room = authorized_room_request != nullptr;
+        if (room) {
+            for (const auto* key : {"request_id", "session_id", "user_id", "bot_user_id", "collaboration"})
+                if (!reply.contains(key) || reply[key] != authorized_room_request->at(key)) return false;
+        }
+        const std::string session_id = room ? authorized_room_request->at("session_id").get<std::string>() :
+            "s_" + std::to_string(std::min(user_id, bot_user_id)) +
             "_" + std::to_string(std::max(user_id, bot_user_id));
         if (reply.at("session_id").get<std::string>() != session_id) return false;
         const bool ok = reply.value("ok", false);
@@ -130,7 +137,7 @@ bool PrepareHermesReply(const std::string& payload, int64_t bot_user_id,
         }
 
         nlohmann::json content = {
-            {"type", "single_chat"},
+            {"type", room ? "chatroom" : "single_chat"},
             {"session_id", session_id},
             {"from_user_id", bot_user_id},
             {"to_user_id", user_id},
@@ -139,6 +146,14 @@ bool PrepareHermesReply(const std::string& payload, int64_t bot_user_id,
                          {"name", bot_name}}},
             {"content", std::move(message_content)},
         };
+
+        if (room) {
+            content["group_id"] = reply.at("collaboration").at("room_id");
+            content["actor_user_id"] = user_id;
+            content["task_id"] = reply.at("collaboration").at("task_id");
+            content["request_id"] = request_id;
+            content.erase("to_user_id");
+        }
 
         out->request_id = request_id;
         out->user_id = user_id;

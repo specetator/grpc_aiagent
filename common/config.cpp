@@ -285,6 +285,8 @@ Config LoadConfig(const std::string& path) {
             cfg.admin_account = value;
         } else if (key == "admin_password") {
             cfg.admin_password = value;
+        } else if (key == "room_agent_enabled") {
+            cfg.room_agent_enabled = (value == "true" || value == "1");
         } else if (key == "hermes_enabled") {
             cfg.hermes_enabled = (value == "true" || value == "1");
         } else if (key == "hermes_bot_user_id") {

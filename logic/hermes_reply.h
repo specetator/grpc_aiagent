@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <nlohmann/json.hpp>
 #include "model.h"
 
 namespace sparkpush {
@@ -16,7 +17,8 @@ struct PreparedHermesReply {
 // No wall clock reads: replaying a Kafka record must produce identical bytes.
 bool PrepareHermesReply(const std::string& payload, int64_t bot_user_id,
                        const std::string& bot_name, PreparedHermesReply* reply,
-                       std::string* error);
+                       std::string* error,
+                       const nlohmann::json* authorized_room_request = nullptr);
 
 // allocate fills msg_id/msg_seq, even for an existing client_msg_id. persist
 // confirms Kafka delivery, not the later database write or WebSocket delivery.

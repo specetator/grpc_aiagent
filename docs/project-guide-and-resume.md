@@ -2,7 +2,7 @@
 
 > 被解释项目：`/home/peco/cppcode/fenbushi/11.2-spark_push`\
 > 版本口径：只以根目录当前源码为准；`02_auth_subset`～`06`、`5.1_room_subset` 等目录是学习快照。\
-> 更新日期：2026-10-10（新增第 17 章：GitHub 发布范围、版本复现与发布前复核）\
+> 更新日期：2026-10-11（新增第 18 章：多人共享 CANN Agent、协作交接与测试证据）\
 > GitHub 仓库：[specetator/grpc_aiagent](https://github.com/specetator/grpc_aiagent)；在线手册：[项目详解与简历手册](https://github.com/specetator/grpc_aiagent/blob/main/docs/project-guide-and-resume.md)。
 > 配套分层文档：`11.2-spark_push/docs/spark-push-architecture.md`（大框架）、`docs/spark-push-internals.md`（小模块逐步算法）。本文已把两层内容收进同一份手册。
 
@@ -27,6 +27,7 @@
 8. 第 15 章：本地 Qwen3-0.6B 的 CUDA 推理、显存观测、批处理、Flash Attention、KV Cache 和测试证据。
 9. 第 16 章：Logic 内部三层结构、业务规则的共享入口、维护方法和重构测试。
 10. 第 17 章：GitHub 同步内容、代码版本和最新验证口径。
+11. 第 18 章：多人共享 CANN Agent、任务/源码交接、开发权限和真实聊天室测试。
 
 如果只剩十分钟：先看 1.2、2.1、3.3、4.2、5.3、5.4、5.5、8.3、10.2 和 13.1。
 
@@ -52,6 +53,7 @@
 | RTX 3060 如何接入本地模型、如何衡量 AI 推理性能         | 15 章                          |
 | HTTP/gRPC 的业务逻辑去哪里了、怎样复用规则 | 16 章、`logic/services/` |
 | GitHub 发布版本、今天复测了哪些内容 | 17 章 |
+| 多人协作开发算子、共享 Agent 与进度交接 | 18 章 |
 
 ---
 
@@ -1232,7 +1234,7 @@ Redis 与 MySQL 操作语义不同，不能当作同类数据库横评。这组�
 #### 8.3.2 代码改动
 
 1. **Redis 热连接按空闲时间检测**
-\
+
    - `RedisConnectionPool` 在空闲队列中已保存 `last_used`，现在只有连接空闲超过 `redis_health_check_interval_ms` 才 `PING`；根目录默认为 30000 ms。
    - 新建连接已经完成 connect/AUTH/SELECT，不再立即多做一次 `PING`。
    - 如果业务命令已将 `redisContext::err` 置为错误，`Release()` 直接销毁连接，不让断链连接回池后反复失败。
@@ -1240,13 +1242,13 @@ Redis 与 MySQL 操作语义不同，不能当作同类数据库横评。这组�
    - 配置落点：`common/config.h/.cpp`、`logic/main.cpp`、`conf/logic.conf`；基准工具 `load_test/storage_bench.cpp` 也传递同一参数。
 
 2. **会话序号 floor 初始化锁分片**
-\
+
    - 将原来的一把 `seq_seed_mu_` 改为 64 个 shard，按 `hash(session_id) % 64` 定位。
    - 同一会话仍串行执行 MySQL max floor 校准，不会并发重复初始化；不同会话通常可并行。
    - 这一项主要改善多会话冷启/重启后的首消息，不改变同会话序号语义。
 
 3. **Comet→Logic 上行流从 4 条增加到 8 条**
-\
+
    - `conf/comet.conf` 的 `grpc_stream_count` 从 4 调到 8，与 Comet 8 个 I/O 线程对齐。
    - 单条 stream 内的处理和 `request_id` 响应匹配没有改，只增加等待 Kafka persist delivery report 时的并行度。
    - 没有直接把 persist producer 改成“发送后立即 accepted”，因为那会把 ACK 边界从“broker 已确认”退化为“进程内已排队”。
@@ -2410,3 +2412,177 @@ SPARK_PUSH_RUN_REDIS_TESTS=1 SPARK_PUSH_REDIS_PORT=6381 \
 
 之后维护时，本机手册与仓库在线版同时更新，并检查相对链接。技术/架构改变才更新 canonical
 说明；每次性能实验另建带日期的 snapshot，保留原有参数和失败记录，不覆盖旧成绩。
+
+---
+
+## 18. 多人聊天室共享 CANN Agent：协作开发与进度交接
+
+### 18.1 这次解决什么问题
+
+2026-10-11 新增：一个聊天室绑定一个算子任务、一个原生 Pi 会话和一个独立源码工作区。
+多人在同一房间用 `@CANN 问题` 与公共 CANN Agent 交流；换一个人继续提问，不再重新创建私人上下文。
+普通讨论仍按原聊天室发送，不会每条消息都调用模型。
+
+“无缝接手”落实为四类可以找回的事实：
+
+| 交接内容 | 保存在哪里 | 新成员如何使用 |
+|---|---|---|
+| 聊天与最终 Agent 答复 | MySQL 消息历史，沿用房间 msg_seq | 重连补历史；临时 delta 不当作历史 |
+| 目标、当前结论、下一步 | room_agent_task 与 room_agent_checkpoint | 打开任务面板查看；人工摘要修改带 revision |
+| 当前源码与版本副本 | 独立 workspace 与内容寻址 checkpoints | Agent 读取同一个工作区；按 code_revision 定位源码 |
+| 谁执行了什么、测试是否真通过 | room_agent_request、Gateway turn 账本与测试 receipts | 查看 actor、request_id、源码 hash、runner hash 和退出码 |
+
+这不是把所有成员伪装成房主，也不是把群聊全文无上限地塞进提示词。
+每轮都保留真实发起者；任务身份稳定，执行权限分别校验。人工 summary/next_steps 需主动保存，
+不会因 Agent 声称“已经完成”就自动改成已验收状态。
+
+详细规范见 [多人共享 Agent 文档](room-agent-collaboration.md)；
+这章是便于不看代码复习的导览。根目录主线已经实现，教学 subset 不随之改写。
+
+### 18.2 三层架构与核心技术栈
+
+```text
+Web 房间面板 / WebSocket
+  → Comet（凭证与连接）→ Logic HTTP/gRPC adapter
+  → MessageService + RoomAgentService / OperatorTaskService
+  → Repository / MySQL（任务、版本、固定输入、结果）
+  → Kafka ai_request → Bridge HTTP/SSE → Gateway / AgentRouter
+  → 单会话 FIFO → Pi + CANN RAG → 任务工作区 / 固定测试执行器
+  → ai_delta 临时广播；ai_reply 持久化后走 Job / Comet 房间投递
+```
+
+| 技术 / 规则 | 为什么用在这里 | 核心落点 |
+|---|---|---|
+| C++ 业务 Service | HTTP/gRPC 复用身份、成员、授权和任务规则；不让协议函数各写一份 SQL | [room_agent_service.cpp](../logic/services/room_agent_service.cpp) |
+| Repository + MySQL 事务 | 任务和交接版本是可恢复事实；最新版本与历史记录必须一起提交 | [room_agent_repository.cpp](../logic/repositories/room_agent_repository.cpp) |
+| revision / CAS | 两个人同时保存摘要时，拒绝旧版本覆盖，而非最后写入者悄悄获胜 | OperatorTaskService::Checkpoint / UPDATE WHERE revision |
+| Redis | 仍提供在线路由、消息序号和原有幂等热状态；不替代持久任务账本 | MessageService 与原 RedisStore |
+| Kafka | 延续已有异步 Agent 请求及最终消息投递链路；accepted 不等于推理已完成 | [message_service.cpp](../logic/services/message_service.cpp)、Bridge |
+| HTTP/SSE | Bridge 与 Gateway 的推理请求和流式增量；房间 delta 不分配消息序号 | [hermes_client.cpp](../hermes_bridge/hermes_client.cpp) |
+| SQLite turn ledger | Gateway 保存原生会话路由、请求幂等与已完成输出；与 MySQL 职责不同 | [agent_router.py](../cannbot/scripts/agent_router.py) |
+| FIFO + 执行互斥 | 同一任务工作区不能被两个用户的 turn 同时改写；不同发言仍有顺序 | [agent_scheduler.py](../cannbot/scripts/agent_scheduler.py) |
+| Pi 工具白名单 + CANN RAG | 共享知识检索，但读成员不能写源码；不开放通用 shell | [room-workspace.ts](../cannbot/pi/extensions/room-workspace.ts) |
+| SHA-256 / 内容寻址 | 用真实文件内容标识版本，不用模型摘要冒充源码检查点 | [room_agent.py](../cannbot/scripts/room_agent.py) |
+| bubblewrap + prlimit | 固定测试子进程不接收任意命令，隔离网络/挂载并限制资源 | room_agent.py 的 run_tests |
+
+### 18.3 一轮多人协作具体怎么走
+
+1. 房主创建/绑定任务，明确 title/spec，并授权需要修改源码的 developer_user_ids。
+   同一房间不能悄悄切换到另一个 task_id；修改授权和交接内容使用版本号。
+2. 成员 A 发 `@CANN ...`。新版 Comet 从已鉴权连接注入 auth_token，
+   Logic 重新核验发起者与房间成员资格，不信任客户端填写的 from_user_id。
+3. Logic 给人类消息分配序号、确认持久化；保存这次 AI 请求的固定输入快照，再投递 Kafka。
+   快照包含任务说明、交接摘要、触发前最近讨论及当前问题，不包含 bearer。
+4. Bridge 用部署侧 Bearer 访问 Gateway；可信 collaboration scope 带
+   room_id/task_id/actor_user_id/bot_user_id/can_develop。
+   群聊正文中的“我是管理员”不改变这些字段。
+5. Router 使用 `room_<room_id>_<task_id>` 作为共享原生会话身份，而非 actor 的私聊身份。
+   actor 只表示这一轮是谁发起；FIFO 保证同工作区单 turn 执行。
+6. Pi 按成员能力读取/修改工作区，检索 CANN 知识，必要时调用固定测试工具。
+   流式预览广播给实际数据库成员，不落历史、不推进 delivered cursor。
+7. 最终答复及源码/测试证据回到 Logic，沿既有 persist_message 与 push_group 路径进入历史。
+   B 接手时继续使用同一任务、同一 Pi 会话和同一份源码，不需要从 A 的个人工作目录拷贝。
+
+单 Logic 的提交互斥覆盖序号分配、持久化确认和请求入队；目前是进程内锁，不是跨实例租约。
+上下文背景最多取最近 20 条并安全裁剪，长期信息靠原生会话、人工摘要和源码版本共同维护。
+它能恢复协作事实，不保证长时间运行中的设备作业能迁移到另一台机器继续执行。
+
+### 18.4 权限、幂等和可靠性：面试重点
+
+权限分三次验证：
+
+- Logic：有效用户凭证、房间持久成员、房主/显式开发授权；裸 gRPC 房间请求也必须带 auth_token。
+- Gateway：可信 Bridge Bearer 和固定绑定的房间 scope；仅公共 Pi 可入房间，私人 Hermes technical 不开放。
+- Pi 工具：只允许工作区内的非隐藏、非符号链接路径；普通成员只能 read 和 CANN 只读知识工具，
+  开发成员再开放 write/edit/room_run_tests。共享房间禁用 /reset、/model 等控制命令。
+
+请求幂等不是“收到相同文字就不执行”：它基于固定 request_id 与输入快照。
+重复已完成请求回放原结果，不重复改文件或测试；actor 也是输入身份的一部分。
+Gateway 重启发现执行状态不明时标记 unknown，不盲目重新运行可能有副作用的工具。
+
+现有 accepted_ack 仍只确认人类消息 durable。MySQL 请求快照与 Kafka AI 入队尚非事务 outbox，
+失败窗口需要原请求重试/人工核对；不能把本次实现写成 exactly-once。
+退出订阅后不能继续查询任务/历史或收到新答复，但不能追回已看到的内容。
+房间可自行加入，开发权限仍须明确授权；保密协作还需要邀请制和独立 OS 身份。
+
+### 18.5 源码版本和“真的测过”怎么区分
+
+工作区之外保存 `checkpoints/<room_task>/<code_revision>` 的不可变内容副本。
+同一源码 hash 复用副本，每版最多 512 个文件 / 16 MiB；尚无总量配额和自动清理。
+备份必须覆盖 MySQL、Gateway SQLite、Pi session 与工作区/版本副本，不能只备份聊天文本。
+
+测试工具没有任意 command/path 参数，只执行管理员配置的 Python runner。
+bubblewrap 仅暴露工作区、系统运行库和只读 runner，不暴露 home、模型凭据或网络；
+缺少 runner/隔离能力就失败，不自动降级为直接执行。prlimit 与超时约束资源。
+
+同一轮 Pi 可能并行调用多个工具，因此除了 turn 之间串行，还对 write/edit 与测试做互斥。
+执行器记录测试前后源码 hash、runner hash、exit_code、timed_out、日志和 passed；
+若源码在测试中变化，即使退出码为 0 也不算通过。
+status=done、Agent 自述“通过”与实际执行回执是三个不同概念。
+
+当前固定执行器验证的是 Linux 主机 C++ Add 示例，不是昇腾 NPU 实机精度或性能。
+CANN 知识检索实际测过，但设备透传/远程 NPU runner 尚未实现。
+Pi 文件工具 guard 不等于整个模型进程已经得到完整 OS 沙箱隔离。
+
+### 18.6 这次测试的结果与过程
+
+2026-10-11，使用独立 MySQL 3308 / Redis 6381 DB11 / Kafka 29092，
+不在开发业务库压测或清空数据。发布前实测结果：
+
+| 验证 | 结果 / 覆盖 |
+|---|---|
+| 全量构建与 CTest | 29/29 通过，无跳过；44.56 秒，含专用 Redis |
+| C++ 房间业务 / Python 房间测试 | 36 条检查 / 10 个测试通过 |
+| 真实 Pi TS guard / UI 合同测试 | 文件路径、符号链接、工具权限、写测试互斥；流式乱序/重复、跨房间与晚到 delta 均通过 |
+| 原有 HTTP/gRPC/WS 业务回归 | 88 条检查通过，11.10 秒 |
+| 受控模型完整房间 E2E | 44 条检查通过，12.13 秒；7 次执行，同工作区峰值执行数 1 |
+| 真实 Pi 完整房间 E2E | 16 条检查通过，18.84 秒；两个真实用户 A 写代码、B 接手读源码并执行测试 |
+| 真实 CANN 知识工具 | 四页完整拼接 931 个 codepoint；引用版本检查通过 |
+
+受控 E2E 的模型决策是确定性适配器，但测试确实启动 bubblewrap、g++ 和 Add 精度可执行程序，
+同时覆盖失败与成功回执。真实 Pi E2E 使用本机已配置的 deepseek/deepseek-flash；
+未改变个人模型/凭据配置，不把它当作本地 Qwen 的推理成绩。
+UI 验证是实际模块的 DOM 合同测试，不是完整浏览器人工验收。
+
+本轮审查与真实测试发现并修复：
+排队者超时错误释放正在执行者的锁；Pi --tools 漏列自定义工具；
+裸 RPC 可伪造房间 sender；同一 turn 并行写/测试缺乏互斥。
+加入源码前后版本检查，避免旧代码结果被记成新代码通过。
+结果与复现脚本见 [结构化测试证据](benchmarks/2026-10-11-room-agent/)。
+本次是功能、安全与交接回归，不是吞吐压测，不能据运行秒数推算 QPS 或开发效率提升比例。
+
+### 18.7 怎样启用和使用
+
+默认关闭，未擅自启动常驻协作服务或替换私人 Agent 配置。管理员在原有部署配置中补充：
+
+```dotenv
+SPARK_PUSH_ROOM_AGENT_ENABLED=true
+SPARK_PUSH_ROOM_WORKSPACE_ROOT=/admin-owned/private/room-workspaces
+SPARK_PUSH_ROOM_TEST_RUNNER=/admin-owned/runner.py
+```
+
+安装 bubblewrap、util-linux 与对应编译依赖；工作区根目录为部署账户独享的 0700 目录。
+公共 Pi 的 bot_user_id 必须对应 Logic 主机器人，owner_user_ids 为空。
+重新启动新版 Logic、Comet、Bridge、Pi gateway；runner 可不配置，但测试会明确不可用。
+
+打开 Web 聊天室的“CANN 协作任务”：房主创建任务并授权，成员 `@CANN` 提问，
+有权限者保存 summary/next_steps/status 交接内容。Android 暂未新增任务面板。
+
+新接口是 POST /api/chatroom/agent/configure、/task、/checkpoint，
+均带 Bearer；业务失败查看 JSON code，版本冲突 code=409。
+旧裸 gRPC 房间发送脚本需补 auth_token，新版 Comet 下的 WS 客户端不需自行填这个字段。
+SQL 新增三张 room_agent_* 表，初始化/增量迁移仅 CREATE IF NOT EXISTS，不删旧会话。
+
+### 18.8 简历写法与可追问内容
+
+可作为独立项目要点：
+
+> 在 C++ 分布式 IM 系统中实现多人共享 CANN Agent 协作入口，抽离 RoomAgentService /
+> OperatorTaskService 与 Repository；以共享 Pi 会话、独立工作区、MySQL CAS 交接版本和请求账本
+> 支持跨用户接手；实现请求级身份核验、开发权限、FIFO 执行互斥、源码内容寻址检查点和隔离测试回执，
+> 经 44 项协作 E2E、16 项真实 Pi E2E 及 88 项原业务回归验证。
+
+面试应能解释：为什么 task/session 与 actor 分开；为什么 WS presence 不代表授权；
+为什么 turn 幂等与消息 ACK 不同；为什么进程内锁还不支持多实例；
+为什么测试通过必须绑定源码版本；摘要交接与真实源码/执行账本各自解决什么问题。
+不要写“生产级多租户沙箱”“多人效率提升 xx%”“已完成 NPU 算子性能验证”或“绝对 exactly-once”。

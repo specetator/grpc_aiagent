@@ -1,5 +1,9 @@
 # 多 Agent 接入与独立工作区
 
+2026-10-11 新增房间级公共 Pi/CANN 协作入口，见
+[`多人共享 Agent 与算子交接`](room-agent-collaboration.md)。以下独立联系人与私人 technical
+隔离规则继续有效；房间不合并任何人的私聊历史，不取消所有者 ACL。
+
 每个 Agent 是独立联系人、独立对话框：Pi Agent 为 `900000000001`，Hermes · technical 为
 `900000000101`。点击左侧“打开其他 Agent 对话”，或在 Agent 会话中发送 `/agent`，然后
 点击卡片打开对应窗口。`/agent hermes-technical` 只返回打开该联系人的按钮，不改变当前
@@ -71,7 +75,8 @@ Windows `.env` 和备份含凭据，应沿用该 profile 的 Windows 访问控�
 
 ## 会话、持久化与命令
 
-- 入口只接受可信 Bridge 的当前单聊 `s_<min(userId,botId)>_<max(userId,botId)>`；当前租户为本机部署，未虚构额外
+- 私聊入口接受可信 Bridge 的 `s_<min(userId,botId)>_<max(userId,botId)>`；房间入口另要求 Logic
+  构造的 collaboration scope，不能仅提交 r_<room_id> 冒充房间成员。当前租户为本机部署，未虚构额外
   tenant/thread 鉴权。机器人 ID 与注册表配置一致，用户 ID 来自已鉴权会话。
 - 独立对话由 bot ID 固定路由到 Agent；不能通过旧的 `/agent` 选择状态将 Pi 对话改绑 Hermes。
   Router 的 SQLite 持久化路由绑定、turn 幂等结果、可回放事件、Hermes 上下文和模型状态，路径在

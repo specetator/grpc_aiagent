@@ -9,6 +9,9 @@ add_test(NAME security_test COMMAND security_test)
 add_executable(logic_business_service_test logic_business_service_test.cpp)
 target_link_libraries(logic_business_service_test PRIVATE spark_push_logic)
 add_test(NAME logic_business_service_test COMMAND logic_business_service_test)
+add_executable(room_agent_service_test room_agent_service_test.cpp)
+target_link_libraries(room_agent_service_test PRIVATE spark_push_logic)
+add_test(NAME room_agent_service_test COMMAND room_agent_service_test)
 
 add_executable(config_test config_test.cpp)
 target_link_libraries(config_test PRIVATE spark_push_common)
@@ -59,6 +62,14 @@ target_include_directories(hermes_sse_parser_test PRIVATE
 add_test(NAME hermes_sse_parser_test COMMAND hermes_sse_parser_test)
 
 find_package(Python3 3.10 COMPONENTS Interpreter REQUIRED)
+add_test(NAME room_agent_test
+  COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/cannbot/scripts/test_room_agent.py)
+set_tests_properties(room_agent_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 45)
+find_program(SPARK_NODE_EXECUTABLE node)
+if(SPARK_NODE_EXECUTABLE)
+  add_test(NAME room_agent_channel_test
+    COMMAND ${SPARK_NODE_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/room_agent_channel_test.cjs)
+endif()
 add_test(NAME logic_layer_contract_test
   COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/logic_layer_contract_test.py)
 add_executable(agent_control_client_probe

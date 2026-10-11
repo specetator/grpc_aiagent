@@ -65,6 +65,7 @@ class SessionScheduler:
         self.cv = threading.Condition()
         self.session_running = set()
         self.session_waiters = {}
+        self.session_tickets = {}
         self.agent_inflight = {}
         self.inflight = 0
         self.metrics = SchedulerMetrics()
@@ -84,6 +85,8 @@ class SessionScheduler:
         agent_id = agent_id or "_"
         deadline = time.monotonic() + min(max(0.001, timeout_s), self.queue_timeout_s)
         queued_at = time.monotonic()
+        ticket = object()
+        acquired = False
         with self.cv:
             queued = self.metrics.queued
             waiting = self.session_waiters.get(session_id, 0)
@@ -91,6 +94,7 @@ class SessionScheduler:
                 self.metrics.rejected += 1
                 raise TimeoutError("Agent 队列已满，请稍后重试")
             self.session_waiters[session_id] = waiting + 1
+            self.session_tickets.setdefault(session_id, []).append(ticket)
             self.metrics.queued += 1
         try:
             while True:
@@ -103,11 +107,14 @@ class SessionScheduler:
                 with self.cv:
                     can_run = (
                         session_id not in self.session_running
+                        and self.session_tickets[session_id][0] is ticket
                         and self.inflight < self.max_inflight
                         and self.agent_inflight.get(agent_id, 0) < self.max_per_agent
                     )
                     if can_run:
                         self.session_running.add(session_id)
+                        acquired = True
+                        self.metrics.queued -= 1
                         self.inflight += 1
                         self.agent_inflight[agent_id] = self.agent_inflight.get(agent_id, 0) + 1
                         self.metrics.inflight = self.inflight
@@ -128,9 +135,14 @@ class SessionScheduler:
                     self.session_waiters.pop(session_id, None)
                 else:
                     self.session_waiters[session_id] = waiting - 1
-                if self.metrics.queued > 0:
+                if not acquired and self.metrics.queued > 0:
                     self.metrics.queued -= 1
-                if session_id in self.session_running:
+                tickets = self.session_tickets.get(session_id, [])
+                if ticket in tickets:
+                    tickets.remove(ticket)
+                if not tickets:
+                    self.session_tickets.pop(session_id, None)
+                if acquired:
                     self.session_running.discard(session_id)
                     self.inflight = max(0, self.inflight - 1)
                     self.agent_inflight[agent_id] = max(0, self.agent_inflight.get(agent_id, 0) - 1)

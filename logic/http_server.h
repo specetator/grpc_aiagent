@@ -13,6 +13,7 @@
 #include "services/message_service.h"
 #include "services/room_service.h"
 #include "services/user_service.h"
+#include "services/room_agent_service.h"
 
 namespace sparkpush {
 
@@ -26,6 +27,8 @@ struct LogicHttpServices {
     AdminService& admin;
     DanmakuService& danmaku;
     KnowledgeService& knowledge;
+    RoomAgentService* room_agents{nullptr};
+    OperatorTaskService* operator_tasks{nullptr};
 };
 
 // HTTP adapter: request parsing, bearer extraction and response serialization.
@@ -135,6 +138,8 @@ class HttpApiServer {
 
     bool requireUser(const muduo::net::HttpRequest& req, muduo::net::HttpResponse* resp,
                      int64_t* user_id);
+    void handleRoomAgent(const muduo::net::HttpRequest& req,
+                         muduo::net::HttpResponse* resp);
     bool requireAdmin(const muduo::net::HttpRequest& req,
                       muduo::net::HttpResponse* resp);
 
@@ -146,6 +151,8 @@ class HttpApiServer {
     AdminService* admin_service_;
     DanmakuService* danmaku_service_;
     KnowledgeService* knowledge_service_;
+    RoomAgentService* room_agent_service_;
+    OperatorTaskService* operator_task_service_;
     muduo::net::HttpServer server_;
 };
 }  // namespace sparkpush

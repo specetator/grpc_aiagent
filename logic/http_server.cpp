@@ -190,6 +190,8 @@ HttpApiServer::HttpApiServer(EventLoop* loop, const InetAddress& listenAddr,
       admin_service_(&services.admin),
       danmaku_service_(&services.danmaku),
       knowledge_service_(&services.knowledge),
+      room_agent_service_(services.room_agents),
+      operator_task_service_(services.operator_tasks),
       server_(loop, listenAddr, "logic_http_server") {
     server_.setHttpCallback(
         [this](const TcpConnectionPtr&, HttpRequest& req, HttpResponse* resp) -> bool {
@@ -233,6 +235,9 @@ void HttpApiServer::onRequest(const HttpRequest& req, HttpResponse* resp) {
         {"/api/danmaku/list", &HttpApiServer::handleDanmakuList},
         {"/api/session/list_single", &HttpApiServer::handleSingleSessionList},
         {"/api/chatroom/list", &HttpApiServer::handleChatroomList},
+        {"/api/chatroom/agent/configure", &HttpApiServer::handleRoomAgent},
+        {"/api/chatroom/agent/task", &HttpApiServer::handleRoomAgent},
+        {"/api/chatroom/agent/checkpoint", &HttpApiServer::handleRoomAgent},
         {"/api/admin/chatroom/create", &HttpApiServer::handleAdminCreateChatroom},
         {"/api/admin/chatroom/list", &HttpApiServer::handleAdminListChatroom},
         {"/api/admin/broadcast", &HttpApiServer::handleAdminBroadcast},
@@ -906,6 +911,36 @@ void HttpApiServer::handleChatroomList(const HttpRequest& req, HttpResponse* res
                                  {"last_msg_seq", room.session.last_msg_seq}});
     }
     WriteJson(resp, 0, "ok", data.dump());
+}
+
+void HttpApiServer::handleRoomAgent(const HttpRequest& req, HttpResponse* resp) {
+    if (req.method() != HttpRequest::kPost) {
+        WriteJson(resp, 405, "only POST allowed", "{}", HttpResponse::k400BadRequest);
+        return;
+    }
+    int64_t actor = 0;
+    if (!requireUser(req, resp, &actor)) return;
+    if (!room_agent_service_ || !operator_task_service_) {
+        WriteJson(resp, 503, "room Agent unavailable", "{}", static_cast<HttpResponse::HttpStatusCode>(503));
+        return;
+    }
+    try {
+        nlohmann::json input;
+        if (!ParseJsonBody(req.body(), &input)) throw std::invalid_argument("body");
+        const auto room = input.at("room_id").get<int64_t>();
+        nlohmann::json output;
+        ServiceStatus status;
+        if (req.path() == "/api/chatroom/agent/configure")
+            status = room_agent_service_->Configure(actor, room, input, &output);
+        else if (req.path() == "/api/chatroom/agent/checkpoint")
+            status = operator_task_service_->Checkpoint(actor, room, input.at("revision").get<int64_t>(),
+                                                       input.at("patch"), &output);
+        else status = room_agent_service_->View(actor, room, &output);
+        if (!status.ok()) { WriteServiceError(resp, status); return; }
+        WriteJson(resp, 0, "ok", output.dump());
+    } catch (const std::exception&) {
+        WriteJson(resp, 400, "invalid room Agent fields", "{}", HttpResponse::k400BadRequest);
+    }
 }
 
 // 加入聊天室（订阅关系）

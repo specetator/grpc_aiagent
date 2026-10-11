@@ -16,7 +16,7 @@ void SetError(ErrorInfo* error, const ServiceStatus& status) {
 UpstreamCommand DecodeUpstream(const UpstreamMessageRequest& request) {
     return {request.scene(),          request.from_user_id(), request.to_user_id(),
             request.group_id(),       request.content_json(), request.client_msg_id(),
-            request.source_comet_id()};
+            request.source_comet_id(), request.auth_token()};
 }
 }  // namespace
 

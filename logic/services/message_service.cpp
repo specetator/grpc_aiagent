@@ -19,6 +19,7 @@
 #include "services/attachment_service.h"
 #include "services/business_rules.h"
 #include "services/user_service.h"
+#include "services/room_agent_service.h"
 #include "text_metrics.h"
 
 namespace sparkpush {
@@ -89,7 +90,7 @@ MessageService::MessageService(
     int persist_kafka_timeout_ms, KafkaProducer* hermes_request_producer,
     bool hermes_enabled, int64_t hermes_bot_user_id,
     std::map<int64_t, std::string> agent_bot_users,
-    AttachmentService* attachment_service)
+    AttachmentService* attachment_service, RoomAgentService* room_agents)
     : store_(store),
       group_member_dao_(group_member_dao),
       user_service_(user_service),
@@ -100,6 +101,7 @@ MessageService::MessageService(
       hermes_request_producer_(hermes_request_producer),
       redis_store_(redis_store),
       attachment_service_(attachment_service),
+      room_agent_service_(room_agents),
       rate_limiter_(rate_limit),
       persist_kafka_timeout_ms_(persist_kafka_timeout_ms),
       hermes_enabled_(hermes_enabled),
@@ -204,6 +206,22 @@ bool MessageService::MarkHermesDeltaSeen(const std::string& delta_id) {
 
 bool MessageService::BuildHermesRequest(const Message& current, nlohmann::json* request,
                                         std::string* err) {
+    if (current.session_id.rfind("r_", 0) == 0) {
+        std::vector<Message> history;
+        if (!room_agent_service_ || !store_->GetHistory(current.session_id, 0, 20, &history, err))
+            return false;
+        {
+            std::lock_guard<std::mutex> lock(hermes_cache_mu_);
+            const auto cached = hermes_history_cache_.find(current.session_id);
+            if (cached != hermes_history_cache_.end())
+                for (const auto& item : cached->second) {
+                    if (std::none_of(history.begin(), history.end(), [&](const Message& h) { return h.msg_id == item.msg_id; }))
+                        history.push_back(item);
+                }
+        }
+        // First input can precede creation of the room session by Job.
+        return room_agent_service_->BuildRequest(current, history, request, err);
+    }
     if (!request) {
         if (err) *err = "Hermes request output is null";
         return false;
@@ -398,6 +416,9 @@ UpstreamResult MessageService::Submit(const UpstreamCommand& request) {
         return result;
     }
     const std::string& scene = request.scene;
+    std::unique_lock<std::mutex> room_order;
+    if (scene == "chatroom" && room_agent_service_)
+        room_order = std::unique_lock<std::mutex>(room_agent_service_->SubmissionMutex());
     int64_t from_user = request.from_user_id;
     if (from_user <= 0) {
         result.status = ServiceStatus{400, "from_user_id must be positive"};
@@ -406,6 +427,17 @@ UpstreamResult MessageService::Submit(const UpstreamCommand& request) {
     if (!user_service_ || !user_service_->UsersAvailable()) {
         result.status = ServiceStatus{500, "user dao not initialized"};
         return result;
+    }
+    if (scene == "chatroom" && room_agent_service_) {
+        int64_t actor = 0;
+        const auto auth = user_service_->Authenticate(request.auth_token,
+            UserService::TokenAudience::kRealtimeUser, &actor);
+        if (!auth.ok()) { result.status = auth; return result; }
+        if (actor != from_user) {
+            result.status = {403, "room sender does not match authenticated actor"};
+            return result;
+        }
+        from_user = actor;
     }
     User sender;
     std::string sender_error;
@@ -473,13 +505,19 @@ UpstreamResult MessageService::Submit(const UpstreamCommand& request) {
             return result;
         }
         session_id = "r_" + std::to_string(room_id);
+        if (room_agent_service_) {
+            const auto access = room_agent_service_->Trigger(from_user, room_id, request.content_json, &hermes_target);
+            if (!access.ok()) { result.status = access; return result; }
+        }
         std::vector<std::string> room_comets;
         bool use_room_comets = false;
         if (redis_store_->GetRoomComets(room_id, &room_comets) &&
             !room_comets.empty()) {
             use_room_comets = true;
         }
-        if (use_room_comets) {
+        // Explicit durable members are authoritative when Agent work is enabled;
+        // WS presence alone is not authorization to receive workspace messages.
+        if (use_room_comets && !room_agent_service_) {
             for (const auto& cid : room_comets) {
                 comet_to_users[cid];
             }
@@ -540,7 +578,7 @@ UpstreamResult MessageService::Submit(const UpstreamCommand& request) {
         msg.content_json = push_json;
     } catch (...) {
     }
-    if (hermes_target) RememberHermesMessage(msg);
+    if (hermes_target || scene == "chatroom") RememberHermesMessage(msg);
 
     result.message = msg;
     result.has_message = true;
@@ -591,7 +629,7 @@ UpstreamResult MessageService::Submit(const UpstreamCommand& request) {
             return result;
         }
         result.status = ServiceStatus{0, "Hermes request accepted"};
-        return result;
+        if (scene == "single") return result;
     }
 
     if (comet_to_users.empty()) {
@@ -660,7 +698,12 @@ bool MessageService::HandleHermesReply(const std::string& payload,
     const auto bot_user_id = envelope["bot_user_id"].get<int64_t>();
     const auto bot = agent_bot_users_.find(bot_user_id);
     if (bot == agent_bot_users_.end()) return false;
-    if (!PrepareHermesReply(payload, bot_user_id, bot->second, &reply, &err)) {
+    const bool room_reply = envelope.value("session_id", "").rfind("r_", 0) == 0;
+    nlohmann::json room_request;
+    if (room_reply && (!room_agent_service_ ||
+        !room_agent_service_->ValidateReply(envelope, &room_request, &err))) return false;
+    if (!PrepareHermesReply(payload, bot_user_id, bot->second, &reply, &err,
+                           room_reply ? &room_request : nullptr)) {
         LOG_ERROR << "Reject Hermes reply: " << err;
         MetricsRegistry::Instance().Increment("spark_push_hermes_errors_total");
         return false;  // durable ai_reply DLQ after bounded retries
@@ -697,6 +740,7 @@ bool MessageService::HandleHermesReply(const std::string& payload,
     bool is_new = false;
     const int64_t user1 = std::min(user_id, bot_user_id);
     const int64_t user2 = std::max(user_id, bot_user_id);
+    const int64_t reply_room = room_reply ? room_request.at("collaboration").at("room_id").get<int64_t>() : 0;
     if (!PersistHermesReply(
             &message, &is_new,
             [this, &err](Message* msg, bool* fresh) {
@@ -705,8 +749,9 @@ bool MessageService::HandleHermesReply(const std::string& payload,
                                      msg->content_json, msg->timestamp_ms,
                                      msg->client_msg_id, msg, fresh, &err);
             },
-            [this, user1, user2, &err](const Message& msg) {
-                return PersistToTopic(msg, "single", user1, user2, 0, &err);
+            [this, user1, user2, reply_room, &err](const Message& msg) {
+                return PersistToTopic(msg, reply_room ? "chatroom" : "single",
+                                      reply_room ? 0 : user1, reply_room ? 0 : user2, reply_room, &err);
             })) {
         LOG_ERROR << "Persist Hermes reply failed request_id=" << request_id << ": "
                   << err;
@@ -726,28 +771,31 @@ bool MessageService::HandleHermesReply(const std::string& payload,
     }
     // Only Kafka persistence confirmation closes the ephemeral stream and
     // exposes this answer to future Agent context. Job persists asynchronously.
+    if (room_reply && !room_agent_service_->Complete(envelope, &err)) return false;
     MarkHermesStreamCompleted(request_id);
     RememberHermesMessage(message);
 
-    std::vector<std::string> comets;
-    if (!redis_store_ || !redis_store_->GetUserRoutes(user_id, &comets)) {
+    std::map<std::string, std::vector<int64_t>> comets;
+    if (!AgentRoutes(reply_room, user_id, &comets)) {
         LOG_ERROR << "Get Hermes recipient routes failed user_id="
                   << std::to_string(user_id);
         return false;
     }
     ChatMessage chat_message;
     FillChatMessage(message, &chat_message);
-    for (const auto& comet_id : comets) {
+    for (const auto& route : comets) {
+        const auto& comet_id = route.first;
         PushToCometRequest request;
         request.set_comet_id(comet_id);
         request.set_request_id(message.msg_id + "@" + comet_id);
-        request.set_scene("single");
+        request.set_scene(room_reply ? "group" : "single");
         *request.mutable_message() = chat_message;
-        request.add_targets()->set_user_id(user_id);
+        for (auto target : route.second) request.add_targets()->set_user_id(target);
 
         std::string push_payload;
-        if (!request.SerializeToString(&push_payload) || !producer_ ||
-            !producer_->Send(comet_id, push_payload)) {
+        auto* producer = room_reply ? group_producer_ : producer_;
+        if (!request.SerializeToString(&push_payload) || !producer ||
+            !producer->Send(comet_id, push_payload)) {
             LOG_ERROR << "Enqueue Hermes reply to Comet failed comet_id=" << comet_id
                       << ", request_id=" << request_id;
             continue;
@@ -785,11 +833,17 @@ bool MessageService::HandleHermesDelta(const std::string& payload,
         return true;
     }
     std::string session_id = delta.value("session_id", "");
+    nlohmann::json room_request;
+    const bool room_delta = session_id.rfind("r_", 0) == 0;
+    std::string room_error;
+    if (room_delta && (!room_agent_service_ ||
+        !room_agent_service_->ValidateReply(delta, &room_request, &room_error))) return true;
+    const int64_t delta_room = room_delta ? room_request.at("collaboration").at("room_id").get<int64_t>() : 0;
     const auto expected_session = "s_" +
                                   std::to_string(std::min(user_id, bot_user_id)) + "_" +
                                   std::to_string(std::max(user_id, bot_user_id));
     if (session_id.empty()) session_id = expected_session;
-    if (session_id != expected_session) return true;
+    if (!room_delta && session_id != expected_session) return true;
 
     const bool progress = delta.value("progress", nlohmann::json()) == true;
     nlohmann::json normalized_event = {
@@ -827,8 +881,8 @@ bool MessageService::HandleHermesDelta(const std::string& payload,
         return true;
     }
 
-    std::vector<std::string> comets;
-    if (!redis_store_ || !redis_store_->GetUserRoutes(user_id, &comets)) {
+    std::map<std::string, std::vector<int64_t>> comets;
+    if (!AgentRoutes(delta_room, user_id, &comets)) {
         LOG_ERROR << "Get Hermes delta recipient routes failed user_id="
                   << std::to_string(user_id);
         return false;
@@ -855,6 +909,13 @@ bool MessageService::HandleHermesDelta(const std::string& payload,
         {"agent_event", normalized_event},
     };
 
+    if (room_delta) {
+        content["group_id"] = delta_room;
+        content["actor_user_id"] = user_id;
+        content["task_id"] = room_request.at("collaboration").at("task_id");
+        content.erase("to_user_id");
+    }
+
     ChatMessage message;
     message.set_msg_id(delta_id);
     message.set_session_id(session_id);
@@ -865,16 +926,18 @@ bool MessageService::HandleHermesDelta(const std::string& payload,
     message.set_content_json(content.dump());
     message.set_client_msg_id(delta_id);
 
-    for (const auto& comet_id : comets) {
+    for (const auto& route : comets) {
+        const auto& comet_id = route.first;
         PushToCometRequest request;
         request.set_comet_id(comet_id);
         request.set_request_id(delta_id + "@" + comet_id);
-        request.set_scene("single");
+        request.set_scene(room_delta ? "group" : "single");
         *request.mutable_message() = message;
-        request.add_targets()->set_user_id(user_id);
+        for (auto target : route.second) request.add_targets()->set_user_id(target);
         std::string push_payload;
-        if (!request.SerializeToString(&push_payload) || !producer_ ||
-            !producer_->Send(comet_id, push_payload)) {
+        auto* producer = room_delta ? group_producer_ : producer_;
+        if (!request.SerializeToString(&push_payload) || !producer ||
+            !producer->Send(comet_id, push_payload)) {
             LOG_ERROR << "Enqueue Hermes delta to Comet failed comet_id=" << comet_id
                       << ", request_id=" << request_id;
             MetricsRegistry::Instance().Increment(
@@ -883,6 +946,20 @@ bool MessageService::HandleHermesDelta(const std::string& payload,
         }
         MetricsRegistry::Instance().Increment(
             "spark_push_hermes_stream_delta_enqueued_total");
+    }
+    return true;
+}
+
+bool MessageService::AgentRoutes(int64_t room, int64_t user,
+                                std::map<std::string, std::vector<int64_t>>* routes) {
+    if (!redis_store_) return false;
+    std::vector<int64_t> users{user};
+    std::string error;
+    if (room && (!group_member_dao_ || !group_member_dao_->ListRoomMembers(room, &users, &error))) return false;
+    for (auto id : users) {
+        std::vector<std::string> comets;
+        if (!redis_store_->GetUserRoutes(id, &comets)) return false;
+        for (const auto& comet : comets) (*routes)[comet].push_back(id);
     }
     return true;
 }

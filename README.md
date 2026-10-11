@@ -152,6 +152,11 @@ ${EDITOR:-vi} .env.local
 
 ## Pi Agent Bot
 
+新增多人共享 CANN 算子聊天室：一个房间共享任务、Pi 上下文和独立工作区；`@CANN` 触发，
+房主授权开发成员，任务摘要与版本化测试回执支持接手。默认关闭，启用、使用与验收说明见
+[`房间 Agent 协作`](docs/room-agent-collaboration.md)。私人 Hermes 所有权不变；本次实测为
+主机 C++ 工具协作，不能替代昇腾设备上的算子验证。
+
 Agent 基座是 WSL 中的 Pi coding agent。`hermes_bridge` 进程名保持不变，指向本机
 Pi gateway（`http://127.0.0.1:8643/v1`）。先执行 `cannbot/scripts/setup_pi_agent.sh`，
 再在 `.env.local` 开启：

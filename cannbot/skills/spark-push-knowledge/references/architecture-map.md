@@ -24,6 +24,7 @@
 | WSL Pi Agent 安装、配置与二次开发 | `docs/pi-agent-integration.md`、`docs/cannbot-integration.md` | `/home/peco/.pi-spark-agent`、`cannbot/pi/` |
 | Agent 命令和多轮上下文 | `docs/hermes-integration.md` | `logic/hermes_command.*`、`logic/services/message_service.cpp` |
 | 多 Agent 选择、粘滞路由、事件回放、所有者配置和 Windows technical 隔离接入 | `docs/multi-agent-integration.md` | `cannbot/scripts/agent_events.py`、`cannbot/scripts/agent_router.py`、`cannbot/scripts/pi_gateway.py`、`cannbot/scripts/hermes_adapter.py`、`cannbot/scripts/windows_agent_transport.py` |
+| 多人共享 CANN 房间、算子任务交接、开发授权与版本化测试回执 | `docs/room-agent-collaboration.md` | `logic/services/room_agent_service.*`、`logic/repositories/room_agent_repository.*`、`cannbot/scripts/room_agent.py`、`cannbot/pi/extensions/room-workspace.ts`、`tests/room_agent_e2e.py` |
 | 会话内串行、会话间并行、排队超时与 Agent 看板 | `docs/spark-push-internals.md` 第 31.4 节 | `cannbot/scripts/agent_scheduler.py`、`cannbot/scripts/agent_router.py`、`cannbot/scripts/pi_gateway.py` |
 | 图片发送、截图问答、附件不进 Kafka/WS | `docs/spark-push-architecture.md` 第 2.5 节、`docs/spark-push-internals.md` 第 32、31.5 节、`docs/pi-agent-integration.md` | `common/image_attachment.cpp`、`logic/attachment_dao.cpp`、`logic/http_server.cpp`、`logic/services/message_service.cpp`、`hermes_bridge/main.cpp`、`cannbot/scripts/pi_gateway.py`、`web_demo/static/index.html`、`android-app/.../SparkViewModel.kt` |
 | Logic 重启后发消息停在「发送中」 | `docs/spark-push-internals.md` 第 18、31.6 节 | `comet/comet_server.cpp` `ReconnectStream` |

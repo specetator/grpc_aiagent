@@ -20,6 +20,8 @@ struct HermesChatOptions {
     // 端到端 turn 幂等键。Gateway 使用它恢复已完成结果，绝不因 Bridge
     // 重启而用同一请求重复调用 Agent 工具。
     std::string request_id;
+    // Trusted Logic scope. Not accepted from a public chat message body.
+    nlohmann::json collaboration;
     int64_t context_start_seq{0};
     bool retry{false};
     std::function<void(const std::string&)> on_progress;
