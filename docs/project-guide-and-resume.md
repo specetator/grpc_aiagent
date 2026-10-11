@@ -2,9 +2,9 @@
 
 > 被解释项目：`/home/peco/cppcode/fenbushi/11.2-spark_push`\
 > 版本口径：只以根目录当前源码为准；`02_auth_subset`～`06`、`5.1_room_subset` 等目录是学习快照。\
-> 更新日期：2026-10-11（新增第 18 章：多人共享 CANN Agent、协作交接与测试证据）\
+> 更新日期：2026-10-11（同步工程审查修复；更新架构、消息契约、算法与简历；新增第 19 章）\
 > GitHub 仓库：[specetator/grpc_aiagent](https://github.com/specetator/grpc_aiagent)；在线手册：[项目详解与简历手册](https://github.com/specetator/grpc_aiagent/blob/main/docs/project-guide-and-resume.md)。
-> 配套分层文档：`11.2-spark_push/docs/spark-push-architecture.md`（大框架）、`docs/spark-push-internals.md`（小模块逐步算法）。本文已把两层内容收进同一份手册。
+> 当前行为与迁移以 [工程审查修复](review-remediation.md)、本手册第 19 章及根目录源码为准。大框架与小模块旧专题中尚有 Redis 取号等历史描述，阅读时按日期区分。
 
 本文有四个目标：
 
@@ -26,15 +26,16 @@
 7. 第 9～10 章：项目演进、简历写法和面试回答。
 8. 第 15 章：本地 Qwen3-0.6B 的 CUDA 推理、显存观测、批处理、Flash Attention、KV Cache 和测试证据。
 9. 第 16 章：Logic 内部三层结构、业务规则的共享入口、维护方法和重构测试。
-10. 第 17 章：GitHub 同步内容、代码版本和最新验证口径。
+10. 第 17 章：2026-10-10 GitHub 发布历史；当前同步与验证见第 19 章。
 11. 第 18 章：多人共享 CANN Agent、任务/源码交接、开发权限和真实聊天室测试。
+12. 第 19 章：工程审查修复、当前验证回执、存量迁移与后续生产验收。
 
 如果只剩十分钟：先看 1.2、2.1、3.3、4.2、5.3、5.4、5.5、8.3、10.2 和 13.1。
 
 | 想复习的问题                                 | 直接阅读                          |
 | -------------------------------------- | ----------------------------- |
 | 一条消息怎样从发送方到接收方                         | 4.2 单聊完整时序                    |
-| Redis 为什么在热路径、Lua 逐步做了哪几步              | 5.4 Redis、13.4 Lua 全文         |
+| Redis 当前保存什么、为什么不再负责消息取号 | 5.4、13.4～13.5、19.2 |
 | Kafka topic、consumer group、offset 如何设计 | 5.3 Kafka、13.11 消费者           |
 | gRPC Unary 和 Streaming 为什么同时存在         | 5.2 gRPC/Protobuf、13.18～13.19 |
 | Muduo 如何管理大量 WebSocket 连接              | 5.1 Muduo/WebSocket、13.16 连接表 |
@@ -52,7 +53,7 @@
 | 面试题逐题回答稿                               | 10.3.1                        |
 | RTX 3060 如何接入本地模型、如何衡量 AI 推理性能         | 15 章                          |
 | HTTP/gRPC 的业务逻辑去哪里了、怎样复用规则 | 16 章、`logic/services/` |
-| GitHub 发布版本、今天复测了哪些内容 | 17 章 |
+| GitHub 发布版本、最新验证与迁移要求 | 17 章（历史发布）、19 章（当前修复） |
 | 多人协作开发算子、共享 Agent 与进度交接 | 18 章 |
 
 ---
@@ -72,11 +73,11 @@ Spark Push 是一个 C++17 分布式实时消息推送/IM 教学项目：客户�
 | 用户与安全 | 注册、登录、PBKDF2 密码哈希、安全随机 token、禁用/恢复/软删除、token 批量撤销、审计日志                                            |
 | 实时接入  | WebSocket 握手（自实现 SHA1+Base64）、帧解析、心跳、多连接、指数退避重连、单帧大小限制                                            |
 | 消息场景  | 单聊、聊天室/群聊 fanout、系统广播、弹幕时间轴                                                                       |
-| 可靠性   | accepted/delivered 两阶段 ACK、会话内 `msg_seq`、客户端幂等键、持久化 topic、消费后提交、persist DLQ、近期去重                  |
-| 恢复能力  | 历史查询、缺口补偿、delivered cursor、离线补推、未读数和已读游标                                                          |
+| 可靠性 | 两阶段 ACK、SQL 持久序号/原文幂等/outbox、消费后提交、persist DLQ 与显式重放工具、近期投递去重 |
+| 恢复能力 | 历史查询、safe_seq 缺口补偿、逐条 receipt 连续 delivered cursor、多会话离线分页、未读和已读 |
 | 性能治理  | Redis/MySQL 连接池、路由短缓存、场景令牌桶、Kafka topic 隔离、Job→Comet 长连接、有界队列                                     |
 | 客户端   | WebDemo；原生 Kotlin/Compose Android（独立 Agent 联系人、TreeMap 流式合并、连接代数、图片发送）                            |
-| 可观测性  | Logic/Job/Comet Prometheus text metrics、分组件日志、E2E 与专项压测工具、可选长度审计                                  |
+| 可观测性 | Prometheus text metrics、关键消费者 readiness、文件日志轮转、E2E/异常网络回归、可选长度审计 |
 | 可选扩展  | 本机 Pi Agent / Hermes technical、HTTP/SSE 增量、`ai_request/ai_delta/ai_reply` 隔离、CANN 引用、截图问答（先上传再引用） |
 
 ### 1.3 核心设计问题
@@ -85,7 +86,7 @@ Spark Push 是一个 C++17 分布式实时消息推送/IM 教学项目：客户�
 
 - 长连接数量与业务计算怎样隔离？
 - 在线路由怎样快速查询，又怎样支持用户多端连接？
-- 同一会话怎样分配单调 `msg_seq`，Redis 丢失或落后时怎么办？
+- 同一会话怎样分配持久唯一的 `msg_seq`，旧入口混写和 Redis 丢失时怎么办？
 - 客户端重试怎样避免生成两条消息？
 - Logic 返回成功前，消息至少要跨过什么可靠边界？
 - Kafka 消费到任务后，什么时候才能提交 offset？
@@ -99,8 +100,8 @@ Spark Push 是一个 C++17 分布式实时消息推送/IM 教学项目：客户�
 当前版本可以描述为“有工程化可靠性设计的单机可复现分布式消息系统”，不能描述为生产级 IM。尚未完成的关键能力包括：
 
 - Kafka/MySQL/Redis 多节点高可用和跨机故障验证；
-- 正式 DLQ topic、后台重放平台和告警闭环；
-- TLS/mTLS、统一 IAM、密钥托管和更完整的对象级授权；
+- 实时 push/broadcast 的可重放 DLQ、后台管理平台和告警闭环；persist/Agent 已有配置的死信 topic，CLI 重放已实现；
+- 公网 HTTPS/WSS、mTLS、统一 IAM 与密钥托管；内部 RPC 已有角色密钥与远程 TLS 配置，真实证书互通仍待验证；
 - 多 Comet 一致性路由、跨节点踢线、灰度和滚动升级验证；
 - 多账号大群、多 partition、多机压测以及容量模型；
 - 发送方可见的实时已读回执、消息撤回、媒体消息和完整群管理。
@@ -118,8 +119,10 @@ Spark Push 是一个 C++17 分布式实时消息推送/IM 教学项目：客户�
 Comet ───── MessageStream(gRPC 双向流) ─────► Logic
   │                                             │
   │                                             ├─ Redis
-  │                                             │   token / 在线路由
-  │                                             │   msg_seq / dedup / 未读缓存
+  │                                             │   token / 在线路由 / 未读缓存
+  │                                             │
+  │                                             ├─ MySQL 事务
+  │                                             │   msg_seq / 原文 / outbox
   │                                             │
   │                                             ├─ persist_message
   │                                             │      │
@@ -140,7 +143,7 @@ Comet ───── MessageStream(gRPC 双向流) ─────► Logic
 
 | 进程                  | 默认端口                           | 核心职责                                                              | 不应该承担的职责                          |
 | ------------------- | ------------------------------:| ----------------------------------------------------------------- | --------------------------------- |
-| Logic               | gRPC 9100、HTTP 9101            | 鉴权、用户状态、会话 ID、Redis 序号/幂等、在线路由、限流、Kafka producer、历史/游标 API        | 不持有海量 WebSocket；不在消息热路径同步插入 MySQL |
+| Logic | HTTP 9101、gRPC 9100 | 用户/权限、SQL 序号与原文预留、outbox 恢复、路由、限流、Kafka、历史/游标 | 不持有海量 WS；历史 message 由 Job 写入，接受路径仍同步访问 SQL |
 | Comet               | WS 9000、gRPC 9105、metrics 9203 | WebSocket 接入、连接表、房间本机订阅、上行转发、本机下推、离线补推触发、delivered ACK            | 不做复杂业务和持久化决策                      |
 | Job                 | metrics 9202                   | 消费实时/广播/持久化 topic、维护到 Comet 的 PushStream、处理重连重放、落 MySQL           | 不直接面向公网客户端                        |
 | Web Demo            | HTTP 9010                      | 浏览器演示、用户聊天和管理员控制台                                                 | 不作为安全边界                           |
@@ -162,9 +165,9 @@ Comet、Logic、Job 的拆分对应三类完全不同的负载：
 
 | 存储    | 保存内容                                            | 为什么放这里                           |
 | ----- | ----------------------------------------------- | -------------------------------- |
-| Redis | token、用户→Comet 路由、房间→Comet 路由、序号、短期幂等、未读缓存、在线计数 | 低延迟、原子命令、集合和 Lua 适合热状态           |
+| Redis | token/撤销索引、用户/房间→Comet 路由、路由代次与 nonce、未读缓存、在线计数 | 热状态与可失效缓存；不再分配当前发送链 msg_seq |
 | Kafka | 持久化事件、实时投递任务、广播任务、可选 AI 事件                      | 解耦生产消费、吸收突发、支持重放和 consumer group |
-| MySQL | 用户、会话、消息、读/投递游标、群成员、弹幕、广播、审计                    | 事务、唯一键、索引查询和长期事实存储               |
+| MySQL | 用户/会话/消息、message_sequence、原文 reservation/outbox、逐条投递 receipt、读/投递游标、协作任务等 | 持久序号、事务幂等和可恢复事实 |
 
 Redis 是“热状态”，MySQL 是“事实来源”，Kafka 是“阶段之间可重放的事件通道”。三者不是互相替代。
 
@@ -213,7 +216,7 @@ Redis 是“热状态”，MySQL 是“事实来源”，Kafka 是“阶段之�
 | ID              | 谁生成         | 唯一范围               | 解决什么问题                    |
 | --------------- | ----------- | ------------------ | ------------------------- |
 | `client_msg_id` | 客户端         | 发送者+会话范围           | 网络重试时识别“同一次发送”            |
-| `msg_seq`       | Logic/Redis | 单个会话内              | 顺序和缺口                     |
+| `msg_seq` | Logic/MySQL 事务 | 单个会话内 | 持久唯一序号、顺序和缺口 |
 | `msg_id`        | Logic       | 当前由 session+seq 推导 | 业务消息身份                    |
 | `request_id`    | Logic/投递层   | Job→Comet 请求       | gRPC stream reply 匹配和重放去重 |
 
@@ -225,7 +228,7 @@ Redis 是“热状态”，MySQL 是“事实来源”，Kafka 是“阶段之�
 客户端本地创建
     │ WebSocket send
     ▼
-Logic 校验、分配 msg_seq、幂等判断
+Logic 鉴权 → SQL 原文预留/取号 → prepare outbox
     │ persist_message 已收到 Kafka delivery report
     ▼
 accepted_ack
@@ -240,9 +243,9 @@ read_seq 更新
 语义边界：
 
 - `accepted_ack`：消息持久化事件已经进入 Kafka 的可重放边界，不等于 MySQL 已落库，也不等于接收者在线。
-- `delivered_ack`：Comet 已把消息交给目标在线 WebSocket 连接的发送队列；这仍不是终端展示或用户已读的严格证明。
+- `delivered_ack`：目标连接所属 IO 线程已检查连接/写缓冲并接受发送操作；这仍不是客户端收讫、展示或已读证明。
 - `read_seq`：应用层已读游标，需要客户端明确上报。
-- `delivered_seq`：服务端认为已经交给该用户连接的最大序号，用于决定重连时从哪里补推。
+- `delivered_seq`：逐条 receipt 与 SQL 安全前缀共同证明的连续投递水位。高序号先到不会跳过低序号尚未持久化或尚未投递的消息。
 
 因此项目没有声称端到端 exactly-once，也没有把 delivered ACK 夸大为“用户一定看到了”。
 
@@ -280,7 +283,7 @@ im_group ── group_member
 video_danmaku 独立按 video_id + timeline_ms 查询
 ```
 
-`message.uk_session_seq` 是落库幂等和序号冲突的最后防线；`user_session_state.uk_user_session` 让读/投递游标可以 `UPSERT + GREATEST` 单调更新。
+`message.uk_session_seq` 是历史唯一键；`message_sequence` 在同一事务内锁住会话并分配序号，`message_reservation` 保存原文及二进制 outbox。`message_delivery_receipt` 保存逐条投递证明；read_seq 可用 GREATEST，delivered_seq 必须先计算安全连续前缀。
 
 ---
 
@@ -292,8 +295,8 @@ video_danmaku 独立按 video_id + timeline_ms 查询
 2. Logic 从 MySQL 查询用户，校验 `active` 状态和密码；
 3. OpenSSL 生成随机 token，Redis 写 `token:<token> → user_id`，并写 `user:tokens:<uid>` 反向索引；
 4. 客户端携带 token 与 Comet 完成 WebSocket 握手；
-5. Comet 通过 Logic gRPC `VerifyToken` 验证 token；
-6. Comet 将 `user_id → comet_id` 加入 Redis 路由集合，并在本机 `user_conns_` 保存该用户的所有连接；
+5. Comet 将 Logic gRPC `VerifyToken` 放入有界工作池，3 秒 deadline，握手总等待 5 秒；完成后切回连接所属 IO 线程；
+6. Comet 注册带 generation + 随机 nonce 的 Redis 路由，并在本机 `user_conns_` 保存该用户连接；晚到下线仅能删除自己那一代路由；
 7. Comet 调用 `SyncOffline`，根据 `delivered_seq` 补推离线缺口。
 
 核心代码：
@@ -305,36 +308,25 @@ video_danmaku 独立按 video_id + timeline_ms 查询
 
 ### 4.2 一条单聊消息的完整时序
 
-假设 A 给 B 发送一条文本消息：
+假设 A 给 B 发一条文本消息，以下描述的是 2026-10-11 修复后的当前链路：
 
-1. A 生成唯一 `client_msg_id`，通过 WebSocket 发送 `single_chat` JSON；
-2. A 所在 Comet 解析 frame，得到场景、目标 uid、正文和 `client_msg_id`；
-3. Comet 通过复用的 `LogicService.MessageStream` 把 `UpstreamMessageRequest` 发给 Logic；
-4. Logic 校验发送者状态、字段长度并执行 single 场景令牌桶；
-5. Logic 构造稳定的 `session_id`；
-6. Logic 查询 Redis `route:user:<B>`，得到 B 当前所在的一个或多个 Comet；
-7. `ConversationStore::AppendMessageHotPath` 首次见到会话时读取 MySQL 最大序号作为 floor；
-8. Redis Lua 原子完成 floor 修正、`client_msg_id` 幂等检查、`INCR msg_seq` 和 last_seq 更新；
-9. Logic 生成 `msg_id` 和下发 JSON；
-10. Logic 把 `PersistMessageRequest` 写入 `persist_message`，使用 `SendAndWait` 等 broker delivery report；
-11. delivery report 成功后，Logic 通过上行 gRPC stream 给 A 返回 `accepted_ack`；
-12. 如果是新消息且 B 在线，Logic 按目标 Comet 把 `PushToCometRequest` 写入 `push_single`；
-13. Job 的 single consumer 消费消息，通过目标 Comet 的 `PushStream` 写入请求，并等待同一 `request_id` 的 reply；
-14. Comet 以 `request_id` 做近期去重，复制目标用户连接列表并发送 WebSocket frame，reply 中返回 `delivered_count`；
-15. Job 收到 reply 后才把该投递视为成功，并异步向 A 所在 Comet 回传 `delivered_ack`；
-16. `persist_message` 的独立 consumer 幂等写入 MySQL `session/message`，并以 `GREATEST` 推进 last_seq；
-17. B 的客户端按 `msg_id/client_msg_id` 去重，按 `msg_seq` 排序；发现缺口时主动同步。
+1. A 生成 1～128 字节 `client_msg_id`，经 WebSocket 发送 `single_chat`。
+2. Comet 从已认证连接取得 actor 与 token，经有界 `MessageStream` 队列发送请求。
+3. Logic 重新验证 token 与 actor，校验用户/目标/内容并执行限流，构造稳定的 session_id。
+4. `ConversationStore::AppendMessageHotPath` 调用 SQL reservation：事务锁定 `message_sequence` 会话行，以 `(session_id,sender_id,client_msg_id)` 查原文。命中时返回原 timestamp/body/seq；同 ID 改正文则拒绝。
+5. 新请求递增 SQL 序号并保存 canonical message。首次接入旧会话才从历史 MAX/会话水位初始化；Redis 不参加取号。
+6. 将完整 `PersistMessageRequest` 的二进制写入 SQL outbox，再 `SendAndWait` 发布 `persist_message`。
+7. 只有 Kafka delivery report 成功才返回 `accepted_ack`。确认超时仍可能已经发布，客户端用同 ID 重试；prepared outbox 由后台每秒扫描恢复。
+8. 查 B 的 Redis 路由，按目标 Comet 创建相同业务消息身份的 `push_single` 实时任务；重试允许再次 fanout，下游去重。
+9. Job 消费实时任务，经复用 `PushStream` 发送并等待相同 request_id 的 reply。
+10. Comet 锁内复制目标连接，在其所属 IO 线程检查连接状态与 4 MiB 输出容量、接受发送后才计入 delivered_count；Job 据 reply 回传 `delivered_ack`。
+11. Comet 上报逐条投递 receipt。SQL 只推进安全、连续且已经投递的前缀；不能直接取收到消息的 MAX。
+12. 独立 persist consumer 核对消息全部字段、幂等写历史和更新 reservation stage=3，成功或已确认 DLQ 后才提交原 offset。
+13. B 按消息 ID 去重、按 seq 排序；缺口通过 `SyncMessages` 的分页与 safe_seq 证明恢复。
 
-面试一分钟：A 的 WebSocket 消息先进入 Comet，Comet 从已经鉴权的连接上下文取得 sender ID，并通过 gRPC MessageStream 发给 Logic。Logic 校验用户状态和限流后生成确定性的单聊 session_id，查询 B 的 Redis 在线路由，然后通过 Redis Lua 原子完成 `client_msg_id` 去重和 `msg_seq` 分配。接着先把 `PersistMessageRequest` 通过 `SendAndWait` 写入 persist Kafka，收到 broker delivery report 后消息才进入 accepted 状态；随后再把带有目标 Comet、request_id 和来源 Comet 的 `PushToCometRequest` 写入 `push_single`。
+面试一分钟：Comet 管连接，Logic 管身份和持久消息状态，Job 管异步历史与投递。SQL 事务统一取号、保存重试原文，并在 Kafka 前准备 outbox；accepted 以 Kafka 确认为边界。实时投递独立进行，Comet 的 IO 线程接受发送后才确认 delivered，历史可能晚于实时到达。逐条 receipt、safe_seq 和分页补拉负责处理这种乱序，整个系统仍是至少一次尝试与多层幂等。
 
-Job 消费实时 topic 后通过每个 Comet 复用的 gRPC PushStream 投递，Comet 用 request_id 去重，然后从本地 `user_id -> connections` 表找到 B 的所有 WebSocket 连接进行发送，并推进 B 的 delivered_seq。Job 只有收到 Comet 对相同 request_id 的 reply 后才认为投递完成，并通过来源 Comet 向 A 回传 delivered_ack。与此同时 persist consumer 独立消费持久化事件写入 MySQL，因此实时 delivered 和最终 stored 没有严格先后关系。B 离线或实时投递失败时，则依赖持久化消息、delivered_seq 和 msg_seq 的离线补推/缺口补偿恢复
-
-关键事实：
-
-- 第 10 步和第 12 步是两条不同分支；持久化成功不代表实时投递成功。
-- `Write()` 到 gRPC stream 成功只说明写入了 HTTP/2 流；第 14 步的 Comet reply 才是 Job 的处理确认。
-- B 不在线时不会写实时 topic，但持久化事实仍在，重连后可以补推。
-- 相同 `client_msg_id` 的重试会拿到原 `msg_seq`，不会再次实时投递和落库。
+关键边界：SQL 预留成功不等于 accepted；gRPC Write 成功不等于 Comet 完成；delivered 不等于客户端收讫；重复请求保持原文，但不能承诺永不重复 fanout 或无限期去重。
 
 ### 4.3 重连、缺口补偿与离线补推
 
@@ -346,11 +338,11 @@ Job 消费实时 topic 后通过每个 Comet 复用的 gRPC PushStream 投递，
 
 **握手离线补推**
 
-建立 WebSocket 后，Comet 调用 `SyncOffline(user_id)`。Logic 从 `user_session_state.delivered_seq` 开始查询 MySQL，把尚未交给该用户连接的消息返回给 Comet。下发后再用 `MarkDelivered` 单调推进游标。
+建立 WS 后，Comet 按 `after_session_id + after_seq` 反复请求 `SyncOffline`，每页最多 200 条并受 2 MiB 估算预算限制，直到无下一页。下发被所属 IO 线程接受后，逐条 `MarkDelivered`，仅推进安全连续水位。Sync 的 `next_seq` 是翻页位置，`safe_seq` 才是已结算前缀证明；客户端在当前连续游标覆盖请求起点后使用它，SQL 暂缺的低序号保留并再次补拉。
 
 `delivered_seq` 和 `read_seq` 必须分开：用户可能已经收到但没有打开会话；如果用 `read_seq` 做离线补推，会在每次重连重复推送大量“已送达但未读”的消息。
 
-当前实测还发现一个边界：同一个有大量历史的账号同时建立 1000 条连接时，每条握手都会触发离线同步，造成消息放大和约 2 GiB Comet RSS。生产设计应限制同账号连接数，或把离线同步从“每连接”合并成“每用户一次”。
+旧版本压测发现一个边界：同一个有大量历史的账号同时建立 1000 条连接时，每条握手都会触发离线同步，造成消息放大和约 2 GiB Comet RSS。当前虽增加输出上限，用户级同步合并和同账号连接限制仍未完成；不能把旧 RSS 当新版本实测。
 
 ### 4.4 聊天室与群 fanout
 
@@ -365,7 +357,7 @@ Comet 本机维护：
 
 ### 4.5 广播与弹幕
 
-广播由管理 HTTP API 或内部 RPC 创建 `BroadcastTaskRequest`，写入 `broadcast_task`。Job 消费后按 scope 发送给全部连接或群组。广播单独使用限流参数和 consumer group，避免大广播共享单聊队列。
+广播由管理员 HTTP 或持有独立 ADMIN 角色密钥的内部 RPC 创建任务。房间 scope 的成员由 Logic 查询持久成员关系并写入任务；Job 遇到空/异常成员范围会拒绝，绝不退化为全局广播。广播仍有独立限流与 consumer group。
 
 弹幕按 `video_id + timeline_ms` 存入 `video_danmaku`，索引 `idx_video_timeline` 支持时间区间查询。弹幕本质上是另一种按时间轴组织的消息，不应强行复用单聊会话顺序。
 
@@ -524,7 +516,7 @@ Job 的 `pending` map 保存 `request_id → completion`；reader 收到 reply �
 - 旧流 pending 请求统一标记失败，交回 Kafka 回调重试路径；
 - Comet 的近期 `request_id` 集合防止 stream 重放和 Unary fallback 双重投递。
 
-当前内部 gRPC 使用 `InsecureChannelCredentials`，适合本机教学环境；生产环境应使用 mTLS、服务发现、负载均衡和证书轮换。
+当前内部 gRPC 默认仅允许本机明文并校验角色密钥；跨机连接/监听要求配置 TLS。实际证书互通仍待测，生产还需服务发现、轮换及按需求配置 mTLS。
 
 ### 5.3 Kafka：解耦、可靠边界与 offset
 
@@ -589,7 +581,7 @@ Kafka 由 topic、partition、record、producer、consumer group 和 offset 构�
 
 ```text
 Kafka at-least-once 倾向
-+ Redis client_msg_id 幂等
++ SQL canonical reservation / client_msg_id 幂等
 + Comet request_id 近期去重
 + MySQL 唯一键和完整字段比较
 = 业务侧幂等消费
@@ -611,49 +603,28 @@ Producer 幂等不等于端到端 exactly-once；Kafka 与 MySQL 之间没有分
 
 #### 5.4.1 当前 Redis key
 
-| Key                                            | 类型             | 作用                        |
-| ---------------------------------------------- | -------------- | ------------------------- |
-| `token:<token>`                                | String+TTL     | token → user_id           |
-| `user:tokens:<uid>`                            | Set+TTL        | 用户 token 反向索引，便于封禁/注销批量撤销 |
-| `route:user:<uid>`                             | Set            | 用户所在 Comet，可支持多端/多节点      |
-| `room:comets:<room_id>`                        | Set            | 房间在哪些 Comet 上有订阅者         |
-| `room:online_count:<room_id>`                  | String counter | 房间在线数                     |
-| `room:comet_count:<room>:<comet>`              | String counter | 房间在单个 Comet 的连接/用户计数      |
-| `session:msg_seq:<sid>`                        | String counter | 会话下一个序号的基础值               |
-| `session:last_seq:<sid>`                       | String         | 未读计算使用的最新序号缓存             |
-| `message:dedup:<sid>:<sender>:<client_msg_id>` | String+TTL     | 客户端重试对应的原 msg_seq         |
-| `user_session:read_seq:<uid>:<sid>`            | String         | 已读游标缓存                    |
+| Key | 类型 | 当前用途 |
+|---|---|---|
+| `token:<token>` / `user:tokens:<uid>` | String+TTL / Set | 凭证与撤销反向索引 |
+| `route:user:<uid>` | Set | 用户所在 Comet |
+| `route:generation:<uid>:<comet>` | counter | 路由注册代次 |
+| `route:lease:<uid>:<comet>` | String | generation + 随机 nonce，用于 compare-delete；没有 TTL 心跳租约 |
+| `room:comets:<room>` / `room:online_count:<room>` / `room:comet_count:<room>:<comet>` | Set/counter | 房间 fanout 和在线计数 |
+| `session:last_seq:<sid>` / `user_session:read_seq:<uid>:<sid>` | String | 未读/已读缓存 |
 
-#### 5.4.2 Redis Lua 为什么必要
+`session:msg_seq` 与 `message:dedup` 仅由保留的旧 Lua API/历史 benchmark 使用；当前发送链不依赖它们。
 
-如果在客户端依次执行：
+#### 5.4.2 Redis Lua 的当前用途与历史取号
 
-```text
-GET dedup
-GET current seq
-SET floor
-INCR seq
-SET dedup
-SET last_seq
-```
+当前上线/下线以 Lua 原子注册 generation+nonce，删除时只有租约值完全匹配才 SREM。它防止旧连接的晚到下线删除新连接路由；随机 nonce 还覆盖计数器丢失后数字复用。
 
-多个 Logic 实例并发时会发生竞态：两个请求可能都认为 dedup 不存在，或者 floor 修正和 INCR 交错。Lua 脚本在 Redis 单线程执行上下文中作为一个原子操作，项目脚本一次完成：
-
-1. 读取当前 seq；
-2. 若小于 MySQL floor，则提升到 floor；
-3. 查询 dedup key，存在则返回原 seq 和 `is_new=0`；
-4. `INCR` 分配新 seq；
-5. 单调更新 last_seq；
-6. 写入带 TTL 的 dedup key；
-7. 返回 `{seq, is_new}`。
-
-这同时解决顺序分配和客户端重试幂等，减少多次网络 RTT。Lua 全文和 EVAL 参数见第 13.4 节。
+旧 `AllocateSessionMsgSeq` 把 floor、dedup、INCR、last_seq 放在一个 Lua 操作中，原理和全文仍见 13.4，但它只保留为历史学习/组件基准。当前原文幂等和序号在 SQL 中完成，不能用旧 Lua ops/s 推算接受路径容量。
 
 #### 5.4.3 Redis 丢数据或水位落后怎么办
 
-Redis 不是消息事实来源。每个 Logic 进程第一次看到某个 session 时，`AppendMessageHotPath` 查询 MySQL `MAX(msg_seq)`，将它作为 Lua 的 floor。即使 Redis key 还在但值落后，脚本也先提升到 MySQL 最大值再分配。
+SQL `message_sequence` 是当前唯一取号权威；WS、旧 HTTP 和弹幕入口统一使用它，Redis 清空不会造成序号回退。部署升级必须排空旧事件，不能混用旧 Redis 分配器和新 SQL 分配器。
 
-进程内“已校准会话”按 session hash 分成 64 个 shard：同会话仍串行校准，不同会话通常可并行。边界是它只记录“本进程已校准”。如果多 Logic 并发启动、Redis 完全丢失，仍要依靠 MySQL floor、Redis 原子脚本和唯一键共同兜底。更大规模可以考虑独立序号服务、分段号或数据库/Redis 高可用策略。
+Redis 全量丢失仍会影响 token/在线路由：没有为所有已在线连接自动重注册，也没有故障 Comet 的心跳租约。需要重建连接/路由及登录凭证；序号正确不代表全链路自动恢复。真实 Redis 停启/网络黑洞实验尚未执行。
 
 #### 5.4.4 在线路由与短缓存
 
@@ -686,7 +657,7 @@ Redis 不是消息事实来源。每个 Logic 进程第一次看到某个 sessio
 - 空闲连接回收；
 - RAII `RedisConnGuard` 自动归还。
 
-本机混合压测出现过 `save token to redis failed`，说明只看 Redis 单命令 QPS 不够，还要监控连接池占用、等待时间和失败数。连接风暴会把认证写 token、历史鉴权读 token、消息序号和路由查询同时压到同一个 Redis 池。
+历史混合压测出现过 `save token to redis failed`。当前连接池默认 Acquire 等待 3 秒，失效后每 250 ms 重试补回 min，即使禁用扩容也能恢复；connect/PING 移出池全局锁。等待期限不取消底层网络调用，总时长仍受原生超时影响。认证、历史和路由会竞争这个池，需要监控等待与失败。
 
 ### 5.5 MySQL：事实存储、索引与幂等
 
@@ -696,7 +667,10 @@ Redis 不是消息事实来源。每个 Logic 进程第一次看到某个 sessio
 | -------------------- | ------------------------------------- | --------------------------------- |
 | `user`               | `UNIQUE(account)`、`status/deleted_at` | 账号、密码、生命周期和软删除                    |
 | `session`            | `UNIQUE(session_id)`、user/group 索引    | 会话参与者和最新序号                        |
-| `message`            | `UNIQUE(session_id,msg_seq)`          | 消息事实与会话内唯一序号；图片只存 attachment id   |
+| `message` | `UNIQUE(session_id,msg_seq)` | 持久消息历史；图片只存 attachment id |
+| `message_sequence` | `PRIMARY(session_id)` | 持久会话序号；事务持行锁 |
+| `message_reservation` | 会话序号唯一、会话/发送者/client ID 唯一 | canonical 原文、二进制 outbox、发布/持久化阶段 |
+| `message_delivery_receipt` | 用户/会话/序号唯一 | 逐条投递证明，推动连续水位 |
 | `attachment`         | `PRIMARY(id)`、owner/session 索引        | 图片元数据；字节在 `data/attachments/<id>` |
 | `user_session_state` | `UNIQUE(user_id,session_id)`          | `read_seq` 与 `delivered_seq`      |
 | `im_group`           | owner 索引                              | 群/聊天室元数据                          |
@@ -705,20 +679,21 @@ Redis 不是消息事实来源。每个 Logic 进程第一次看到某个 sessio
 | `broadcast`          | `UNIQUE(task_id)`                     | 广播任务记录                            |
 | `audit_log`          | target/action + created_at            | 追加式用户中心审计                         |
 
-#### 5.5.2 为什么消息热路径不再同步 INSERT
+#### 5.5.2 为什么接受路径仍需要 SQL，但历史由 Job 写
 
-同步 MySQL INSERT 的延迟会直接叠加到每条上行请求，连接池耗尽或磁盘抖动时还会阻塞 Logic。当前 WebSocket 单聊主链路的方案是：
+2026-10-11 前的 Redis 取号方案虽快，却不能持久保留重试原文，也无法在缓存丢失和旧 SQL 入口混写时维持统一序号。当前明确选择正确性优先：
 
 ```text
-Logic Redis 分配序号
+Logic SQL 事务取号 + canonical reservation
+  → SQL prepare 二进制 outbox
   → persist_message Kafka delivery report
   → accepted_ack
-  → Job 独立消费并写 MySQL
+  → Job 幂等写历史、stage=3
 ```
 
-这样把数据库写入延迟从在线请求线程移出，同时避免使用“不可靠的进程内异步队列”。Logic 崩溃后，Kafka 中的持久化事件仍可由 Job 重放。
+因此不能再称“MySQL 完全移出热路径”。在线受理包含同步 SQL 往返、行锁和 prepare；message 历史仍异步落库。prepared 事件可以在 Logic 重启后恢复，Kafka 确认失败仍需同 ID 重试来消除不确定性。
 
-根目录仍保留教学/兼容用的 HTTP `/api/message/send`，它调用 `ConversationStore::AppendMessage`，使用 MySQL 分配序号并同步 INSERT；弹幕 HTTP 入口也包含同步写路径。它们不能代表 WebSocket 单聊主链路的性能和可靠性语义。后续应迁移到统一的鉴权与消息受理流程，或明确标记为只用于开发演示。
+旧 HTTP `/api/message/send` 已要求 Bearer、校验 actor/目标与限流，并使用同一 SQL 序号权威同步写历史。它仍保留旧响应，不宣称 WS 的两阶段 ACK/实时投递合同；弹幕也共用序号权威。
 
 #### 5.5.3 幂等落库
 
@@ -728,7 +703,7 @@ Job 写 message 时可能遇到 Kafka 重放：
 - 如果唯一键已存在且完整字段一致，视为幂等成功；
 - 如果相同序号对应不同内容，视为 sequence collision，不能静默覆盖；
 - session last_seq 使用 `GREATEST`，避免乱序落库导致水位回退；
-- read_seq/delivered_seq 也使用 `GREATEST` 单调更新。
+- read_seq 使用 GREATEST；delivered_seq 先按 receipt 和已结算前缀计算连续水位，再单调更新，避免跨过尚未落库的低序号。
 
 “唯一键冲突”不应该全部忽略，否则真正的数据冲突会被伪装成幂等成功。
 
@@ -761,11 +736,14 @@ DAO 使用 `MYSQL_STMT` 绑定参数，避免拼接输入造成 SQL 注入，并
 | Comet WebSocket     | Muduo EventLoop + I/O worker                |
 | Comet→Logic         | 多条 gRPC MessageStream                       |
 | Comet Unary gRPC 工作 | `ThreadPool`                                |
-| Logic HTTP          | Muduo EventLoop；gRPC server 在独立线程等待         |
+| Logic HTTP | 默认 4 个 IO worker；同步业务仍占工作线程；gRPC server 独立等待 |
 | Kafka producer      | 调用线程 produce + 后台 poll thread               |
 | 每个 Kafka consumer   | 一个阻塞 consume thread                         |
 | 每个 Job→Comet stream | writer thread + reader thread + pending map |
-| delivered ACK       | 独立线程池                                       |
+| delivered ACK | 有界线程池 |
+| Comet 鉴权/下线/房间 RPC | 可 join 的有界池；握手结果切回 IO 线程 |
+| Logic outbox 恢复 | PeriodicWorker；每秒扫描 prepared 事件 |
+| Comet 上行 deadline | 独立 100 ms watchdog；不依赖 writer 继续执行 |
 
 #### 5.6.2 常用同步原语
 
@@ -774,7 +752,7 @@ DAO 使用 `MYSQL_STMT` 绑定参数，避免拼接输入造成 SQL 注入，并
 - `std::condition_variable`：连接池等待、stream queue、请求完成通知；
 - `std::atomic`：运行标记、压测计数器；
 - `std::thread`：Kafka loop、gRPC Wait、stream reader/writer；
-- `std::shared_ptr`：跨异步回调保持连接或 completion 生命周期。
+- `std::shared_ptr`：跨线程 send/startRead/stopRead 闭包持有连接与数据；定时器 weak_ptr 防止延迟回调延长或误用生命周期。
 
 加锁原则：锁内只修改共享状态，网络 I/O、数据库 I/O 和耗时计算尽量放到锁外；多个 mutex 同时获取时使用 `std::scoped_lock` 降低死锁风险。
 
@@ -805,7 +783,7 @@ RAII 把资源生命周期绑定到对象：
 
 #### 5.7.2 有界队列
 
-Job 的 `push_stream_queue_max=10000`。有界队列的意义不是提高吞吐，而是在下游持续变慢时限制内存上界，并显式失败/回压。无界队列只会把延迟问题推迟为 OOM。
+Job 的 `push_stream_queue_max=10000`；Comet→Logic 每流队列+pending 共 512 项、排队数据 8 MiB；通用池排队 1024 项/提交权重 32 MiB；Comet 单连接输出 4 MiB；Kafka producer 10000 项/32 MiB。满时显式拒绝或关闭慢连接。上限要按消息大小与机器内存调整，并不保证默认 10000 个慢连接内存安全。
 
 完整背压链路应同时观察：
 
@@ -841,7 +819,7 @@ Job 的 `push_stream_queue_max=10000`。有界队列的意义不是提高吞吐�
 
 管理员账号来自环境变量，不写入仓库。禁用/软删除会撤销 token、清理路由并写 audit_log。软删除保留消息外键语义和审计，不直接物理删除历史事实。
 
-当前网络仍是明文 HTTP/WebSocket 和 insecure gRPC；没有 TLS 时 Bearer token 可被链路窃取，所以只能用于可信本机/开发网络。
+内部 RPC 已区分 COMET/JOB/可选 ADMIN 密钥，缺少配置时启动失败；默认仅监听 loopback。跨机监听/连接必须配置服务器证书/私钥与客户端 CA，真实证书互通仍待测。公网 HTTP/WS 默认仍是明文，需要部署 HTTPS/WSS；mTLS、统一 IAM 和密钥托管尚未实现。
 
 ### 5.9 可观测性
 
@@ -861,6 +839,8 @@ Job 的 `push_stream_queue_max=10000`。有界队列的意义不是提高吞吐�
 - Job：Kafka lag、delivery attempt/success/lost、stream write/reply timeout、queue rejected、reconnect；
 - Comet：连接、离线补推、重复 request、cursor update failure、stream ready；
 - Hermes：request/reply/error、delta、TTFT、总延迟、prompt 大小。
+- Logic/Job：关键 consumer_failed、service readiness、DLQ 与 outbox 恢复失败；`/ready=200` 不证明 DLQ 为空或存储无积压。
+- 日志：默认仅写文件，50 MiB 轮转并保留 5 个历史文件；原生 stderr 位于 .out，排查需同时看 .log/.out。
 
 指标必须与日志和业务结果结合。例如 lag=0 只能说明 consumer 追平，不能证明客户端实际收到；delivery_success 增加也要结合独立接收端验证。
 
@@ -873,8 +853,8 @@ Job 的 `push_stream_queue_max=10000`。有界队列的意义不是提高吞吐�
 1. `docs/spark-push-architecture.md` 或本文第 1～4 章：三进程职责和两条消息链路；
 2. `proto/spark_push.proto`：先理解 ChatMessage、ACK、游标和三组 Service；
 3. `comet/comet_server.cpp`：看客户端怎样接入、上行怎样转发、下行怎样 fanout；
-4. `logic/services/message_service.cpp`：看单聊热路径、Redis 序号、Kafka 两条分支和限流；`grpc_service.cpp` 只做 RPC/DTO 转换；
-5. `logic/conversation_store.cpp` / `logic/redis_store.cpp`：看 Redis Lua 和 MySQL floor；
+4. `logic/services/message_service.cpp`：看凭证/actor 校验、SQL 原文预留、Kafka 两条分支和限流；`grpc_service.cpp` 做 RPC/DTO 与工作负载身份检查；
+5. `logic/message_reservation.cpp` / `logic/conversation_store.cpp`：看事务序号、outbox 和安全前缀；`redis_store.cpp` 看 token/路由代次；
 6. `job/service.cpp`：看 consumer、PushStream、reply、fallback 和持久化；
 7. `common/kafka_consumer.cpp`：看 retry、offset 和 persist DLQ；
 8. `android-app/.../SparkViewModel.kt`：看 TreeMap 流式合并和连接代数；
@@ -891,8 +871,8 @@ Job 的 `push_stream_queue_max=10000`。有界队列的意义不是提高吞吐�
 | accepted ACK 没有返回 / 气泡停在「发送中」 | Comet `MessageStream` 是否 `broken`、是否已重连               | `ReconnectStream`；握手 Unary 成功不代表上行流活着                               |
 | accepted 有、实时消息没有             | Redis route                                           | `push_single` lag、`JobRunner::ProcessPushRequest`、Comet target      |
 | delivered ACK 没有              | Job `StreamReaderLoop`                                | `SendDeliveryAck`、来源 Comet 路由                                       |
-| 重复消息                          | Redis dedup key                                       | Comet `AcceptPushRequest`、MySQL 唯一键、前端去重                            |
-| msg_seq 冲突                    | `AppendMessageHotPath`                                | Redis Lua、MySQL max floor、`MessageDao::InsertMessage`               |
+| 重复消息 | SQL reservation 原文/清理窗口 | Comet AcceptPushRequest、历史唯一键、前端去重 |
+| msg_seq 冲突 | message_sequence 是否被旧分配器混写 | Reserve 事务、历史唯一键与完整字段比较 |
 | 重连后缺消息                        | `SyncOffline`                                         | `user_session_state.delivered_seq`、历史落库 lag                         |
 | 重连后重复很多                       | Comet 握手补推                                            | `MarkDelivered`、同账号多连接                                              |
 | 历史接口慢 | `ConversationService::History`；入口 `handleHistory` | `MessageDao::ListMessages`、MySQL pool 和索引 |
@@ -914,7 +894,8 @@ Job 的 `push_stream_queue_max=10000`。有界队列的意义不是提高吞吐�
 | `logic/services/` | 八个业务服务集中规则与用例编排，详见第 16 章 |
 | `logic/repositories/` | 实现核心业务存储接口，复用已有 DAO/Store/Redis |
 | `AttachmentDao`                           | 图片元数据入库与本地文件原子 rename                     |
-| `ConversationStore`                       | 串联 session/message/state DAO 与 Redis 热路径  |
+| `ConversationStore` | 串联 session/message/state DAO、SQL reservations 与未读缓存 |
+| `MySqlMessageReservations` | 持久序号、canonical 原文、outbox 阶段与安全前缀 |
 | `RedisStore`                              | 封装 Redis key、路由缓存、Lua 和在线计数               |
 | `JobRunner`                               | Kafka 四类 consumer 与 Job→Comet stream 生命周期 |
 | `KafkaProducer/Consumer`                  | librdkafka 可靠性参数、poll、retry 和 commit      |
@@ -948,9 +929,9 @@ Job 的 `push_stream_queue_max=10000`。有界队列的意义不是提高吞吐�
 | 聊天室  | `/api/chatroom/join`、`leave`、`unsubscribe`、`online_count`、`list` | 主要使用 Bearer，并核对 body user_id 与 token 用户   |
 | 弹幕   | `/api/danmaku/send`、`list`                                       | send 兼容在 JSON body 传 token；不是统一 Bearer 形式 |
 | 管理   | `/api/admin/user/*`、`audit/list`、`chatroom/*`、`broadcast`        | 管理员 Bearer token                          |
-| 兼容发送 | `/api/message/send`                                              | 当前未调用 `requireUser`，同步写 MySQL；不属于推荐实时主链路  |
+| 兼容发送 | `/api/message/send` | Bearer；from_user_id 必须等于认证用户；共用 SQL 序号同步写历史，仍保留旧响应 |
 
-这张表同时暴露了当前安全债务：普通 HTTP 入口尚未完全统一 Bearer 形式，`/api/message/send` 不能作为生产公开接口。面试时主动说明这种兼容边界，比笼统声称“所有接口已统一鉴权”更可信。
+兼容边界仍需明确：弹幕保留 body token 形式，旧 HTTP send 不等于 WS 可靠发送流程；不能把已补鉴权写成所有协议和部署安全都已完成。HTTP parser 已加入分包推进、长度上限和异常响应，见第 19 章。
 
 ### 6.6 配套专题文档
 
@@ -961,6 +942,7 @@ Job 的 `push_stream_queue_max=10000`。有界队列的意义不是提高吞吐�
 - [阅读索引](spark-push-implementation.md)：两层文档入口、Android 与长度审计；
 - [项目 README](../README.md)：最短启动与当前能力；
 - [可靠性优化](reliability-optimization.md)：ACK、游标、PushStream 和指标；
+- [工程审查修复](review-remediation.md)：当前 SQL 预留、生命周期、安全、迁移与验证回执；旧专题中的取号算法应按此校准；
 - [项目演进与面试](interview-project-evolution.md)：从早期 Demo 到当前版本的阶段记录；
 - [用户中心](user-center.md)：管理员 API、状态和审计；
 - [Pi Agent 集成](pi-agent-integration.md)：本机 gateway、SSE、引用、截图问答和二次开发；
@@ -994,7 +976,7 @@ SPARK_PUSH_MYSQL_PASSWORD=<本机开发密码>
 bash scripts/start_demo.sh
 ```
 
-脚本会启动 Redis、MySQL、Kafka，创建 topic，Release 编译并启动业务进程，然后检查端口和 Job→Comet stream ready。
+新建环境中脚本启动依赖、建 topic、Release 编译并载入 .env.rpc 的角色密钥，再检查 readiness 与两组 stream。存量环境必须先完成第 19.5 节 SQL/Kafka 升级；脚本不自动迁移业务数据。
 
 只复用已经启动的依赖或二进制：
 
@@ -1192,7 +1174,7 @@ MySQL `MessageDao::InsertMessage`，每档 5000 次：
 | 4   | 775.59  | 4.928   | 7.045   | 9.982   |
 | 16  | 2117.03 | 6.835   | 10.379  | 16.439  |
 
-Redis 与 MySQL 操作语义不同，不能当作同类数据库横评。这组数据用于说明为何当前消息热路径选择 Redis Lua，并把 MySQL 持久化移到 Kafka consumer。
+Redis 与 MySQL 操作语义不同，不能当作同类数据库横评。这组数据说明当时选择 Redis Lua 的性能动机；当前为原文幂等与恢复改用 SQL reservation，不能据此推算新链路吞吐。
 
 #### 5）Kafka→Job→Comet 隔离链路
 
@@ -1295,7 +1277,7 @@ E2E 使用相同二进制、同一组账号、同机组件和 16×50=800 条突�
 - 本轮没有将 Kafka `SendAndWait` 改为无等待异步 ACK。后续若要进一步提高吞吐，应使用有界 inflight 队列和 delivery callback 异步回应，并保证只在 broker 成功后发 accepted ACK。
 - 所有数字都是本机同部署 Release 结果，不是生产 SLA；800 条 A/B 是单轮对照，正式容量报告应运行多轮并报告中位数和方差。
 
-### 8.3.5 2026-09-12 最新压测结果（当前采用）
+### 8.3.5 2026-09-12 压测结果（旧 Redis 取号版本）
 
 本轮在服务完整启动后重新执行，覆盖此前文档中的单聊 E2E、连接、历史查询和 Kafka→Job→Comet 数据。环境为当前工作区构建产物；Logic、Comet、Job、Redis、MySQL、Kafka 和压测客户端同机运行。使用新建的隔离账号 `perf_run_20260912_s`、`perf_run_20260912_r`，不与历史压测账号混用。
 
@@ -1306,13 +1288,13 @@ E2E 使用相同二进制、同一组账号、同机组件和 16×50=800 条突�
 | 历史查询（8 线程×50）           | 400/400                                            | **348.78 QPS**    | 20.13 ms  | 43.65 ms   | 73.43 ms   | 0     |
 | Kafka→Job→Comet（1000 条） | sent/received = 1000/1000                          | **1385.98 msg/s** | 335.85 ms | 640.64 ms  | 666.47 ms  | 0/0   |
 
-E2E 的四个计数完全一致，Kafka 分层测试无发送失败、丢失或解析错误。本轮结果取代前文作为当前最新运行数据；此前 2026-08-27、2026-09-01 数据保留用于历史 A/B 对照，不再作为当前服务的最新 QPS。
+当时 E2E 四个计数一致，Kafka 分层无发送失败、丢失或解析错误。该组与 8.2/8.3 的数字都属于旧 Redis 取号链路；2026-10-11 已改为 SQL 持久预留，不可称当前 QPS。本轮没有重测完整 IM 吞吐。
 
 本轮启动时 WebDemo 因 9010 端口已有旧进程而未重新拉起，但不影响 Logic、Comet、Job、Kafka、Redis、MySQL 和 Agent Gateway 压测链路。
 
 ### 8.4 性能结论应该怎样理解
 
-- 2026-09-12 最新 8×100 单聊 E2E 实际投递为 747.76 msg/s，p99 为 1059.44 ms；2026-08-27 和 2026-09-01 数据仅作为历史/A-B 对照，不能混成一个“峰值”；
+- 2026-09-12 的 747.76 msg/s/p99 1059.44 ms，以及 8 月/9 月 A/B，仅证明旧版本在对应环境的结果；当前 SQL 预留链路需新容量与尾延迟测量；
 - 吞吐平台后 p99 快速增长，说明系统正在排队，不应继续用增加客户端并发“压高 QPS”；
 - 1000 个空闲连接很轻，但“重连+离线历史”很重，容量模型必须分连接状态；
 - 房间应同时报告业务 messages/s 与实际 deliveries/s；
@@ -1327,9 +1309,9 @@ E2E 的四个计数完全一致，Kafka 分层测试无发送失败、丢失或�
 | WS 握手失败              | Logic 9100 → token 是否存在 → Comet 日志 → 协议/端口                   |
 | accepted 无 delivered | Redis 在线路由 → `push_single` lag → Job stream ready → Comet 连接 |
 | delivered 但历史没有      | `persist_message` group lag → Job MySQL pool → 唯一键/冲突日志      |
-| 重复消息                 | client_msg_id → Redis dedup TTL → request_id 去重 → 前端去重       |
-| msg_seq 冲突           | MySQL max floor → Redis key → Lua 返回 → `uk_session_seq` 冲突详情 |
-| 重连重复历史               | delivered_seq → MarkDelivered failure → 同账号连接数               |
+| 重复消息 | client_msg_id/SQL 原文与清理窗口 → outbox 阶段 → request_id 窗口 → 前端去重 |
+| msg_seq 冲突 | 是否混跑旧分配器 → SQL message_sequence/reservation → message 唯一键与原文字段 |
+| 重连重复/缺历史 | receipt/安全前缀 → next_seq 与 safe_seq → continuation → 同账号连接数 |
 | Kafka lag 增长         | topic/group → callback 时延 → stream queue/MySQL → partition 数 |
 | 429                  | 场景、key、rate/burst；不要直接无限调大                                   |
 | Comet 内存增长           | 连接数 → 写缓冲 → 离线补推数 → 热点用户多连接                                  |
@@ -1353,13 +1335,13 @@ E2E 的四个计数完全一致，Kafka 分层测试无发送失败、丢失或�
 | 原始/早期问题                 | 当前改造                                                | 解决效果                  | 尚存边界                         |
 | ----------------------- | --------------------------------------------------- | --------------------- | ---------------------------- |
 | socket send 成功就算消息成功    | accepted/delivered ACK + 独立接收 E2E                   | 消息阶段可解释、可验证           | delivered 仍不是用户已读            |
-| MySQL 行锁/同步 INSERT 在热路径 | Redis Lua 取号 + persist topic + Job 落库               | 降低 Logic 阻塞和崩溃丢本地任务窗口 | Kafka/MySQL 非事务 exactly-once |
-| client 重试生成重复消息         | `client_msg_id` Lua 幂等                              | 相同重试返回原 seq           | dedup 有 TTL，客户端仍需去重          |
-| Redis 序号丢失后可能回退         | 每进程首次用 MySQL MAX 作 floor                            | 避免从落后 key 继续编号        | 多节点恢复仍需更强容量验证                |
+| 接受路径与异步历史缺少持久协调 | SQL reservation/outbox + persist Kafka + Job 历史 | 原文重试、重启恢复、统一序号 | 接受仍有 SQL 开销，跨系统非 exactly-once |
+| 客户端重试原文/时间戳变化 | SQL canonical 原文与 client ID 唯一键 | 相同 ID 返回原 seq/正文/时间戳，改正文拒绝 | 已结算记录满一天后清理，非永久去重 |
+| Redis 清空/旧 HTTP 混写造成序号冲突 | 当前所有入口用同一 SQL message_sequence | 缓存丢失不回退序号 | 升级要排空旧事件，禁止新旧分配器混跑 |
 | Job 任务入线程池后就提交 offset   | callback 真正完成后同步 commit；persist 另有 DLQ topic        | 进程崩溃时未完成 record 可重放   | 实时 push 重试耗尽仍只有死信日志          |
 | Job→Comet 逐条 Unary      | 双向 PushStream + request/reply                       | 复用连接、明确逐条完成           | 单 Comet stream/queue 仍会成为瓶颈  |
 | 流断开可能重复投递               | pending 失败、Kafka retry、request_id 去重、Unary fallback | 可重试且减少重复              | 近期去重集合有容量边界                  |
-| 重连只恢复连接不恢复消息            | delivered cursor + SyncOffline + gap sync           | 消息最终可补齐               | 同账号多连接会放大补推                  |
+| 高序号先投递/离线只补第一页 | receipt 连续水位 + safe_seq + 多会话分页 | 不因 MAX 游标跳过低消息 | 同用户多连接放大、晚落库需后续补拉 |
 | 广播/大群挤占单聊               | 独立 topic/group/rate limit                           | 故障域和指标更清晰             | broker/CPU/网络仍共享             |
 | 只有日志没有量化                | Prometheus text metrics + 六项压测                      | 能从吞吐、p99、lag 定位瓶颈     | 尚无 Grafana/告警和多机基准           |
 | AI 调用阻塞 IM 风险           | 独立 Hermes Bridge 与 AI topics                        | 外部模型和普通聊天隔离           | 外部 API 可用性仍需治理               |
@@ -1370,9 +1352,9 @@ E2E 的四个计数完全一致，Kafka 分层测试无发送失败、丢失或�
 
 问题不是先改代码，而是先定义消息状态：accepted、delivered、read、stored 各自代表什么。只有状态边界明确，才能决定 ACK 在哪里返回、offset 在哪里提交、测试应该观察什么。
 
-#### 决策二：把 MySQL 移出热路径，但不用进程内异步队列
+#### 决策二：用持久原文和 outbox 统一序号与重试
 
-本地线程池可以降低表面响应时间，却会在 Logic 崩溃时丢掉尚未执行的任务。使用 `persist_message` 并等待 broker delivery report，把可靠边界放到可重放日志，再由 Job 落库，是性能和可靠性的折中。
+早期用 Redis 取号、Kafka 异步落库降低延迟；工程审查发现 SQL 历史落后、缓存丢失和旧入口混写的组合无法仅靠 MAX floor 兜底，重试还可能改变时间戳/正文。当前增加 SQL reservation/outbox：先持久保存身份和原文，再等 Kafka 确认 accepted，Job 继续负责历史。它增加 SQL 往返，但让正确性与恢复有明确证据，容量数据必须重测。
 
 #### 决策三：用 E2E 证据替代组件自证
 
@@ -1399,20 +1381,20 @@ Kafka producer 成功、Job counter 增长、Comet send 返回都只能证明一
 
 #### 30 秒版本
 
-> Spark Push 是我基于 C++17 实现和工程化改造的实时消息系统，拆分为管理 WebSocket 长连接的 Comet、负责业务与幂等的 Logic，以及消费 Kafka 并下推/落库的 Job。核心工作包括 Redis Lua 会话序号与客户端幂等、Kafka 持久化边界、gRPC 双向 PushStream、两阶段 ACK、游标补偿和独立接收端 E2E 验证。
+> Spark Push 是我在 C++17 教学 IM 基础上持续改进的消息系统，拆为 Comet 连接层、Logic 业务层和 Job 异步层。我主要做了 SQL 持久序号与原文幂等/outbox、Kafka accepted 边界、gRPC 双向流与 delivered 确认、分页安全游标，以及跨线程连接生命周期和异常网络回归。
 
 #### 2 分钟版本
 
-> 这个项目是一个 C++17 分布式实时消息推送系统。我把连接、业务和异步任务拆成 Comet、Logic、Job 三层：Comet 基于 Muduo Reactor 管理 WebSocket，Logic 通过 gRPC 双向流接收上行消息，用 Redis Lua 原子完成会话内 msg_seq、MySQL floor 修正和 client_msg_id 幂等；消息先把持久化事件写入 Kafka，收到 broker delivery report 后才返回 accepted ACK，再通过独立单聊/群聊 topic 交给 Job。Job 为每个 Comet 维护双向 PushStream，按 request_id 等待逐条 reply 后才提交 Kafka offset，并配合重连、Unary fallback 和 Comet 近期去重。
+> Comet 基于 Muduo Reactor 管 WS，Logic 校验用户/成员关系并管理消息状态，Job 消费 Kafka 写历史或下推。最初用 Redis Lua 取号，审查发现缓存丢失、旧 HTTP 混写、重试时间戳变化及持久化晚到时的游标问题，于是把当前入口统一到 SQL 会话行锁和 canonical reservation，准备二进制 outbox 后等 Kafka 确认再发 accepted。prepared 事件后台恢复，重复消息保持原 ID/正文/时间戳。
 >
-> 为了处理断线和乱序，我增加 delivered cursor、主动缺口同步和握手离线补推；为了处理流量干扰，单聊、群聊、广播拆 topic、consumer group 和令牌桶。最后我没有用客户端 send 速度当 QPS，而是做了独立接收方 E2E，验证 accepted、delivered ACK、真实接收和数据库结果。性能优化时去掉 Redis 热连接每次借出的 `PING`，将序号初始化锁分为 64 片，并把 Comet→Logic 上行流从 4 增至 8。同机 A/B 中 Redis Lua 热路径提升 53.1%，800 条单聊实际投递从 621.43 提升到 1100.55 msg/s，p99 从 1272 ms 降至 711 ms。当前是单机教学环境，不能宣称 exactly-once 或百万并发。
+> 投递由 Job 的 PushStream 匹配 request_id，Comet 所属 IO 线程检查连接和输出容量后才确认 delivered；逐条 receipt 与 safe_seq 防止高序号跳过低序号。离线跨会话翻页，队列和输出有界，握手鉴权移到可 join 工作池，内部 RPC 加角色密钥和远程 TLS 配置。43 项 CTest 中 40 通过、3 项 opt-in 在隔离 MySQL/Redis 补跑通过；真实 Kafka 重建保留消息和 offset。尚未完成多机故障、长期高并发与当前吞吐压测，不能声称生产级或 exactly-once。
 
 ### 10.2 简历写法
 
 #### 项目标题
 
 ```text
-Spark Push｜C++17 分布式实时消息推送系统
+Spark Push｜C++17 分布式实时消息与 Agent 协作系统
 ```
 
 #### 技术栈
@@ -1424,27 +1406,29 @@ OpenSSL、CMake/CTest、Docker Compose、Prometheus Text Metrics
 
 #### 推荐项目描述（通用后端岗位）
 
-- 设计 Comet/Logic/Job 三层实时消息架构，基于 Muduo Reactor 管理 WebSocket 长连接，以 gRPC 双向流处理上行和 Job→Comet 下推，并通过有界队列、deadline、重连及 Unary fallback 管理背压和故障；
-- 使用 Redis Lua 原子实现会话内 `msg_seq` 分配与 `client_msg_id` 幂等，引入 MySQL 最大序号 floor、`(session_id,msg_seq)` 唯一键和单调水位更新，处理 Redis 落后、客户端重试和 Kafka 重放；
-- 将消息状态拆分为 accepted/delivered/read，使用 `persist_message` 建立可重放持久化边界，按业务完成结果提交 Kafka offset，并实现 delivered cursor、缺口同步和离线补推；
-- 将单聊、群聊、广播拆分为独立 topic、consumer group 和令牌桶，建设 lag、投递、重复、重连、限流指标及独立接收端 E2E/故障注入验证；
-- 定位 Redis 连接池每次借出 `PING`、会话序号首次校准全局锁及 gRPC 上行并行度不足；优化后 16 线程 Redis Lua 热路径由 21.27k 提升至 32.56k ops/s，同机 800 条单聊 A/B 由 621.43 提升至 1100.55 msg/s、p99 由 1272 ms 降至 711 ms，全程零 ACK 错误和零实际缺失；
-- 在 12 vCPU/15 GiB 单机同部署环境完成六类压测：1000 空闲连接 RSS 增量约 4.66 KiB/连接，Kafka→Job→Comet 1 万条突发零丢失、约 1772 msg/s，并定位同账号离线补推放大问题；
-- 将 Android 从 WebView 壳迁到 Kotlin/Compose 原生客户端，按 `session_id + msg_seq` 做游标补偿，用 `TreeMap` 合并乱序 Agent 增量，并以独立联系人隔离 PC/Web 会话。
+- 在 Comet/Logic/Job 架构中抽离共享业务 Service 与 Repository，复用 HTTP/gRPC 的身份、会话、附件和成员规则；新增协议保持业务规则有唯一入口。
+- 将 WS、旧 HTTP 与弹幕序号统一到 MySQL 事务，持久保存 client_msg_id 对应的原文、时间戳与序号；Kafka 前准备二进制 outbox，支持确认失败重试及后台恢复，拒绝同 ID 改正文。
+- 以 Kafka delivery report 定义 accepted，以目标连接 IO 线程接受发送定义 delivered；通过逐条 receipt、safe_seq 和跨会话分页避免乱序/晚落库造成永久漏补，保持至少一次尝试与多层幂等。
+- 修复 HTTP 半包、JSON 异常、WS Ping/Pong、跨线程连接闭包和晚鉴权生命周期；实施有界任务/流队列、慢连接输出上限、可 join RPC 工作池和受控退出。
+- 增加内部 RPC 角色认证、loopback/TLS 配置、路由 generation+nonce compare-delete、消费者 readiness、DLQ 显式重放和日志轮转；以 43 项 CTest、隔离 SQL/Redis 回归及真实 Kafka 容器替换验证对应边界。
 
-带数字的条目投递简历时必须保留测试环境、负载规模和“本机同部署”限制；如果简历篇幅不足，可以删掉数字条而不是删掉边界。
+简历篇幅不足时选 3～4 项，每项必须能追到代码与测试。可另写 Android、GPU 推理或第 18 章 Agent 协作，避免把所有领域堆成一条。
 
 #### 偏 C++/网络岗位版本
 
-- 基于 Muduo EventLoop/epoll 实现 WebSocket 长连接接入，设计用户多连接与房间订阅表，采用锁内复制连接、锁外发送和 RAII 资源管理降低全局锁持有时间；
-- 设计 Comet↔Logic、Job↔Comet 两组 gRPC 双向流，以 writer/reader、pending map、condition variable 和 request_id 实现逐条响应匹配、超时和断流恢复；
-- 实现可增长 Redis/MySQL 连接池、线程池和分场景令牌桶，使用 mutex/shared_mutex/atomic 管理共享状态，并以 1000 连接、心跳和重连风暴测试验证连接生命周期。
+- 用 Muduo EventLoop 管理 WS，跨线程 send 闭包持有连接与数据，状态转换归 owner loop；以 weak_ptr 定时器、可 join 工作池和传输先销毁顺序收敛回调生命周期。
+- 用 gRPC reader/writer、pending map 和 request_id 管理双向流，Comet 上行按项数/字节限制积压，以独立 watchdog 从入队时计算超时并取消 stalled 流。
+- 将握手鉴权移出 IO 线程，验证真实 TCP 分包、慢鉴权、异常断连、Ping/Pong/Close 与 SIGTERM；连接池失效后能在禁用扩容时补回最小连接数。
 
 #### 偏中间件/分布式岗位版本
 
-- 按持久化、单聊、群聊和广播拆分 Kafka topic/consumer group，关闭自动提交，在业务处理完成后同步提交 offset，以 lag、retry 和 dead-letter 日志观察消费状态；
-- 以 Redis Lua + MySQL floor/唯一键构建多层幂等，使用 accepted/delivered ACK 和 delivered/read cursor 明确消息状态，采用 at-least-once + 业务幂等而非夸大 exactly-once；
-- 通过独立 Kafka→Job→Comet 压测将上游业务开销与下游投递能力分离，并结合客户端 p99 和 Job Kafka lag 证明突发积压对尾延迟的影响。
+- 用 SQL canonical reservation、Kafka 确认和 Job 幂等历史建立受理/投递分离的消息状态；以 outbox 恢复 prepared 事件，不夸大跨系统 exactly-once。
+- 按场景拆 topic/group/限流，在业务成功或已确认持久化死信后提交 offset，关键 consumer 失败撤销 readiness；提供默认 dry-run 的显式重放 CLI。
+- 建立独立接收端 E2E 与分层基准，区分业务 messages/s、fanout deliveries/s 和组件 ops/s，历史结果绑定测试日期、版本与同机负载。
+
+#### 历史优化数字怎样使用
+
+2026-09-01 的 Redis Lua 21.27k→32.56k ops/s、800 条 E2E 621.43→1100.55 msg/s、p99 1272→711 ms 可以作为**旧 Redis 取号版本的单机 A/B 故事**。当前 SQL 预留链路没有新的 IM 吞吐结果，不能把历史数据标成当前容量。日志成本测量也不能写成消息 TPS 收益。
 
 ### 10.3 高频面试追问
 
@@ -1456,21 +1440,21 @@ OpenSSL、CMake/CTest、Docker Compose、Prometheus Text Metrics
 
 不能。它最多说明服务端已交给目标 WebSocket 连接的发送路径。客户端进程可能随即崩溃，页面也可能没有渲染。用户已读需要独立 read receipt/read_seq。
 
-#### 3. Redis Lua 能保证全局有序吗？
+#### 3. 当前消息序号能保证全局有序吗？
 
-它保证单 Redis 主节点上单个 session key 的原子递增，不保证跨会话全局顺序，也不自动解决 Redis 故障切换的数据丢失。项目用 MySQL max floor 和唯一键兜底会话序号，生产还需要 Redis HA 和恢复验证。
+不能。SQL 会话行锁保证同 session 唯一递增，per-session 提交锁只管单个 Logic 进程的发送顺序；跨 Logic 的 Kafka 发布顺序与跨会话顺序仍不由它保证。客户端仍需排序、去重和补拉。旧 Redis Lua 原子取号也不等于端到端投递有序。
 
 #### 4. 为什么不用 MySQL 自增 ID 直接做消息序号？
 
-表自增 ID 是全表维度，不能自然表达会话内连续性；每条消息同步写 MySQL 会把数据库延迟放进热路径。`msg_seq` 只要求会话内单调，更适合按 session 分配。
+表自增 ID 是全表维度，不能自然表达会话内序号。当前用 SQL message_sequence 按 session 锁行分配，接受路径仍有同步数据库延迟；序号可有封存缺号，不能要求物理上永远连续。
 
 #### 5. 为什么 Redis 快，还要 MySQL？
 
-Redis 保存热状态，可能过期、淘汰或故障丢失；MySQL 保存长期可查询事实、唯一约束和游标。离线补推、历史、审计和序号 floor 都需要持久化存储。
+Redis 保存可失效热状态，MySQL 保存消息身份/序号、原文/outbox、长期历史与 receipt 游标；幂等和补偿都需要持久事实，不能只依赖缓存。
 
 #### 6. Kafka 能保证 exactly-once 吗？
 
-Kafka 的幂等 producer/事务只覆盖特定 Kafka 范围；本项目还跨 MySQL、gRPC 和 WebSocket，没有统一事务。当前通过至少一次重试倾向和 Redis、Comet、MySQL 多层幂等达到可重试的最终收敛，不能宣称端到端 exactly-once。
+Kafka 的幂等 producer/事务只覆盖特定 Kafka 范围；本项目还跨 MySQL、gRPC 和 WebSocket，没有统一事务。当前是至少一次尝试，依靠 SQL 原文 reservation、Comet 近期去重、历史唯一键与客户端去重处理重放；不能宣称端到端 exactly-once。
 
 #### 7. 为什么消费后再 commit offset？
 
@@ -1478,7 +1462,7 @@ Kafka 的幂等 producer/事务只覆盖特定 Kafka 范围；本项目还跨 My
 
 #### 8. 当前 DLQ 完整吗？
 
-persist 已有独立 `persist_message.dlq`：三次处理失败后把 hex 编码的 key/payload 写入死信，确认后才提交原 offset；DLQ 本身失败则停消费。实时 push/broadcast 仍是重试耗尽后打 `[DLQ]` 日志并提交 offset。没有管理界面和一键重放。简历应写“persist 死信 topic + 实时路径死信日志”，不能写“全链路完整死信队列”。
+persist 已有独立 `persist_message.dlq`：三次处理失败后把 hex 编码的 key/payload 写入死信，确认后才提交原 offset；DLQ 本身失败则停消费。实时 push/broadcast 仍是重试耗尽后打 `[DLQ]` 日志并提交 offset。已有默认 dry-run、显式目标且需 --apply 的 CLI 重放；尚无管理界面或自动恢复平台。简历应写“persist 死信 topic + 实时路径死信日志”，不能写“全链路完整死信队列”。
 
 #### 9. gRPC 已经复用 HTTP/2，为什么还需要 Streaming？
 
@@ -1506,11 +1490,11 @@ read_seq 表示用户已经阅读，delivered_seq 表示服务端已经交给连
 
 #### 15. 性能瓶颈在哪里？
 
-最新一轮 8×100 单聊 E2E 实际投递为 747.76 msg/s，p99 为 1059.44 ms；Kafka→Job→Comet 分层投递为 1385.98 msg/s，p99 为 666.47 ms。此前从 4 条增至 8 条上行流的 621.43→1100.55 msg/s 仍用于说明优化收益，不作为本轮当前 QPS。突发增加时还可能先碰到令牌桶，429 超时样本不能伪装成容量 QPS。
+当前尚需重测 SQL reservation/outbox 接受路径；应观察会话行锁、SQL 往返/池等待、Kafka 确认、流队列和慢连接。747.76 msg/s 等数据属于 2026-09-12 旧 Redis 版本，不能当当前 QPS；令牌桶 429 也不能用来推断容量。
 
 #### 16. 项目中真实发现过什么问题？
 
-可以讲三个：实时已送达但持久化 consumer 尚未追平；Redis seq 低于 MySQL 导致潜在冲突；同账号 1000 重连导致离线补推放大和 Comet RSS 激增。每个问题都能给出指标、代码改造或后续方案。
+可以讲四条能追到测试的链路：HTTP header 半包循环不推进；相同 client ID 重试重建时间戳导致历史冲突；高 seq 投递后 MAX delivered 跳过尚未落 SQL 的低 seq；晚到旧下线删新路由。分别用 TCP 切分、首次 Kafka 发布失败注入、真实 SQL 晚落库/乱序 receipt、50 次路由并发与计数器丢失回归验证，细节见第 19 章。
 
 #### 17. Hermes 为什么不直接放进 Logic？
 
@@ -1534,11 +1518,9 @@ delta 是展示过程，不是稳定事实。逐 token 落库会制造大量消�
 
 > 我使用闭环 E2E 测试，不把发送端 `socket send` 当成系统 QPS。测试同时统计 `sent`、`accepted_ack`、`delivered_ack` 和接收端按唯一 `client_msg_id` 读到的消息，并记录 p50/p95/p99、失败、重复、Kafka lag 和队列状态。只有四个消息数量完全相等才算通过。
 
-当前最新本机实测数据是：8 连接×100 条单聊 E2E 实际投递 **747.76 msg/s**，p99 **1059.44 ms**；200 条 WebSocket 建连速率 **628.56 conn/s**；历史查询 **348.78 QPS**、p99 **73.43 ms**；Kafka→Job→Comet 分层投递 **1385.98 msg/s**、p99 **666.47 ms**。此前同机 A/B 的 621.43→1100.55 msg/s 和 Redis Lua 21.27k→32.56k ops/s 仍作为优化对照数据保留。
+历史 2026-09-12 旧 Redis 版本：8×100 E2E 为 747.76 msg/s、p99 1059.44 ms；200 WS 建连 628.56 conn/s；历史查询 348.78 QPS；Kafka 分层 1385.98 msg/s。更早的 A/B 说明热连接 PING、floor 锁分片和上行并行度优化收益。它们都是对应版本的单机数据。
 
-优化主要针对三个位置：去掉 Redis 连接池每次借出都执行的 `PING`；把会话序号首次 floor 校准锁分为 64 个 shard；增加上行 gRPC 流的并行度，同时保留 Kafka delivery report 作为 accepted ACK 边界。所有数字都是单机同部署回归结果，不能直接外推生产容量。
-
-本次尝试重新运行 E2E 时，环境因 Docker daemon 不可达、Redis/MySQL/Kafka 未启动而无法建立 Logic 连接；因此文档只引用已有可复核报告中的数字，没有编造新的结果。
+2026-10-11 的当前链路改成 SQL 原文预留与 outbox，本轮执行了功能/故障回归和日志成本测量，未重跑完整 IM 吞吐。下一次压测要覆盖 SQL 行锁和写入、不同会话并发、消息尺寸、在线率及慢客户端，不能沿用旧 Lua 数字。
 
 #### 3）这个项目哪里比较难？
 
@@ -1550,13 +1532,13 @@ delta 是展示过程，不是稳定事实。逐 token 落库会制造大量消�
 
 > 当前采用“至少一次传递 + 多层幂等”，没有声称端到端 exactly-once。
 
-- 客户端用 `client_msg_id` 识别重试；Logic 用 Redis Lua 原子分配会话 `msg_seq`。
+- 客户端用 client_msg_id 识别重试；Logic 用 SQL 行锁统一序号，保存 canonical 原文并 prepare outbox，后台恢复 prepared 事件。
 - 持久化事件获得 Kafka delivery report 后才返回 `accepted_ack`。
 - Job 在业务处理完成后提交 offset，崩溃时允许 Kafka 重放。
 - Job→Comet 使用 `request_id` 匹配响应，Comet 对近期 request 做去重。
 - MySQL 使用 `(session_id,msg_seq)` 唯一键和完整字段比对兜底。
 - 客户端按 `msg_id/client_msg_id` 去重，发现序号缺口时调用补偿接口。
-- 重连按照 `delivered_seq` 离线补推；`read_seq` 只表示用户已读。
+- 逐条 receipt 推进连续 delivered_seq，分页用 next_seq，结算证明用 safe_seq，跨会话 continuation 补全离线；read_seq 只表示已读。
 
 #### 5）Comet 怎么和 Logic 交互？异步返回如何对应原请求？
 
@@ -1568,7 +1550,7 @@ delta 是展示过程，不是稳定事实。逐 token 落库会制造大量消�
 
 > Redis 负责低延迟、高频访问的热状态，不替代 MySQL 的长期事实存储。
 
-项目使用 Redis 保存 Token 和撤销索引、`user→Comet` 与 `room→Comet` 路由、会话序号、客户端幂等键、限流令牌桶、在线状态和短期未读缓存。序号分配和幂等使用 Lua 保证原子性；Redis 发生丢失或落后时，以 MySQL 最大序号 floor 和唯一键兜底。选择 Redis 是因为这些操作对象小、访问频繁，并且需要原子计数、集合和过期能力；消息历史、审计和游标仍以 MySQL 为准。
+项目用 Redis 保存 token/撤销索引、用户/房间路由、在线状态、路由 generation+nonce 和未读缓存。令牌桶目前在 Logic 内存中，消息序号与原文幂等目前在 SQL，不能把它们描述成 Redis 当前职责。Redis 适合高频小对象、集合和过期缓存；其丢失仍影响登录/路由，但不会回退持久消息序号。
 
 #### 7）面试中怎样避免回答过短？
 
@@ -1589,8 +1571,8 @@ delta 是展示过程，不是稳定事实。逐 token 落库会制造大量消�
 
 - Situation：原始 Demo 将发送成功、服务受理、在线投递和数据库落库混成一个状态；
 - Task：建立可解释、可重放、可验证的消息状态机；
-- Action：拆 ACK、增加 persist topic、消费后 commit、Redis Lua 幂等、游标补偿和 E2E；
-- Result：可以分别验证 accepted、delivered、stored，重启和重放不产生冲突，并发现真实 persist lag 问题。
+- Action：拆 ACK、persist Kafka、SQL 原文 reservation/outbox、消费后 commit、receipt 连续游标、安全分页和异常网络回归；
+- Result：分别验证 accepted/delivered/stored；确认失败重试保持原文，隔离 SQL 测试覆盖晚落库与乱序投递，真实 Kafka 重建保留记录与 offset；多机与长期压力仍待验收。
 
 #### 故事 B：性能定位
 
@@ -1607,7 +1589,7 @@ delta 是展示过程，不是稳定事实。逐 token 落库会制造大量消�
 - “消息绝不丢”——没有跨系统事务、正式 DLQ 和生产故障证明；
 - “端到端 exactly-once”——当前是可重试+多层幂等；
 - “7.5 万群聊 QPS”——该数字是 500 socket fanout 的 deliveries/s；
-- “生产级安全”——尚无 TLS/mTLS、统一 IAM 和密钥系统；
+- “生产级安全”——内部角色密钥/TLS 配置只覆盖部分边界；公网 TLS、mTLS、密钥托管与真实证书互通仍待完成/验证；
 - “Redis 比 MySQL 快十倍”——两项 benchmark 操作语义不同；
 - “Kafka 保证客户端收到”——Kafka 只覆盖事件队列，终端投递还经过 Job、Comet 和 WebSocket。
 
@@ -1615,18 +1597,14 @@ delta 是展示过程，不是稳定事实。逐 token 落库会制造大量消�
 
 ## 11. 后续优化路线
 
-按价值和依赖关系排序：
+本轮明确问题已按第 19 章收敛。继续按正确性、并发/生命周期、安全、性能、架构推进：
 
-1. 为实时 push/broadcast 补齐与 persist 同级的可重放 DLQ topic、重放工具和告警；persist 已有 `persist_message.dlq`；
-2. 用 atomic 或采样方式补齐 Redis/MySQL 连接池 in-use、wait、grow 指标，避免在每次借还中调用带全局锁的 metrics；
-3. 限制同账号连接数，把离线补推合并为用户级任务并增加每连接发送队列上限；
-4. Kafka topic 多 partition、多副本，部署多个 Job/Comet 做跨节点 E2E；
-5. Prometheus+Grafana 聚合多实例 metrics，配置 lag/p99/loss/reconnect 告警；
-6. 增加 TLS/mTLS、网关鉴权、统一 IAM、secret 管理和审计可靠管道；
-7. 引入多机服务发现、Comet 注册租约和路由过期机制；
-8. 自动化故障注入：kill -9、网络延迟/丢包、MySQL 暂停、Kafka broker 切换；
-9. 建立分消息大小、稳态/突发、冷热账号、在线率的容量模型；
-10. 再扩展发送方可见的实时已读回执、撤回、消息过期、媒体消息和完整群组权限。
+1. 在隔离预生产完成存量 SQL/Kafka/RPC/客户端升级演练，覆盖旧 backlog 排空、回退、late persistence、重试与多会话补拉；不能直接新旧分配器混跑。
+2. 真实依赖停启/网络黑洞、kill -9、慢客户端、断连长期压力与 ASan/TSan；补 Redis 路由重注册、Comet 心跳租约、同账号连接数和用户级离线合并。
+3. 验证远程 RPC 证书互通，配置公网 HTTPS/WSS、生产密钥托管及轮换，再开展多节点 Kafka/MySQL/Redis 容灾。
+4. 对 DLQ、consumer_failed、prepared outbox、池等待、队列和内存建立告警；补实时 push/broadcast 可重放 DLQ 和管理入口。
+5. 用新版本 E2E、steady/burst、消息尺寸/在线率矩阵重新测 SQL 接受路径；基于证据决定路由批量化、SQL 批处理及异步日志，不做无依据的微优化。
+6. 多 Comet/Logic/Job、多 partition 与跨机容量验证后，再扩展业务能力和架构。
 
 ---
 
@@ -1638,11 +1616,13 @@ delta 是展示过程，不是稳定事实。逐 token 落库会制造大量消�
 - [ ] 一条单聊消息经过哪些协议、topic、存储和 ACK？
 - [ ] `client_msg_id`、`msg_id`、`msg_seq`、`request_id` 有何区别？
 - [ ] Redis Lua 为什么原子，脚本具体做哪几步？
-- [ ] Redis 水位落后时 MySQL floor 怎样工作？
+- [ ] 为什么当前改为 SQL 持久取号，WS/旧 HTTP 混写与 Redis 清空如何避免序号冲突？
+- [ ] reservation/outbox 各阶段代表什么，Kafka 确认超时后如何重试？
 - [ ] `persist_message` 与 `push_single` 为什么是两条分支？
 - [ ] Kafka callback 和 offset 在什么位置提交，失败语义是什么？
 - [ ] gRPC stream 为什么需要 pending map、reply 和 deadline？
-- [ ] delivered_seq 与 read_seq 为什么不能合并？
+- [ ] delivered_seq 与 read_seq 为什么不能合并？为什么不能直接 MAX delivered？
+- [ ] safe_seq 和 next_seq 有何区别，跨会话离线怎么继续翻页？
 - [ ] MySQL 哪些唯一键和 `GREATEST` 更新负责幂等？
 - [ ] 热点用户、大房间、重连风暴分别会放大什么资源？
 - [ ] E2E 吞吐为什么低于 Kafka 隔离链路，p99 为什么随突发增加？
@@ -1674,7 +1654,7 @@ delta 是展示过程，不是稳定事实。逐 token 落库会制造大量消�
 
 | 场景                  | 实际容器                                            | 为什么是它                      | 不是什么                        |
 | ------------------- | ----------------------------------------------- | -------------------------- | --------------------------- |
-| 线程池待执行任务            | `std::queue<function<void()>>`                  | 严格 FIFO，配合 mutex + cv      | 优先级队列、无锁环                   |
+| 线程池任务 | std::queue<Task>，含 function 与字节权重 | FIFO + mutex/cv；默认 1024 项/32 MiB 排队 | 无界队列 |
 | MySQL / Redis 空闲连接  | `std::deque<ConnEntry>`                         | front 弹出最旧空闲，back 归还       | 手写双向链表                      |
 | Comet 用户连接          | `unordered_map<int64_t, set<TcpConnectionPtr>>` | 一个用户多连接；set 去重指针           | 单连接覆盖                       |
 | 投递 `request_id` 去重  | `unordered_set` + `deque`                       | set O(1) 查重，deque 记淘汰顺序    | LRU（命中不刷新）                  |
@@ -1696,24 +1676,18 @@ Logic 热路径、`SessionDao::GetOrCreateSingleSession`、Android `singleSessio
 
 ### 13.3 Redis 键空间
 
-| 键                                              | 类型             | TTL                    | 作用           |
-| ---------------------------------------------- | -------------- | ---------------------- | ------------ |
-| `token:{token}`                                | STRING user_id | 登录 24h                 | 正向凭证         |
-| `user:tokens:{uid}`                            | SET            | `max(ttl+3600, 86400)` | 撤销反向索引       |
-| `route:user:{uid}`                             | SET comet_id   | 无                      | 用户所在 Comet   |
-| `session:msg_seq:{sid}`                        | STRING int     | 无                      | 下一个序号        |
-| `session:last_seq:{sid}`                       | STRING int     | 无                      | 未读高水位        |
-| `message:dedup:{sid}:{sender}:{client_msg_id}` | STRING seq     | 24h                    | 幂等           |
-| `user_session:read_seq:{uid}:{sid}`            | STRING int     | 无                      | 已读缓存         |
-| `room:comets:{room}`                           | SET            | 无                      | 房间 fanout    |
-| `room:online_count:{room}`                     | STRING int     | 无                      | 在线人数         |
-| `room:comet_count:{room}:{comet}`              | STRING int     | 无                      | 该 Comet 房间人数 |
+当前 token/用户路由/房间计数/未读缓存见 5.4.1。generation+nonce 的两个新键用于防止迟到删除：
 
-没有 Cluster hash tag，没有 `EVALSHA`/`WATCH`/`MULTI`。序号原子性完全靠一段 Lua。
+```text
+route:generation:{uid}:{comet} : INCR 注册代次
+route:lease:{uid}:{comet}      : generation + 随机 nonce
+```
 
-### 13.4 Redis Lua 全文
+只有 lease 完全匹配才删路由；它没有 TTL 心跳语义。旧 session:msg_seq 与 message:dedup 键属于保留的 Lua benchmark，生产发送链不再使用。
 
-函数：`RedisStore::AllocateSessionMsgSeq`。
+### 13.4 历史 Redis 取号 Lua（当前发送链已替换）
+
+函数：`RedisStore::AllocateSessionMsgSeq`。保留用于学习与历史组件 benchmark；当前 `AppendMessageHotPath` 不调用它，序号算法见 13.5。
 
 ```lua
 local current = tonumber(redis.call('GET', KEYS[1]) or '0')
@@ -1742,22 +1716,17 @@ EVAL：`KEYS[1]=session:msg_seq`，`KEYS[2]=session:last_seq`，`KEYS[3]=dedup`�
 
 逐步：先抬 floor → 再查幂等（命中仍可能已经抬过 floor）→ `INCR` → 只在更大时写 last_seq → SET EX dedup。TTL 过后同一 `client_msg_id` 会拿到新序号，这是 24 小时窗口幂等，不是永久唯一。
 
-### 13.5 热路径 64 分片校准
+### 13.5 当前 SQL 持久取号与原文预留
 
-`ConversationStore::AppendMessageHotPath`：
+入口：ConversationStore::AppendMessageHotPath → MySqlMessageReservations::Reserve。
 
-```text
-array<mutex, 64> seq_seed_mutexes_
-array<unordered_set<string>, 64> seq_seeded_sessions_
-shard = hash(session_id) % 64
-```
+1. 开始事务，INSERT ... ON DUPLICATE KEY UPDATE 获得会话排他锁，再 SELECT last_seq FOR UPDATE；不能用 INSERT IGNORE 的共享锁升级制造并发死锁。
+2. 新计数行的 last_seq=0 时读取历史 MAX/会话 last_seq 作为旧数据 floor；升级必须先排空旧事件。
+3. 按 session/sender/client ID 查询 reservation。已有记录返回原文和时间戳；stage=4 或同 ID 改内容则拒绝。
+4. 新请求检查 int64 上限，递增 message_sequence、保存 canonical 原文与 stage=0，同事务提交。
+5. WS 路径 prepare 不可变二进制 outbox，然后等 Kafka；旧 HTTP 则用同序号同步写历史并标 persisted。
 
-1. 锁对应 shard。不同会话可并行，同一会话串行。
-2. 本进程第一次见到该 session：`SELECT COALESCE(MAX(msg_seq),0)`，再 Lua `floor=max_seq`，插入 set。
-3. 已校准会话后续 `floor=0`，只靠 Lua。
-4. 构造内存 `Message`，`msg_id = session_id + "-" + seq`。**这里不写 MySQL。**
-
-seed set 从不淘汰。若 Redis 被 FLUSH 而本进程还活着，会用 `floor=0` 再发号，可能与 MySQL 冲突；Job 靠唯一键兜底。HTTP `/api/message/send` 走冷路径：MySQL `last_msg_seq+1` 再同步 INSERT，不经过 Lua。
+原 64 shard seed set 已从当前链路移除。SQL 历史唯一键只作最终防线，不靠“冲突后丢掉消息”处理 Redis 回退。
 
 ### 13.6 令牌桶
 
@@ -1770,15 +1739,15 @@ seed set 从不淘汰。若 Redis 被 FLUSH 而本进程还活着，会用 `floo
 
 ### 13.7 线程池
 
-`common/thread_pool.cpp`：`queue<function<void()>>` 无界。`Submit` 锁内 push + `notify_one`。`WorkerLoop` 在 cv 上等到 `stopping_ || !empty`，move front 后锁外执行，捕获异常只打日志。`Stop` 置位、`notify_all`、join，再 swap 空队列丢掉剩余任务。用于 Comet `grpc_pool_` 和 Job `delivery_ack_pool_`。
+queue<Task> 保存 function 与提交字节权重，默认排队上限 1024 项/32 MiB。Submit 锁内检查 started/stopping 和容量，拒绝返回 false；worker 出队后锁外执行。Stop(true) 排空、Stop(false) 丢未执行任务，两者都 join 已运行任务。hardware_concurrency=0 时至少一个 worker。Comet 原 detached RPC 已纳入此类有界可等待池。
 
 ### 13.8 MySQL 连接池
 
-空闲是 `deque<ConnEntry>`。`Acquire`：先按 idle_timeout 从 front 关掉超额空闲 → pop_front → 不足则扩到 max → 否则 cv 等待。借出前可选 `mysql_ping`，失败丢弃重试。归还 `push_back`。RAII `MySqlConnGuard`。Job 示例 min 2 / size 8 / max 16。
+空闲 deque<ConnEntry> + mutex/cv，默认 Acquire 等待 3 秒。创建/健康检查在池锁外执行；坏连接减计数后每 250 ms 重试补回 min，即使 autoGrowth=false。RAII guard 归还。Acquire 的期限不能取消底层 connect/ping 或 SQL，本轮没有跨 SQL 的请求取消。
 
 ### 13.9 Redis 连接池
 
-同构：deque + mutex + cv + 扩容 + 空闲回收。创建时 `AUTH`/`SELECT`/读写超时。热路径每次 Lua 都 `Acquire()` 一次。
+同样限时等待、网络操作在池锁外、失效后补 min；空闲超过健康间隔才 PING，I/O 错误归还时淘汰。RedisConnGuard 不可复制、可移动，避免重复归还。每次 Redis 业务命令仍需 Acquire；当前发送链不再为序号执行 Lua。
 
 ### 13.10 Kafka 生产者
 
@@ -1814,13 +1783,13 @@ seed set 从不淘汰。若 Redis 被 FLUSH 而本进程还活着，会用 `floo
 
 **SHA1**：初值 `0x67452301, EFCDAB89, 98BADCFE, 10325476, C3D2E1F0`；追加 `0x80`，补 0 直到 `size%64==56`，再追加 64 bit 大端 bit 长度；每块 80 轮，四段常数 `5A827999 / 6ED9EBA1 / 8F1BBCDC / CA62C1D6`。
 
-**Accept**：`Base64(SHA1(client_key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"))`。Header 大小写敏感。Token 从 `token=` 取，**不做 URL decode**。`VerifyToken` 在 muduo IO 线程同步调用。
+**Accept**：`Base64(SHA1(client_key + "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"))`。Header 大小写敏感。Token 从 token= 取，未做 URL decode。VerifyToken 放入有界工作池，3 秒 deadline；握手总等待 5 秒、header 上限 16 KiB。weak_ptr 捕获连接，结果切回 owner loop 并检查连接/退出状态；晚到成功需清理自己注册的路由。
 
 ### 13.15 帧解析与发送
 
-入站：FIN 必须为 1、客户端必须 mask，否则 shutdown；长度 7/16/64 bit；上限 **4 MiB**；mask 逐字节 XOR；opcode `0x8` 关闭、`0x1` 文本，其它丢弃（无 ping/pong）。
+入站需 FIN=1、客户端 mask、RSV=0，解析 7/16/64 bit 长度；文本上限 64 KiB。控制帧不分片且最多 125 字节：Ping 回相同 payload 的 Pong，Close 回应并在 1 秒后强制关闭；非法 opcode/控制长度关闭连接。
 
-出站：`0x81` FIN+text，服务端不 mask，不分片。上行 JSON 轻量解析拒绝转义；`type` 仅 `single_chat|chatroom|chatroom_join|chatroom_leave`。
+出站 text 为 FIN、不 mask。数据经 shared_ptr 持有并在 owner loop 检查输出容量，4 MiB 高水位关闭慢连接。未确认当前 loop 接受时不能计入投递或推进 receipt。
 
 ### 13.16 连接表与房间表
 
@@ -1830,7 +1799,7 @@ room_users_ : unordered_map<int64_t, set<int64_t>>
 conns_mu_   : 同时保护 recent_push_*
 ```
 
-握手成功 `insert`，**不踢**旧连接。set 空了才 `NotifyUserOffline`（detached 线程）。`PushToUsers` 锁内拷指针到 vector，锁外 send。TCP 断开不自动 leave 房间。
+握手成功 insert，不踢旧连接；最后一条连接断开才通过有界 RPC 池通知下线，并携带 generation+nonce。PushToUsers 锁内复制、owner loop 实际接纳后汇总结果；传输对象销毁先等待 IO 线程，再释放连接表/回调依赖。房间成员权限仍取持久关系，不以 WS presence 代替。
 
 ### 13.17 request_id 定长去重窗口
 
@@ -1844,7 +1813,7 @@ Logic 同类结构：`hermes_stream_completed_` 10 万、`hermes_delta_seen_` 20
 
 **解决**：与 Job PushStream 对称。每流 `broken` + 本流 `pending`。Reader 读失败只标坏并 503 掉等待中的 callback；Writer 负责 `ReconnectStream`（join 旧 reader，新 context/stream，再拉 reader）。Write 最多 4 次，退避 200ms→5000ms；耗尽才回 503。配置 `grpc_stream_reconnect_base_ms/max_ms`。指标 `spark_push_comet_logic_stream_ready` / `_reconnect_total`。
 
-`grpc_stream_count=8`。每条流一个无界 `send_queue`。`request_id = atomic fetch_add`，`stream_idx = id % 8`。不排空未写出的队列。握手 Unary 与上行流分开恢复。
+grpc_stream_count=8；每流 send_queue+pending 共最多 512 项、排队数据 8 MiB，满时显式失败。从入队时计 deadline，100 ms 独立 watchdog 到期失败回调并取消 stalled 流。context 创建/替换/取消用同锁，锁内再次检查 stream_running；停止后 join reader/writer。握手 Unary 与上行流分开恢复，channel/stub 生命周期保持稳定。
 
 ### 13.19 Job → Comet PushStream
 
@@ -1858,16 +1827,11 @@ Reader 按 reply id 匹配；`error==0 && delivered_count>0` 才异步 `SendDeli
 
 Unary 兜底 3 次，间隔 100/200ms。两条路径都失败才 `delivery_lost_total`。
 
-### 13.20 落库幂等与单调水位
+### 13.20 落库幂等与连续投递水位
 
-Job persist 最多 4 次，退避 50/100/200ms。INSERT 遇 errno 1062：七字段完全相同视为幂等成功；序号相同内容不同则 `"message sequence collision"`，停止重试。
+Job persist 重试，唯一键冲突时逐字段核对 session、seq、sender、type、content、client ID 和 timestamp；内容/标识按字节比较，只有完全一致才幂等成功。历史写入标 stage=3，晚到 Kafka 确认只做 GREATEST(stage,2)，不能降级已经 persisted 的记录。
 
-```sql
-UPDATE session SET last_msg_seq=GREATEST(last_msg_seq, ?) WHERE session_id=?
-UPDATE user_session_state SET delivered_seq=GREATEST(...), read_seq=GREATEST(...)
-```
-
-乱序回调不会把游标打回去。
+session.last_msg_seq/read_seq 可 GREATEST 更新。delivered 则锁 user_session_state 行、保存逐条 receipt、读取已结算前缀，找出其中第一个未投递的历史行，只推进此前连续水位。低序号尚未落库或未投递时，高序号 receipt 不能把它跳过。
 
 ### 13.21 MEDIUMTEXT 动态读取
 
@@ -1875,17 +1839,11 @@ UPDATE user_session_state SET delivered_seq=GREATEST(...), read_seq=GREATEST(...
 
 ### 13.22 离线补推与客户端缺口
 
-握手后 `SyncOffline{limit=200}`（Logic clamp 到 1～1000）。按 `delivered_seq` 取消息，共用 remaining 预算。Comet 只有 send 成功才记录该 session max seq，再 `MarkDelivered`。
+Offline 每页最多 200 条并限制 2 MiB 估算字节，按已授权 session 排序，以 after_session_id/after_seq 继续，直到 has_more=false；超预算单行明确失败，不推进游标，需用 HTTP history 读。
 
-客户端：
+Sync 在读历史前取得 SQL 安全前缀，并用 limit+1 判断是否有下一页；next_seq 只负责分页，safe_seq 证明本页已覆盖的结算前缀。Web/Android 只有当前连续 cursor 覆盖请求 after_seq 后才用证明跳过封存缺号；其他缺口保留并定时重拉。
 
-```text
-seen.add(seq)
-while seen.contains(cursor+1): cursor++
-if seq > cursor+1: sync(after_seq=cursor)
-```
-
-`ai_delta` 没有 `msg_seq`，不参与游标。
+Comet 在 owner loop 接受发送后才逐条上报 receipt；旧 HTTP 文本由 DownstreamMessageJson 补上存储 msg_id/seq/timestamp 元数据。ai_delta 不分配序号、不参与游标。离线查询不是一次性快照，晚落库仍需后续缺口补拉或重连重扫。
 
 ### 13.23 SSE 解析状态机
 
@@ -1934,12 +1892,12 @@ event_id    = "evt_" + sha256(request_id + "\0" + sequence)[:32]
 
 1. 客户端生成 UUID `client_msg_id`，乐观插入
 2. Comet SHA1 握手（仅首次）+ 帧解码
-3. Logic 令牌桶 → 64 分片校准 → Redis Lua 取号
+3. Logic 凭证/actor/对象权限 → 令牌桶 → SQL 事务取号与 canonical 原文预留 → prepare outbox
 4. Kafka `SendAndWait` persist → `accepted_ack`
 5. Kafka 异步 `push_single`
 6. Job persist：INSERT + GREATEST；冲突则字段比对
 7. Job PushStream：queue → pending map → Comet FIFO 去重 → WS 帧
-8. Comet `MarkDelivered`；Job 回传来源 `delivered_ack`
+8. Comet owner loop 接受发送后逐条 MarkDelivered；Job 回传来源 delivered_ack
 9. 客户端推进 cursor；发现缺口再 `sync`
 
 Agent 路径在第 4 步之后分叉：`ai_request`（图片仅为 id）→ Bridge 读本地文件 → SSE → 48B/50ms 合并 → TreeMap/rAF 预览；终态再从第 4 步重走普通单聊。带图时第 1 步前多一次 HTTP 上传。
@@ -2288,36 +2246,35 @@ main.cpp 统一组装 Service，并让 HTTP、gRPC、Agent consumer 共享实例
 `s_1_8junk` 等非规范拼写可能先创建无关会话再报错的副作用，测试验证拒绝时不调用创建方法。
 
 **鉴权**由入口提取凭证，再统一调用 UserService::Authenticate，共享 Redis token 和 MySQL
-最新状态检查。realtime audience 额外拒绝管理员/Bot token。发送热路径仍用原 2 秒短缓存，
-新 HTTP 请求和新 WS 握手不走这个缓存；不能声称禁用账号会立即踢掉全部存量 WS。
+最新状态检查。realtime audience 额外拒绝管理员/Bot token。当前每次 WS Submit 都重新验证
+连接凭证与 actor；目标状态查询仍有 2 秒缓存。禁用凭证可拒绝后续发送，但不等于立即踢掉所有存量 WS。
 
 **消息用例**：Unary SendUpstreamMessage、双向 MessageStream 转换成 UpstreamCommand，
 调用同一 MessageService::Submit，把 UpstreamResult 映射回协议。
 
 ```text
-账号状态 → 限流 → 附件 → Redis seq/dedup
+凭证/actor/账号状态 → 限流 → 附件 → SQL 原文/序号 → prepare outbox
   → persist Kafka SendAndWait 成功
   → accepted=true → adapter ACK_STAGE_ACCEPTED
   → 实时 Kafka → Job → Comet → delivered_ack
 ```
 
-accepted 仍只意味着 Kafka 持久化事件得到 delivery report，不是 MySQL INSERT 完成或接收者
+accepted 仍只意味着 Kafka 持久化事件得到 delivery report，不是 MySQL 历史 INSERT 完成或接收者
 已读。相同 client_msg_id 保留原 msg_id/msg_seq；历史要等 Job 异步落库。
 Kafka ai_reply/ai_delta consumer 直接调用 MessageService，不再依赖 RPC 类。delta 不占 seq、
 不进历史，最终 reply 才落库；缓存和去重状态必须保持唯一所有者。
 
 ### 16.5 兼容边界和后续治理
 
-- 未改 URL、Proto、SQL schema、Redis key、topic 配置和 WS 类型，不要求客户端同时改造。
+- 业务分层阶段保留了 URL/Proto/schema 和客户端合同；后续 2026-10-11 工程修复新增协议字段、SQL 表与 RPC 配置，需要按第 19 章同步升级客户端和服务。
 - 业务 code 不等于 HTTP status：管理员凭证不符是业务 403 + HTTP 400，禁用用户登录也如此。
   Service 返回业务结果，adapter 保留各入口的旧映射。
-- `/api/message/send` 明确命名为 SendLegacyText：同步存储、旧接口无 Bearer、无实时 fanout、
-  无 accepted/delivered 合同；安全升级需要另做迁移，不能把它当 WS Submit 的可靠发送入口。
+- `/api/message/send` 已在后续工程修复中补 Bearer、actor、目标/长度与限流，仍为 SendLegacyText 同步历史/旧响应，不提供 WS Submit 的两阶段 ACK/实时 fanout 合同。
 - MarkRead/Unread 仍保留“请求 user_id 等于鉴权身份”规则，本次没额外补齐全部对象级授权。
 - 弹幕保留 body token/Redis 解析、固定 room 1001，pushed 不代表 broker 或客户端确认。
 - HTTP Leave 不删订阅；Unsubscribe 删持久成员；gRPC Leave 更新在线状态，三者不能混用。
-- 内部 gRPC 仍假设可信内网，分层不是 TLS/mTLS、IAM、高可用或跨节点踢线的替代。
-- 旧 JSON 拼接/字段异常边界、在线计数失败回退、MessageService 中较多 Agent 编排仍有治理空间。
+- 内部 gRPC 已加角色密钥与远程 TLS 要求，真实证书互通、mTLS/IAM、高可用和跨节点踢线仍未完成。
+- HTTP JSON 类型异常与 history 序列化已修复；在线计数失败回退、MessageService 较多 Agent 编排仍有治理空间。
 
 ### 16.6 怎样增加新功能
 
@@ -2328,7 +2285,8 @@ Kafka ai_reply/ai_delta consumer 直接调用 MessageService，不再依赖 RPC 
 
 ### 16.7 回归与简历
 
-新增 `tests/logic_business_service_test.cpp`：内存 Repository 调用真实 Service，**81 项检查通过**，
+本节记录 2026-10-09～10 的业务分层回归；2026-10-11 工程修复后的验证以第 19 章为准。
+当时新增 `tests/logic_business_service_test.cpp`：内存 Repository 调用真实 Service，**81 项检查通过**，
 覆盖密码/token、缓存与新鲜鉴权、成员权限、分页、delivered 离线游标、附件归属/绑定、无副作用
 拒绝和管理员业务规则。`logic_layer_contract_test.py` 阻止入口直接依赖数据组件及公共业务头暴露
 HTTP/gRPC 类型；它是文本门禁，不是 AST 形式证明。
@@ -2356,11 +2314,12 @@ HTTP/gRPC/WebSocket 回归验证 ACK、幂等、历史和离线恢复语义。**
 
 ---
 
-## 17. GitHub 发布同步与版本复现（2026-10-10）
+## 17. GitHub 发布同步与版本复现（2026-10-10 历史发布）
 
 ### 17.1 本次发布包含什么
 
-发布目标为 [specetator/grpc_aiagent](https://github.com/specetator/grpc_aiagent) 的 `main`，
+本章记录 2026-10-10 发布，当前 2026-10-11 工程修复与验证见第 19 章。
+历史发布目标为 [specetator/grpc_aiagent](https://github.com/specetator/grpc_aiagent) 的 `main`，
 代码与测试提交为 `5c2738a7256d69b423644ccf487ba7fb586dd00b`。它包含两组此前已实现、尚未推送的改动：
 
 | 内容 | 代码/文档入口 | 适用边界 |
@@ -2456,7 +2415,7 @@ Web 房间面板 / WebSocket
 | C++ 业务 Service | HTTP/gRPC 复用身份、成员、授权和任务规则；不让协议函数各写一份 SQL | [room_agent_service.cpp](../logic/services/room_agent_service.cpp) |
 | Repository + MySQL 事务 | 任务和交接版本是可恢复事实；最新版本与历史记录必须一起提交 | [room_agent_repository.cpp](../logic/repositories/room_agent_repository.cpp) |
 | revision / CAS | 两个人同时保存摘要时，拒绝旧版本覆盖，而非最后写入者悄悄获胜 | OperatorTaskService::Checkpoint / UPDATE WHERE revision |
-| Redis | 仍提供在线路由、消息序号和原有幂等热状态；不替代持久任务账本 | MessageService 与原 RedisStore |
+| Redis | 提供 token、在线路由/计数与缓存；当前消息序号和原文幂等已迁到 SQL | RedisStore；SQL MessageReservations |
 | Kafka | 延续已有异步 Agent 请求及最终消息投递链路；accepted 不等于推理已完成 | [message_service.cpp](../logic/services/message_service.cpp)、Bridge |
 | HTTP/SSE | Bridge 与 Gateway 的推理请求和流式增量；房间 delta 不分配消息序号 | [hermes_client.cpp](../hermes_bridge/hermes_client.cpp) |
 | SQLite turn ledger | Gateway 保存原生会话路由、请求幂等与已完成输出；与 MySQL 职责不同 | [agent_router.py](../cannbot/scripts/agent_router.py) |
@@ -2531,7 +2490,7 @@ Pi 文件工具 guard 不等于整个模型进程已经得到完整 OS 沙箱隔
 
 | 验证 | 结果 / 覆盖 |
 |---|---|
-| 全量构建与 CTest | 29/29 通过，无跳过；44.56 秒，含专用 Redis |
+| 协作功能发布时的构建与 CTest | 当时 29/29 通过，无跳过；44.56 秒，含专用 Redis；后续工程修复新增测试见第 19 章 |
 | C++ 房间业务 / Python 房间测试 | 36 条检查 / 10 个测试通过 |
 | 真实 Pi TS guard / UI 合同测试 | 文件路径、符号链接、工具权限、写测试互斥；流式乱序/重复、跨房间与晚到 delta 均通过 |
 | 原有 HTTP/gRPC/WS 业务回归 | 88 条检查通过，11.10 秒 |
@@ -2586,3 +2545,120 @@ SQL 新增三张 room_agent_* 表，初始化/增量迁移仅 CREATE IF NOT EXIS
 为什么 turn 幂等与消息 ACK 不同；为什么进程内锁还不支持多实例；
 为什么测试通过必须绑定源码版本；摘要交接与真实源码/执行账本各自解决什么问题。
 不要写“生产级多租户沙箱”“多人效率提升 xx%”“已完成 NPU 算子性能验证”或“绝对 exactly-once”。
+
+
+---
+
+## 19. 工程审查修复、验证与发布（2026-10-11）
+
+### 19.1 本轮解决的问题与实施顺序
+
+对根目录主线按调用链、数据流、线程模型与生命周期审查，在基线
+`2f285f89146db4a7b9c65cdbc263c4a521973ee2` 上按正确性、并发/生命周期、安全和容量依次修复。
+工程修复提交为 [a90aea0](https://github.com/specetator/grpc_aiagent/commit/a90aea045a2c02abeb6d0d6b8a28808d1944a2be)；
+该提交的 98 个受验证源码/配置/测试文件已逐一与回执 SHA-256 核对一致。手册随后独立提交。
+不改教学快照、不修改存量业务数据；详细映射、兼容合同与操作步骤见
+[工程审查修复](review-remediation.md)。
+
+| 顺序 | 修复内容 | 可验证触发条件 |
+|---|---|---|
+| 1. 网络正确性与权限 | HTTP 半包解析、长度/JSON 异常；旧 send Bearer/actor；RPC 角色密钥；广播范围 | 每个 TCP 切分点、异常 JSON、伪造 sender、匿名/错误角色 RPC、空房间 scope |
+| 2. 持久身份与恢复 | SQL 统一序号、canonical 原文/outbox、Kafka 命名日志卷、safe_seq 与多会话分页 | 首次发布确认失败后同 ID 重试、缓存不可用、16 并发取号、低 seq 晚落库、容器重建 |
+| 3. 并发与生命周期 | owning 连接闭包、异步握手、稳定 stub/context、池自愈、路由 compare-delete、Ping/Close、退出 | 慢鉴权不阻塞已有连接、30 次异常断开、旧下线晚到、计数器丢失、SIGTERM |
+| 4. 容量与运维 | 有界队列/字节预算、慢连接输出、ACK watchdog、ready、DLQ CLI、per-session 锁、日志轮转 | 满队列拒绝、stalled reply 超时、ready=503、重放目标/格式校验、并发轮转 |
+
+### 19.2 必须记住的新消息合同
+
+```text
+0 reserved → 1 prepared → 2 Kafka published → 3 history persisted
+       └─ 从未 prepare 且超过 10 分钟 → 4 sealed
+```
+
+SQL message_sequence 是唯一取号权威。reservation 保存原正文/时间戳/序号；prepare 保存不可变
+持久化 protobuf。accepted 仍只在 Kafka delivery report 成功后返回，不以 SQL 预留代替。
+prepared 恢复每秒最多 10 条，未完成记录不因一天过期删除；已结算 stage=3/4 创建满一天后分批清理，
+不能声称永久幂等。sealed ID 重试明确失败，应使用新 ID。
+
+实时 fanout 允许相同消息身份重试，下游仍需去重。目标 IO 线程接受发送才计 delivered，
+不是终端收到；逐条 receipt 和安全前缀共同推进连续 delivered_seq。
+分页位置 next_seq 与结算证明 safe_seq 分开；Offline 使用会话/序号 continuation，
+Sync/Offline 同时限制条数和字节。ai_delta 保持临时显示，最终 ai_reply 才走持久链。
+
+### 19.3 实际验证与证据边界
+
+下表为工程修复候选的本地回执，区别于第 18 章协作功能发布时的 29 项测试。
+源码候选指纹、命令/结果在 [validation.json](benchmarks/2026-10-11-review/validation.json)，
+日志原始样本在 [logging.json](benchmarks/2026-10-11-review/logging.json)。
+回执绑定的是发布前源码指纹与基线，不把未来提交号冒充测试时已存在的版本。
+
+| 验证 | 实际结果 | 覆盖与限制 |
+|---|---|---|
+| C++ 全量构建 | cmake --build build-wsl -j2 通过 | 当前受影响目标重新编译 |
+| CTest | 43 注册、40 通过、3 opt-in 跳过、0 失败，28.84 秒 | 3 个环境依赖项另行补跑，不写成默认 43/43 无跳过 |
+| 隔离 MySQL | 通过 | 原文/时间戳重试、二进制 outbox、并发序号、混合入口、实际 Service 安全页、乱序 receipt |
+| 隔离 Redis | 2 项通过 | 保留的历史 allocator；50 次新旧路由并发与计数器丢失 nonce |
+| 真实 Kafka | 通过 | 自建 broker/命名卷；消息与已提交 offset 在容器替换后保留；CLI 发布获确认 |
+| 真实 HTTP/Comet 网络回归 | CTest 中通过 | 分包、类型异常、慢鉴权、coalesced 首帧、Ping/Pong/Close、异常断开与 SIGTERM |
+| 页预算与客户端游标 | 通过 | 1003 条跨会话、80×64 KiB 分页、实际 Web 游标函数、旧文本元数据 |
+| Android | Kotlin 编译通过 | unit test task 为 NO-SOURCE；没有设备/行为测试通过结论 |
+| 知识源/引用 | 70 来源严格校验、citation 通过 | 已安装 Pi 包/个人 settings 有既有漂移，未覆盖个人配置 |
+
+容器测试只创建并清理自己的随机命名容器/卷，没有迁移或重启业务依赖。
+本轮按项目 Skill 在同一会话顺序实施/审查/测试，不声称有隔离审查 Agent。
+CI 已加入 SQL、Redis 路由、真实 Kafka 重建及知识校验；本地回执不代替 GitHub Actions 结果。
+
+未执行：全 IM 多进程混沌、真实 Redis 停启/网络黑洞、实际 TLS 证书互通、ASan/TSan 压力、
+多机/磁盘故障、长期慢客户端、Android 真机与本轮 GPU runtime。
+因此不能把回归通过写成已达到生产 SLA、绝不丢消息或全量故障自愈。
+
+### 19.4 复现验证
+
+从仓库根目录执行；Docker 测试使用隔离资源，Android 需要已配置 SDK 和缓存依赖：
+
+```bash
+cmake --build build-wsl -j2
+ctest --test-dir build-wsl --output-on-failure -j2
+python3 tests/run_mysql_review_tests.py build-wsl
+python3 tests/run_redis_review_tests.py build-wsl
+python3 tests/run_kafka_volume_test.py build-wsl
+python3 cannbot/scripts/validate_knowledge.py --strict
+python3 cannbot/scripts/test_pi_citations.py
+cd android-app
+./gradlew --offline :app:compileDebugKotlin :app:testDebugUnitTest
+```
+
+已有 Pi 安装同步检查 sync_pi_agent.py --check 会报告个人安装与模板漂移，需单独处理；
+它不修改当前包。不要为消除检查差异直接覆盖已有个人配置。
+
+### 19.5 部署前存量升级顺序
+
+1. 停旧发送入口，排空旧持久化/广播 Kafka 事件，备份 SQL、broker 日志与 offsets。
+   旧消息已取号但未入历史时，仅查询历史 MAX 不够；禁止旧 Redis/new SQL writer 混跑。
+2. 核对旧 Kafka 实际 log.dirs，把完整日志、KRaft metadata 与 offsets 迁入新命名卷。
+   现在固定 /var/lib/kafka/data；不能直接 compose down 后期待旧数据自动进入新卷。
+3. 执行 [一次性 SQL 迁移](../sql/migrations/20261011_message_reservations.sql)：三张新表，
+   旧 delivered_seq 重置为 0 重扫，read_seq 不变。重复执行会再次重扫，不当作每次启动操作。
+4. 配置 COMET/JOB 与可选 ADMIN RPC 角色密钥；脚本在不跟踪的 .env.rpc 中生成，权限 0600，
+   不打印密钥。跨机启用服务器证书/私钥和客户端 CA。同步升级 Logic/Comet/Job 与 Web/Android。
+5. 小流量核对 readiness、assignment/offsets、outbox stage、历史与跨会话补拉，再开放入口和重测容量。
+
+新 schema 已含新表，Logic/Job 启动检查缺失时失败，不自动迁移现有库。
+单 Kafka broker/RF=1 仍不提供机器故障容错。此处仅记录操作步骤，本次没有执行生产部署或数据迁移。
+
+### 19.6 值班排障与性能结论
+
+关键 consumer 的 DLQ/offset 确认失败时，ready 归零并受控非零退出；Logic HTTP/Job metrics
+提供 /ready，未就绪 503。DLQ 成功确认后仍可继续消费，ready=200 不证明 DLQ 为空，
+需对 dead_letters、consumer_failed、lag 和 outbox 恢复失败告警。
+
+DLQ 工具默认 dry-run，只解析一条 sparkpush.dead_letter.v1 JSON；显式 topic 要与记录匹配，
+发布需 --apply 和 brokers。它不删除 DLQ、不改原 offset，也不打印正文/key。先修复根因，
+再导出到 0600 临时文件、核对目标并重放，最后验证历史和安全水位；不要清空 topic 或跳 offset 代替恢复。
+
+日志默认 50 MiB 轮转、保留 5 个历史文件，SPARK_LOG_CONSOLE=1 可恢复控制台输出。
+WSL2 单线程 10 万条×128 字节三次测量：旧 40.24/36.60/39.59 ms，新 23.36/26.23/25.87 ms，
+stdout 重复输出从 18.2 MB 降至 0；这是日志成本实验，不是 IM TPS/p99。日志仍同步磁盘 IO。
+当前 SQL reservation 增加了受理往返，完整吞吐与尾延迟尚未重测；第 8 章旧数据保留为历史证据。
+
+下一阶段的生产验收顺序见第 11 章：升级演练 → 真实故障/生命周期压力 → 安全部署与容灾 →
+告警和恢复闭环 → 当前版本容量测量 → 依证据调整架构。
