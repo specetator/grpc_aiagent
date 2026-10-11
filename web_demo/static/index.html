@@ -1690,13 +1690,20 @@
       const seen = seenSessionSequences[sid] || new Set();
       let cursor = Number(sessionCursors[sid] || 0);
       const next = Number(obj.next_seq);
-      if (Number.isFinite(next) && next > cursor) cursor = next;
+      const safe = Number(obj.safe_seq);
+      const after = Number(obj.after_seq || 0);
+      if (after <= cursor && Number.isFinite(safe) && safe > cursor) cursor = safe;
+      for (const value of seen) if (value <= cursor) seen.delete(value);
       while (seen.has(cursor + 1)) {
         seen.delete(cursor + 1);
         ++cursor;
       }
       sessionCursors[sid] = cursor;
-      if (obj.has_more) sendCursorSync(sid, cursor);
+      if (obj.has_more && Number.isFinite(next) && next > after) {
+        sendCursorSync(sid, next);
+      } else if (seen.size && Math.max(...seen) > cursor + 1) {
+        setTimeout(() => sendCursorSync(sid, sessionCursors[sid] || 0), 1000);
+      }
     }
 
     function renderSingleChatMessage(obj) {

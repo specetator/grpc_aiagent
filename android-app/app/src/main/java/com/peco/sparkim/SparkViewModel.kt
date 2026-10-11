@@ -1142,7 +1142,29 @@ class SparkViewModel(app: Application) : AndroidViewModel(app), SparkClient.List
                 }
                 _ui.update { it.copy(error = event.optString("message", "服务端发送失败")) }
             }
-            "sync_end", "ack" -> Unit
+            "sync_end" -> {
+                val sid = event.optString("session_id")
+                if (sid.isNotBlank()) {
+                    var cursor = cursors[sid] ?: 0L
+                    val after = event.optLong("after_seq", 0L)
+                    val safe = event.optLong("safe_seq", 0L)
+                    if (after <= cursor && safe > cursor) cursor = safe
+                    val seen = seenSequences.getOrPut(sid) { mutableSetOf() }
+                    seen.removeAll { it <= cursor }
+                    while (seen.remove(cursor + 1)) cursor++
+                    cursors[sid] = cursor
+                    val next = event.optLong("next_seq", after)
+                    if (event.optBoolean("has_more") && next > after) {
+                        client.sync(sid, next)
+                    } else if (seen.any { it > cursor + 1 }) {
+                        viewModelScope.launch {
+                            delay(1000)
+                            client.sync(sid, cursors[sid] ?: 0L)
+                        }
+                    }
+                }
+            }
+            "ack" -> Unit
             else -> parseMessage(event, event.optString("session_id").ifBlank { null })?.let { incoming ->
                 observeSequence(incoming)
                 val requestId = incoming.clientMsgId

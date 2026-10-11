@@ -108,8 +108,10 @@ bool KafkaProducer::Init(const std::string& brokers, const std::string& topic) {
         delete conf;
         return false;
     }
-    set_conf("acks", "all");
-    set_conf("enable.idempotence", "true");
+    if (!set_conf("acks", "all") || !set_conf("enable.idempotence", "true")) {
+        delete conf;
+        return false;
+    }
     // compression.type 在新版本可用，老版本需使用 compression.codec
     // 如果 zstd 未编译进 librdkafka，则依次回退 lz4 -> snappy -> gzip -> none
     bool compression_ok =
@@ -130,7 +132,8 @@ bool KafkaProducer::Init(const std::string& brokers, const std::string& topic) {
     // socket.keepalive.enable 为新键，部分老版本使用 socket.keepalive
     set_conf_any({{"socket.keepalive.enable", "true"}, {"socket.keepalive", "true"}});
     set_conf("message.timeout.ms", "60000");
-    set_conf("queue.buffering.max.messages", "200000");
+    set_conf("queue.buffering.max.messages", "10000");
+    set_conf("queue.buffering.max.kbytes", "32768");
     if (!topic_name_.empty()) {
         set_conf("client.id", "spark_push_producer_" + topic_name_);
     }

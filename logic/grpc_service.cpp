@@ -1,6 +1,7 @@
 #include "grpc_service.h"
 
 #include "logging.h"
+#include "internal_rpc.h"
 #include "message_codec.h"
 
 namespace sparkpush {
@@ -20,9 +21,11 @@ UpstreamCommand DecodeUpstream(const UpstreamMessageRequest& request) {
 }
 }  // namespace
 
-::grpc::Status LogicServiceImpl::VerifyToken(::grpc::ServerContext*,
+::grpc::Status LogicServiceImpl::VerifyToken(::grpc::ServerContext* context,
                                              const VerifyTokenRequest* request,
                                              VerifyTokenReply* response) {
+    const auto authorized = AuthorizeInternalRpc(context, "comet");
+    if (!authorized.ok()) return authorized;
     LOG_INFO << "VerifyToken called for comet_id=" << request->comet_id();
     int64_t user = 0;
     const auto status = users_->Authenticate(
@@ -30,7 +33,11 @@ UpstreamCommand DecodeUpstream(const UpstreamMessageRequest& request) {
     SetError(response->mutable_error(), status);
     if (status.ok()) {
         response->set_user_id(user);
-        messages_->AddAuthenticatedRoute(user, request->comet_id());
+        std::string token;
+        const int64_t generation = messages_->AddAuthenticatedRoute(user, request->comet_id(), &token);
+        response->set_route_token(token);
+        if (generation <= 0) SetError(response->mutable_error(), 503, "route registration failed");
+        else response->set_route_generation(generation);
     }
     return ::grpc::Status::OK;
 }
@@ -47,16 +54,20 @@ void LogicServiceImpl::HandleUpstreamMessage(const UpstreamMessageRequest& reque
     }
 }
 ::grpc::Status LogicServiceImpl::SendUpstreamMessage(
-    ::grpc::ServerContext*, const UpstreamMessageRequest* request,
+    ::grpc::ServerContext* context, const UpstreamMessageRequest* request,
     UpstreamMessageReply* response) {
+    const auto authorized = AuthorizeInternalRpc(context, "comet");
+    if (!authorized.ok()) return authorized;
     HandleUpstreamMessage(*request, response);
     return ::grpc::Status::OK;
 }
 
 ::grpc::Status LogicServiceImpl::MessageStream(
-    ::grpc::ServerContext*,
+    ::grpc::ServerContext* context,
     ::grpc::ServerReaderWriter<::sparkpush::StreamResponse, ::sparkpush::StreamMessage>*
         stream) {
+    const auto authorized = AuthorizeInternalRpc(context, "comet");
+    if (!authorized.ok()) return authorized;
     StreamMessage msg;
     while (stream->Read(&msg)) {
         StreamResponse resp;
@@ -72,7 +83,7 @@ void LogicServiceImpl::HandleUpstreamMessage(const UpstreamMessageRequest& reque
             case StreamMessage::kOffline: {
                 SimpleReply reply;
                 messages_->UserOffline(msg.offline().user_id(),
-                                       msg.offline().comet_id());
+                                       msg.offline().comet_id(), msg.offline().route_generation(), msg.offline().route_token());
                 SetError(reply.mutable_error(), 0, "ok");
                 *resp.mutable_error() = reply.error();
                 *resp.mutable_simple_reply() = reply;
@@ -81,14 +92,14 @@ void LogicServiceImpl::HandleUpstreamMessage(const UpstreamMessageRequest& reque
             case StreamMessage::kRoomJoin: {
                 SimpleReply reply;
                 // 复用现有 RPC 逻辑：直接调用成员函数实现
-                ReportRoomJoin(nullptr, &msg.room_join(), &reply);
+                SetError(reply.mutable_error(), rooms_->ReportRoomJoin(msg.room_join().room_id(), msg.room_join().comet_id(), msg.room_join().user_id()));
                 *resp.mutable_error() = reply.error();
                 *resp.mutable_simple_reply() = reply;
                 break;
             }
             case StreamMessage::kRoomLeave: {
                 SimpleReply reply;
-                ReportRoomLeave(nullptr, &msg.room_leave(), &reply);
+                SetError(reply.mutable_error(), rooms_->ReportRoomLeave(msg.room_leave().room_id(), msg.room_leave().comet_id(), msg.room_leave().user_id()));
                 *resp.mutable_error() = reply.error();
                 *resp.mutable_simple_reply() = reply;
                 break;
@@ -104,41 +115,51 @@ void LogicServiceImpl::HandleUpstreamMessage(const UpstreamMessageRequest& reque
     return ::grpc::Status::OK;
 }
 
-::grpc::Status LogicServiceImpl::UserOffline(::grpc::ServerContext*,
+::grpc::Status LogicServiceImpl::UserOffline(::grpc::ServerContext* context,
                                              const UserOfflineRequest* request,
                                              SimpleReply* response) {
-    messages_->UserOffline(request->user_id(), request->comet_id());
+    const auto authorized = AuthorizeInternalRpc(context, "comet");
+    if (!authorized.ok()) return authorized;
+    messages_->UserOffline(request->user_id(), request->comet_id(), request->route_generation(), request->route_token());
     SetError(response->mutable_error(), {});
     return ::grpc::Status::OK;
 }
-::grpc::Status LogicServiceImpl::ReportRoomJoin(::grpc::ServerContext*,
+::grpc::Status LogicServiceImpl::ReportRoomJoin(::grpc::ServerContext* context,
                                                 const RoomReportRequest* request,
                                                 SimpleReply* response) {
+    const auto authorized = AuthorizeInternalRpc(context, "comet");
+    if (!authorized.ok()) return authorized;
     SetError(response->mutable_error(),
              rooms_->ReportRoomJoin(request->room_id(), request->comet_id(),
                                     request->user_id()));
     return ::grpc::Status::OK;
 }
-::grpc::Status LogicServiceImpl::ReportRoomLeave(::grpc::ServerContext*,
+::grpc::Status LogicServiceImpl::ReportRoomLeave(::grpc::ServerContext* context,
                                                  const RoomReportRequest* request,
                                                  SimpleReply* response) {
+    const auto authorized = AuthorizeInternalRpc(context, "comet");
+    if (!authorized.ok()) return authorized;
     SetError(response->mutable_error(),
              rooms_->ReportRoomLeave(request->room_id(), request->comet_id(),
                                      request->user_id()));
     return ::grpc::Status::OK;
 }
-::grpc::Status LogicServiceImpl::Broadcast(::grpc::ServerContext*,
+::grpc::Status LogicServiceImpl::Broadcast(::grpc::ServerContext* context,
                                            const BroadcastRequest* request,
                                            BroadcastReply* response) {
+    const auto authorized = AuthorizeInternalRpc(context, "admin");
+    if (!authorized.ok()) return authorized;
     const auto result = messages_->Broadcast(request->scope(), request->group_id(),
                                              request->content_json());
     SetError(response->mutable_error(), result.status);
     response->set_task_id(result.task_id);
     return ::grpc::Status::OK;
 }
-::grpc::Status LogicServiceImpl::SyncMessages(::grpc::ServerContext*,
+::grpc::Status LogicServiceImpl::SyncMessages(::grpc::ServerContext* context,
                                               const SyncMessagesRequest* request,
                                               SyncMessagesReply* response) {
+    const auto authorized = AuthorizeInternalRpc(context, "comet");
+    if (!authorized.ok()) return authorized;
     MessagePage page;
     const auto status =
         conversations_->SyncAfter(request->user_id(), request->session_id(),
@@ -149,26 +170,34 @@ void LogicServiceImpl::HandleUpstreamMessage(const UpstreamMessageRequest& reque
             FillChatMessage(message, response->add_messages());
         response->set_has_more(page.has_more);
         response->set_next_seq(page.next_seq);
+        response->set_safe_seq(page.safe_seq);
     }
     return ::grpc::Status::OK;
 }
-::grpc::Status LogicServiceImpl::SyncOffline(::grpc::ServerContext*,
+::grpc::Status LogicServiceImpl::SyncOffline(::grpc::ServerContext* context,
                                              const SyncOfflineRequest* request,
                                              SyncOfflineReply* response) {
+    const auto authorized = AuthorizeInternalRpc(context, "comet");
+    if (!authorized.ok()) return authorized;
     MessagePage page;
     const auto status =
-        conversations_->SyncOffline(request->user_id(), request->limit(), &page);
+        conversations_->SyncOffline(request->user_id(), request->limit(), &page,
+                                     request->after_session_id(), request->after_seq());
     SetError(response->mutable_error(), status);
     if (status.ok()) {
         for (const auto& message : page.messages)
             FillChatMessage(message, response->add_messages());
         response->set_has_more(page.has_more);
+        response->set_next_session_id(page.next_session_id);
+        response->set_next_seq(page.next_seq);
     }
     return ::grpc::Status::OK;
 }
-::grpc::Status LogicServiceImpl::MarkDelivered(::grpc::ServerContext*,
+::grpc::Status LogicServiceImpl::MarkDelivered(::grpc::ServerContext* context,
                                                const MarkDeliveredRequest* request,
                                                SimpleReply* response) {
+    const auto authorized = AuthorizeInternalRpc(context, "comet");
+    if (!authorized.ok()) return authorized;
     std::vector<DeliveryCursor> cursors;
     for (const auto& cursor : request->cursors())
         cursors.push_back({request->user_id(), cursor.session_id(), cursor.msg_seq()});

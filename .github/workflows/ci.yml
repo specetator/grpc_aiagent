@@ -31,4 +31,19 @@ jobs:
         run: |
           redis-server --daemonize yes
           cd build
-          SPARK_PUSH_RUN_REDIS_TESTS=1 ctest -R redis_sequence_integration_test --output-on-failure
+          SPARK_PUSH_RUN_REDIS_TESTS=1 ctest -R "(redis_sequence|route_generation)_integration_test" --output-on-failure
+
+      - name: MySQL durable reservation and cursor integration
+        run: |
+          docker pull mysql:8.0
+          python3 tests/run_mysql_review_tests.py build
+
+      - name: Kafka container replacement durability and replay
+        run: |
+          docker pull apache/kafka:3.7.0
+          python3 tests/run_kafka_volume_test.py build
+
+      - name: Knowledge source and citation validation
+        run: |
+          python3 cannbot/scripts/validate_knowledge.py --strict
+          python3 cannbot/scripts/test_pi_citations.py

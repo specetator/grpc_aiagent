@@ -34,6 +34,7 @@ add_subdirectory(inference)
 add_subdirectory(hermes_bridge)
 
 add_subdirectory(load_test)
+add_subdirectory(tools)
 
 
 if(BUILD_WEB_DEMO)

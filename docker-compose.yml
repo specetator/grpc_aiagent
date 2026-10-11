@@ -4,7 +4,7 @@ services:
     container_name: spark-redis
     command: ["redis-server", "--appendonly", "yes"]
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - spark_redis_data:/data
     healthcheck:
@@ -19,7 +19,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${SPARK_PUSH_MYSQL_PASSWORD:?set SPARK_PUSH_MYSQL_PASSWORD in .env.local}
     ports:
-      - "3307:3306"
+      - "127.0.0.1:3307:3306"
     volumes:
       - spark_mysql_data:/var/lib/mysql
       - ./sql/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro
@@ -33,7 +33,7 @@ services:
     image: apache/kafka:3.7.0
     container_name: spark-kafka
     ports:
-      - "9092:9092"
+      - "127.0.0.1:9092:9092"
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
@@ -47,6 +47,9 @@ services:
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+    volumes:
+      - spark_kafka_data:/var/lib/kafka/data
     healthcheck:
       test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server 127.0.0.1:29092 --list >/dev/null 2>&1"]
       interval: 5s
@@ -87,3 +90,4 @@ services:
 volumes:
   spark_redis_data:
   spark_mysql_data:
+  spark_kafka_data:

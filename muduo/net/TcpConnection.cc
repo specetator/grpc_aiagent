@@ -99,11 +99,9 @@ void TcpConnection::send(const StringPiece& message)
     }
     else
     {
-      void (TcpConnection::*fp)(const StringPiece& message) = &TcpConnection::sendInLoop;
-      loop_->runInLoop(
-          std::bind(fp,
-                    this,     // FIXME
-                    message.as_string()));
+      loop_->runInLoop([self = shared_from_this(), bytes = message.as_string()] {
+          if (self->state_ == kConnected) self->sendInLoop(bytes);
+      });
                     //std::forward<string>(message)));
     }
   }
@@ -121,11 +119,9 @@ void TcpConnection::send(Buffer* buf)
     }
     else
     {
-      void (TcpConnection::*fp)(const StringPiece& message) = &TcpConnection::sendInLoop;
-      loop_->runInLoop(
-          std::bind(fp,
-                    this,     // FIXME
-                    buf->retrieveAllAsString()));
+      loop_->runInLoop([self = shared_from_this(), bytes = buf->retrieveAllAsString()] {
+          if (self->state_ == kConnected) self->sendInLoop(bytes);
+      });
                     //std::forward<string>(message)));
     }
   }
@@ -193,13 +189,12 @@ void TcpConnection::sendInLoop(const void* data, size_t len)
 
 void TcpConnection::shutdown()
 {
-  // FIXME: use compare and swap
-  if (state_ == kConnected)
-  {
-    setState(kDisconnecting);
-    // FIXME: shared_from_this()?
-    loop_->runInLoop(std::bind(&TcpConnection::shutdownInLoop, this));
-  }
+  loop_->runInLoop([self = shared_from_this()] {
+      if (self->state_ == kConnected) {
+          self->setState(kDisconnecting);
+          self->shutdownInLoop();
+      }
+  });
 }
 
 void TcpConnection::shutdownInLoop()
@@ -238,24 +233,15 @@ void TcpConnection::shutdownInLoop()
 
 void TcpConnection::forceClose()
 {
-  // FIXME: use compare and swap
-  if (state_ == kConnected || state_ == kDisconnecting)
-  {
-    setState(kDisconnecting);
-    loop_->queueInLoop(std::bind(&TcpConnection::forceCloseInLoop, shared_from_this()));
-  }
+  loop_->queueInLoop(std::bind(&TcpConnection::forceCloseInLoop, shared_from_this()));
 }
 
 void TcpConnection::forceCloseWithDelay(double seconds)
 {
-  if (state_ == kConnected || state_ == kDisconnecting)
-  {
-    setState(kDisconnecting);
-    loop_->runAfter(
-        seconds,
-        makeWeakCallback(shared_from_this(),
-                         &TcpConnection::forceClose));  // not forceCloseInLoop to avoid race condition
-  }
+  loop_->runInLoop([self = shared_from_this(), seconds] {
+      if (self->state_ == kConnected || self->state_ == kDisconnecting)
+          self->loop_->runAfter(seconds, makeWeakCallback(self, &TcpConnection::forceClose));
+  });
 }
 
 void TcpConnection::forceCloseInLoop()
@@ -292,7 +278,7 @@ void TcpConnection::setTcpNoDelay(bool on)
 
 void TcpConnection::startRead()
 {
-  loop_->runInLoop(std::bind(&TcpConnection::startReadInLoop, this));
+  loop_->runInLoop(std::bind(&TcpConnection::startReadInLoop, shared_from_this()));
 }
 
 void TcpConnection::startReadInLoop()
@@ -307,7 +293,7 @@ void TcpConnection::startReadInLoop()
 
 void TcpConnection::stopRead()
 {
-  loop_->runInLoop(std::bind(&TcpConnection::stopReadInLoop, this));
+  loop_->runInLoop(std::bind(&TcpConnection::stopReadInLoop, shared_from_this()));
 }
 
 void TcpConnection::stopReadInLoop()

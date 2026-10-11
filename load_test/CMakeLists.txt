@@ -47,6 +47,7 @@ add_executable(storage_bench
   storage_bench.cpp
   ../logic/redis_store.cpp
   ../logic/message_dao.cpp
+  ../logic/message_reservation.cpp
 )
 target_include_directories(storage_bench PRIVATE ../logic)
 target_link_libraries(storage_bench PRIVATE Threads::Threads spark_push_common)

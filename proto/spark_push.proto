@@ -50,6 +50,8 @@ message VerifyTokenRequest {
 message VerifyTokenReply {
   ErrorInfo error = 1;
   int64 user_id = 2;
+  int64 route_generation = 3;
+  string route_token = 4;
 }
 
 // comet -> logic：上行聊天/聊天室/弹幕消息
@@ -79,6 +81,8 @@ message UpstreamMessageReply {
 message UserOfflineRequest {
   int64 user_id = 1;
   string comet_id = 2;
+  int64 route_generation = 3;
+  string route_token = 4;
 }
 
 message SimpleReply {
@@ -98,6 +102,8 @@ message SyncMessagesReply {
   repeated ChatMessage messages = 2;
   bool has_more = 3;
   int64 next_seq = 4;
+  // Highest fully persisted/sealed prefix included in this page. next_seq alone is not proof.
+  int64 safe_seq = 5;
 }
 
 message DeliveredCursor {
@@ -115,12 +121,16 @@ message UserDeliveredCursor {
 message SyncOfflineRequest {
   int64 user_id = 1;
   int32 limit = 2;
+  string after_session_id = 3;
+  int64 after_seq = 4;
 }
 
 message SyncOfflineReply {
   ErrorInfo error = 1;
   repeated ChatMessage messages = 2;
   bool has_more = 3;
+  string next_session_id = 4;
+  int64 next_seq = 5;
 }
 
 message MarkDeliveredRequest {
@@ -230,6 +240,8 @@ message BroadcastTaskRequest {
   string scope = 2;
   int64 group_id = 3;
   string content_json = 4;
+  // Durable room membership snapshot resolved by Logic, never WS presence.
+  repeated int64 user_ids = 5;
 }
 
 service JobService {

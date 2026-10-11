@@ -1,6 +1,6 @@
 # 实时消息可靠性与投递优化
 
-> 这份文档记录根目录当前源码已经完成的优化，以及仍然没有被夸大的边界。更新日期：2026-08-09。
+> 2026-10-11 更新：当前序号、幂等、RPC、游标与退出实现以 [工程审查修复](review-remediation.md) 为准。本文保留 2026-08-09 的优化与性能历史；旧 Redis 热路径数字不代表当前 SQL 预留链路。
 
 ## 1. 优化目标
 
@@ -22,7 +22,7 @@
 客户端发送 client_msg_id
         │
         ▼
-Logic Redis Lua：去重 + 分配 session 内 msg_seq
+Logic MySQL 事务：预留原文 + session 内 msg_seq + outbox
         │
         ├── persist_message：Kafka delivery report 成功
         │                         │
@@ -120,7 +120,7 @@ Logic 不再把落库任务只放在线程池。新消息先构造 `PersistMessa
 4. 业务回调成功后才同步提交 Kafka offset；
 5. MySQL 唯一键冲突时比较完整消息字段，相同内容视为幂等重放。
 
-因此 Logic 在返回 `accepted_ack` 后重启，Job 仍可从 Kafka 重放持久化事件。当前仍是“至少一次事件 + 幂等落库”，不是分布式 exactly-once；重试耗尽目前写审计日志，还没有独立 DLQ topic。
+因此 Logic 在返回 `accepted_ack` 后重启，Job 仍可从 Kafka 重放持久化事件。当前仍是“至少一次事件 + 幂等落库”，不是分布式 exactly-once；持久化重试耗尽后确认写入独立 DLQ topic；DLQ/offset 确认失败会停止消费者并使 readiness 失败。
 
 ### 3.5 场景隔离、限流与排队
 
@@ -265,7 +265,7 @@ DLQ 重放工具。完整配置和 Windows 虚拟机网络检查见
 ## 6. 尚未宣称完成的部分
 
 - `delivered_ack` 是服务端交给目标 WebSocket 连接，不是客户端 read receipt；
-- Job 重试耗尽目前只有不带正文的 `[DLQ]` 审计日志，还没有可重放的独立 DLQ topic；
+- Job 持久化重试耗尽写入 `persist_message.dlq`；重放工具与值班流程见 `docs/review-remediation.md`，实时场景消费者仍保留 best-effort 策略；
 - Kafka topic 在本地 compose 中是单 broker，不能据此宣称副本容灾；
 - HTTP 普通业务接口仍有教学性质，公开部署前要统一 Bearer 鉴权、对象级授权、TLS、CORS 和入口限流；
 - metrics 目前是进程内轻量 exporter，没有 Prometheus 告警规则和多实例聚合；

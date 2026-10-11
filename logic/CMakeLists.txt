@@ -12,6 +12,7 @@ add_library(spark_push_logic STATIC
   group_dao.cpp
   session_dao.cpp
   message_dao.cpp
+  message_reservation.cpp
   user_session_state_dao.cpp
   conversation_store.cpp
   model.cpp

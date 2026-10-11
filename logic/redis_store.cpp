@@ -4,6 +4,7 @@
 #include <unordered_set>
 
 #include "logging.h"
+#include "security.h"
 
 namespace sparkpush {
 
@@ -150,6 +151,37 @@ bool RedisStore::RevokeUserTokens(int64_t user_id, int* revoked_count) {
 }
 
 // 记录用户路由 comet
+bool RedisStore::AddRouteGeneration(int64_t user, const std::string& comet, int64_t* generation, std::string* token) {
+    if (!pool_ || !generation || !token || user <= 0 || comet.empty() || !GenerateSecureToken(token)) return false;
+    auto guard = pool_->Acquire();
+    if (!guard.get()) return false;
+    const std::string route = "route:user:" + std::to_string(user);
+    const std::string counter = "route:generation:" + std::to_string(user) + ":" + comet;
+    const std::string lease = "route:lease:" + std::to_string(user) + ":" + comet;
+    const char* script = "local n=redis.call('INCR',KEYS[2]); redis.call('SET',KEYS[3],n..':'..ARGV[2]); redis.call('SADD',KEYS[1],ARGV[1]); return n";
+    auto* reply = static_cast<redisReply*>(redisCommand(guard.get(), "EVAL %s 3 %s %s %s %s %s", script,
+        route.c_str(), counter.c_str(), lease.c_str(), comet.c_str(), token->c_str()));
+    const bool ok = reply && reply->type == REDIS_REPLY_INTEGER && reply->integer > 0;
+    if (ok) *generation = reply->integer;
+    if (reply) freeReplyObject(reply);
+    if (ok) InvalidateRouteCache(user);
+    return ok;
+}
+bool RedisStore::RemoveRouteGeneration(int64_t user, const std::string& comet, int64_t generation, const std::string& token) {
+    if (!pool_ || user <= 0 || generation <= 0 || comet.empty() || token.empty()) return false;
+    auto guard = pool_->Acquire();
+    if (!guard.get()) return false;
+    const std::string route = "route:user:" + std::to_string(user);
+    const std::string lease = "route:lease:" + std::to_string(user) + ":" + comet;
+    const char* script = "if redis.call('GET',KEYS[2])==ARGV[2] then redis.call('SREM',KEYS[1],ARGV[1]); redis.call('DEL',KEYS[2]); return 1 end return 0";
+    auto* reply = static_cast<redisReply*>(redisCommand(guard.get(), "EVAL %s 2 %s %s %s %s", script,
+        route.c_str(), lease.c_str(), comet.c_str(), (std::to_string(generation) + ":" + token).c_str()));
+    const bool ok = reply && reply->type == REDIS_REPLY_INTEGER;
+    if (reply) freeReplyObject(reply);
+    if (ok) InvalidateRouteCache(user);
+    return ok;
+}
+
 bool RedisStore::AddRoute(int64_t user_id, const std::string& comet_id) {
     if (!pool_) return false;
     auto guard = pool_->Acquire();

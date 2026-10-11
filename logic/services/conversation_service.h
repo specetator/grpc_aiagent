@@ -8,6 +8,8 @@ struct MessagePage {
     std::vector<Message> messages;
     bool has_more{false};
     int64_t next_seq{0};
+    int64_t safe_seq{0};
+    std::string next_session_id;
 };
 struct DeliveryCursor {
     int64_t user_id{0};
@@ -28,7 +30,8 @@ class ConversationService {
                           int64_t anchor, int limit, std::vector<Message>* messages);
     ServiceStatus SyncAfter(int64_t user_id, const std::string& session_id,
                             int64_t after, int limit, MessagePage* page);
-    ServiceStatus SyncOffline(int64_t user_id, int limit, MessagePage* page);
+    ServiceStatus SyncOffline(int64_t user_id, int limit, MessagePage* page,
+                              const std::string& after_session = "", int64_t after_seq = 0);
     ServiceStatus MarkDelivered(int64_t user_id, bool has_user_cursors,
                                 const std::vector<DeliveryCursor>& cursors);
     // Preserve the existing identity-only read/unread contract in this

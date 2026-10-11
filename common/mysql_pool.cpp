@@ -141,68 +141,36 @@ bool MySqlConnectionPool::Init(const MySqlConfig& cfg) {
 
 // 按需获取连接，支持超时等待与自动扩容。
 MySqlConnGuard MySqlConnectionPool::Acquire(int timeout_ms) {
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(std::max(0, timeout_ms));
     std::unique_lock<std::mutex> lock(mutex_);
-    if (!inited_) {
-        LOG_ERROR << "MySqlConnectionPool::Acquire called before Init";
-        return MySqlConnGuard(nullptr, nullptr);
+    while (inited_ && !stopping_) {
+        MYSQL* connection = PopIdleConnectionUnlocked();
+        bool fresh = false;
+        if (!connection && (total_conns_ < cfg_.min_pool_size ||
+                            (cfg_.enable_auto_grow && total_conns_ < cfg_.max_pool_size))) {
+            ++total_conns_;  // Reserve capacity before leaving the lock.
+            lock.unlock();
+            connection = CreateConnectionUnlocked();
+            lock.lock();
+            if (!connection) --total_conns_;
+            fresh = true;
+        }
+        if (connection) {
+            lock.unlock();
+            const bool valid = fresh || ValidateConnection(&connection);
+            lock.lock();
+            if (valid && !stopping_) return MySqlConnGuard(this, connection);
+            if (connection) mysql_close(connection);
+            --total_conns_;
+            cv_.notify_all();
+        }
+        if (stopping_ || timeout_ms == 0 || (timeout_ms > 0 && std::chrono::steady_clock::now() >= deadline)) break;
+        // A failed creation has no owner to release a connection. Retry independently of notifications.
+        auto wake = std::chrono::steady_clock::now() + std::chrono::milliseconds(250);
+        if (timeout_ms > 0) wake = std::min(wake, deadline);
+        cv_.wait_until(lock, wake);
     }
-
-    MYSQL* conn = nullptr;
-    auto wait_timeout = std::chrono::milliseconds(timeout_ms);
-
-    while (!stopping_) {
-        conn = PopIdleConnectionUnlocked();
-        if (conn) {
-            break;
-        }
-
-        // 自动扩容
-        if (cfg_.enable_auto_grow && total_conns_ < cfg_.max_pool_size) {
-            conn = CreateConnectionUnlocked();
-            if (conn) {
-                ++total_conns_;
-                break;
-            }
-        }
-
-        // 等待或超时
-        if (timeout_ms < 0) {
-            cv_.wait(lock);
-        } else if (timeout_ms == 0) {
-            return MySqlConnGuard(nullptr, nullptr);
-        } else {
-            if (cv_.wait_for(lock, wait_timeout) == std::cv_status::timeout) {
-                return MySqlConnGuard(nullptr, nullptr);
-            }
-        }
-    }
-
-    while (true) {
-        if (!conn || stopping_) {
-            return MySqlConnGuard(nullptr, nullptr);
-        }
-
-        lock.unlock();
-        if (ValidateConnection(&conn)) {
-            return MySqlConnGuard(this, conn);
-        }
-
-        // 连接失效，更新计数并再次尝试
-        {
-            std::lock_guard<std::mutex> relock(mutex_);
-            if (total_conns_ > 0) {
-                --total_conns_;
-            }
-        }
-        lock.lock();
-        conn = PopIdleConnectionUnlocked();
-        if (!conn && cfg_.enable_auto_grow && total_conns_ < cfg_.max_pool_size) {
-            conn = CreateConnectionUnlocked();
-            if (conn) {
-                ++total_conns_;
-            }
-        }
-    }
+    return MySqlConnGuard(nullptr, nullptr);
 }
 
 // 归还连接到空闲队列，若正在停止则直接关闭。

@@ -44,6 +44,9 @@ class DaoConversationRepository final : public ConversationRepository {
                  std::string*) override;
     bool After(const std::string&, int64_t, int, std::vector<Message>*,
                std::string*) override;
+    bool SafeSyncPrefix(const std::string& id, int64_t* seq, std::string* error) override {
+        return SafePrefix(id, seq, error);
+    }
     bool Singles(int64_t, std::vector<Session>*, std::string*) override;
     bool Rooms(int64_t, std::vector<int64_t>*, std::string*) override;
     bool Delivered(int64_t, const std::string&, int64_t*, std::string*) override;
@@ -53,6 +56,7 @@ class DaoConversationRepository final : public ConversationRepository {
 
    private:
     ConversationStore* store_;
+    bool SafePrefix(const std::string&, int64_t*, std::string*);
     GroupMemberDao* members_;
 };
 

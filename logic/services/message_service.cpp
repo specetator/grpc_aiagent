@@ -4,6 +4,7 @@
 #include <chrono>
 #include <cstdlib>
 #include <sstream>
+#include <thread>
 
 #include "agent_event.h"
 #include "citation_validation.h"
@@ -90,8 +91,10 @@ MessageService::MessageService(
     int persist_kafka_timeout_ms, KafkaProducer* hermes_request_producer,
     bool hermes_enabled, int64_t hermes_bot_user_id,
     std::map<int64_t, std::string> agent_bot_users,
-    AttachmentService* attachment_service, RoomAgentService* room_agents)
+    AttachmentService* attachment_service, RoomAgentService* room_agents,
+    MessageEventPublisher* persistence_publisher)
     : store_(store),
+      persistence_publisher_(persistence_publisher),
       group_member_dao_(group_member_dao),
       user_service_(user_service),
       producer_(producer),
@@ -113,17 +116,19 @@ MessageService::MessageService(
 bool MessageService::GetActiveUser(int64_t user, User* result, std::string* error) {
     return user_service_ && user_service_->GetActiveUser(user, result, error);
 }
-void MessageService::AddAuthenticatedRoute(int64_t user, const std::string& comet) {
-    if (redis_store_) redis_store_->AddRoute(user, comet);
+int64_t MessageService::AddAuthenticatedRoute(int64_t user, const std::string& comet, std::string* token) {
+    int64_t generation = 0;
+    if (redis_store_) redis_store_->AddRouteGeneration(user, comet, &generation, token);
+    return generation;
 }
-void MessageService::UserOffline(int64_t user, const std::string& comet) {
-    if (redis_store_) redis_store_->RemoveRoute(user, comet);
+void MessageService::UserOffline(int64_t user, const std::string& comet, int64_t generation, const std::string& token) {
+    if (redis_store_) redis_store_->RemoveRouteGeneration(user, comet, generation, token);
 }
 
 bool MessageService::PersistToTopic(const Message& message, const std::string& scene,
                                     int64_t user1, int64_t user2, int64_t room_id,
                                     std::string* err) {
-    if (!persist_producer_) {
+    if (!persist_producer_ && !persistence_publisher_) {
         if (err) *err = "persist Kafka producer not initialized";
         return false;
     }
@@ -138,11 +143,15 @@ bool MessageService::PersistToTopic(const Message& message, const std::string& s
         if (err) *err = "serialize PersistMessageRequest failed";
         return false;
     }
-    if (!persist_producer_->SendAndWait(message.session_id, payload,
-                                        persist_kafka_timeout_ms_)) {
+    if (!store_ || !store_->PrepareOutbox(message, payload, err)) return false;
+    const bool confirmed = persistence_publisher_
+        ? persistence_publisher_->Confirm(message.session_id, payload, persist_kafka_timeout_ms_)
+        : persist_producer_->SendAndWait(message.session_id, payload, persist_kafka_timeout_ms_);
+    if (!confirmed) {
         if (err) *err = "persist topic delivery failed";
         return false;
     }
+    if (!store_->Published(message, err)) return false;
     MetricsRegistry::Instance().Increment("spark_push_persist_events_accepted_total");
     return true;
 }
@@ -407,18 +416,36 @@ bool MessageService::EnqueueHermesRequest(const Message& current, std::string* e
     return true;
 }
 
-// 处理上行消息（高性能热路径）：
-// 1) 本地构造 session_id  2) Redis INCR  3) 路由缓存+Kafka  4) 异步落盘
+// 处理上行消息：认证、会话顺序、持久化原文/序号预留、Kafka 确认、异步历史落盘。
 UpstreamResult MessageService::Submit(const UpstreamCommand& request) {
     UpstreamResult result;
-    if (!store_ || !redis_store_) {
-        result.status = ServiceStatus{500, "store/redis not initialized"};
+    if (!store_) {
+        result.status = ServiceStatus{500, "store not initialized"};
         return result;
     }
     const std::string& scene = request.scene;
-    std::unique_lock<std::mutex> room_order;
-    if (scene == "chatroom" && room_agent_service_)
-        room_order = std::unique_lock<std::mutex>(room_agent_service_->SubmissionMutex());
+    if (request.content_json.size() > 64 * 1024) {
+        result.status = {413, "message exceeds 64 KiB"};
+        return result;
+    }
+    const auto input = nlohmann::json::parse(request.content_json, nullptr, false);
+    if (input.is_discarded() || !input.is_object()) {
+        result.status = {400, "message content must be a JSON object"};
+        return result;
+    }
+    auto submission_mutex = submission_mutexes_.Get(scene == "chatroom"
+        ? "room:" + std::to_string(request.group_id)
+        : "single:" + std::to_string(std::min(request.from_user_id, request.to_user_id)) + ":" +
+          std::to_string(std::max(request.from_user_id, request.to_user_id)));
+    std::unique_lock<std::mutex> submission_order(*submission_mutex, std::defer_lock);
+    const auto admission_deadline = std::chrono::steady_clock::now() + std::chrono::seconds(8);
+    while (!submission_order.try_lock()) {
+        if (std::chrono::steady_clock::now() >= admission_deadline) {
+            result.status = {503, "session submission queue timed out"};
+            return result;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
     int64_t from_user = request.from_user_id;
     if (from_user <= 0) {
         result.status = ServiceStatus{400, "from_user_id must be positive"};
@@ -428,13 +455,13 @@ UpstreamResult MessageService::Submit(const UpstreamCommand& request) {
         result.status = ServiceStatus{500, "user dao not initialized"};
         return result;
     }
-    if (scene == "chatroom" && room_agent_service_) {
+    {
         int64_t actor = 0;
         const auto auth = user_service_->Authenticate(request.auth_token,
             UserService::TokenAudience::kRealtimeUser, &actor);
         if (!auth.ok()) { result.status = auth; return result; }
         if (actor != from_user) {
-            result.status = {403, "room sender does not match authenticated actor"};
+            result.status = {403, "sender does not match authenticated actor"};
             return result;
         }
         from_user = actor;
@@ -445,8 +472,8 @@ UpstreamResult MessageService::Submit(const UpstreamCommand& request) {
         result.status = ServiceStatus{403, "sender account is disabled or deleted"};
         return result;
     }
-    if (request.client_msg_id.size() > 128) {
-        result.status = ServiceStatus{400, "client_msg_id exceeds 128 bytes"};
+    if (request.client_msg_id.empty() || request.client_msg_id.size() > 128) {
+        result.status = ServiceStatus{400, "client_msg_id must contain 1..128 bytes"};
         return result;
     }
 
@@ -489,7 +516,7 @@ UpstreamResult MessageService::Submit(const UpstreamCommand& request) {
             }
         } else {
             std::vector<std::string> comets;
-            if (!redis_store_->GetUserRoutes(to_user, &comets)) {
+            if (redis_store_ && !redis_store_->GetUserRoutes(to_user, &comets)) {
                 LOG_ERROR << "GetUserRoutes failed for user "
                           << std::to_string(to_user);
             } else {
@@ -499,6 +526,10 @@ UpstreamResult MessageService::Submit(const UpstreamCommand& request) {
             }
         }
     } else if (scene == "chatroom") {
+        if (!redis_store_) {
+            result.status = {503, "room routing unavailable"};
+            return result;
+        }
         room_id = request.group_id;
         if (room_id <= 0) {
             result.status = ServiceStatus{400, "group_id(room_id) must be positive"};
@@ -567,6 +598,7 @@ UpstreamResult MessageService::Submit(const UpstreamCommand& request) {
     try {
         auto j = nlohmann::json::parse(push_json);
         j["msg_id"] = msg.msg_id;
+        j["session_id"] = msg.session_id;
         j["msg_seq"] = msg.msg_seq;
         j["create_time"] = msg.timestamp_ms;
         j["from_user_id"] = from_user;
@@ -601,24 +633,9 @@ UpstreamResult MessageService::Submit(const UpstreamCommand& request) {
     MetricsRegistry::Instance().Increment("spark_push_messages_accepted_total_" +
                                           scene);
 
-    // 相同 sender/session/client_msg_id 的重试直接返回原 msg_seq，不重复推送和落库。
-    if (!is_new) {
-        MetricsRegistry::Instance().Increment("spark_push_duplicate_total_" + scene);
-        if (hermes_target) {
-            // 客户端可能在“用户消息已 durable、ai_request 尚未 delivery”
-            // 的窗口重试；允许再次入队，Bridge 以 request_id 做幂等去重。
-            if (!EnqueueHermesRequest(msg, &err)) {
-                MetricsRegistry::Instance().Increment("spark_push_hermes_errors_total");
-                result.status = ServiceStatus{503, err};
-                return result;
-            }
-            result.status =
-                ServiceStatus{0, "duplicate accepted; Hermes request retried"};
-            return result;
-        }
-        result.status = ServiceStatus{0, "duplicate accepted"};
-        return result;
-    }
+    // 相同 sender/session/client_msg_id 复用原文和序号；投递允许同 ID 重发，由下游去重。
+    if (!is_new) MetricsRegistry::Instance().Increment("spark_push_duplicate_total_" + scene);
+    // Retry the same immutable fanout ID, including after a prior publish failure.
 
     if (hermes_target) {
         // 输入消息已经越过 accepted_ack 的持久化边界；AI 请求单独进入
@@ -997,6 +1014,20 @@ BroadcastResult MessageService::PublishBroadcast(const std::string& scope,
     task.set_scope(scope);
     task.set_group_id(group_id);
     task.set_content_json(content_json);
+    if (scope != "all" && scope != "group") {
+        result.status = {400, "unsupported broadcast scope"};
+        return result;
+    }
+    if (scope == "group") {
+        std::vector<int64_t> members;
+        std::string error;
+        if (group_id <= 0 || !group_member_dao_ ||
+            !group_member_dao_->ListRoomMembers(group_id, &members, &error)) {
+            result.status = {400, "cannot resolve broadcast room membership"};
+            return result;
+        }
+        for (auto user : members) task.add_user_ids(user);
+    }
 
     std::string payload;
     if (!task.SerializeToString(&payload)) {
@@ -1024,6 +1055,21 @@ UpstreamResult MessageService::SendLegacyText(int64_t sender, int64_t recipient,
         result.status = {400, "from_user_id/to_user_id/content required"};
         return result;
     }
+    if (content.size() > 64 * 1024) {
+        result.status = {413, "message exceeds 64 KiB"};
+        return result;
+    }
+    User user;
+    std::string user_error;
+    if (!GetActiveUser(sender, &user, &user_error) ||
+        !GetActiveUser(recipient, &user, &user_error)) {
+        result.status = {403, "sender or recipient is unavailable"};
+        return result;
+    }
+    if (!rate_limiter_.Allow("single", std::to_string(sender))) {
+        result.status = {429, "single rate limit exceeded; retry later"};
+        return result;
+    }
     if (!store_) {
         result.status = {500, "conversation store not initialized"};
         return result;
@@ -1037,7 +1083,10 @@ UpstreamResult MessageService::SendLegacyText(int64_t sender, int64_t recipient,
     const auto now = std::chrono::duration_cast<std::chrono::milliseconds>(
                          std::chrono::system_clock::now().time_since_epoch())
                          .count();
-    if (!store_->AppendMessage(session, sender, "text", content, now, "",
+    const auto wire = nlohmann::json{{"type", "single_chat"}, {"session_id", session.id},
+        {"from_user_id", sender}, {"to_user_id", recipient}, {"content", {{"text", content}}},
+        {"create_time", now}}.dump();
+    if (!store_->AppendMessage(session, sender, "text", wire, now, "",
                                &result.message, &error)) {
         result.status = {500, "append message failed: " + error};
         return result;
@@ -1061,11 +1110,10 @@ BroadcastResult MessageService::BroadcastAdmin(int64_t actor, const std::string&
     const std::string real_scope = scope == "all" ? "all" : "group";
     const int64_t group = scope == "chatroom" ? room : 0;
     // Keep the legacy HTTP payload and rate-limit policy unchanged.
-    std::ostringstream content;
-    content << "{\"type\":\"system_broadcast\",\"scope\":\"" << real_scope << "\"";
-    if (group > 0) content << ",\"group_id\":" << group;
-    content << ",\"content\":{\"text\":\"" << text << "\"}}";
-    return PublishBroadcast(real_scope, group, content.str(), false);
+    nlohmann::json content = {{"type", "system_broadcast"}, {"scope", real_scope},
+                              {"content", {{"text", text}}}};
+    if (group > 0) content["group_id"] = group;
+    return PublishBroadcast(real_scope, group, content.dump(), false);
 }
 
 }  // namespace sparkpush

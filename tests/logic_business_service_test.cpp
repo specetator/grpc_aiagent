@@ -1,6 +1,7 @@
 #include <algorithm>
 #include <iostream>
 #include <map>
+#include <set>
 #include <stdexcept>
 #include <tuple>
 
@@ -390,6 +391,53 @@ void TestConversationsAndImages() {
     Require(service.SyncOffline(1, 1, &page).ok() && page.messages.size() == 1 &&
                 page.messages[0].msg_seq == 1001 && page.has_more,
             "offline uses delivered rather than read cursor");
+    storage.delivered[{1, single.id}] = 0;
+    Message room_message;
+    room_message.session_id = room.id;
+    room_message.msg_seq = 1;
+    storage.messages[room.id].push_back(room_message);
+    std::set<std::pair<std::string, int64_t>> received;
+    std::string continuation;
+    int64_t continuation_seq = 0;
+    for (int iteration = 0; iteration < 10; ++iteration) {
+        Require(service.SyncOffline(1, 200, &page, continuation, continuation_seq).ok(),
+                "cross-session offline continuation");
+        for (const auto& message : page.messages)
+            Require(received.emplace(message.session_id, message.msg_seq).second,
+                    "offline continuation must not repeat prior pages");
+        if (!page.has_more) break;
+        continuation = page.next_session_id;
+        continuation_seq = page.next_seq;
+    }
+    Require(received.size() == 1003, "offline continuation must return every message across sessions");
+    {
+        MemoryConversations large;
+        large.sessions = storage.sessions;
+        large.members = storage.members;
+        for (int i = 1; i <= 80; ++i) {
+            Message message;
+            message.session_id = single.id;
+            message.msg_seq = i;
+            message.content_json.assign(64 * 1024, 'x');
+            large.messages[single.id].push_back(std::move(message));
+        }
+        ConversationService large_service(&large);
+        Require(large_service.SyncAfter(1, single.id, 0, 200, &page).ok() &&
+                page.has_more && page.messages.size() < 80, "sync page byte budget");
+        size_t bytes = 0;
+        for (const auto& message : page.messages) bytes += message.content_json.size();
+        Require(bytes <= 2 * 1024 * 1024, "sync cannot exceed gRPC receive budget");
+        continuation.clear(); continuation_seq = 0;
+        size_t count = 0;
+        for (int iteration = 0; iteration < 10; ++iteration) {
+            Require(large_service.SyncOffline(1, 200, &page, continuation, continuation_seq).ok(),
+                    "offline byte-bounded continuation");
+            count += page.messages.size();
+            if (!page.has_more) break;
+            continuation = page.next_session_id; continuation_seq = page.next_seq;
+        }
+        Require(count == 80, "byte-bounded pages must retain all messages");
+    }
     Require(service.MarkRead(1, 2, single.id, 5).code == 403, "read identity rule");
     Require(service.MarkRead(1, 1, single.id, 0).code == 400, "positive read cursor");
     Require(service.MarkRead(1, 1, single.id, 5).ok(), "read command");

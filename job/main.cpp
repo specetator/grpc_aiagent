@@ -1,5 +1,6 @@
 #include "config.h"
 #include "logging.h"
+#include "metrics.h"
 
 #include "service.h"
 
@@ -74,12 +75,15 @@ namespace sparkpush {
         LOG_INFO << "Job runner started. Waiting for Kafka messages...";
 
         // 响应 SIGINT/SIGTERM，确保 Kafka consumer close 后主动离组。
-        while (!g_stop_requested) {
+        MetricsRegistry::Instance().Set("spark_push_service_ready", 1);
+        while (!g_stop_requested && !runner.Failed()) {
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
         }
+        const bool failed = runner.Failed();
+        MetricsRegistry::Instance().Set("spark_push_service_ready", 0);
         runner.Stop();
         LOG_INFO << "Job runner stopped gracefully";
-        return 0;
+        return failed ? 1 : 0;
     }
 
 }  // namespace sparkpush
@@ -103,8 +107,13 @@ int main(int argc, char** argv) {
     // 初始化日志到独立文件 logs/job.log。
     sparkpush::InitLogging("job");
 
-    sparkpush::Config cfg = sparkpush::LoadConfig(config_path);
-    int ret = sparkpush::RunJob(cfg);
+    int ret = 1;
+    try {
+        sparkpush::Config cfg = sparkpush::LoadConfig(config_path);
+        ret = sparkpush::RunJob(cfg);
+    } catch (const std::exception& error) {
+        LOG_ERROR << "Job startup/runtime failure: " << error.what();
+    }
 
     sparkpush::ShutdownLogging();
     return ret;

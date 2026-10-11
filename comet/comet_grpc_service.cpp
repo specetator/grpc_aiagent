@@ -1,6 +1,7 @@
 #include "comet_grpc_service.h"
 
 #include "logging.h"
+#include "internal_rpc.h"
 #include "metrics.h"
 
 namespace sparkpush {
@@ -18,9 +19,10 @@ size_t CometServiceImpl::ProcessPushRequest(
         for (const auto& target : request.targets()) {
             if (target.user_id() > 0) users.push_back(target.user_id());
         }
-        const size_t delivered = server_->PushToUsers(request.message(), users);
+        std::vector<int64_t> delivered_users;
+        const size_t delivered = server_->PushToUsers(request.message(), users, &delivered_users);
         if (delivered > 0) {
-            server_->ReportDeliveredToUsers(request.message(), users);
+            server_->ReportDeliveredToUsers(request.message(), delivered_users);
         }
         return delivered;
     }
@@ -31,9 +33,10 @@ size_t CometServiceImpl::ProcessPushRequest(
             const int64_t room_id = std::stoll(session_id.substr(2));
             if (room_id <= 0) return 0;
             const auto users = server_->GetRoomUserIds(room_id);
-            const size_t delivered = server_->PushToRoom(request.message(), room_id);
+            std::vector<int64_t> delivered_users;
+            const size_t delivered = server_->PushToUsers(request.message(), users, &delivered_users);
             if (delivered > 0) {
-                server_->ReportDeliveredToUsers(request.message(), users);
+                server_->ReportDeliveredToUsers(request.message(), delivered_users);
             }
             return delivered;
         } catch (...) {
@@ -47,8 +50,10 @@ size_t CometServiceImpl::ProcessPushRequest(
 }
 
 ::grpc::Status CometServiceImpl::PushToComet(
-    ::grpc::ServerContext*, const ::sparkpush::PushToCometRequest* request,
+    ::grpc::ServerContext* context, const ::sparkpush::PushToCometRequest* request,
     ::sparkpush::PushToCometReply* response) {
+    const auto authorized = AuthorizeInternalRpc(context, "job");
+    if (!authorized.ok()) return authorized;
     const size_t delivered = ProcessPushRequest(*request);
     response->set_request_id(request->request_id());
     response->set_delivered_count(static_cast<int32_t>(delivered));
@@ -58,8 +63,10 @@ size_t CometServiceImpl::ProcessPushRequest(
 }
 
 ::grpc::Status CometServiceImpl::PushDeliveryAck(
-    ::grpc::ServerContext*, const ::sparkpush::PushDeliveryAckRequest* request,
+    ::grpc::ServerContext* context, const ::sparkpush::PushDeliveryAckRequest* request,
     ::sparkpush::SimpleReply* response) {
+    const auto authorized = AuthorizeInternalRpc(context, "job");
+    if (!authorized.ok()) return authorized;
     if (server_ && request->user_id() > 0) {
         server_->PushDeliveryAck(request->user_id(), request->message());
     }
@@ -69,9 +76,11 @@ size_t CometServiceImpl::ProcessPushRequest(
 }
 
 ::grpc::Status CometServiceImpl::PushStream(
-    ::grpc::ServerContext*,
+    ::grpc::ServerContext* context,
     ::grpc::ServerReaderWriter<::sparkpush::PushToCometReply,
                                ::sparkpush::PushToCometRequest>* stream) {
+    const auto authorized = AuthorizeInternalRpc(context, "job");
+    if (!authorized.ok()) return authorized;
     // 该 gauge 只在 Job->Comet 长连接真正进入服务端处理函数后置 1。
     // 启动脚本据此判断“可以收发消息”，避免仅凭 9105 端口监听就提前返回。
     MetricsRegistry::Instance().Set("spark_push_comet_push_stream_ready", 1);

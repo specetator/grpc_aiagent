@@ -7,6 +7,27 @@
 
 namespace sparkpush {
 namespace {
+// Leave room for protobuf fields below the default 4 MiB gRPC receive limit.
+bool BoundPageBytes(MessagePage* page) {
+    constexpr size_t capacity = 2 * 1024 * 1024;
+    size_t used = 0;
+    size_t retained = 0;
+    for (const auto& message : page->messages) {
+        const auto bytes = message.content_json.size() + message.msg_id.size() +
+            message.session_id.size() + message.msg_type.size() + message.client_msg_id.size() + 256;
+        if (bytes > capacity - used) break;
+        used += bytes;
+        ++retained;
+    }
+    if (!page->messages.empty() && retained == 0) return false;
+    if (retained < page->messages.size()) {
+        page->messages.resize(retained);
+        page->has_more = true;
+    }
+    return true;
+}
+}  // namespace
+namespace {
 int SyncLimit(int limit) {
     return std::max(1, std::min(limit > 0 ? limit : 100, 1000));
 }
@@ -86,49 +107,58 @@ ServiceStatus ConversationService::SyncAfter(int64_t user, const std::string& se
     if (!status.ok()) return status;
     const int bounded_limit = SyncLimit(limit);
     std::string error;
-    if (!repository_->After(session, after, bounded_limit, &page->messages, &error))
+    int64_t safe = 0;
+    if (!repository_->SafeSyncPrefix(session, &safe, &error)) return {500, error};
+    if (!repository_->After(session, after, bounded_limit + 1, &page->messages, &error))
         return {500, error};
-    page->has_more = static_cast<int>(page->messages.size()) == bounded_limit;
+    page->has_more = static_cast<int>(page->messages.size()) > bounded_limit;
+    if (page->has_more) page->messages.pop_back();
+    if (!BoundPageBytes(page)) return {413, "stored message exceeds sync page budget; use HTTP history"};
     page->next_seq = page->messages.empty() ? after : page->messages.back().msg_seq;
+    page->safe_seq = std::min(safe, page->next_seq);
+    if (page->messages.empty()) page->safe_seq = safe;
     MetricsRegistry::Instance().Increment("spark_push_cursor_sync_total");
     return {};
 }
 
-ServiceStatus ConversationService::SyncOffline(int64_t user, int limit,
-                                               MessagePage* page) {
+ServiceStatus ConversationService::SyncOffline(int64_t user, int limit, MessagePage* page,
+                                               const std::string& after_session, int64_t after_seq) {
     if (page) *page = {};
-    if (!Available() || !MembersAvailable() || !page || user <= 0)
+    if (!Available() || !MembersAvailable() || !page || user <= 0 || after_seq < 0)
         return {400, "offline sync dependencies/user_id are missing"};
     std::vector<Session> sessions;
     std::string error;
     if (!repository_->Singles(user, &sessions, &error)) return {500, error};
     std::vector<int64_t> rooms;
-    if (!repository_->Rooms(user, &rooms, &error))
-        LOG_WARN << "ListUserChatrooms for offline sync failed: " << error;
+    if (!repository_->Rooms(user, &rooms, &error)) return {500, error};
     for (int64_t room_id : rooms) {
         Session room;
         if (repository_->FindSession("r_" + std::to_string(room_id), &room, &error))
             sessions.push_back(std::move(room));
     }
-    int remaining = SyncLimit(limit);
+    std::sort(sessions.begin(), sessions.end(), [](const Session& a, const Session& b) { return a.id < b.id; });
+    if (!after_session.empty() && std::none_of(sessions.begin(), sessions.end(), [&](const Session& s) { return s.id == after_session; }))
+        return {403, "offline continuation session is inaccessible"};
+    const int bounded = SyncLimit(limit);
+    int remaining = bounded + 1;
     for (const auto& session : sessions) {
         if (remaining <= 0) break;
+        if (!after_session.empty() && session.id < after_session) continue;
         int64_t delivered = 0;
-        if (!repository_->Delivered(user, session.id, &delivered, &error)) {
-            LOG_WARN << "GetDeliveredSeq failed for session " << session.id << ": "
-                     << error;
-            continue;
-        }
+        if (!repository_->Delivered(user, session.id, &delivered, &error)) return {500, error};
+        if (session.id == after_session) delivered = std::max(delivered, after_seq);
         std::vector<Message> messages;
-        if (!repository_->After(session.id, delivered, remaining, &messages, &error)) {
-            LOG_WARN << "offline message query failed for session " << session.id
-                     << ": " << error;
-            continue;
-        }
+        if (!repository_->After(session.id, delivered, remaining, &messages, &error)) return {500, error};
         page->messages.insert(page->messages.end(), messages.begin(), messages.end());
         remaining -= static_cast<int>(messages.size());
     }
-    page->has_more = remaining == 0 && !sessions.empty();
+    page->has_more = static_cast<int>(page->messages.size()) > bounded;
+    if (page->has_more) page->messages.pop_back();
+    if (!BoundPageBytes(page)) return {413, "stored message exceeds offline page budget; use HTTP history"};
+    if (!page->messages.empty()) {
+        page->next_session_id = page->messages.back().session_id;
+        page->next_seq = page->messages.back().msg_seq;
+    }
     MetricsRegistry::Instance().Increment("spark_push_offline_sync_total");
     return {};
 }

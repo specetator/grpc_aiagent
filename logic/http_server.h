@@ -35,7 +35,7 @@ struct LogicHttpServices {
 class HttpApiServer {
    public:
     HttpApiServer(muduo::net::EventLoop* loop, const muduo::net::InetAddress& address,
-                  LogicHttpServices services);
+                  LogicHttpServices services, int io_threads = 1);
     void start();
 
    private:

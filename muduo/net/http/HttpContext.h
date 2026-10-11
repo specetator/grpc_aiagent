@@ -65,6 +65,9 @@ class HttpContext : public muduo::copyable
   bool isChunked() const
   { return isChunked_; }
 
+  bool inputStarted() const { return inputStarted_; }
+  uint64_t generation() const { return generation_; }
+
   void reset()
   {
     state_ = kExpectRequestLine;
@@ -73,6 +76,10 @@ class HttpContext : public muduo::copyable
     contentLength_ = 0;
     bodyReceived_ = 0;
     isChunked_ = false;
+    headerBytes_ = 0;
+    hasContentLength_ = false;
+    inputStarted_ = false;
+    ++generation_;
     customContext_.reset();
   }
 
@@ -103,8 +110,12 @@ class HttpContext : public muduo::copyable
   size_t contentLength_;  // 用于存储 Content-Length 的值
   size_t bodyReceived_;   // 已接收的 body 长度
   bool isChunked_;        // 是否为 chunked 传输
+  size_t headerBytes_{0};
+  bool hasContentLength_{false};
+  bool inputStarted_{false};
+  uint64_t generation_{0};
   std::shared_ptr<void> customContext_;  // 自定义上下文存储
 };
 
 } // namespace net
-} // namespace muduo 
+} // namespace muduo

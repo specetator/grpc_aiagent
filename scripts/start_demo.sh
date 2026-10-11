@@ -65,6 +65,15 @@ else
 fi
 
 # 允许把访问地址写进 .env.local；命令行环境变量仍然可以在未配置时提供默认值。
+rpc_env_file="${SPARK_RPC_ENV_FILE:-$ROOT/.env.rpc}"
+if [[ ! -f "$rpc_env_file" && -z "${SPARK_RPC_COMET_KEY:-}" ]]; then
+  bash "$ROOT/scripts/init_rpc_keys.sh"
+fi
+if [[ -f "$rpc_env_file" ]]; then
+  set -a
+  source "$rpc_env_file"
+  set +a
+fi
 ACCESS_IP="${ACCESS_IP:-${SPARK_PUSH_ACCESS_IP:-}}"
 
 if [[ -z "${SPARK_PUSH_MYSQL_PASSWORD:-}" ||

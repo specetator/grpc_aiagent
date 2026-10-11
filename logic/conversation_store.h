@@ -22,7 +22,8 @@ class ConversationStore {
     // 参数：对应的 DAO/Store 指针，均为外部生命周期管理
     // 返回：无
     ConversationStore(SessionDao* session_dao, MessageDao* message_dao,
-                      UserSessionStateDao* state_dao, RedisStore* redis_store);
+                      UserSessionStateDao* state_dao, RedisStore* redis_store,
+                      MessageReservationRepository* reservations = nullptr);
 
     // 功能：获取或创建单聊会话，确保数据库存在对应 session
     // 参数：user1/user2 单聊双方；session 输出会话信息；err_msg 记录错误
@@ -48,7 +49,7 @@ class ConversationStore {
                        const std::string& client_msg_id, Message* message,
                        std::string* err_msg);
 
-    // 热路径：仅 Redis INCR 分配序号并构造 Message，不写 MySQL
+    // Durable reservation: canonical payload and sequence survive cache loss.
     bool AppendMessageHotPath(const std::string& session_id, int64_t sender_id,
                               const std::string& msg_type,
                               const std::string& content_json,
@@ -74,6 +75,9 @@ class ConversationStore {
     bool GetMessagesAfter(const std::string& session_id, int64_t after_seq,
                           int limit, std::vector<Message>* messages,
                           std::string* err_msg);
+    bool PrepareOutbox(const Message&, const std::string& payload, std::string* error);
+    bool Published(const Message&, std::string* error);
+    bool SafeSyncPrefix(const std::string& session, int64_t* seq, std::string* error);
 
     // 功能：标记用户已读序列并写回 Redis/MySQL
     // 参数：user_id 用户；session_id 会话；read_seq 已读序号；err_msg 记录错误
@@ -110,11 +114,7 @@ class ConversationStore {
     MessageDao* message_dao_{nullptr};
     UserSessionStateDao* state_dao_{nullptr};
     RedisStore* redis_store_{nullptr};
-    // 不同会话并行校准 MySQL floor；同一会话仍由固定 shard 串行初始化。
-    static constexpr size_t kSeqSeedShardCount = 64;
-    std::array<std::mutex, kSeqSeedShardCount> seq_seed_mutexes_;
-    std::array<std::unordered_set<std::string>, kSeqSeedShardCount>
-        seq_seeded_sessions_;
+    MessageReservationRepository* reservations_{nullptr};
 };
 
 }  // namespace sparkpush

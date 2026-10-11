@@ -92,34 +92,34 @@ HTTP `requireUser` 和 gRPC VerifyToken 都调用 UserService::Authenticate。
 
 ```text
 UpstreamMessageRequest → UpstreamCommand → MessageService::Submit
-  账号状态/限流/附件 → Redis Lua seq + dedup
+  账号状态/限流/附件 → MySQL 事务预留原文 + seq + outbox
   → PersistToTopic：Kafka SendAndWait delivery report
   → UpstreamResult.accepted=true → adapter ACK_STAGE_ACCEPTED
   → 异步实时 topic → Job → Comet → delivered_ack
 ```
 
-accepted 不是 MySQL INSERT 已完成；历史必须等 Job persist consumer 落库。
-同一个 sender/session/client_msg_id 保留同一 msg_id/msg_seq，重试不重复实时投递。
+accepted 表示 Kafka 确认持久化事件；SQL 原文/序号预留在此前完成，历史 message 行仍由 Job persist consumer 写入。
+同一个 sender/session/client_msg_id 保留同一 msg_id/msg_seq，重试使用相同原文/时间戳，允许重发相同投递 ID，由下游去重。
 Kafka Agent consumers 现在直接调用 MessageService，不再调用 gRPC 类里的业务方法。
 ai_delta 仍临时推送、不占序号、不进历史；最终 ai_reply 才进入持久化与离线恢复链路。
 同步 RPC 和双向流都调用同一个 Submit，只有读取/写入协议形式不同。
 
 ## 4. 兼容约定与未完成的治理
 
-- 没改 URL、Proto、SQL schema、Redis key、topic 配置和 WebSocket 消息类型。
+- 2026-10-11 修复增加 proto 分页/路由字段、SQL 预留与 receipt 表、内部 RPC 密钥和安全游标。部署兼容性见 `docs/review-remediation.md`；URL 和既有响应字段保留。
 - HTTP 错误 code 和 HTTP status 不是总相同：例如普通用户拿 token 请求管理员接口，
   是业务 403 + HTTP 400；禁用账号登录也是业务 403 + HTTP 400。映射由适配器保留。
 - 历史/同步/附件授权已共享。MarkRead/Unread 仍保留旧的“请求 user_id 等于鉴权身份”规则，
   本次没有额外宣称补齐它们的对象级授权。
 - `SendLegacyText` 专门保留旧 `/api/message/send`：同步存储、无实时 fanout、无 accepted/delivered
-  合同，旧接口仍不要求 Bearer。它不是 WS Submit 的替代入口；正式使用应另开安全迁移任务。
+  合同；现在要求 Bearer、sender 与凭证一致、用户状态与限流检查，并使用相同 SQL 取号权威。
 - 弹幕仍接受请求 body 的 token、使用 Redis 解析，固定房间 1001；不自动升级为普通 HTTP
   新鲜账号状态鉴权。`pushed=true` 仍不是 broker 确认或最终客户端收讫。
 - HTTP Leave 只返回旧的页面离开结果；Unsubscribe 才删持久订阅，gRPC ReportRoomLeave 才更新在线计数。
   OnlineCount 存储失败回退成员数量、在线计数部分失败/重复报告等旧局限没有在此次重构中解决。
 - 管理员角色在可信适配器解析后传入服务；用户变更、房间管理、管理员广播再共享业务层角色检查。
-  内部 gRPC 仍是可信内网身份输入，不是公开无鉴权 API，需要 TLS/mTLS 等另行治理。
-- 仍有旧响应/弹幕/广播的字符串 JSON 拼接和解析异常边界，后续应单独修正并补兼容测试。
+  内部 gRPC 按 Comet/Job/Admin 工作负载密钥授权；默认 loopback，远程必须配置 TLS。代表用户的请求仍须经过对应业务校验。
+- HTTP 适配器捕获 JSON 类型异常并返回 400；管理员广播使用 JSON 序列化。旧弹幕语义仍需单独治理。
 - MessageService 仍承载较多 Agent 编排；未来可再提取 AgentConversationService，但缓存和幂等状态
   必须保持唯一所有者，不能只拆文件后各自保存一份状态。
 

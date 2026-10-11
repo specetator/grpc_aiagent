@@ -188,8 +188,8 @@ bool MessageDao::IsSameStoredMessage(MYSQL* conn, const Message& message,
     *same = false;
     const char* sql =
         "SELECT COUNT(*) FROM message WHERE session_id=? AND msg_seq=? "
-        "AND sender_id=? AND msg_type=? AND content_json=? AND timestamp_ms=? "
-        "AND client_msg_id=?";
+        "AND sender_id=? AND BINARY msg_type=? AND BINARY content_json=? AND timestamp_ms=? "
+        "AND BINARY client_msg_id=?";
     MYSQL_STMT* stmt = mysql_stmt_init(conn);
     if (!stmt) {
         if (err_msg) *err_msg = "mysql_stmt_init failed";

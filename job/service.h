@@ -37,6 +37,10 @@ namespace sparkpush {
 
         // 停止消费者与线程池，确保退出时资源释放。
         void Stop();
+        bool Failed() const {
+            return persist_consumer_.failed() || single_consumer_.failed() ||
+                   group_consumer_.failed() || broadcast_consumer_.failed();
+        }
 
     private:
         struct StreamState;

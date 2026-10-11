@@ -51,11 +51,9 @@ class RoomAgentService {
                        std::string* error);
     bool Complete(const nlohmann::json& reply, std::string* error);
     // Single Logic instance orders room append -> persistence -> AI enqueue.
-    std::mutex& SubmissionMutex() { return submission_mu_; }
  private:
     RoomAgentRepository* repo_;
     int64_t bot_;
     bool enabled_;
-    std::mutex submission_mu_;
 };
 }  // namespace sparkpush

@@ -71,9 +71,15 @@ int main(int argc, char** argv) {
     sparkpush::InitLogging("comet");
 
     // 加载配置并启动 comet 主流程（WebSocket + gRPC）。
-    sparkpush::Config cfg = sparkpush::LoadConfig(config_path);
-    sparkpush::RunComet(cfg);
+    int result_code = 0;
+    try {
+        sparkpush::Config cfg = sparkpush::LoadConfig(config_path);
+        sparkpush::RunComet(cfg);
+    } catch (const std::exception& error) {
+        LOG_ERROR << "Comet startup/runtime failure: " << error.what();
+        result_code = 1;
+    }
 
     sparkpush::ShutdownLogging();
-    return 0;
+    return result_code;
 }

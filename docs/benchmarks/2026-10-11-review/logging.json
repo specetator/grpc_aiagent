@@ -1,0 +1,32 @@
+{
+  "baseline": "2f285f89146db4a7b9c65cdbc263c4a521973ee2",
+  "candidate": "working tree 2026-10-11",
+  "platform": "Linux-6.18.40.1-microsoft-standard-WSL2-x86_64-with-glibc2.35",
+  "source_sha256": {
+    "common/logging.cpp": "6f20e822754a6e552a260b93fa28c93effa7113d28087071dbc0d9439ef6a57d",
+    "common/logging.h": "6993ac84b20ac4d565a7b0f2d49645ede59b66b0eb00533f6a62e56e23112247"
+  },
+  "messages": 100000,
+  "payload_bytes": 128,
+  "scope": "single thread; local buffered filesystem; stdout redirected to a regular file; no E2E throughput claim",
+  "runs": {
+    "baseline": {
+      "wall_ms": [
+        40.24,
+        36.6,
+        39.59
+      ],
+      "stdout_bytes": 18200000,
+      "log_bytes": 18200000
+    },
+    "current": {
+      "wall_ms": [
+        23.36,
+        26.23,
+        25.87
+      ],
+      "stdout_bytes": 0,
+      "log_bytes": 18200000
+    }
+  }
+}

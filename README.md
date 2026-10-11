@@ -1,13 +1,13 @@
 # Spark Push
 
-C++17 分布式实时消息推送 / IM 教学项目。系统拆分为 Comet、Logic、Job 三个进程，支持 WebSocket 长连接、Kafka 异步投递、Redis 序号与幂等、MySQL 历史消息、双阶段 ACK、游标补偿和离线补推。
+C++17 分布式实时消息推送 / IM 教学项目。系统拆分为 Comet、Logic、Job 三个进程，支持 WebSocket 长连接、Kafka 异步投递、MySQL 持久序号与幂等、Redis 路由缓存、MySQL 历史消息、双阶段 ACK、游标补偿和离线补推。
 
 ## 架构
 
 ```text
 Client ──WebSocket──► Comet ──MessageStream──► Logic
   ▲                     ▲                       │
-  │                     │                       ├── Redis：token / 路由 / seq / dedup
+  │                     │                       ├── Redis：token / 路由 / 缓存
   │                     │                       ├── persist_message：持久化事件
   │                     │                       ├── push_single：单聊实时队列
   │                     │                       ├── push_group：群聊实时队列
@@ -51,6 +51,8 @@ Logic ── ai_request ──► hermes_bridge ──HTTP/SSE──► Pi gatew
 - 启动脚本和健康检查要求 `spark_push_comet_logic_stream_ready 1` 与 `spark_push_comet_push_stream_ready 1`，避免把“进程在”误判为“可投递”；
 - Logic、Job、Comet 都可抓取 Prometheus text metrics；
 - MySQL 唯一键、字段比对和单调水位更新提供幂等落库兜底。
+
+2026-10-11 工程审查修复、兼容变化及可复现验证见 [`docs/review-remediation.md`](docs/review-remediation.md)。旧性能报告使用之前的 Redis 取号路径，不能作为当前 SQL 预留链路的容量数据。
 
 设计文档分成两层：
 
@@ -131,6 +133,7 @@ ${EDITOR:-vi} .env.local
 
 `.env.local` 至少设置 `SPARK_PUSH_MYSQL_PASSWORD`；要启用管理员控制台，还需设置
 `SPARK_PUSH_ADMIN_ACCOUNT` 和 `SPARK_PUSH_ADMIN_PASSWORD`。真实口令不会从环境变量进入配置仓库。
+`start_demo.sh` 会生成并载入权限为 0600 的 `.env.rpc`；手动启动需载入各工作负载的 RPC 密钥。已有数据库须在停止写入、排空旧 Kafka 事件后执行 `sql/migrations/20261011_message_reservations.sql`；Kafka 命名卷也需要迁移旧数据，具体步骤见上述修复文档。
 `sql/schema.sql` 只创建不存在的表；开发环境确实需要清库时，才显式执行 `sql/reset_dev.sql`。
 
 启动脚本会自动拉起 Redis / MySQL / Kafka、创建 topic、编译服务并检查端口。只想复用已启动依赖或已确认二进制最新时，可分别使用 `--skip-deps`、`--skip-build`；完整的参数、浏览器操作和排障说明见 [`scripts/00_prepare_and_run.md`](scripts/00_prepare_and_run.md)。
@@ -221,7 +224,7 @@ curl http://127.0.0.1:9203/metrics  # Comet
 
 1. [`docs/spark-push-architecture.md`](docs/spark-push-architecture.md)：三进程职责和两条消息链路；
 2. `proto/spark_push.proto`：ACK、游标、持久化事件和 gRPC 服务；
-3. [`docs/spark-push-internals.md`](docs/spark-push-internals.md)：从 Redis Lua、连接表、PushStream 队列追到函数；
+3. [`docs/spark-push-internals.md`](docs/spark-push-internals.md)：从序号预留、连接表、PushStream 队列追到函数；
 4. `comet/comet_server.cpp`：WebSocket 握手、上行解析、缺口同步和离线补推；
 5. `logic/services/`：鉴权、会话权限、消息编排；`logic/grpc_service.cpp` / `http_server.cpp` 只做协议适配，`logic/redis_store.cpp` / `conversation_store.cpp` 保存底层实现；
 6. `job/service.cpp`、`common/kafka_consumer.cpp`：consumer group、PushStream、offset 和落库；
@@ -234,7 +237,7 @@ curl http://127.0.0.1:9203/metrics  # Comet
 可以写：
 
 - 设计 Comet / Logic / Job 三层 C++ 实时消息架构，以 Kafka 解耦业务受理和下行投递；
-- 使用 Redis Lua 实现会话内 `msg_seq` 与 `client_msg_id` 原子幂等，引入 MySQL 水位和唯一键兜底；
+- 使用 MySQL 事务保存会话序号、幂等原文和发布阶段，Redis 丢失不再回退取号；
 - 将 ACK 拆为 accepted / delivered，引入游标缺口补偿、离线补推和 delivered cursor；
 - 使用独立 persist topic、场景 topic、PushStream、重连重放和可抓取指标，建立可复现 E2E 验证；
 - 单机 E2E 报告必须同时给出并发参数、accepted/delivered 数量、延迟分位数和数据库复核结果。

@@ -3,6 +3,7 @@
 #include "grpc_keepalive.h"
 #include "logging.h"
 #include "metrics.h"
+#include "broadcast_fanout.h"
 
 #include <algorithm>
 #include <chrono>
@@ -16,6 +17,7 @@ JobRunner::JobRunner(const Config& cfg)
     : cfg_(cfg), delivery_ack_pool_(4, "job_delivery_ack") {}
 
 bool JobRunner::Init() {
+    RequireRpcKey("job");
     ParseCometTargets();
     if (cfg_.kafka_brokers.empty() || cfg_.kafka_single_topic.empty() ||
         cfg_.kafka_group_topic.empty() || cfg_.kafka_persist_topic.empty()) {
@@ -46,6 +48,11 @@ bool JobRunner::Init() {
     }
     session_dao_ = std::make_unique<SessionDao>(mysql_pool_.get());
     message_dao_ = std::make_unique<MessageDao>(mysql_pool_.get());
+    std::string schema_error;
+    if (!message_dao_->reservations().CheckSchema(&schema_error)) {
+        LOG_ERROR << "Message reservation schema missing; apply sql/migrations/20261011_message_reservations.sql after draining old Kafka events";
+        return false;
+    }
 
     KafkaConsumer::Options consumer_opts;
     consumer_opts.enable_auto_commit = false;
@@ -157,7 +164,7 @@ CometService::Stub* JobRunner::GetStub(const std::string& comet_id) {
     if (it != comet_stubs_.end()) return it->second.get();
     auto address_it = comet_addrs_.find(comet_id);
     if (address_it == comet_addrs_.end()) return nullptr;
-    auto channel = CreateKeepaliveChannel(address_it->second);
+    auto channel = CreateKeepaliveChannel(address_it->second, "job");
     auto stub = CometService::NewStub(channel);
     auto* result = stub.get();
     comet_stubs_[comet_id] = std::move(stub);
@@ -167,7 +174,7 @@ CometService::Stub* JobRunner::GetStub(const std::string& comet_id) {
 void JobRunner::InitStreams() {
     for (const auto& item : comet_addrs_) {
         auto state = std::make_unique<StreamState>();
-        state->channel = CreateKeepaliveChannel(item.second);
+        state->channel = CreateKeepaliveChannel(item.second, "job");
         state->stub = CometService::NewStub(state->channel);
         state->context = std::make_unique<grpc::ClientContext>();
         state->stream = state->stub->PushStream(state->context.get());
@@ -226,7 +233,7 @@ bool JobRunner::ReconnectStream(const std::string& comet_id,
     }
 
     state->context = std::make_unique<grpc::ClientContext>();
-    state->channel = CreateKeepaliveChannel(address_it->second);
+    state->channel = CreateKeepaliveChannel(address_it->second, "job");
     state->stub = CometService::NewStub(state->channel);
     state->stream = state->stub->PushStream(state->context.get());
     if (!state->stream) return false;
@@ -641,23 +648,14 @@ bool JobRunner::HandleBroadcastTask(const std::string& key,
         LOG_ERROR << "[DLQ][Broadcast] invalid BroadcastTaskRequest";
         return true;
     }
-    ChatMessage message;
-    message.set_msg_id(task.task_id());
-    message.set_session_id("broadcast");
-    message.set_timestamp_ms(std::chrono::duration_cast<std::chrono::milliseconds>(
-                                 std::chrono::system_clock::now().time_since_epoch())
-                                 .count());
-    message.set_msg_type("broadcast");
-    message.set_content_json(task.content_json());
-
     bool ok = true;
     for (const auto& item : comet_addrs_) {
-        PushToCometRequest request;
-        request.set_comet_id(item.first);
-        request.set_request_id(task.task_id() + "@" + item.first);
-        request.set_scene("broadcast");
-        *request.mutable_message() = message;
-        ok = ProcessPushRequest(request) && ok;
+        auto request = BuildBroadcastPush(task, item.first);
+        if (!request) {
+            MetricsRegistry::Instance().Increment("spark_push_invalid_broadcast_scope_total");
+            continue;
+        }
+        ok = ProcessPushRequest(*request) && ok;
     }
     return ok;
 }
@@ -687,6 +685,7 @@ bool JobRunner::PersistMessage(const PersistMessageRequest& request) {
                 request.room_id(), &session, &err);
         }
         if (session_ok && message_dao_->InsertMessage(message, &err) &&
+            message_dao_->reservations().Persisted(message, &err) &&
             session_dao_->UpdateLastMessageSeqAtLeast(message.session_id,
                                                        message.msg_seq,
                                                        &err)) {

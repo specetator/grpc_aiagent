@@ -9,6 +9,9 @@
 #include "user_dao.h"
 
 namespace sparkpush {
+bool DaoConversationRepository::SafePrefix(const std::string& id, int64_t* seq, std::string* error) {
+    return store_ && store_->SafeSyncPrefix(id, seq, error);
+}
 bool DaoUserRepository::UsersAvailable() const { return users_ != nullptr; }
 bool DaoUserRepository::TokensAvailable() const { return tokens_ != nullptr; }
 bool DaoUserRepository::FindById(int64_t id, User* out, std::string* err) {

@@ -19,6 +19,7 @@
 #include "muduo/net/InetAddress.h"
 
 #include <memory>
+#include <atomic>
 
 #include <any>
 
@@ -133,7 +134,7 @@ class TcpConnection : noncopyable,
 
   EventLoop* loop_;
   const string name_;
-  StateE state_;  // FIXME: use atomic variable
+  std::atomic<StateE> state_;
   bool reading_;
   // we don't expose those classes to client.
   std::unique_ptr<Socket> socket_;

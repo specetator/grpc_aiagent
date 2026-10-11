@@ -22,6 +22,9 @@
 #include "kafka_producer.h"
 #include "logging.h"
 #include "message_dao.h"
+#include "periodic_worker.h"
+#include "stop_signal.h"
+#include "metrics.h"
 #include "mysql_pool.h"
 #include "redis_pool.h"
 #include "redis_store.h"
@@ -86,6 +89,8 @@ namespace sparkpush {
 
 // 启动逻辑服务：初始化 Kafka/MySQL/Redis、构造服务并启动 gRPC/HTTP
 int RunLogic(const Config& cfg) {
+    RequireRpcKey("comet");
+    auto credentials = InternalServerCredentials(cfg.internal_grpc_listen_addr);
     KafkaProducer single_producer;
     if (!single_producer.Init(cfg.kafka_brokers, cfg.kafka_single_topic)) {
         LOG_ERROR << "Failed to initialize Kafka single producer";
@@ -182,6 +187,11 @@ int RunLogic(const Config& cfg) {
     OperatorTaskService operator_task_service(&room_agent_repository);
     SessionDao session_dao(&mysql_pool);
     MessageDao message_dao(&mysql_pool);
+    std::string reservation_schema_error;
+    if (!message_dao.reservations().CheckSchema(&reservation_schema_error)) {
+        LOG_ERROR << "Message reservation schema missing; apply sql/migrations/20261011_message_reservations.sql after draining old Kafka events";
+        return 1;
+    }
     UserSessionStateDao state_dao(&mysql_pool);
     AttachmentDao attachment_dao(&mysql_pool, cfg.attachment_dir);
     std::string attachment_schema_err;
@@ -248,7 +258,7 @@ int RunLogic(const Config& cfg) {
     KnowledgeService knowledge_service(cfg.cann_knowledge_root);
 
     // 启动 gRPC 服务器（LogicService）
-    std::string grpc_addr = cfg.listen_addr + ":" + std::to_string(cfg.listen_port);
+    std::string grpc_addr = cfg.internal_grpc_listen_addr + ":" + std::to_string(cfg.listen_port);
     grpc::ServerBuilder builder;
     auto service = std::make_unique<LogicServiceImpl>(
         &user_service, &conversation_service, &message_service, &room_service);
@@ -284,10 +294,11 @@ int RunLogic(const Config& cfg) {
             return 1;
         }
     }
-    builder.AddListeningPort(grpc_addr, grpc::InsecureServerCredentials());
+    builder.AddListeningPort(grpc_addr, credentials);
     ApplyGrpcKeepaliveServerArgs(&builder);
     builder.RegisterService(service.get());
     std::unique_ptr<grpc::Server> server(builder.BuildAndStart());
+    if (!server) { LOG_ERROR << "Logic gRPC bind failed"; return 1; }
     LOG_INFO << "Logic gRPC server listening on " << grpc_addr;
 
     // 启动 HTTP 服务器（登录 / 发送消息）
@@ -298,12 +309,34 @@ int RunLogic(const Config& cfg) {
         &loop, httpAddr,
         {user_service, conversation_service, attachment_service, message_service,
          room_service, admin_service, danmaku_service, knowledge_service,
-         &room_agent_service, &operator_task_service});
+         &room_agent_service, &operator_task_service}, cfg.logic_http_threads);
     httpServer.start();
+    PeriodicWorker outbox_recovery([&] {
+        std::vector<std::pair<Message, std::string>> pending;
+        std::string error;
+        if (!message_dao.reservations().Pending(&pending, 10, &error)) {
+            LOG_ERROR << "Message outbox scan failed";
+            return;
+        }
+        for (const auto& record : pending) {
+            if (!persist_producer.SendAndWait(record.first.session_id, record.second,
+                                             cfg.persist_kafka_timeout_ms)) break;
+            if (!message_dao.reservations().Published(record.first, &error)) break;
+        }
+    }, std::chrono::milliseconds(1000));
     LOG_INFO << "Logic HTTP server listening on port " << std::to_string(cfg.http_port);
 
     // gRPC 使用单独线程阻塞 Wait，muduo EventLoop 在当前线程运行
-    std::thread grpc_thread([&server]() { server->Wait(); });
+    InstallStopSignals();
+    bool consumer_failed = false;
+    MetricsRegistry::Instance().Set("spark_push_service_ready", 1);
+    loop.runEvery(0.1, [&] {
+        consumer_failed = cfg.hermes_enabled && (hermes_reply_consumer.failed() || hermes_delta_consumer.failed());
+        if (consumer_failed || stop_requested) {
+            MetricsRegistry::Instance().Set("spark_push_service_ready", 0);
+            loop.quit();
+        }
+    });
 
     if (cfg.hermes_enabled) {
         hermes_reply_consumer.Start();
@@ -317,14 +350,12 @@ int RunLogic(const Config& cfg) {
 
     // 必须在创建 EventLoop 的线程中调用 loop()
     loop.loop();
-
-    // 如果有优雅退出逻辑，可在此处 server->Shutdown() 后再 join
-    if (grpc_thread.joinable()) {
-        grpc_thread.join();
-    }
+    server->Shutdown(std::chrono::system_clock::now() + std::chrono::seconds(3));
+    server->Wait();
+    outbox_recovery.Stop();
     hermes_reply_consumer.Stop();
     hermes_delta_consumer.Stop();
-    return 0;
+    return consumer_failed ? 1 : 0;
 }
 
 }  // namespace sparkpush
@@ -344,8 +375,13 @@ int main(int argc, char** argv) {
     // 初始化日志到独立文件 logs/logic.log
     sparkpush::InitLogging("logic");
 
-    sparkpush::Config cfg = sparkpush::LoadConfig(config_path);
-    int ret = sparkpush::RunLogic(cfg);
+    int ret = 1;
+    try {
+        sparkpush::Config cfg = sparkpush::LoadConfig(config_path);
+        ret = sparkpush::RunLogic(cfg);
+    } catch (const std::exception& error) {
+        LOG_ERROR << "Logic startup/runtime failure: " << error.what();
+    }
 
     sparkpush::ShutdownLogging();
     return ret;

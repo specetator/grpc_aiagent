@@ -15,11 +15,13 @@ namespace sparkpush {
 ConversationStore::ConversationStore(SessionDao* session_dao,
                                      MessageDao* message_dao,
                                      UserSessionStateDao* state_dao,
-                                     RedisStore* redis_store)
+                                     RedisStore* redis_store,
+                                     MessageReservationRepository* reservations)
     : session_dao_(session_dao),
       message_dao_(message_dao),
       state_dao_(state_dao),
-      redis_store_(redis_store) {}
+      redis_store_(redis_store),
+      reservations_(reservations ? reservations : (message_dao ? &message_dao->reservations() : nullptr)) {}
 
 // 功能：获取或创建单聊会话，直接委托 SessionDao
 // 返回：true 表示成功，false 写入 err_msg
@@ -56,27 +58,20 @@ bool ConversationStore::AppendMessage(const Session& session, int64_t sender_id,
         if (err_msg) *err_msg = "conversation store not initialized";
         return false;
     }
-    int64_t seq = 0;
-    if (!session_dao_->AllocateMessageSeq(session.id, &seq, err_msg)) {
-        return false;
-    }
     Message msg;
-    msg.session_id = session.id;
-    msg.msg_seq = seq;
-    msg.sender_id = sender_id;
-    msg.msg_type = msg_type;
-    msg.content_json = content_json;
-    msg.timestamp_ms = timestamp_ms;
-    msg.client_msg_id = client_msg_id;
-    msg.msg_id = msg.session_id + "-" + std::to_string(seq);
+    bool fresh = false;
+    if (!AppendMessageHotPath(session.id, sender_id, msg_type, content_json, timestamp_ms,
+                              client_msg_id, &msg, &fresh, err_msg)) return false;
 
-    if (!message_dao_->InsertMessage(msg, err_msg)) {
+    if (!message_dao_->InsertMessage(msg, err_msg) ||
+        !message_dao_->reservations().Persisted(msg, err_msg) ||
+        !session_dao_->UpdateLastMessageSeqAtLeast(session.id, msg.msg_seq, err_msg)) {
         return false;
     }
 
     if (redis_store_) {
         // 将最新 seq 写入 Redis，便于未读计算
-        if (!redis_store_->SetSessionLastSeq(session.id, seq)) {
+        if (!redis_store_->SetSessionLastSeq(session.id, msg.msg_seq)) {
             LOG_ERROR << "SetSessionLastSeq failed for session " << session.id;
         }
     }
@@ -87,74 +82,37 @@ bool ConversationStore::AppendMessage(const Session& session, int64_t sender_id,
     return true;
 }
 
-// 热路径：Redis INCR 取号，不阻塞 MySQL
+// The allocation authority is durable SQL; Redis is a cache/routing service.
 bool ConversationStore::AppendMessageHotPath(
     const std::string& session_id, int64_t sender_id,
     const std::string& msg_type, const std::string& content_json,
     int64_t timestamp_ms, const std::string& client_msg_id, Message* message,
     bool* is_new, std::string* err_msg) {
-    if (!redis_store_ || !message_dao_ || session_id.empty() || !message ||
-        !is_new) {
-        if (err_msg) *err_msg = "hot path dependencies or arguments invalid";
+    if (!reservations_ || !message || !is_new) {
+        if (err_msg) *err_msg = "message reservations unavailable";
         return false;
     }
-
-    int64_t seq = 0;
-    bool allocated_new = false;
-    bool allocated = false;
-
-    // 每个 Logic 进程首次看到会话时必须查询 MySQL MAX，并通过 Lua 将 Redis
-    // 计数器提升到至少该值。即使 Redis 中存在落后的旧 key，也不会再从旧值取号。
-    {
-        const size_t shard =
-            std::hash<std::string>{}(session_id) % kSeqSeedShardCount;
-        std::lock_guard<std::mutex> lk(seq_seed_mutexes_[shard]);
-        auto& seeded_sessions = seq_seeded_sessions_[shard];
-        if (seeded_sessions.find(session_id) == seeded_sessions.end()) {
-            int64_t max_seq = 0;
-            std::string seed_err;
-            if (!message_dao_->GetMaxMsgSeq(session_id, &max_seq, &seed_err)) {
-                if (err_msg) *err_msg = "load MySQL max msg_seq: " + seed_err;
-                return false;
-            }
-            allocated = redis_store_->AllocateSessionMsgSeq(
-                session_id, sender_id, client_msg_id, max_seq, 24 * 3600, &seq,
-                &allocated_new);
-            if (!allocated) {
-                if (err_msg) *err_msg = "atomic Redis sequence allocation failed";
-                return false;
-            }
-            seeded_sessions.insert(session_id);
-        }
-    }
-
-    if (!allocated &&
-        !redis_store_->AllocateSessionMsgSeq(
-            session_id, sender_id, client_msg_id, 0, 24 * 3600, &seq,
-            &allocated_new)) {
-        if (err_msg) *err_msg = "atomic Redis sequence allocation failed";
-        return false;
-    }
-    if (seq <= 0) {
-        if (err_msg) *err_msg = "Redis returned invalid msg_seq";
-        return false;
-    }
-
-    Message msg;
-    msg.session_id = session_id;
-    msg.msg_seq = seq;
-    msg.sender_id = sender_id;
-    msg.msg_type = msg_type;
-    msg.content_json = content_json;
-    msg.timestamp_ms = timestamp_ms;
-    msg.client_msg_id = client_msg_id;
-    msg.msg_id = session_id + "-" + std::to_string(seq);
-    *message = msg;
-    *is_new = allocated_new;
-    return true;
+    Message proposed;
+    proposed.session_id = session_id;
+    proposed.sender_id = sender_id;
+    proposed.msg_type = msg_type;
+    proposed.content_json = content_json;
+    proposed.timestamp_ms = timestamp_ms;
+    proposed.client_msg_id = client_msg_id;
+    return reservations_->Reserve(proposed, message, is_new, err_msg);
 }
 
-// 异步落盘：补 session + 写 message（序号已由 Redis 分配）
+bool ConversationStore::PrepareOutbox(const Message& message, const std::string& payload, std::string* error) {
+    return reservations_ && reservations_->PrepareOutbox(message, payload, error);
+}
+bool ConversationStore::Published(const Message& message, std::string* error) {
+    return reservations_ && reservations_->Published(message, error);
+}
+bool ConversationStore::SafeSyncPrefix(const std::string& session, int64_t* seq, std::string* error) {
+    return message_dao_ && message_dao_->SafeSyncPrefix(session, seq, error);
+}
+
+// 异步历史落盘：补 session + 写 message（序号已由 SQL 预留）
 bool ConversationStore::PersistMessage(const Message& message,
                                        const std::string& scene, int64_t user1,
                                        int64_t user2, int64_t room_id,
@@ -181,6 +139,7 @@ bool ConversationStore::PersistMessage(const Message& message,
         }
 
         if (session_ok && message_dao_->InsertMessage(message, &err) &&
+            message_dao_->reservations().Persisted(message, &err) &&
             session_dao_->UpdateLastMessageSeqAtLeast(
                 message.session_id, message.msg_seq, &err)) {
             return true;

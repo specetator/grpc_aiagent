@@ -2,6 +2,11 @@
   "schema_version": 1,
   "description": "Curated truth sources packaged for the Spark Push Pi knowledge skill.",
   "sources": [
+    {"id": "downstream-message-payload", "path": "common/message_payload.h", "authority": "code", "topics": ["websocket", "recovery", "history", "protocol"]},
+    {"id": "review-remediation", "path": "docs/review-remediation.md", "authority": "canonical", "topics": ["review", "reliability", "migration", "authentication", "startup", "tests"]},
+    {"id": "message-reservation", "path": "logic/message_reservation.cpp", "authority": "code", "topics": ["sequence", "idempotency", "outbox", "mysql", "recovery"]},
+    {"id": "internal-rpc-auth", "path": "common/internal_rpc.h", "authority": "code", "topics": ["grpc", "authentication", "authorization", "tls"]},
+    {"id": "review-logging-measurement", "path": "docs/benchmarks/2026-10-11-review/logging.json", "authority": "snapshot", "topics": ["logging", "performance", "review"]},
     {
       "id": "room-agent-collaboration",
       "path": "docs/room-agent-collaboration.md",

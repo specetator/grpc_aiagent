@@ -1,5 +1,6 @@
 #include "HttpServer.h"
 #include "muduo/base/Logging.h"
+#include "muduo/net/EventLoop.h"
 
 using namespace muduo;
 using namespace muduo::net;
@@ -22,8 +23,8 @@ bool defaultHttpCallback(const TcpConnectionPtr&, const HttpRequest&, HttpRespon
 HttpServer::HttpServer(EventLoop* loop,
                      const InetAddress& listenAddr,
                      const std::string& name)
-    : server_(loop, listenAddr, name),
-      httpCallback_(detail::defaultHttpCallback)
+    : httpCallback_(detail::defaultHttpCallback),
+      server_(loop, listenAddr, name)
 {
     server_.setConnectionCallback(
         std::bind(&HttpServer::onConnection, this, std::placeholders::_1));
@@ -49,11 +50,23 @@ void HttpServer::onMessage(const TcpConnectionPtr& conn,
         return;
     }
 
+    if (!context->inputStarted()) {
+        const uint64_t generation = context->generation();
+        std::weak_ptr<TcpConnection> weak = conn;
+        conn->getLoop()->runAfter(30.0, [weak, generation] {
+            if (auto connection = weak.lock()) {
+                auto* current = std::any_cast<HttpContext>(connection->getMutableContext());
+                if (current && current->inputStarted() && current->generation() == generation)
+                    connection->forceClose();
+            }
+        });
+    }
     HttpContext::ParseResult result = context->parseRequest(buf, receiveTime);
     LOG_INFO << "result = " << result;
     if (result == HttpContext::kError) {  // 解析出错
-        conn->send("HTTP/1.1 400 Bad Request\r\n\r\n");
+        conn->send("HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 0\r\n\r\n");
         conn->shutdown();
+        conn->forceCloseWithDelay(1.0);
         return;
     }
 
@@ -118,4 +131,4 @@ bool HttpServer::onRequest(const TcpConnectionPtr& conn, HttpRequest& req) {
     }
     
     return syncProcessed;
-} 
+}

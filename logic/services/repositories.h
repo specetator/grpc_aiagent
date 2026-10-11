@@ -44,6 +44,11 @@ class ConversationRepository {
                          std::vector<Message>* messages, std::string* error) = 0;
     virtual bool After(const std::string& session_id, int64_t after_seq, int limit,
                        std::vector<Message>* messages, std::string* error) = 0;
+    // A conservative default cannot authorize skipping an unseen sequence.
+    virtual bool SafeSyncPrefix(const std::string&, int64_t* seq, std::string*) {
+        *seq = 0;
+        return true;
+    }
     virtual bool Singles(int64_t user_id, std::vector<Session>* sessions,
                          std::string* error) = 0;
     virtual bool Rooms(int64_t user_id, std::vector<int64_t>* rooms,

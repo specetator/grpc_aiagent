@@ -12,10 +12,12 @@ namespace sparkpush {
 struct Config {
     // 监听地址与端口
     std::string listen_addr;
+    std::string internal_grpc_listen_addr{"127.0.0.1"};
     int listen_port{0};
 
     // logic 对外的 HTTP 端口（未配置时回退为 listen_port + 1）
     int http_port{0};
+    int logic_http_threads{4};
     // Job / Comet 的本机 metrics 端口；Logic 复用 http_port /metrics。
     int metrics_port{0};
     std::string logic_grpc_target;
@@ -66,6 +68,7 @@ struct Config {
     std::string comet_targets;
     // muduo worker EventLoop 数量
     int comet_io_threads{4};
+    int comet_max_connections{10000};
     // comet gRPC 端口（未配置时回退为 listen_port + 100）
     int comet_grpc_port{0};
     // Comet 异步 Unary gRPC 线程池

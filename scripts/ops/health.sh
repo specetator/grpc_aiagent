@@ -39,6 +39,8 @@ check 'WebDemo process' check_process web_demo_server
 check 'Logic HTTP /metrics' http_ok http://127.0.0.1:9101/metrics 3
 check 'Comet metrics' http_ok http://127.0.0.1:9203/metrics 3
 check 'Job metrics' http_ok http://127.0.0.1:9202/metrics 3
+check 'Logic readiness' metric_eq http://127.0.0.1:9101/metrics spark_push_service_ready 1
+check 'Job readiness' http_ok http://127.0.0.1:9202/ready 3
 check 'Comet→Logic MessageStream' metric_eq \
   http://127.0.0.1:9203/metrics spark_push_comet_logic_stream_ready 1
 check 'Job→Comet PushStream' metric_eq \

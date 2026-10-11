@@ -33,6 +33,8 @@ class UserSessionStateDao {
     bool EnsureDeliveredSeqColumn(std::string* err_msg);
 
    private:
+    bool AdvanceDelivered(int64_t user, const std::string& session, int64_t receipt,
+                          int64_t* sequence, std::string* error);
     MySqlConnectionPool* pool_{nullptr};
 };
 

@@ -1,6 +1,8 @@
 #include "HttpContext.h"
 #include <algorithm>
 #include <string.h>
+#include <cstring>
+#include <cctype>
 #include "muduo/base/Timestamp.h"
 #include "muduo/base/Logging.h"
 using namespace muduo;
@@ -49,47 +51,47 @@ bool HttpContext::processRequestLine(const char* begin, const char* end)
 }
 
 bool HttpContext::processHeaders(Buffer* buf) {
-    bool ok = true;
-    bool hasMore = true;
-    while (hasMore) {
-        const char* crlf = buf->findCRLF();
-        if (crlf) {
-            const char* colon = std::find(buf->peek(), crlf, ':');
-            if (colon != crlf) {
-                request_.addHeader(buf->peek(), colon, crlf);
-                
-                // 检查是否有 Content-Length 头
-                std::string field(buf->peek(), colon);
-                if (strcasecmp(field.c_str(), "Content-Length") == 0) {
-                    ++colon;  // 跳过冒号
-                    while (colon < crlf && isspace(*colon)) {
-                        ++colon;  // 跳过空白字符
-                    }
-                    contentLength_ = static_cast<size_t>(atoi(colon));
-                    LOG_INFO << "Content-Length: " << contentLength_;
-                } else if (strcasecmp(field.c_str(), "Transfer-Encoding") == 0) {
-                    ++colon;
-                    while (colon < crlf && isspace(*colon)) {
-                        ++colon;
-                    }
-                    std::string encoding(colon, crlf);
-                    if (strcasecmp(encoding.c_str(), "chunked") == 0) {
-                        isChunked_ = true;
-                        LOG_INFO << "Transfer-Encoding: chunked";
-                    }
-                }
-                buf->retrieveUntil(crlf + 2);
-            } else {
-                // 空行，头部解析完成
-                buf->retrieveUntil(crlf + 2);
-                state_ = kExpectBody;
-                hasMore = false;
-            }
-        } else {
-            hasMore = false;
+    constexpr size_t kMaxHeaders = 32 * 1024;
+    constexpr size_t kMaxBody = 8 * 1024 * 1024;
+    while (const char* crlf = buf->findCRLF()) {
+        const size_t size = crlf - buf->peek();
+        if (size + 2 > kMaxHeaders - headerBytes_) return false;
+        headerBytes_ += size + 2;
+        if (size == 0) {
+            buf->retrieve(2);
+            state_ = kExpectBody;
+            return true;
         }
+        const char* colon = std::find(buf->peek(), crlf, ':');
+        if (colon == buf->peek() || colon == crlf) return false;
+        for (const char* c = buf->peek(); c != colon; ++c) {
+            if (!std::isalnum(static_cast<unsigned char>(*c)) &&
+                std::strchr("!#$%&'*+-.^_`|~", *c) == nullptr) return false;
+        }
+        std::string field(buf->peek(), colon);
+        std::string value(colon + 1, crlf);
+        const auto first = value.find_first_not_of(" \t");
+        const auto last = value.find_last_not_of(" \t");
+        value = first == std::string::npos ? "" : value.substr(first, last - first + 1);
+        if (strcasecmp(field.c_str(), "Content-Length") == 0) {
+            // Reject duplicates, signs, overflow and lengths beyond our buffer budget.
+            if (hasContentLength_ || value.empty()) return false;
+            size_t length = 0;
+            for (unsigned char c : value) {
+                if (c < '0' || c > '9' || length > (kMaxBody - (c - '0')) / 10)
+                    return false;
+                length = length * 10 + c - '0';
+            }
+            contentLength_ = length;
+            hasContentLength_ = true;
+        } else if (strcasecmp(field.c_str(), "Transfer-Encoding") == 0) {
+            // Chunked decoding is unsupported. Fail at the headers, never wait forever.
+            return false;
+        }
+        request_.addHeader(buf->peek(), colon, crlf);
+        buf->retrieveUntil(crlf + 2);
     }
-    return ok;
+    return buf->readableBytes() <= kMaxHeaders - headerBytes_;
 }
 
 bool HttpContext::processBody(Buffer* buf) {
@@ -117,12 +119,12 @@ HttpContext::ParseResult HttpContext::parseRequest(Buffer* buf, Timestamp receiv
     ParseResult result = kNeedMore;
 
     LOG_DEBUG << "parseRequest state_: " << state_ << ", result: " << result;
-    LOG_DEBUG << "buf: " << buf->peek();
+    inputStarted_ = true;
     
     while (hasMore) {
         if (state_ == kExpectRequestLine) {
             const char* crlf = buf->findCRLF();
-            if (crlf) {
+            if (crlf && crlf - buf->peek() <= 8192) {
                 ok = processRequestLine(buf->peek(), crlf);
                 if (ok) {
                     request_.setReceiveTime(receiveTime);
@@ -133,12 +135,16 @@ HttpContext::ParseResult HttpContext::parseRequest(Buffer* buf, Timestamp receiv
                     hasMore = false;
                 }
             } else {
+                if (crlf || buf->readableBytes() > 8192) result = kError;
                 hasMore = false;
             }
         } else if (state_ == kExpectHeaders) {
             ok = processHeaders(buf);
             if (ok) {
-                if (state_ == kExpectBody) {
+                if (state_ == kExpectHeaders) {
+                    // No complete header remains: yield until the next read.
+                    hasMore = false;
+                } else if (state_ == kExpectBody) {
                     if (contentLength_ == 0 && !isChunked_) {
                         // 没有请求体
                         state_ = kGotAll;

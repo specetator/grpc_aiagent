@@ -63,19 +63,29 @@ void MetricsHttpServer::Loop() {
 }
 
 void MetricsHttpServer::HandleClient(int fd) {
+  timeval timeout{1, 0};
+  ::setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+  ::setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
   char request[4096] = {0};
   const ssize_t received = ::recv(fd, request, sizeof(request) - 1, 0);
   const bool metrics = received > 0 &&
                        std::strstr(request, "GET /metrics") != nullptr;
-  const std::string body = metrics
+  const bool readiness = received > 0 && std::strstr(request, "GET /ready ") != nullptr;
+  const bool ready = MetricsRegistry::Instance().GaugeValue("spark_push_service_ready") == 1;
+  const std::string body = readiness ? (ready ? "ready\n" : "not ready\n") : metrics
                                ? MetricsRegistry::Instance().RenderPrometheus()
                                : "not found\n";
-  const std::string status = metrics ? "200 OK" : "404 Not Found";
+  const std::string status = readiness ? (ready ? "200 OK" : "503 Service Unavailable") : metrics ? "200 OK" : "404 Not Found";
   const std::string response =
       "HTTP/1.1 " + status + "\r\nContent-Type: text/plain; version=0.0.4\r\n"
       "Content-Length: " + std::to_string(body.size()) +
       "\r\nConnection: close\r\n\r\n" + body;
-  ::send(fd, response.data(), response.size(), MSG_NOSIGNAL);
+  size_t sent = 0;
+  while (sent < response.size()) {
+    const ssize_t bytes = ::send(fd, response.data() + sent, response.size() - sent, MSG_NOSIGNAL);
+    if (bytes <= 0) break;
+    sent += bytes;
+  }
   ::shutdown(fd, SHUT_RDWR);
   ::close(fd);
 }

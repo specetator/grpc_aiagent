@@ -71,7 +71,7 @@ public:
     bool Init(const MySqlConfig& cfg);
 
     // 阻塞获取连接；timeout_ms < 0 表示一直等待，=0 表示立即返回，大于 0 表示等待指定毫秒
-    MySqlConnGuard Acquire(int timeout_ms = -1);
+    MySqlConnGuard Acquire(int timeout_ms = 3000);
 
     // 优雅停止，拒绝新的获取请求并回收空闲连接
     void Stop();

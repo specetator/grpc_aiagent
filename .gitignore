@@ -20,3 +20,4 @@ android-app/**/build/
 # Android local SDK paths and preserved migration backups
 android-app/local.properties
 android-app.backup-*/
+.env.rpc

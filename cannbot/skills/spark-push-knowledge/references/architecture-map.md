@@ -14,9 +14,10 @@
 | RTX 3060 真实 CPU/CUDA 性能、本地模型复用、显存采样与算子验证 | `docs/performance-report-2026-10-07-rtx3060.md` | `inference/worker/gpu_memory_probe.*`、`inference/scripts/`、`inference/tests/real_runtime_test.py`、`docs/benchmarks/2026-10-07-rtx3060/` |
 | 队列/哈希/Lua/握手等逐步算法 | `docs/spark-push-internals.md` | `common/thread_pool.cpp`、`common/mysql_pool.cpp`、`logic/redis_store.cpp`、`comet/comet_server.cpp`、`job/service.cpp` |
 | WebSocket 接入、ACK、断线补偿 | `docs/reliability-optimization.md`、`docs/spark-push-internals.md` | `comet/comet_server.cpp`、`comet/comet_grpc_service.cpp` |
-| 序号、幂等、会话历史、AI 请求编排 | `docs/reliability-optimization.md`、`docs/spark-push-internals.md`、`docs/hermes-integration.md` | `logic/services/message_service.cpp`、`logic/services/conversation_service.cpp`、`logic/redis_store.cpp`、`logic/conversation_store.cpp` |
+| 序号、幂等、会话历史、AI 请求编排 | `docs/reliability-optimization.md`、`docs/spark-push-internals.md`、`docs/hermes-integration.md` | `logic/services/message_service.cpp`、`logic/services/conversation_service.cpp`、`logic/message_reservation.cpp`、`logic/redis_store.cpp`、`logic/conversation_store.cpp` |
 | Kafka 消费、持久化、Job→Comet 推送 | `docs/reliability-optimization.md`、`docs/spark-push-internals.md` | `job/service.cpp`、`common/kafka_consumer.cpp` |
-| Wire contract 与 RPC | — | `proto/spark_push.proto` |
+| 工程审查修复、迁移、故障回归 | `docs/review-remediation.md` | `logic/message_reservation.cpp`、`common/internal_rpc.h`、`sql/migrations/20261011_message_reservations.sql`、`tests/` |
+| Wire contract 与 RPC | `docs/review-remediation.md` | `proto/spark_push.proto`、`common/internal_rpc.h` |
 | Agent HTTP/SSE 适配 | `docs/hermes-integration.md`、`docs/pi-agent-integration.md` | `hermes_bridge/hermes_client.cpp`、`hermes_bridge/sse_parser.cpp`、`hermes_bridge/main.cpp`、`cannbot/scripts/pi_gateway.py` |
 | Agent 最终回复重试、持久化死信与恢复 | `docs/pi-agent-integration.md` 第 6 节 | `logic/hermes_reply.cpp`、`logic/services/message_service.cpp`、`common/kafka_consumer.cpp`、`job/service.cpp` |
 | Agent 常用命令卡片、模型/思考等级/新建/重试与通用事件 | `docs/pi-agent-integration.md` 第 7、8 节 | `cannbot/scripts/agent_events.py`、`common/agent_event.h`、`web_demo/static/agent_channel.js`、`cannbot/scripts/pi_gateway.py` |

@@ -38,25 +38,30 @@ done
 }
 
 declare -A files=(
-  [logic]="$PROJECT_ROOT/logs/logic.out"
-  [comet]="$PROJECT_ROOT/logs/comet.out"
-  [job]="$PROJECT_ROOT/logs/job.out"
+  [logic]="$PROJECT_ROOT/logs/logic.log"
+  [comet]="$PROJECT_ROOT/logs/comet.log"
+  [job]="$PROJECT_ROOT/logs/job.log"
   [web]="$PROJECT_ROOT/logs/web.out"
-  [bridge]="$PROJECT_ROOT/logs/hermes_bridge.out"
+  [bridge]="$PROJECT_ROOT/logs/hermes_bridge.log"
   [gateway]="$PROJECT_ROOT/logs/hermes_gateway.out"
 )
 
 selected=()
+add_logs() {
+  local name="$1"
+  local primary="${files[$name]}"
+  [[ -f "$primary" ]] && selected+=("$primary")
+  # Native libraries and early startup failures still write stderr to .out.
+  if [[ "$primary" == *.log ]]; then
+    local secondary="${primary%.log}.out"
+    [[ -f "$secondary" ]] && selected+=("$secondary")
+  fi
+  return 0
+}
 if [[ "$SERVICE" == all ]]; then
-  for name in logic comet job web bridge gateway; do
-    [[ -f "${files[$name]}" ]] && selected+=("${files[$name]}")
-  done
+  for name in logic comet job web bridge gateway; do add_logs "$name"; done
 else
-  [[ -f "${files[$SERVICE]}" ]] || {
-    echo "日志不存在：${files[$SERVICE]}" >&2
-    exit 1
-  }
-  selected+=("${files[$SERVICE]}")
+  add_logs "$SERVICE"
 fi
 
 ((${#selected[@]})) || { echo '没有可读取的日志文件' >&2; exit 1; }

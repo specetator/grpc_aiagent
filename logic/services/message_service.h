@@ -12,6 +12,7 @@
 #include "hermes_command.h"
 #include "model.h"
 #include "rate_limiter.h"
+#include "keyed_mutex.h"
 #include "services/service_status.h"
 
 namespace sparkpush {
@@ -22,6 +23,11 @@ class KafkaProducer;
 class RedisStore;
 class AttachmentService;
 class RoomAgentService;
+class MessageEventPublisher {
+ public:
+    virtual ~MessageEventPublisher() = default;
+    virtual bool Confirm(const std::string& key, const std::string& payload, int timeout_ms) = 0;
+};
 struct UpstreamCommand {
     std::string scene;
     int64_t from_user_id{0};
@@ -57,15 +63,16 @@ class MessageService {
                    const RateLimitConfig& rate_limit, int persist_timeout_ms,
                    KafkaProducer* agent_requests, bool agent_enabled,
                    int64_t agent_user_id, std::map<int64_t, std::string> agent_users,
-                   AttachmentService* attachments, RoomAgentService* room_agents = nullptr);
+                   AttachmentService* attachments, RoomAgentService* room_agents = nullptr,
+                   MessageEventPublisher* persistence_publisher = nullptr);
     UpstreamResult Submit(const UpstreamCommand& command);
     // Compatibility path: old HTTP API synchronously persists a text message,
     // with no accepted/delivered ACK or realtime fanout. Do not route it through
     // Submit implicitly or claim it has the WS reliability contract.
     UpstreamResult SendLegacyText(int64_t sender, int64_t recipient,
                                   const std::string& content);
-    void AddAuthenticatedRoute(int64_t user, const std::string& comet);
-    void UserOffline(int64_t user, const std::string& comet);
+    int64_t AddAuthenticatedRoute(int64_t user, const std::string& comet, std::string* route_token);
+    void UserOffline(int64_t user, const std::string& comet, int64_t generation, const std::string& route_token);
     BroadcastResult Broadcast(const std::string& scope, int64_t group_id,
                               const std::string& content_json);
     BroadcastResult BroadcastAdmin(int64_t actor, const std::string& scope,
@@ -91,6 +98,8 @@ class MessageService {
                      std::map<std::string, std::vector<int64_t>>* routes);
 
     ConversationStore* store_;
+    MessageEventPublisher* persistence_publisher_{nullptr};
+    KeyedMutex submission_mutexes_;
     GroupMemberDao* group_member_dao_;
     UserService* user_service_;
     KafkaProducer* producer_;

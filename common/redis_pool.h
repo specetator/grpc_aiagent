@@ -34,6 +34,11 @@ class RedisConnGuard {
 public:
     // 持有连接的生命周期守卫。
     RedisConnGuard(RedisConnectionPool& pool, redisContext* ctx);
+    RedisConnGuard(const RedisConnGuard&) = delete;
+    RedisConnGuard& operator=(const RedisConnGuard&) = delete;
+    RedisConnGuard(RedisConnGuard&& other) noexcept : pool_(other.pool_), ctx_(other.ctx_) {
+        other.ctx_ = nullptr;
+    }
     // 析构时自动归还连接。
     ~RedisConnGuard();
 
@@ -54,7 +59,8 @@ public:
     bool Init(const RedisConfig& cfg);
 
     // 获取连接，支持阻塞等待。
-    RedisConnGuard Acquire(int timeout_ms = -1);
+    RedisConnGuard Acquire(int timeout_ms = 3000);
+    void Stop();
 
 private:
     redisContext* CreateContextUnlocked();
@@ -76,6 +82,7 @@ private:
     std::deque<ConnEntry> idle_;
     int total_conns_{0};
     bool stopping_{false};
+    bool inited_{false};
     RedisConfig cfg_;
 };
 

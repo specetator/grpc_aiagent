@@ -1,0 +1,2 @@
+add_executable(dlq_replay dlq_replay.cpp)
+target_link_libraries(dlq_replay PRIVATE spark_push_common)

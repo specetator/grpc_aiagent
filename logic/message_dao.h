@@ -4,13 +4,16 @@
 #include <vector>
 
 #include "model.h"
+#include "message_reservation.h"
 #include "mysql_pool.h"
 
 namespace sparkpush {
 
 class MessageDao {
    public:
-    explicit MessageDao(MySqlConnectionPool* pool) : pool_(pool) {}
+    explicit MessageDao(MySqlConnectionPool* pool) : pool_(pool), reservations_(pool) {}
+    MySqlMessageReservations& reservations() { return reservations_; }
+    bool SafeSyncPrefix(const std::string& session, int64_t* seq, std::string* error);
 
     // 功能：插入一条消息记录
     // 参数：message 消息体；err_msg 错误信息
@@ -39,6 +42,7 @@ class MessageDao {
                              std::string* err_msg);
 
     MySqlConnectionPool* pool_{nullptr};
+    MySqlMessageReservations reservations_;
 };
 
 }  // namespace sparkpush

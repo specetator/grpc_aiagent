@@ -30,9 +30,10 @@ private:
                   Timestamp receiveTime);
     bool onRequest(const TcpConnectionPtr&, HttpRequest&);
 
-    TcpServer server_;
     HttpCallback httpCallback_;
+    // Join transport loops before destroying the callback they invoke.
+    TcpServer server_;
 }; // class HttpServer
 
 } // namespace net
-} // namespace muduo 
+} // namespace muduo

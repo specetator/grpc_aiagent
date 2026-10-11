@@ -181,7 +181,7 @@ void WriteAdminServiceError(HttpResponse* resp, const ServiceStatus& status) {
 
 // 构造 HTTP API 服务器，注入业务依赖并注册回调
 HttpApiServer::HttpApiServer(EventLoop* loop, const InetAddress& listenAddr,
-                             LogicHttpServices services)
+                             LogicHttpServices services, int io_threads)
     : user_service_(&services.users),
       conversation_service_(&services.conversations),
       attachment_service_(&services.attachments),
@@ -193,9 +193,17 @@ HttpApiServer::HttpApiServer(EventLoop* loop, const InetAddress& listenAddr,
       room_agent_service_(services.room_agents),
       operator_task_service_(services.operator_tasks),
       server_(loop, listenAddr, "logic_http_server") {
+    server_.setThreadNum(std::max(1, io_threads));
     server_.setHttpCallback(
         [this](const TcpConnectionPtr&, HttpRequest& req, HttpResponse* resp) -> bool {
-            onRequest(req, resp);
+            try {
+                onRequest(req, resp);
+            } catch (const nlohmann::json::exception&) {
+                WriteJson(resp, 400, "invalid json fields", "{}", HttpResponse::k400BadRequest);
+            } catch (const std::exception&) {
+                LOG_ERROR << "HTTP handler failed path=" << req.path();
+                WriteJson(resp, 500, "internal server error");
+            }
             return true;
         });
 }
@@ -252,6 +260,15 @@ void HttpApiServer::onRequest(const HttpRequest& req, HttpResponse* resp) {
     };
 
     const std::string& path = req.path();
+    if (path == "/ready") {
+        const bool ready = MetricsRegistry::Instance().GaugeValue("spark_push_service_ready") == 1;
+        WriteJson(resp, ready ? 0 : 503, ready ? "ready" : "not ready");
+        if (!ready) {
+            resp->setStatusCode(static_cast<HttpResponse::HttpStatusCode>(503));
+            resp->setStatusMessage("Service Unavailable");
+        }
+        return;
+    }
     if (path == "/metrics") {
         resp->setStatusCode(HttpResponse::k200Ok);
         resp->setContentType("text/plain; version=0.0.4; charset=utf-8");
@@ -447,6 +464,8 @@ void HttpApiServer::handleSendMessage(const HttpRequest& req, HttpResponse* resp
         return;
     }
 
+    int64_t actor = 0;
+    if (!requireUser(req, resp, &actor)) return;
     nlohmann::json j;
     if (!ParseJsonBody(req.body(), &j)) {
         WriteJson(resp, 400,
@@ -475,7 +494,11 @@ void HttpApiServer::handleSendMessage(const HttpRequest& req, HttpResponse* resp
         return;
     }
 
-    const auto result = message_service_->SendLegacyText(from_user, to_user, content);
+    if (from_user != actor) {
+        WriteJson(resp, 403, "sender does not match authenticated user");
+        return;
+    }
+    const auto result = message_service_->SendLegacyText(actor, to_user, content);
     if (!result.status.ok()) {
         WriteServiceError(resp, result.status);
         return;
@@ -614,23 +637,15 @@ void HttpApiServer::handleHistory(const HttpRequest& req, HttpResponse* resp) {
         WriteServiceError(resp, status);
         return;
     }
-    std::ostringstream data;
-    data << "{\"messages\":[";
-    bool first = true;
-    for (const auto& m : msgs) {
-        if (!first) data << ",";
-        first = false;
-        data << "{" << "\"msg_id\":\"" << m.msg_id << "\","
-             << "\"client_msg_id\":\"" << m.client_msg_id << "\","
-             << "\"msg_seq\":" << m.msg_seq << ","
-             << "\"sender_id\":" << m.sender_id << ","
-             << "\"timestamp_ms\":" << m.timestamp_ms << ","
-             << "\"msg_type\":\"" << m.msg_type << "\","
-             << "\"content\":" << (m.content_json.empty() ? "\"\"" : m.content_json)
-             << "}";
+    nlohmann::json messages = nlohmann::json::array();
+    for (const auto& message : msgs) {
+        auto content = nlohmann::json::parse(message.content_json, nullptr, false);
+        if (content.is_discarded()) content = message.content_json;
+        messages.push_back({{"msg_id", message.msg_id}, {"client_msg_id", message.client_msg_id},
+            {"msg_seq", message.msg_seq}, {"sender_id", message.sender_id},
+            {"timestamp_ms", message.timestamp_ms}, {"msg_type", message.msg_type}, {"content", content}});
     }
-    data << "]}";
-    WriteJson(resp, 0, "ok", data.str());
+    WriteJson(resp, 0, "ok", nlohmann::json{{"messages", messages}}.dump());
 }
 
 // 标记会话已读

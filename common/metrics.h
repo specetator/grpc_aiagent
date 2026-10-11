@@ -17,6 +17,7 @@ class MetricsRegistry {
 
   void Increment(const std::string& name, int64_t value = 1);
   void Set(const std::string& name, int64_t value);
+  int64_t GaugeValue(const std::string& name, int64_t fallback = 0) const;
   void Observe(const std::string& name, int64_t value);
 
   // 返回 Prometheus text exposition format。

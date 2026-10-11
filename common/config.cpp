@@ -247,6 +247,12 @@ Config LoadConfig(const std::string& path) {
             cfg.comet_grpc_port = std::stoi(value);
         } else if (key == "comet_grpc_pool_size") {
             cfg.comet_grpc_pool_size = std::stoi(value);
+        } else if (key == "logic_http_threads") {
+            cfg.logic_http_threads = std::stoi(value);
+        } else if (key == "comet_max_connections") {
+            cfg.comet_max_connections = std::stoi(value);
+        } else if (key == "internal_grpc_listen_addr") {
+            cfg.internal_grpc_listen_addr = value;
         } else if (key == "use_grpc_stream") {
             cfg.use_grpc_stream = (value == "true" || value == "1");
         } else if (key == "grpc_stream_count") {

@@ -9,9 +9,11 @@
 #include <chrono>
 #include <cstdint>
 #include <vector>
+#include <future>
 
 #include "grpc_keepalive.h"
 #include "metrics.h"
+#include "message_payload.h"
 
 namespace sparkpush {
 
@@ -222,7 +224,8 @@ CometServer::CometServer(EventLoop* loop, const Config& cfg)
       logic_grpc_target_(cfg.logic_grpc_target),
       metrics_port_(cfg.metrics_port) {
     comet_id_ = cfg.comet_id;
-    channel_ = CreateKeepaliveChannel(cfg.logic_grpc_target);
+    max_connections_ = std::max(1, cfg.comet_max_connections);
+    channel_ = CreateKeepaliveChannel(cfg.logic_grpc_target, "comet");
     logic_stub_ = sparkpush::LogicService::NewStub(channel_);
 
     server_.setConnectionCallback(
@@ -234,16 +237,18 @@ CometServer::CometServer(EventLoop* loop, const Config& cfg)
 }
 
 CometServer::~CometServer() {
+    shutting_down_.store(true);
     metrics_server_.Stop();
     stream_running_ = false;
+    if (stream_watchdog_) stream_watchdog_->Stop();
     for (auto& st : streams_) {
         if (!st) continue;
         st->send_queue_cv.notify_all();
-        if (st->ctx) st->ctx->TryCancel();
+        CancelStream(st.get());
         if (st->writer_thread.joinable()) st->writer_thread.join();
         if (st->reader_thread.joinable()) st->reader_thread.join();
     }
-    grpc_pool_.Stop();
+    grpc_pool_.Stop(false);
 }
 
 void CometServer::SetThreadNum(int thread_num) {
@@ -289,6 +294,7 @@ void CometServer::ExpireStreamPending(StreamState* state) {
         }
     }
     if (expired.empty()) return;
+    CancelStream(state);
     StreamResponse resp;
     resp.mutable_error()->set_code(503);
     resp.mutable_error()->set_message("logic stream ack timeout");
@@ -306,7 +312,7 @@ void CometServer::UpdateLogicStreamReadyMetric() {
         ready = 0;
     } else {
         for (const auto& state : streams_) {
-            if (!state || state->broken.load() || !state->stream) {
+            if (!state || state->broken.load()) {
                 ready = 0;
                 break;
             }
@@ -326,7 +332,7 @@ bool CometServer::ReconnectStream(int stream_idx) {
     if (!stream_running_) return false;
     if (state->stream && !state->broken.load()) return true;
 
-    if (state->ctx) state->ctx->TryCancel();
+    CancelStream(state.get());
     if (state->stream) {
         state->stream->WritesDone();
     }
@@ -340,21 +346,14 @@ bool CometServer::ReconnectStream(int stream_idx) {
     }
     FailStreamPending(state.get(), "logic stream disconnected");
 
-    state->ctx = std::make_unique<grpc::ClientContext>();
     {
-        std::lock_guard<std::mutex> stub_lock(stub_mutex_);
-        if (!logic_stub_) {
-            channel_ = CreateKeepaliveChannel(logic_grpc_target_);
-            logic_stub_ = sparkpush::LogicService::NewStub(channel_);
-        }
-        state->stream = logic_stub_->MessageStream(state->ctx.get());
-        if (!state->stream) {
-            channel_ = CreateKeepaliveChannel(logic_grpc_target_);
-            logic_stub_ = sparkpush::LogicService::NewStub(channel_);
-            state->ctx = std::make_unique<grpc::ClientContext>();
-            state->stream = logic_stub_->MessageStream(state->ctx.get());
-        }
+        std::lock_guard<std::mutex> lock(state->context_mutex);
+        if (!stream_running_) return false;
+        state->ctx = std::make_shared<grpc::ClientContext>();
     }
+    // Channel and stub are stable for the component lifetime; gRPC reconnects the transport.
+    // Replacing a stub here would invalidate raw pointers held by in-flight worker RPCs.
+    state->stream = logic_stub_->MessageStream(state->ctx.get());
     if (!state->stream) {
         state->broken = true;
         UpdateLogicStreamReadyMetric();
@@ -375,7 +374,7 @@ void CometServer::InitStreams() {
     streams_.resize(stream_count_);
     for (int i = 0; i < stream_count_; ++i) {
         streams_[i] = std::make_unique<StreamState>();
-        streams_[i]->ctx = std::make_unique<grpc::ClientContext>();
+        streams_[i]->ctx = std::make_shared<grpc::ClientContext>();
         streams_[i]->stream =
             logic_stub_->MessageStream(streams_[i]->ctx.get());
         if (!streams_[i]->stream) {
@@ -422,6 +421,7 @@ void CometServer::StreamWriterLoop(int stream_idx) {
             if (!state->send_queue.empty()) {
                 req = std::move(state->send_queue.front());
                 state->send_queue.pop();
+                state->queued_bytes -= req.msg.ByteSizeLong();
                 have_req = true;
             }
         }
@@ -439,7 +439,8 @@ void CometServer::StreamWriterLoop(int stream_idx) {
 
         bool sent = false;
         int backoff = std::max(10, stream_reconnect_base_ms_);
-        for (int attempt = 0; attempt < 4 && stream_running_; ++attempt) {
+        for (int attempt = 0; attempt < 4 && stream_running_ &&
+             std::chrono::steady_clock::now() < req.deadline; ++attempt) {
             if (state->broken.load() || !state->stream) {
                 if (!ReconnectStream(stream_idx)) {
                     std::this_thread::sleep_for(
@@ -451,12 +452,7 @@ void CometServer::StreamWriterLoop(int stream_idx) {
             {
                 std::lock_guard<std::mutex> lock(state->pending_mutex);
                 if (req.callback) {
-                    const auto timeout =
-                        stream_ack_timeout_ms_ > 0
-                            ? std::chrono::milliseconds(stream_ack_timeout_ms_)
-                            : std::chrono::hours(24);
-                    state->pending[req.msg.request_id()] = PendingCallback{
-                        req.callback, std::chrono::steady_clock::now() + timeout};
+                    state->pending[req.msg.request_id()] = PendingCallback{req.callback, req.deadline};
                 }
             }
             if (state->stream && state->stream->Write(req.msg)) {
@@ -514,18 +510,36 @@ void CometServer::StreamReaderLoop(int stream_idx) {
     }
 }
 
-void CometServer::SendToStream(
-    StreamMessage msg, std::function<void(const StreamResponse&)> callback) {
-    uint64_t req_id = NextRequestId();
-    msg.set_request_id(std::to_string(req_id));
-    int stream_idx =
-        static_cast<int>(req_id % static_cast<uint64_t>(stream_count_));
-    auto& state = streams_[stream_idx];
+void CometServer::CancelStream(StreamState* state) {
+    std::lock_guard<std::mutex> lock(state->context_mutex);
+    if (state->ctx) state->ctx->TryCancel();
+}
+void CometServer::SendToStream(StreamMessage msg, std::function<void(const StreamResponse&)> callback) {
+    const auto id = NextRequestId();
+    msg.set_request_id(std::to_string(id));
+    auto once = std::make_shared<std::atomic<bool>>(false);
+    auto complete = [once, callback = std::move(callback)](const StreamResponse& reply) {
+        if (!once->exchange(true) && callback) callback(reply);
+    };
+    auto& state = streams_[id % stream_count_];
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(std::max(1, stream_ack_timeout_ms_));
+    bool admitted = false;
     {
-        std::lock_guard<std::mutex> lock(state->send_queue_mutex);
-        state->send_queue.push({std::move(msg), std::move(callback)});
+        std::scoped_lock lock(state->send_queue_mutex, state->pending_mutex);
+        if (stream_running_ && state->send_queue.size() + state->pending.size() < 512 &&
+            msg.ByteSizeLong() <= 8 * 1024 * 1024 - state->queued_bytes) {
+            state->queued_bytes += msg.ByteSizeLong();
+            state->send_queue.push({std::move(msg), complete, deadline});
+            admitted = true;
+        }
     }
-    state->send_queue_cv.notify_one();
+    if (!admitted) {
+        StreamResponse reply;
+        reply.mutable_error()->set_code(429);
+        reply.mutable_error()->set_message("upstream queue full");
+        complete(reply);
+        MetricsRegistry::Instance().Increment("spark_push_comet_queue_rejected_total");
+    } else state->send_queue_cv.notify_one();
 }
 
 void CometServer::Start() {
@@ -536,38 +550,72 @@ void CometServer::Start() {
     grpc_pool_.Start();
     if (use_stream_) {
         InitStreams();
+        stream_watchdog_ = std::make_unique<PeriodicWorker>([this] {
+            for (auto& state : streams_) {
+                ExpireStreamPending(state.get());
+                std::vector<std::function<void(const StreamResponse&)>> expired;
+                {
+                    std::lock_guard<std::mutex> lock(state->send_queue_mutex);
+                    while (!state->send_queue.empty() && state->send_queue.front().deadline <= std::chrono::steady_clock::now()) {
+                        auto& request = state->send_queue.front();
+                        state->queued_bytes -= request.msg.ByteSizeLong();
+                        expired.push_back(std::move(request.callback));
+                        state->send_queue.pop();
+                    }
+                }
+                StreamResponse reply;
+                reply.mutable_error()->set_code(504);
+                reply.mutable_error()->set_message("queued request timed out");
+                for (const auto& callback : expired) callback(reply);
+            }
+        }, std::chrono::milliseconds(100));
     }
     server_.start();
 }
 
 // 按用户列表推送消息；一个 user_id 可能存在多条连接（多设备/多标签页）。
 // 使用局部拷贝规避锁期间的发送开销。
-size_t CometServer::PushToUsers(const ChatMessage& msg,
-                                const std::vector<int64_t>& user_ids) {
-    std::string payload = msg.content_json().empty()
-                                                        ? ("{\"msg_id\":\"" + msg.msg_id() + "\"}")
-                                                        : msg.content_json();
-    std::string frame = BuildWebSocketTextFrame(payload);
-    // 为避免在持锁状态下执行 send，这里先把连接拷贝到局部向量，然后再逐个发送。
-    std::vector<TcpConnectionPtr> conns;
+size_t CometServer::PushToUsers(const ChatMessage& msg, const std::vector<int64_t>& user_ids,
+                               std::vector<int64_t>* delivered_users) {
+    if (delivered_users) delivered_users->clear();
+    auto frame = std::make_shared<std::string>(BuildWebSocketTextFrame(DownstreamMessageJson(msg)));
+    std::vector<std::pair<int64_t, TcpConnectionPtr>> connections;
     {
         std::lock_guard<std::mutex> lock(conns_mu_);
-        for (int64_t uid : user_ids) {
-            auto it = user_conns_.find(uid);
-            if (it == user_conns_.end()) continue;
-            for (const auto& c : it->second) {
-                conns.push_back(c);
-            }
+        std::unordered_set<int64_t> seen;
+        for (auto user : user_ids) {
+            if (!seen.insert(user).second) continue;
+            auto it = user_conns_.find(user);
+            if (it != user_conns_.end()) for (const auto& c : it->second) connections.emplace_back(user, c);
         }
+    }
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+    std::vector<std::pair<int64_t, std::future<bool>>> results;
+    for (const auto& item : connections) {
+        auto accepted = std::make_shared<std::promise<bool>>();
+        results.emplace_back(item.first, accepted->get_future());
+        auto c = item.second;
+        c->getLoop()->runInLoop([c, frame, accepted, deadline] {
+            const bool live = c->connected() && std::chrono::steady_clock::now() < deadline;
+            const bool capacity = frame->size() <= 4 * 1024 * 1024 &&
+                c->outputBuffer()->readableBytes() <= 4 * 1024 * 1024 - frame->size();
+            if (live && capacity) c->send(*frame);
+            else if (live) {
+                MetricsRegistry::Instance().Increment("spark_push_comet_slow_connection_closed_total");
+                c->forceClose();
+            }
+            accepted->set_value(live && capacity);
+        });
     }
     size_t sent = 0;
-    for (const auto& c : conns) {
-        if (c->connected()) {
-            // muduo 的 send 本身是线程安全的，会在内部切回所属 EventLoop
-            c->send(frame);
+    std::unordered_set<int64_t> users;
+    for (auto& item : results) {
+        if (item.second.wait_until(deadline) == std::future_status::ready && item.second.get()) {
             ++sent;
+            users.insert(item.first);
         }
     }
+    if (delivered_users) delivered_users->assign(users.begin(), users.end());
     return sent;
 }
 
@@ -675,18 +723,36 @@ std::vector<int64_t> CometServer::GetRoomUserIds(int64_t room_id) const {
 // 连接生命周期回调：建立时初始化上下文，关闭时清理映射并尝试上报离线。
 void CometServer::OnConnection(const TcpConnectionPtr& conn) {
     if (conn->connected()) {
+        if (connection_count_.fetch_add(1) >= max_connections_) {
+            conn->forceClose();
+            return;
+        }
         // IM/WebSocket 消息通常很小，关闭 Nagle 避免小包等待合并，
         // 降低 accepted/delivered 之后的首屏体感延迟。
         conn->setTcpNoDelay(true);
+        conn->setHighWaterMarkCallback([](const TcpConnectionPtr& c, size_t) {
+            MetricsRegistry::Instance().Increment("spark_push_comet_slow_connection_closed_total");
+            c->forceClose();
+        }, 4 * 1024 * 1024);
         ConnContext ctx;
         ctx.state = ConnContext::kHandshake;
         conn->setContext(ctx);
+        std::weak_ptr<muduo::net::TcpConnection> weak = conn;
+        conn->getLoop()->runAfter(5.0, [weak] {
+            if (auto c = weak.lock()) {
+                auto* state = std::any_cast<ConnContext>(c->getMutableContext());
+                if (state && state->state != ConnContext::kOpen) c->forceClose();
+            }
+        });
         // 首次建立 TCP 连接，先进入握手状态等待 HTTP 升级请求
         LOG_INFO << "New TCP connection from " << conn->peerAddress().toIpPort();
     } else {
         // 断开连接，清理 user->conn 映射
+        connection_count_.fetch_sub(1);
         int64_t offline_uid = 0;
         bool need_offline = false;
+        int64_t offline_generation = 0;
+        std::string offline_token;
         try {
             auto ctx = std::any_cast<ConnContext>(conn->getContext());
             if (ctx.user_id > 0) {
@@ -698,6 +764,10 @@ void CometServer::OnConnection(const TcpConnectionPtr& conn) {
                         user_conns_.erase(it);
                         offline_uid = ctx.user_id;
                         need_offline = true;
+                        offline_generation = user_route_generations_[ctx.user_id];
+                        offline_token = user_route_tokens_[ctx.user_id];
+                        user_route_tokens_.erase(ctx.user_id);
+                        user_route_generations_.erase(ctx.user_id);
                     }
                 }
             }
@@ -705,7 +775,7 @@ void CometServer::OnConnection(const TcpConnectionPtr& conn) {
             // 忽略
         }
         if (need_offline && offline_uid > 0) {
-            NotifyUserOffline(offline_uid);
+            NotifyUserOffline(offline_uid, offline_generation, offline_token);
         }
         LOG_INFO << "Connection closed";
     }
@@ -735,84 +805,68 @@ std::string CometServer::ParseTokenFromHandshake(const std::string& req) {
 // 2) 通过 logic.VerifyToken 校验用户身份，绑定 user_id。
 // 3) 生成 Sec-WebSocket-Accept 返回 101 切换协议响应，进入开放状态。
 void CometServer::HandleHandshake(const TcpConnectionPtr& conn, Buffer* buf) {
-    // 按 HTTP 报文格式解析握手，确保拿到完整头部
-    const char* crlf2 = "\r\n\r\n";
-    const char* data = buf->peek();
-    const char* end = static_cast<const char*>(
-            memmem(data, buf->readableBytes(), crlf2, 4));
+    const char* end = static_cast<const char*>(memmem(buf->peek(), buf->readableBytes(), "\r\n\r\n", 4));
     if (!end) {
-        return;  // 头还不完整
-    }
-    size_t headerLen = end - data + 4;
-    std::string req(data, headerLen);
-
-    std::string token = ParseTokenFromHandshake(req);
-    if (token.empty()) {
-        LOG_ERROR << "No token in WebSocket handshake";
-        conn->shutdown();
+        if (buf->readableBytes() > 16 * 1024) conn->forceClose();
         return;
     }
-
-    // 调用 logic 的 VerifyToken 做鉴权
-    if (!logic_stub_) {
-        LOG_ERROR << "Logic stub not initialized";
-        conn->shutdown();
-        return;
+    const size_t length = end - buf->peek() + 4;
+    if (length > 16 * 1024) { conn->forceClose(); return; }
+    const std::string request(buf->peek(), length);
+    const auto token = ParseTokenFromHandshake(request);
+    std::string key;
+    if (token.empty() || !logic_stub_ || !ExtractHeader(request, "Sec-WebSocket-Key", &key) || key.empty()) {
+        conn->forceClose(); return;
     }
-    VerifyTokenRequest vreq;
-    vreq.set_token(token);
-    vreq.set_comet_id(comet_id_);
-    VerifyTokenReply vrep;
-    grpc::ClientContext ctx_rpc;
-    // token 属于凭证，日志中只记录鉴权阶段，不输出原文。
-    LOG_INFO << "Verifying WebSocket token for comet_id=" << comet_id_;
-    auto status = logic_stub_->VerifyToken(&ctx_rpc, vreq, &vrep);
-    LOG_INFO << "VerifyToken reply received " << vrep.user_id();
-    if (!status.ok() || vrep.error().code() != 0) {
-        // 鉴权失败直接断开，避免继续占用连接
-        std::string msg = status.ok() ? vrep.error().message()
-                                                                    : status.error_message();
-        LOG_ERROR << "VerifyToken failed: " << msg;
-        conn->shutdown();
-        return;
-    }
-    int64_t user_id = vrep.user_id();
-
-    // 解析客户端 Sec-WebSocket-Key，并计算符合 RFC6455 的 Sec-WebSocket-Accept
-    std::string ws_key;
-    if (!ExtractHeader(req, "Sec-WebSocket-Key", &ws_key) ||
-            ws_key.empty()) {
-        LOG_ERROR << "No Sec-WebSocket-Key in WebSocket handshake";
-        conn->shutdown();
-        return;
-    }
-    std::string accept_val = ComputeWebSocketAccept(ws_key);
-
-    // 标准 WebSocket 握手响应
-    std::string resp =
-            "HTTP/1.1 101 Switching Protocols\r\n"
-            "Upgrade: websocket\r\n"
-            "Connection: Upgrade\r\n";
-    resp += "Sec-WebSocket-Accept: " + accept_val + "\r\n\r\n";
-    conn->send(resp);
-    buf->retrieve(headerLen);
-
-    ConnContext ctx = std::any_cast<ConnContext>(conn->getContext());
-    ctx.state = ConnContext::kOpen;
-    ctx.user_id = user_id;
-    ctx.auth_token = token;
-    conn->setContext(ctx);
-
-    {
-        std::lock_guard<std::mutex> lock(conns_mu_);
-        user_conns_[user_id].insert(conn);
-    }
-    MetricsRegistry::Instance().Increment("spark_push_comet_connections_total");
-    // 新连接先补推 delivered_seq 之后的消息；失败时客户端仍可用 sync
-    // 控制帧按自己的 msg_seq 游标补偿。
-    RequestOfflineSync(user_id);
-    // 握手成功：记录用户连接并等待后续 WebSocket 帧
-    LOG_INFO << "WebSocket handshake done, user_id=" << user_id;
+    auto* context = std::any_cast<ConnContext>(conn->getMutableContext());
+    context->state = ConnContext::kAuthenticating;
+    buf->retrieve(length);
+    std::weak_ptr<muduo::net::TcpConnection> weak = conn;
+    if (!grpc_pool_.Submit([this, weak, token, key] {
+        auto starting = weak.lock();
+        if (!starting || !starting->connected() || shutting_down_.load()) return;
+        VerifyTokenRequest request;
+        request.set_token(token);
+        request.set_comet_id(comet_id_);
+        VerifyTokenReply reply;
+        grpc::ClientContext context;
+        context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(3));
+        const auto status = logic_stub_->VerifyToken(&context, request, &reply);
+        auto connection = weak.lock();
+        if (!connection) {
+            if (status.ok() && reply.error().code() == 0) CleanupAuthenticatedRoute(reply.user_id(), reply.route_generation(), reply.route_token());
+            return;
+        }
+        connection->getLoop()->queueInLoop([this, connection, token, key, status, reply] {
+            if (shutting_down_.load()) return;
+            auto* state = std::any_cast<ConnContext>(connection->getMutableContext());
+            if (!connection->connected() || !state || state->state != ConnContext::kAuthenticating) {
+                if (status.ok() && reply.error().code() == 0) CleanupAuthenticatedRoute(reply.user_id(), reply.route_generation(), reply.route_token());
+                return;
+            }
+            if (!status.ok() || reply.error().code() != 0 || reply.user_id() <= 0) {
+                connection->forceClose(); return;
+            }
+            state->state = ConnContext::kOpen;
+            state->user_id = reply.user_id();
+            state->auth_token = token;
+            state->route_generation = reply.route_generation();
+            {
+                std::lock_guard<std::mutex> lock(conns_mu_);
+                user_conns_[reply.user_id()].insert(connection);
+                auto& generation = user_route_generations_[reply.user_id()];
+                if (reply.route_generation() >= generation) {
+                    generation = reply.route_generation();
+                    user_route_tokens_[reply.user_id()] = reply.route_token();
+                }
+            }
+            connection->send("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: " + ComputeWebSocketAccept(key) + "\r\n\r\n");
+            MetricsRegistry::Instance().Increment("spark_push_comet_connections_total");
+            RequestOfflineSync(reply.user_id());
+            // A TCP read may contain both the upgrade and first masked frame.
+            HandleWebSocketFrame(connection, connection->inputBuffer(), *state);
+        });
+    })) conn->forceClose();
 }
 
 // WebSocket 帧处理：
@@ -829,9 +883,11 @@ void CometServer::HandleWebSocketFrame(const TcpConnectionPtr& conn,
         bool masked = (data[1] & 0x80) != 0;
         uint64_t payloadLen = data[1] & 0x7F;
         size_t headerLen = 2;
-        if (!fin || !masked) {
+        if (!fin || !masked || (data[0] & 0x70) ||
+            (opcode != 0x1 && opcode != 0x8 && opcode != 0x9 && opcode != 0xA) ||
+            ((opcode & 0x8) && payloadLen > 125)) {
             // demo 中不支持分片帧，也不接受未 mask 的客户端数据
-            conn->shutdown();
+            conn->forceClose();
             return;
         }
         if (payloadLen == 126) {
@@ -848,9 +904,9 @@ void CometServer::HandleWebSocketFrame(const TcpConnectionPtr& conn,
             }
             headerLen += 8;
         }
-        constexpr uint64_t kMaxWebSocketPayloadBytes = 4 * 1024 * 1024;
+        constexpr uint64_t kMaxWebSocketPayloadBytes = 64 * 1024;
         if (payloadLen > kMaxWebSocketPayloadBytes) {
-            conn->shutdown();
+            conn->forceClose();
             return;
         }
         if (buf->readableBytes() < headerLen + 4 + payloadLen) {
@@ -868,8 +924,14 @@ void CometServer::HandleWebSocketFrame(const TcpConnectionPtr& conn,
         }
         buf->retrieve(headerLen + payloadLen);
 
-        if (opcode == 0x8) {  // close
+        if (opcode == 0x9) {
+            conn->send(std::string(1, static_cast<char>(0x8A)) +
+                       std::string(1, static_cast<char>(payload.size())) + payload);
+        } else if (opcode == 0x8) {  // close
+            conn->send(std::string(1, static_cast<char>(0x88)) +
+                       std::string(1, static_cast<char>(payload.size())) + payload);
             conn->shutdown();
+            conn->forceCloseWithDelay(1.0);
             return;
         } else if (opcode == 0x1) {  // text
             OnTextMessage(conn, ctx, payload);
@@ -1018,7 +1080,7 @@ void CometServer::OnTextMessage(const TcpConnectionPtr& conn,
     req.set_scene(scene);
     req.set_client_msg_id(meta.client_msg_id);
     req.set_source_comet_id(comet_id_);
-    if (scene == "chatroom") req.set_auth_token(ctx.auth_token);
+    req.set_auth_token(ctx.auth_token);
     if (scene == "single") {
         req.set_to_user_id(meta.to_user_id);
     } else if (scene == "chatroom") {
@@ -1055,9 +1117,11 @@ void CometServer::OnTextMessage(const TcpConnectionPtr& conn,
 
     // 传统 Unary：丢线程池，避免堵死 muduo IO 线程
     auto* stub = logic_stub_.get();
-    grpc_pool_.Submit([conn, stub, req]() {
+    const auto deadline = std::chrono::system_clock::now() + std::chrono::seconds(8);
+    if (!grpc_pool_.Submit([conn, stub, req, deadline]() {
         UpstreamMessageReply rep;
         grpc::ClientContext rpc_ctx;
+        rpc_ctx.set_deadline(deadline);
         auto status = stub->SendUpstreamMessage(&rpc_ctx, req, &rep);
         if (!conn->connected()) return;
         if (!status.ok() || rep.error().code() != 0) {
@@ -1076,7 +1140,10 @@ void CometServer::OnTextMessage(const TcpConnectionPtr& conn,
         ack["msg_seq"] = rep.message().msg_seq();
         ack["accepted_at_ms"] = rep.accepted_at_ms();
         conn->send(BuildWebSocketTextFrame(ack.dump()));
-    });
+    }, req.ByteSizeLong())) {
+        conn->send(BuildWebSocketTextFrame(nlohmann::json{{"type", "error"},
+            {"message", "upstream queue full"}, {"client_msg_id", req.client_msg_id()}}.dump()));
+    }
 }
 
 // muduo 数据到达回调：握手阶段解析 HTTP，握手完成后解析 WebSocket 帧。
@@ -1088,25 +1155,30 @@ void CometServer::OnMessage(const TcpConnectionPtr& conn,
     if (ctx.state == ConnContext::kHandshake) {
         // 首次阶段处理 HTTP 升级握手
         HandleHandshake(conn, buf);
-    } else {
+    } else if (ctx.state == ConnContext::kOpen) {
         // 已升级为 WebSocket，按帧协议处理
         HandleWebSocketFrame(conn, buf, ctx);
+    } else if (buf->readableBytes() > 64 * 1024) {
+        conn->forceClose();
     }
 }
 
 // 当本机用户连接计数变为 0 时，异步通知 logic 执行 UserOffline。
-void CometServer::NotifyUserOffline(int64_t user_id) {
+void CometServer::NotifyUserOffline(int64_t user_id, int64_t generation, const std::string& token) {
     if (!logic_stub_) return;
     auto* stub = logic_stub_.get();
     std::string comet_id = comet_id_;
 
-    // 简单起一个线程，避免在 muduo 事件循环线程里阻塞 gRPC 调用。
-    std::thread([stub, user_id, comet_id]() {
+    // 使用有界工作池；组件析构等待这些 RPC，stub 在此期间保持有效。
+    grpc_pool_.Submit([stub, user_id, comet_id, generation, token]() {
         UserOfflineRequest req;
         req.set_user_id(user_id);
         req.set_comet_id(comet_id);
+        req.set_route_generation(generation);
+        req.set_route_token(token);
         SimpleReply rep;
         grpc::ClientContext ctx;
+        ctx.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(3));
         auto status = stub->UserOffline(&ctx, req, &rep);
         if (!status.ok()) {
             LOG_ERROR << "UserOffline RPC failed for user " << user_id
@@ -1119,57 +1191,61 @@ void CometServer::NotifyUserOffline(int64_t user_id) {
         } else {
             LOG_INFO << "UserOffline reported for user " << user_id;
         }
-    }).detach();
+    });
 }
 
-void CometServer::RequestOfflineSync(int64_t user_id) {
+void CometServer::CleanupAuthenticatedRoute(int64_t user, int64_t generation, const std::string& token) {
+    {
+        std::lock_guard<std::mutex> lock(conns_mu_);
+        if (user_conns_.count(user)) {
+            auto& current = user_route_generations_[user];
+            if (generation >= current) { current = generation; user_route_tokens_[user] = token; }
+            return;
+        }
+    }
+    NotifyUserOffline(user, generation, token);
+}
+
+void CometServer::RequestOfflineSync(int64_t user_id, const std::string& after_session, int64_t after_seq) {
     if (!logic_stub_ || user_id <= 0) return;
     auto* stub = logic_stub_.get();
-    grpc_pool_.Submit([this, stub, user_id]() {
+    grpc_pool_.Submit([this, stub, user_id, after_session, after_seq]() {
+        {
+            std::lock_guard<std::mutex> lock(conns_mu_);
+            if (!user_conns_.count(user_id)) return;
+        }
         SyncOfflineRequest request;
         request.set_user_id(user_id);
         request.set_limit(200);
+        request.set_after_session_id(after_session);
+        request.set_after_seq(after_seq);
         SyncOfflineReply reply;
         grpc::ClientContext context;
-        context.set_deadline(std::chrono::system_clock::now() +
-                             std::chrono::seconds(3));
+        context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(3));
         const auto status = stub->SyncOffline(&context, request, &reply);
         if (!status.ok() || reply.error().code() != 0) {
-            MetricsRegistry::Instance().Increment(
-                "spark_push_offline_sync_failed_total");
+            MetricsRegistry::Instance().Increment("spark_push_offline_sync_failed_total");
             return;
         }
-
-        std::unordered_map<std::string, int64_t> cursors;
-        size_t successful_messages = 0;
-        for (const auto& message : reply.messages()) {
-            if (PushToUsers(message, std::vector<int64_t>{user_id}) > 0) {
-                cursors[message.session_id()] = std::max(
-                    cursors[message.session_id()], message.msg_seq());
-                ++successful_messages;
-                MetricsRegistry::Instance().Increment(
-                    "spark_push_offline_repush_messages_total");
-            }
-        }
-        if (successful_messages == 0) return;
-
         MarkDeliveredRequest mark;
         mark.set_user_id(user_id);
-        for (const auto& item : cursors) {
+        for (const auto& message : reply.messages()) {
+            if (PushToUsers(message, {user_id}) == 0) return;
             auto* cursor = mark.add_cursors();
-            cursor->set_session_id(item.first);
-            cursor->set_msg_seq(item.second);
+            cursor->set_session_id(message.session_id());
+            cursor->set_msg_seq(message.msg_seq());
+            MetricsRegistry::Instance().Increment("spark_push_offline_repush_messages_total");
         }
-        SimpleReply mark_reply;
-        grpc::ClientContext mark_context;
-        mark_context.set_deadline(std::chrono::system_clock::now() +
-                                  std::chrono::seconds(3));
-        const auto mark_status =
-            stub->MarkDelivered(&mark_context, mark, &mark_reply);
-        if (!mark_status.ok() || mark_reply.error().code() != 0) {
-            MetricsRegistry::Instance().Increment(
-                "spark_push_offline_cursor_update_failed_total");
+        if (!mark.cursors().empty()) {
+            SimpleReply mark_reply;
+            grpc::ClientContext mark_context;
+            mark_context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(3));
+            if (!stub->MarkDelivered(&mark_context, mark, &mark_reply).ok() || mark_reply.error().code() != 0)
+                MetricsRegistry::Instance().Increment("spark_push_offline_cursor_update_failed_total");
         }
+        if (reply.has_more() && !reply.next_session_id().empty() &&
+            (reply.next_session_id() != after_session || reply.next_seq() > after_seq))
+            RequestOfflineSync(user_id, reply.next_session_id(), reply.next_seq());
     });
 }
 
@@ -1197,31 +1273,54 @@ void CometServer::RequestCursorSync(const TcpConnectionPtr& conn,
                 "{\"type\":\"error\",\"message\":\"sync failed\"}"));
             return;
         }
+        auto frames = std::make_shared<std::vector<std::pair<int64_t, std::string>>>();
         int64_t last_seq = after_seq;
         for (const auto& message : reply.messages()) {
-            if (!conn->connected()) return;
             last_seq = std::max(last_seq, message.msg_seq());
-            conn->send(BuildWebSocketTextFrame(message.content_json()));
+            frames->emplace_back(message.msg_seq(), BuildWebSocketTextFrame(DownstreamMessageJson(message)));
         }
-        nlohmann::json end;
-        end["type"] = "sync_end";
-        end["session_id"] = session_id;
-        end["after_seq"] = after_seq;
-        end["next_seq"] = last_seq;
-        end["has_more"] = reply.has_more();
-        conn->send(BuildWebSocketTextFrame(end.dump()));
-
-        if (last_seq > after_seq) {
+        nlohmann::json end = {{"type", "sync_end"}, {"session_id", session_id},
+            {"after_seq", after_seq}, {"next_seq", last_seq},
+            {"has_more", reply.has_more()}, {"safe_seq", reply.safe_seq()}};
+        const auto end_frame = BuildWebSocketTextFrame(end.dump());
+        auto accepted = std::make_shared<std::promise<std::vector<int64_t>>>();
+        auto result = accepted->get_future();
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+        conn->getLoop()->runInLoop([conn, frames, end_frame, accepted, deadline] {
+            std::vector<int64_t> sequences;
+            auto send = [&](const std::string& frame) {
+                if (!conn->connected() || std::chrono::steady_clock::now() >= deadline) return false;
+                constexpr size_t capacity = 4 * 1024 * 1024;
+                if (frame.size() > capacity || conn->outputBuffer()->readableBytes() > capacity - frame.size()) {
+                    MetricsRegistry::Instance().Increment("spark_push_comet_slow_connection_closed_total");
+                    conn->forceClose();
+                    return false;
+                }
+                conn->send(frame);
+                return true;
+            };
+            for (const auto& frame : *frames) {
+                if (!send(frame.second)) break;
+                sequences.push_back(frame.first);
+            }
+            if (sequences.size() == frames->size()) send(end_frame);
+            accepted->set_value(std::move(sequences));
+        });
+        if (result.wait_until(deadline) != std::future_status::ready) return;
+        const auto sequences = result.get();
+        if (!sequences.empty()) {
             MarkDeliveredRequest mark;
             mark.set_user_id(user_id);
-            auto* cursor = mark.add_cursors();
-            cursor->set_session_id(session_id);
-            cursor->set_msg_seq(last_seq);
+            for (const auto sequence : sequences) {
+                auto* cursor = mark.add_cursors();
+                cursor->set_session_id(session_id);
+                cursor->set_msg_seq(sequence);
+            }
             SimpleReply mark_reply;
             grpc::ClientContext mark_context;
-            mark_context.set_deadline(std::chrono::system_clock::now() +
-                                      std::chrono::seconds(3));
-            stub->MarkDelivered(&mark_context, mark, &mark_reply);
+            mark_context.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(3));
+            if (!stub->MarkDelivered(&mark_context, mark, &mark_reply).ok() || mark_reply.error().code() != 0)
+                MetricsRegistry::Instance().Increment("spark_push_offline_cursor_update_failed_total");
         }
         MetricsRegistry::Instance().Increment("spark_push_cursor_sync_success_total");
     });
@@ -1232,13 +1331,14 @@ void CometServer::NotifyRoomJoin(int64_t room_id, int64_t user_id) {
     if (!logic_stub_) return;
     auto* stub = logic_stub_.get();
     std::string comet_id = comet_id_;
-    std::thread([stub, room_id, user_id, comet_id]() {
+    grpc_pool_.Submit([stub, room_id, user_id, comet_id]() {
         RoomReportRequest req;
         req.set_room_id(room_id);
         req.set_user_id(user_id);
         req.set_comet_id(comet_id);
         SimpleReply rep;
         grpc::ClientContext ctx;
+        ctx.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(3));
         auto status = stub->ReportRoomJoin(&ctx, req, &rep);
         if (!status.ok()) {
             LOG_ERROR << "ReportRoomJoin RPC failed for room " << room_id
@@ -1251,7 +1351,7 @@ void CometServer::NotifyRoomJoin(int64_t room_id, int64_t user_id) {
         } else {
             LOG_INFO << "ReportRoomJoin ok for room " << room_id;
         }
-    }).detach();
+    });
 }
 
 // 上报房间离开事件，释放路由计数。
@@ -1259,13 +1359,14 @@ void CometServer::NotifyRoomLeave(int64_t room_id, int64_t user_id) {
     if (!logic_stub_) return;
     auto* stub = logic_stub_.get();
     std::string comet_id = comet_id_;
-    std::thread([stub, room_id, user_id, comet_id]() {
+    grpc_pool_.Submit([stub, room_id, user_id, comet_id]() {
         RoomReportRequest req;
         req.set_room_id(room_id);
         req.set_user_id(user_id);
         req.set_comet_id(comet_id);
         SimpleReply rep;
         grpc::ClientContext ctx;
+        ctx.set_deadline(std::chrono::system_clock::now() + std::chrono::seconds(3));
         auto status = stub->ReportRoomLeave(&ctx, req, &rep);
         if (!status.ok()) {
             LOG_ERROR << "ReportRoomLeave RPC failed for room " << room_id
@@ -1278,68 +1379,20 @@ void CometServer::NotifyRoomLeave(int64_t room_id, int64_t user_id) {
         } else {
             LOG_INFO << "ReportRoomLeave ok for room " << room_id;
         }
-    }).detach();
+    });
 }
 
 // 将消息推送给本机 room_id 的所有在线用户（不跨节点）。
 size_t CometServer::PushToRoom(const ChatMessage& msg, int64_t room_id) {
-    std::vector<TcpConnectionPtr> conns;
-    {
-        std::lock_guard<std::mutex> lock(conns_mu_);
-        auto rit = room_users_.find(room_id);
-        if (rit == room_users_.end()) {
-            return 0;
-        }
-        const auto& users = rit->second;
-        for (int64_t uid : users) {
-            auto uit = user_conns_.find(uid);
-            if (uit == user_conns_.end()) continue;
-            for (const auto& c : uit->second) {
-                conns.push_back(c);
-            }
-        }
-    }
-    if (conns.empty()) return 0;
-
-    std::string payload = msg.content_json().empty()
-                                                        ? ("{\"msg_id\":\"" + msg.msg_id() + "\"}")
-                                                        : msg.content_json();
-    std::string frame = BuildWebSocketTextFrame(payload);
-    size_t sent = 0;
-    for (const auto& c : conns) {
-        if (c->connected()) {
-            c->send(frame);
-            ++sent;
-        }
-    }
-    return sent;
+    return PushToUsers(msg, GetRoomUserIds(room_id));
 }
-
-// 广播给本机所有在线连接，仅作用于当前 comet。
 size_t CometServer::PushToAll(const ChatMessage& msg) {
-    std::vector<TcpConnectionPtr> conns;
+    std::vector<int64_t> users;
     {
         std::lock_guard<std::mutex> lock(conns_mu_);
-        for (auto& kv : user_conns_) {
-            for (const auto& c : kv.second) {
-                conns.push_back(c);
-            }
-        }
+        for (const auto& item : user_conns_) users.push_back(item.first);
     }
-    if (conns.empty()) return 0;
-
-    std::string payload = msg.content_json().empty()
-                                                        ? ("{\"msg_id\":\"" + msg.msg_id() + "\"}")
-                                                        : msg.content_json();
-    std::string frame = BuildWebSocketTextFrame(payload);
-    size_t sent = 0;
-    for (const auto& c : conns) {
-        if (c->connected()) {
-            c->send(frame);
-            ++sent;
-        }
-    }
-    return sent;
+    return PushToUsers(msg, users);
 }
 
 }  // namespace sparkpush

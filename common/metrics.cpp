@@ -4,6 +4,11 @@
 #include <sstream>
 
 namespace sparkpush {
+int64_t MetricsRegistry::GaugeValue(const std::string& name, int64_t fallback) const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    auto it = gauges_.find(name);
+    return it == gauges_.end() ? fallback : it->second;
+}
 namespace {
 constexpr std::array<int64_t, 15> bounds{
     1, 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000,

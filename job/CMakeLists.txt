@@ -5,6 +5,7 @@ add_executable(job_server
     main.cpp
     service.cpp
     ../logic/message_dao.cpp
+    ../logic/message_reservation.cpp
     ../logic/session_dao.cpp
 )
 
