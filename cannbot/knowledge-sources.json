@@ -411,6 +411,12 @@
         "performance",
         "isolation"
       ]
+    },
+    {
+      "id": "current-message-benchmarks-2026-10-11",
+      "path": "docs/benchmarks/2026-10-11-current/README.md",
+      "authority": "snapshot",
+      "topics": ["testing", "performance", "e2e", "sql", "kafka", "timeout"]
     }
   ]
 }

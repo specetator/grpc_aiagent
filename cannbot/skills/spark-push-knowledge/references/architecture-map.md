@@ -33,7 +33,8 @@
 | Hermes 延迟优化与 WSL 移植 | `docs/hermes-wsl-migration.md`（2026-09-07 评估） | `cannbot/scripts/windows_agent_transport.py`、`cannbot/scripts/hermes_adapter.py`、`cannbot/scripts/audit_hermes_wsl.py` |
 | 用户、管理员、Token、审计 | `docs/user-center.md` | `logic/http_server.cpp`、`logic/user_dao.*`、`logic/audit_log_dao.*`、`common/security.*` |
 | 数据库表与迁移 | `docs/user-center.md`、`docs/reliability-optimization.md` | `sql/schema.sql`、`sql/migrations/` |
-| E2E、负载和性能证据 | `load_test/README.md`、`docs/performance-report-2026-08-09.md` | `load_test/`、`tests/` |
+| 当前 SQL 消息链路回归、三轮负载和大突发超时证据 | `docs/benchmarks/2026-10-11-current/README.md`、`docs/project-guide-and-resume.md` 第 6 节 | `tests/run_current_benchmarks.py`、`load_test/`、同目录 JSON 回执 |
+| 历史 E2E、负载和性能实验 | `load_test/README.md`、`docs/performance-report-2026-08-09.md` | `load_test/`、`tests/`；旧数据不代表当前容量 |
 | 教学演进与简历边界 | `docs/interview-project-evolution.md` | 根目录与历史 subset 的差异 |
 
 安装后的文档和代码统一位于 `references/sources/`，并保持原始相对路径。例如：

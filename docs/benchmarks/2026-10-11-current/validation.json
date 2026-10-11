@@ -1,0 +1,102 @@
+{
+  "schema": "sparkpush.validation_receipt.v1",
+  "date": "2026-10-11",
+  "source_commit": "5ade21e8fc52c6917c0ae8cff4d65a09a5530961",
+  "receipt_origin": "Command results observed in this session; summarized, not a complete raw execution log.",
+  "scope": "Current service source unchanged; benchmark tool includes error-count observation; document and harness updates.",
+  "commands": [
+    {
+      "command": "cmake --build build-wsl -j2",
+      "exit_code": 0,
+      "result": "all configured targets built"
+    },
+    {
+      "command": "cmake --build build-wsl --target e2e_bench -j2",
+      "exit_code": 0,
+      "result": "instrumented benchmark built"
+    },
+    {
+      "command": "ctest --test-dir build-wsl --output-on-failure -j2",
+      "exit_code": 0,
+      "registered": 43,
+      "passed": 40,
+      "skipped": 3,
+      "failed": 0,
+      "duration_s": 29.76,
+      "skipped_tests": [
+        "route_generation_integration_test",
+        "message_reservation_integration_test",
+        "redis_sequence_integration_test"
+      ]
+    },
+    {
+      "command": "python3 tests/run_mysql_review_tests.py build-wsl",
+      "exit_code": 0,
+      "passed": 1,
+      "duration_s": 0.19,
+      "storage": "fresh isolated Docker MySQL"
+    },
+    {
+      "command": "python3 tests/run_redis_review_tests.py build-wsl",
+      "exit_code": 0,
+      "passed": 2,
+      "duration_s": 0.15,
+      "storage": "fresh isolated Docker Redis"
+    },
+    {
+      "command": "python3 tests/run_kafka_volume_test.py build-wsl",
+      "exit_code": 0,
+      "result": "broker-confirmed replay and record/committed-offset retention after container replacement"
+    },
+    {
+      "command": "./gradlew --offline :app:compileDebugKotlin :app:testDebugUnitTest",
+      "cwd": "android-app",
+      "exit_code": 0,
+      "duration_s": 2,
+      "result": "BUILD SUCCESSFUL; Kotlin UP-TO-DATE; unit tests NO-SOURCE",
+      "device_tested": false
+    },
+    {
+      "command": "python3 cannbot/scripts/validate_knowledge.py --strict",
+      "exit_code": 0,
+      "sources": 71
+    },
+    {
+      "command": "python3 cannbot/scripts/test_pi_citations.py",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 cannbot/scripts/sync_pi_agent.py --check",
+      "exit_code": 1,
+      "result": "existing personal installation drift; not overwritten"
+    },
+    {
+      "command": "python3 -m py_compile tests/run_current_benchmarks.py",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "service_binary_sha256": {
+    "logic": "0400995f5bf50dd0f8cff63c4450f40ebc7fdb09d47d4403186eaec1ced5c5d3",
+    "comet": "a3c598aa6ed9ae8a7483e497b2adcd6207354f321fd0f5c2a76295b0bc4957fc",
+    "job": "7af4c4788f5d036568159e4448b0572e7efae477b6c448ca4249131e72daa7b5"
+  },
+  "benchmark_source_sha256": "e207090fe3f52f62a769d6371b67b838a06c7dc05bd9fdf5237327dcd8db1065",
+  "coverage_limits": [
+    "No new full legacy business E2E execution",
+    "No actual GPU/NPU runtime performance",
+    "No Android device tests",
+    "No long soak, multi-machine, TLS interoperability or full chaos tests"
+  ],
+  "pi_install_check": "Known pre-existing personal installation drift; no overwrite.",
+  "document_checks": {
+    "local_and_canonical_equivalent_after_link_resolution": true,
+    "guide_and_report_links_exist": true,
+    "code_fences_balanced": true,
+    "guide_lines": 669,
+    "previous_guide_lines": 2664
+  }
+}

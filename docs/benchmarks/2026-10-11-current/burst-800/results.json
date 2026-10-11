@@ -1,0 +1,252 @@
+{
+  "schema": "sparkpush.current_benchmark.v1",
+  "ok": false,
+  "started_at": "2026-10-11T06:12:39.636682+00:00",
+  "source_commit": "5ade21e8fc52c6917c0ae8cff4d65a09a5530961",
+  "runner_sha256": "aa0ac35a65435be64bbd1fe823b06e1e9257bc5fc8af71f62053ca18ac106e66",
+  "binary_sha256": {
+    "e2e_bench": "9ccda537b3d5ac0b598fd95b339ae5aa25e74c1b0afd367539c450322584c933",
+    "connection_bench": "62248c6d7154ea3363b3322c2266c9e811a47779435db3fe988e27f2fb4a0af4",
+    "history_bench": "ad6b7d9b9f1d447d149fb2032f687ff453b78785c339c70345f5cae7feffdc17",
+    "kafka_delivery_bench": "682ac62ec623fd623df3e5788f1ab50389514ff0f0d81d1a811761f10f674423"
+  },
+  "environment": {
+    "kernel": "6.18.40.1-microsoft-standard-WSL2",
+    "python": "3.10.12",
+    "cpu_count": 12,
+    "docker_images": [
+      "mysql:8.0",
+      "redis:7.2-alpine",
+      "apache/kafka:3.7.0"
+    ],
+    "mem_total_kib": 16272868,
+    "placement": "clients, Logic, Comet, Job and Docker dependencies on the same host; other host workloads not stopped"
+  },
+  "profile": {
+    "repeats": 1,
+    "mysql_storage": "ephemeral container writable layer, no tmpfs",
+    "kafka_replication_factor": 1,
+    "topic_partitions": 1,
+    "hermes_enabled": false,
+    "logic_http_threads": 4,
+    "comet_io_threads": 8,
+    "grpc_stream_count": 8,
+    "e2e": "8 sending connections x 100 small text messages; 1 independent receiver; fresh pair each trial",
+    "e2e_default_ack_deadline_ms": 8000,
+    "allow_incomplete": true,
+    "connections": "200 authenticated connections, 8 threads, 1 second hold; fresh no-history user",
+    "history": "8 threads x 50 queries, limit 50; up to 800 stored messages per trial",
+    "kafka_delivery": "1000 tasks directly into push_single; bypasses Logic acceptance and history persistence"
+  },
+  "warmup": [
+    {
+      "kind": "e2e_bench",
+      "trial": 0,
+      "exit_code": 0,
+      "raw_result_lines": [
+        "E2E_RESULT sent=20 accepted_ack=20 delivered_ack=20 delivered=20 send_failed=0 ack_errors=0 duration_s=0.604038 delivery_qps=33.1105 latency_p50_ms=316.687 latency_p95_ms=576.485 latency_p99_ms=576.485"
+      ],
+      "metrics": {
+        "sent": 20,
+        "accepted_ack": 20,
+        "delivered_ack": 20,
+        "delivered": 20,
+        "send_failed": 0,
+        "ack_errors": 0,
+        "duration_s": 0.604038,
+        "delivery_qps": 33.1105,
+        "latency_p50_ms": 316.687,
+        "latency_p95_ms": 576.485,
+        "latency_p99_ms": 576.485
+      },
+      "server_metrics": {
+        "logic": {
+          "spark_push_user_active_cache_hit_total": 19.0,
+          "spark_push_delivered_cursor_total": 19.0,
+          "spark_push_realtime_enqueued_total_single": 20.0,
+          "spark_push_persist_events_accepted_total": 20.0,
+          "spark_push_messages_accepted_total_single": 20.0,
+          "spark_push_user_active_cache_miss_total": 1.0,
+          "spark_push_offline_sync_total": 2.0,
+          "spark_push_redis_pool_connections_created_total": 16.0,
+          "spark_push_service_ready": 1.0
+        },
+        "comet": {
+          "spark_push_delivery_cursor_update_total": 19.0,
+          "spark_push_comet_connections_total": 2.0,
+          "spark_push_comet_push_stream_ready": 1.0,
+          "spark_push_comet_logic_stream_ready": 1.0
+        },
+        "job": {
+          "spark_push_persist_success_total": 19.0,
+          "spark_push_delivery_ack_total": 20.0,
+          "spark_push_delivery_success_total_single": 20.0,
+          "spark_push_delivery_success_total": 20.0,
+          "spark_push_stream_write_success_total": 20.0,
+          "spark_push_delivery_attempt_total_single": 20.0,
+          "spark_push_delivery_attempt_total": 20.0,
+          "spark_push_kafka_lag_ms": 34.0,
+          "spark_push_service_ready": 1.0,
+          "spark_push_delivery_latency_ms_count": 20.0,
+          "spark_push_delivery_latency_ms_sum": 710.0,
+          "spark_push_delivery_latency_ms_max": 59.0
+        }
+      }
+    }
+  ],
+  "trials": [
+    {
+      "kind": "e2e_bench",
+      "trial": 1,
+      "exit_code": 1,
+      "raw_result_lines": [
+        "E2E_RESULT sent=800 accepted_ack=330 delivered_ack=337 delivered=337 send_failed=0 ack_errors=470 duration_s=30.0203 delivery_qps=11.2257 latency_p50_ms=4198.77 latency_p95_ms=7834.73 latency_p99_ms=8151.49"
+      ],
+      "metrics": {
+        "sent": 800,
+        "accepted_ack": 330,
+        "delivered_ack": 337,
+        "delivered": 337,
+        "send_failed": 0,
+        "ack_errors": 470,
+        "duration_s": 30.0203,
+        "delivery_qps": 11.2257,
+        "latency_p50_ms": 4198.77,
+        "latency_p95_ms": 7834.73,
+        "latency_p99_ms": 8151.49
+      },
+      "ack_error_counts": {
+        "0": 470
+      },
+      "server_metrics": {
+        "logic": {
+          "spark_push_user_active_cache_hit_total": 351.0,
+          "spark_push_delivered_cursor_total": 357.0,
+          "spark_push_realtime_enqueued_total_single": 357.0,
+          "spark_push_persist_events_accepted_total": 357.0,
+          "spark_push_messages_accepted_total_single": 357.0,
+          "spark_push_user_active_cache_miss_total": 6.0,
+          "spark_push_offline_sync_total": 11.0,
+          "spark_push_redis_pool_connections_created_total": 16.0,
+          "spark_push_service_ready": 1.0
+        },
+        "comet": {
+          "spark_push_comet_logic_stream_reconnect_total": 7.0,
+          "spark_push_comet_logic_stream_read_failed_total": 7.0,
+          "spark_push_comet_logic_stream_ack_timeout_total": 468.0,
+          "spark_push_delivery_cursor_update_total": 357.0,
+          "spark_push_comet_connections_total": 11.0,
+          "spark_push_comet_push_stream_ready": 1.0,
+          "spark_push_comet_logic_stream_ready": 1.0
+        },
+        "job": {
+          "spark_push_persist_success_total": 361.0,
+          "spark_push_delivery_ack_total": 357.0,
+          "spark_push_delivery_success_total_single": 357.0,
+          "spark_push_delivery_success_total": 357.0,
+          "spark_push_stream_write_success_total": 357.0,
+          "spark_push_delivery_attempt_total_single": 357.0,
+          "spark_push_delivery_attempt_total": 357.0,
+          "spark_push_kafka_lag_ms": 36.0,
+          "spark_push_service_ready": 1.0,
+          "spark_push_delivery_latency_ms_count": 357.0,
+          "spark_push_delivery_latency_ms_sum": 10862.0,
+          "spark_push_delivery_latency_ms_max": 59.0
+        }
+      }
+    },
+    {
+      "kind": "history_bench",
+      "trial": 1,
+      "exit_code": 0,
+      "raw_result_lines": [
+        "HISTORY_RESULT success=400 failed=0 duration_s=0.333208 qps=1200.45 latency_p50_ms=6.49487 latency_p95_ms=7.82338 latency_p99_ms=11.0691"
+      ],
+      "metrics": {
+        "success": 400,
+        "failed": 0,
+        "duration_s": 0.333208,
+        "qps": 1200.45,
+        "latency_p50_ms": 6.49487,
+        "latency_p95_ms": 7.82338,
+        "latency_p99_ms": 11.0691
+      }
+    },
+    {
+      "kind": "connection_bench",
+      "trial": 1,
+      "exit_code": 0,
+      "raw_result_lines": [
+        "CONNECTION_ROUND round=1 requested=200 connected=200 failed=0 connect_duration_s=0.161521 connect_rate=1238.23"
+      ],
+      "metrics": {
+        "round": 1,
+        "requested": 200,
+        "connected": 200,
+        "failed": 0,
+        "connect_duration_s": 0.161521,
+        "connect_rate": 1238.23
+      }
+    },
+    {
+      "kind": "kafka_delivery_bench",
+      "trial": 1,
+      "exit_code": 0,
+      "raw_result_lines": [
+        "KAFKA_DELIVERY_RESULT sent=1000 send_failed=0 received=1000 missing=0 parse_errors=0 duration_s=0.878762 delivery_qps=1137.96 latency_p50_ms=438.235 latency_p95_ms=827.417 latency_p99_ms=861.501"
+      ],
+      "metrics": {
+        "sent": 1000,
+        "send_failed": 0,
+        "received": 1000,
+        "missing": 0,
+        "parse_errors": 0,
+        "duration_s": 0.878762,
+        "delivery_qps": 1137.96,
+        "latency_p50_ms": 438.235,
+        "latency_p95_ms": 827.417,
+        "latency_p99_ms": 861.501
+      }
+    }
+  ],
+  "checks": [
+    {
+      "trial": 1,
+      "stored_messages": 337,
+      "distinct_sequences": 337,
+      "expected_messages": 800
+    }
+  ],
+  "summary": {
+    "e2e_bench": {
+      "throughput_field": "delivery_qps",
+      "throughput_median": 11.2257,
+      "throughput_min": 11.2257,
+      "throughput_max": 11.2257,
+      "trial_p99_median_ms": 8151.49
+    },
+    "history_bench": {
+      "throughput_field": "qps",
+      "throughput_median": 1200.45,
+      "throughput_min": 1200.45,
+      "throughput_max": 1200.45,
+      "trial_p99_median_ms": 11.0691
+    },
+    "connection_bench": {
+      "throughput_field": "connect_rate",
+      "throughput_median": 1238.23,
+      "throughput_min": 1238.23,
+      "throughput_max": 1238.23
+    },
+    "kafka_delivery_bench": {
+      "throughput_field": "delivery_qps",
+      "throughput_median": 1137.96,
+      "throughput_min": 1137.96,
+      "throughput_max": 1137.96,
+      "trial_p99_median_ms": 861.501
+    }
+  },
+  "measurements_completed": true,
+  "cleanup_succeeded": true,
+  "finished_at": "2026-10-11T06:13:44.141245+00:00"
+}

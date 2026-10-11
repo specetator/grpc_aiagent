@@ -174,6 +174,7 @@ int main(int argc, char** argv) {
     std::atomic<int> accepted_acks{0};
     std::atomic<int> delivered_acks{0};
     std::atomic<int> ack_errors{0};
+    std::unordered_map<int, int> ack_error_codes;
     std::atomic<int> delivered{0};
     std::mutex timing_mutex;
     std::unordered_map<std::string, std::chrono::steady_clock::time_point>
@@ -294,6 +295,10 @@ int main(int argc, char** argv) {
                             ++received_delivered_ack;
                         }
                     } else if (json.value("type", std::string{}) == "error") {
+                        {
+                            std::lock_guard<std::mutex> lock(timing_mutex);
+                            ++ack_error_codes[json.value("code", 0)];
+                        }
                         ++ack_errors;
                         ++received_accepted;
                         ++received_delivered_ack;
@@ -343,6 +348,10 @@ int main(int argc, char** argv) {
               << " latency_p50_ms=" << Percentile(latencies_ms, 0.50)
               << " latency_p95_ms=" << Percentile(latencies_ms, 0.95)
               << " latency_p99_ms=" << Percentile(latencies_ms, 0.99) << '\n';
+    for (const auto& entry : ack_error_codes) {
+        std::cout << "E2E_ACK_ERROR code=" << entry.first
+                  << " count=" << entry.second << '\n';
+    }
 
     return sent.load() == expected && accepted_acks.load() == expected &&
                    delivered_acks.load() == expected &&
