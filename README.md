@@ -1,6 +1,6 @@
 # Spark Push
 
-C++17 分布式实时消息推送 / IM 教学项目。系统拆分为 Comet、Logic、Job 三个进程，支持 WebSocket 长连接、Kafka 异步投递、MySQL 持久序号与幂等、Redis 路由缓存、MySQL 历史消息、双阶段 ACK、游标补偿和离线补推。
+C++17 分布式实时消息推送 / IM 项目。系统拆分为 Comet、Logic、Job 三个进程，支持 WebSocket 长连接、Kafka 异步投递、MySQL 持久序号与幂等、Redis 路由缓存、MySQL 历史消息、双阶段 ACK、游标补偿和离线补推。
 
 ## 架构
 
