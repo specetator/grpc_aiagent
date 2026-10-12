@@ -1,7 +1,7 @@
 # Spark Push 项目指引与简历手册
 
-> 更新：2026-10-11；以 `11.2-spark_push/` 根目录当前源码为准。
-> 项目代码基线：`5ade21e8fc52c6917c0ae8cff4d65a09a5530961`。本轮只改文档、测试工具与结果记录。
+> 更新：2026-10-12；以 `11.2-spark_push/` 根目录当前源码为准。
+> 实现与测试工具基线：`340d5b7fda1252cc5a06f892c35e4626a4b4780c`；本次仅同步文档与 CI 验证结果。
 > 仓库：[specetator/grpc_aiagent](https://github.com/specetator/grpc_aiagent)。
 
 本文保留当前架构、核心链路、算法细节、运行方法、最新测试和简历材料。
@@ -559,9 +559,11 @@ SQL 接受路径使用当前实现，MySQL 为临时容器磁盘层，单 broker
 | 真实 Kafka 替换/重放 | 消息与已提交 offset 保留、CLI 获 broker 确认，通过 |
 | Android | 离线 Gradle 编译检查成功，目标 UP-TO-DATE；单测任务 NO-SOURCE |
 | 知识/引用 | 严格知识与引用校验通过；Pi 个人安装仍有已知漂移，不覆盖个人配置 |
+| GitHub CI | `340d5b7` 对应 [CI 38117916580](https://github.com/specetator/grpc_aiagent/actions/runs/38117916580) 全部通过；2026-10-12 核对 |
 
 CTest 含 HTTP/WS 分包/慢鉴权/异常断开/Ping/Close/退出、游标和 Agent 合同回归。
 没有把 CUDA 探针 mock 当真实 GPU 性能，也没有把 Android 编译当设备行为测试。
+2026-10-12 同步时本地与远端实现一致；CI 结果对应上列基线，压测仍为 2026-10-11 的实测，不改日期或外推容量。
 
 ### 6.2 三轮成功负载
 
