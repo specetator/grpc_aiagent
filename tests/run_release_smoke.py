@@ -119,8 +119,12 @@ def main():
             name: hashlib.sha256((clone / "build" / name / (name + "_server")).read_bytes()).hexdigest()
             for name in ("logic", "comet", "job")}
         phase = "ctest"
+        # Unit fixtures own their settings. Do not inherit service credentials or
+        # opt-in database flags that could point integration tests at user data.
+        unit_env = {key: value for key, value in env.items()
+                    if not key.startswith(("SPARK_PUSH_", "SPARK_RPC_", "CANN_"))}
         text = check_command(["ctest", "--test-dir", "build", "--output-on-failure", "-j2"],
-                             "fresh_ctest", 180)
+                             "fresh_ctest", 180, command_env=unit_env)
         receipt["ctest"] = {"passed": len(re.findall(r"Test\s+#\d+:.*?\bPassed\b", text)),
                             "skipped": len(re.findall(r"Test\s+#\d+:.*?\*\*\*Skipped", text))}
         phase = "startup"
