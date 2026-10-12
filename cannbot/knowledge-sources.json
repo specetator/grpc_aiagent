@@ -423,6 +423,12 @@
       "path": "THIRD_PARTY_NOTICES.md",
       "authority": "canonical",
       "topics": ["distribution", "third-party", "license"]
+    },
+    {
+      "id": "release-smoke-2026-10-12",
+      "path": "docs/benchmarks/2026-10-12-release-smoke.json",
+      "authority": "snapshot",
+      "topics": ["release", "distribution", "startup", "testing", "e2e"]
     }
   ]
 }

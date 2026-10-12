@@ -1,0 +1,74 @@
+{
+  "schema": "sparkpush.release_smoke.v1",
+  "ok": true,
+  "started_at": "2026-10-12T07:38:48.024642+00:00",
+  "environment": {
+    "kernel": "6.18.40.1-microsoft-standard-WSL2",
+    "python": "3.10.12"
+  },
+  "profile": {
+    "fresh_clone": true,
+    "build_jobs": 2,
+    "agent_enabled": false,
+    "cann_installed_in_fixture": false,
+    "mysql_storage": "fresh named Docker volume",
+    "e2e_messages": 80
+  },
+  "checks": [
+    {
+      "name": "doctor_without_agent_or_cann",
+      "exit_code": 0,
+      "duration_s": 0.208
+    },
+    {
+      "name": "fresh_cmake_configure",
+      "exit_code": 0,
+      "duration_s": 8.898
+    },
+    {
+      "name": "fresh_source_build",
+      "exit_code": 0,
+      "duration_s": 154.219
+    },
+    {
+      "name": "fresh_ctest",
+      "exit_code": 0,
+      "duration_s": 31.85
+    },
+    {
+      "name": "documented_startup",
+      "exit_code": 0,
+      "duration_s": 32.976
+    },
+    {
+      "name": "full_health_check",
+      "exit_code": 0,
+      "duration_s": 0.508
+    },
+    {
+      "name": "actual_message_e2e",
+      "exit_code": 0,
+      "duration_s": 30.459
+    }
+  ],
+  "source_commit": "496f3e1d4d132342e7482388e72052eb451d9a13",
+  "service_binary_sha256": {
+    "logic": "2cf0116431af17f35e2cccc00b41d15ed11037eb81474d57cec34b64aa3d29fc",
+    "comet": "e50f6605aea19e1340c3c0aa62c85a8bf07185b01664e0828aec60e07ea4385b",
+    "job": "47a94a81daf6907f91c64983244f4e2179acf0614dcdedce47d573d5b41228a7"
+  },
+  "ctest": {
+    "passed": 40,
+    "skipped": 3
+  },
+  "local_video_page_served": true,
+  "e2e_raw_result": "E2E_RESULT sent=80 accepted_ack=80 delivered_ack=80 delivered=80 send_failed=0 ack_errors=0 duration_s=2.04928 delivery_qps=39.0381 latency_p50_ms=1079.15 latency_p95_ms=1951.62 latency_p99_ms=2023.75",
+  "sql": {
+    "stored_messages": 80,
+    "distinct_sequences": 80
+  },
+  "cleanup_succeeded": true,
+  "finished_at": "2026-10-12T07:43:13.103060+00:00",
+  "existing_stopped_dependencies_temporarily_renamed": 3,
+  "existing_dependency_names_restored": true
+}

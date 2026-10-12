@@ -27,7 +27,7 @@ Muduo 和 JSON 头文件已包含在源码中，不使用仓库预编译库。An
 ### 2. 克隆、配置与启动
 
 ```bash
-git clone https://github.com/specetator/grpc_aiagent.git
+git clone --depth 1 https://github.com/specetator/grpc_aiagent.git
 cd grpc_aiagent
 cp .env.example .env.local
 ${EDITOR:-vi} .env.local
@@ -85,6 +85,7 @@ Client ──WebSocket──► Comet ──MessageStream──► Logic
 | Web | HTTP 9010 |
 
 旧教学版本、课件、迁移备份及未使用的预编译文件已移出工作树；历史演进可通过 Git 历史查阅。
+浅克隆只下载当前版本，避免下载旧快照和课件的历史对象。
 弹幕页选择本地视频播放，视频不上传服务器，仓库不再内置大视频；多人测试使用同一视频。
 
 ## 可靠性与实际边界
@@ -129,6 +130,7 @@ python3 tests/run_release_smoke.py --out /tmp/spark-release-smoke.json --jobs 2
 ```
 
 它不会读取个人环境文件，会验证 doctor、源码构建、CTest、完整启动/健康、80 条消息 ACK/独立接收/SQL，并清理自身容器和卷。
+2026-10-12 的全新克隆验收已通过，实际结果见 [验收回执](docs/benchmarks/2026-10-12-release-smoke.json)。
 
 ## 可选功能与文档
 

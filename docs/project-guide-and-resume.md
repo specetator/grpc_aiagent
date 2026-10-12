@@ -1,7 +1,7 @@
 # Spark Push 项目指引与简历手册
 
 > 更新：2026-10-12；以 `11.2-spark_push/` 根目录当前源码为准。
-> 实现与测试工具基线：`340d5b7fda1252cc5a06f892c35e4626a4b4780c`；旧版本、课件与预编译文件已归档，主线消息算法保留。
+> 实现与测试工具基线：`496f3e1d4d132342e7482388e72052eb451d9a13`；旧版本、课件与预编译文件已归档，主线消息算法保留。
 > 仓库：[specetator/grpc_aiagent](https://github.com/specetator/grpc_aiagent)。
 
 本文保留当前架构、核心链路、算法细节、运行方法、最新测试和简历材料。
@@ -617,6 +617,19 @@ python3 cannbot/scripts/test_pi_citations.py
 
 尚未执行多机/磁盘损坏、真实 TLS 证书互通、Redis 黑洞、ASan/TSan 长压、Android 真机与本轮 GPU 运行。
 旧 CUDA/ROCm 实验另见专题报告，本文不沿用它们作为本轮最新数据。
+
+### 6.5 全新克隆启动验收（2026-10-12）
+
+在无个人环境文件、无 Agent/CANN/GPU 的临时克隆中，从零编译并运行 README 的启动路径。
+[验收回执](benchmarks/2026-10-12-release-smoke.json) 对应实现/测试工具基线 `496f3e1d4d132342e7482388e72052eb451d9a13`：
+
+- doctor、CMake 构建、sparkctl up/health 均通过；默认 IM 不强制依赖 CANN 知识库。
+- CTest 40 通过、3 数据库 opt-in 跳过、0 失败；该次执行 31.85 秒，未另补跑数据库 opt-in。
+- 80 条消息 sent/accepted/delivered ACK/独立接收均为 80，SQL 行数/唯一 seq 为 80，无发送或 ACK 错误。
+- 弹幕页 HTTP 可访问，已改用本地视频；本次未做浏览器视频播放和 Android 真机验证。
+
+临时服务和数据卷清理完成；原本已停止的依赖容器仅临时更名，验收后恢复原名。
+这是启动与正确性 smoke test，不覆盖多机/长压，也不替代第 6.2 节的三轮容量测量。
 
 ## 7. 简历与项目介绍
 

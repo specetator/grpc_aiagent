@@ -8,6 +8,7 @@
 |---|---|---|
 | 总体架构、组件边界、启动入口 | `README.md`、`docs/spark-push-architecture.md`、`scripts/00_prepare_and_run.md` | `CMakeLists.txt`、各组件 `main.cpp` |
 | 完整项目复习、简历表述、GitHub 发布与验证口径 | `docs/project-guide-and-resume.md` | 对应章节列出的当前源码和带日期测试报告 |
+| 源码分发、全新克隆、独立 IM 启动与验收 | `README.md`、`docs/benchmarks/2026-10-12-release-smoke.json` | `scripts/ops/doctor.sh`、`tests/run_release_smoke.py` |
 | Logic 内部三层、业务规则复用、Repository 接口与回归 | `docs/logic-business-layer.md` | `logic/services/`、`logic/repositories/`、`logic/main.cpp`、`tests/logic_business_service_test.cpp` |
 | Inference Gateway、Worker、容量准入、会话路由、ROCm 和批处理 | `docs/inference-serving.md` | `inference/proto/inference.proto`、`inference/gateway/`、`inference/worker/`、`hermes_bridge/grpc_inference_client.cpp`、`inference/scripts/` |
 | RX 9070 XT 真实 CPU/ROCm 性能、优化消融和简历证据 | `docs/performance-report-2026-09-30-rx9070xt.md` | `inference/benchmarks/`、`docs/benchmarks/2026-09-30-rx9070xt/` |
