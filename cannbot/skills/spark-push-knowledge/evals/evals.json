@@ -39,7 +39,7 @@
       "id": 4,
       "title": "教学快照负向路由",
       "prompt": "请解释当前 Logic 的消息幂等实现。",
-      "expected_output": "应优先读取根目录 logic/ 与当前可靠性文档，不把 02_auth_subset 到 06 或 5.1_room_subset 当作当前实现。",
+      "expected_output": "应优先读取根目录 logic/ 与当前可靠性文档。旧教学快照已移出工作树，仅在明确询问演进时通过 Git 历史查阅，不作为当前实现。",
       "files": [],
       "expectations": [
         {"type": "contains", "pattern": "logic"}

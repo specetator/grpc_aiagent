@@ -5,8 +5,9 @@
 - Treat root `comet/`, `logic/`, `job/`, `common/`, `proto/`,
   `hermes_bridge/`, `web_demo/`, `tests/`, and `docs/` as the current
   implementation.
-- `02_auth_subset/` through `06/` and `5.1_room_subset/` are historical
-  teaching snapshots. Read them only for an explicit evolution comparison.
+- Historical teaching snapshots have been removed from the working tree.
+  Use Git history only for an explicit evolution comparison; they are not
+  dependencies of the current implementation.
 - Start project questions with `spark-push-knowledge`. Prefer current code and
   protocol definitions over prose, and identify any mismatch.
 

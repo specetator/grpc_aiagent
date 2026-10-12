@@ -23,8 +23,8 @@ metadata:
    `references/sources/...` 快照；不要猜测 WSL 项目路径。
 3. 若 Pi 正在项目根目录运行，则同时检查实时代码；代码与快照或文档冲突时，以实时代码
    说明当前行为，并指出需要重新同步知识包。
-4. 只有用户明确询问教学演进时才读取 `02_auth_subset/`～`06/` 或
-   `5.1_room_subset/`。这些目录不是当前运行真源。
+4. 旧教学快照已移出工作树。只有用户明确询问教学演进时才通过 Git 历史查阅；
+   历史代码不是当前运行真源，不应假定旧目录仍存在。
 5. 涉及新增参考资料、检索范围或知识结构时，读取
    [`references/knowledge-maintenance.md`](references/knowledge-maintenance.md)。
 

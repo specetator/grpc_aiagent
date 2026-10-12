@@ -1,7 +1,7 @@
 # Spark Push 项目指引与简历手册
 
 > 更新：2026-10-12；以 `11.2-spark_push/` 根目录当前源码为准。
-> 实现与测试工具基线：`340d5b7fda1252cc5a06f892c35e4626a4b4780c`；本次仅同步文档与 CI 验证结果。
+> 实现与测试工具基线：`340d5b7fda1252cc5a06f892c35e4626a4b4780c`；旧教学快照已移出根目录，主线实现不变。
 > 仓库：[specetator/grpc_aiagent](https://github.com/specetator/grpc_aiagent)。
 
 本文保留当前架构、核心链路、算法细节、运行方法、最新测试和简历材料。
@@ -564,6 +564,8 @@ SQL 接受路径使用当前实现，MySQL 为临时容器磁盘层，单 broker
 CTest 含 HTTP/WS 分包/慢鉴权/异常断开/Ping/Close/退出、游标和 Agent 合同回归。
 没有把 CUDA 探针 mock 当真实 GPU 性能，也没有把 Android 编译当设备行为测试。
 2026-10-12 同步时本地与远端实现一致；CI 结果对应上列基线，压测仍为 2026-10-11 的实测，不改日期或外推容量。
+同日移出旧教学快照后，主线重新构建通过；CTest 40 通过、3 opt-in 跳过、0 失败，29.84 秒。
+本次目录整理未重跑隔离 SQL/Redis/Kafka 或压测，上表集成验证仍对应原测试记录与已通过的 CI。
 
 ### 6.2 三轮成功负载
 
@@ -667,5 +669,6 @@ python3 cannbot/scripts/test_pi_citations.py
 | 推理架构 | [Inference](inference-serving.md)、inference/gateway/、inference/worker/ |
 | GPU 历史实验 | [CUDA 2026-10-07](performance-report-2026-10-07-rtx3060.md)、[ROCm 2026-09-30](performance-report-2026-09-30-rx9070xt.md) |
 
-旧教学 subset 和旧专题里的 Redis 取号描述不是当前运行真源；有冲突时回到根目录代码与本手册。
+旧教学快照已移出根目录，演进对照可查 Git 历史；旧专题里的 Redis 取号描述不是当前运行真源。
+有冲突时回到根目录代码与本手册。
 后续顺序：真实故障/迁移演练→热点会话性能分解→安全与路由租约→告警恢复→多机与长期容量验证。

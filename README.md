@@ -230,7 +230,7 @@ curl http://127.0.0.1:9203/metrics  # Comet
 6. `job/service.cpp`、`common/kafka_consumer.cpp`：consumer group、PushStream、offset 和落库；
 7. `load_test/e2e_bench.cpp`：如何区分 accepted、delivered ACK 和真实接收。
 
-教学快照 `02_auth_subset`～`06` 只用于分阶段学习；运行和面试说明以根目录源码为准。
+旧教学快照已移出项目根目录，历史代码可通过 Git 历史查阅；运行和面试说明以根目录源码为准。
 
 ## 简历表述边界
 

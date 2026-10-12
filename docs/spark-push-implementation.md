@@ -19,7 +19,7 @@
 | 用户中心与管理员 | [`user-center.md`](user-center.md) |
 | 教学演进与简历边界 | [`interview-project-evolution.md`](interview-project-evolution.md) |
 
-源码真源永远是根目录 `comet/` `logic/` `job/` `common/` `proto/` `hermes_bridge/` `android-app/`。教学快照 `02_auth_subset`～`06` 只用于对比演进。
+源码真源永远是根目录 `comet/` `logic/` `job/` `common/` `proto/` `hermes_bridge/` `android-app/`。旧教学快照已移出工作树，演进对照通过 Git 历史查阅。
 
 ---
 

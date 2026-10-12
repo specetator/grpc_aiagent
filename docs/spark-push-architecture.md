@@ -4,7 +4,7 @@
 具体容器、Lua 脚本、握手字节、重连退避和流式合并算法见
 [`spark-push-internals.md`](spark-push-internals.md)。
 
-内容以当前根目录源码为准。`02_auth_subset`～`06`、`5.1_room_subset` 是教学快照，不作为运行实现依据。
+内容以当前根目录源码为准。旧教学快照已移出工作树，可通过 Git 历史查阅，不作为运行实现依据。
 
 阅读顺序：
 
