@@ -122,7 +122,7 @@ python3 tests/run_current_benchmarks.py --build build \
   --out /tmp/spark-bench --repeats 3 --messages-per-conn 20
 ```
 
-验证 Git 当前提交能从全新克隆构建并启动，可运行以下检查（需提交当前改动，且标准端口和 Spark 容器名空闲）：
+验证 Git 当前提交能从全新克隆构建并启动，可运行以下检查（未提交的改动不进入测试，标准端口和 Spark 容器名须空闲）：
 
 ```bash
 python3 tests/run_release_smoke.py --out /tmp/spark-release-smoke.json --jobs 2

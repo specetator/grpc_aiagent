@@ -2,6 +2,7 @@
 """Build a fresh local clone and smoke-test the documented IM startup path.
 
 Requires Docker/Compose and the build dependencies listed in README.
+Tests committed Git HEAD; uncommitted edits are not part of the cloned fixture.
 Uses fresh credentials and owned volumes; never reads personal .env files.
 Standard Spark ports/container names must be free. AI and CANN are disabled.
 """
@@ -77,8 +78,6 @@ def main():
             if subprocess.run(["docker", "inspect", name], stdout=subprocess.DEVNULL,
                               stderr=subprocess.DEVNULL).returncode == 0:
                 raise RuntimeError("existing Spark container; use a separate host")
-        if subprocess.check_output(["git", "status", "--porcelain"], cwd=ROOT):
-            raise RuntimeError("commit the source tree before testing a release")
         receipt["source_commit"] = subprocess.check_output(
             ["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip()
         workspace = tempfile.TemporaryDirectory(prefix=project + "-")
