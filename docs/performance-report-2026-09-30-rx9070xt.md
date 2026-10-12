@@ -230,4 +230,4 @@ ROCm 已实际安装、编译、GPU 卸载、显存查询与 benchmark；项目�
 参考：
 [AMD ROCm 7.2 WSL 安装](https://rocm.docs.amd.com/projects/radeon-ryzen/en/docs-7.2/docs/install/installrad/wsl/install-radeon.html)、
 [llama.cpp server](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md)、
-[官方模型](https://huggingface.co/Qwen/Qwen3-0.6B-GGUF)。课件提供优化主题，是否有效以以上实测为准。
+[官方模型](https://huggingface.co/Qwen/Qwen3-0.6B-GGUF)。优化是否有效以以上实测为准。

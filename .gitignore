@@ -21,3 +21,15 @@ android-app/**/build/
 android-app/local.properties
 android-app.backup-*/
 .env.rpc
+
+# Historical material and build output are kept outside the source repository.
+02_auth_subset/
+03_msg_subset/
+04_room_subset/
+05_persist_subset/
+5.1_room_subset/
+06/
+课件/
+muduo/lib/
+cmake/*-bk.cmake
+web_demo/static/demo.mp4

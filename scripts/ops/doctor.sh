@@ -23,7 +23,7 @@ pass() { printf '[PASS] %s\n' "$1"; }
 fail() { printf '[FAIL] %s\n' "$1"; failures=$((failures + 1)); }
 warn() { printf '[WARN] %s\n' "$1"; }
 
-for command_name in bash cmake curl docker; do
+for command_name in bash cmake curl docker python3; do
   if command -v "$command_name" >/dev/null 2>&1; then
     pass "command: $command_name"
   else
@@ -50,6 +50,12 @@ else
   fail 'Docker daemon is not reachable'
 fi
 
+if command -v docker >/dev/null 2>&1 && docker compose version >/dev/null 2>&1; then
+  pass 'Docker Compose v2 is available'
+else
+  fail 'Docker Compose v2 is not available'
+fi
+
 if hermes_enabled; then
   [[ -n "${SPARK_PUSH_HERMES_BASE_URL:-}" ]] &&
     pass 'Pi gateway base URL is configured' || fail 'Pi gateway base URL is missing'
@@ -65,7 +71,9 @@ else
   warn 'Pi Agent integration is disabled'
 fi
 
-if [[ -x "$KNOWLEDGE_ROOT/bin/cann-rag" ]]; then
+if ! hermes_enabled; then
+  warn 'CANN knowledge checks skipped; optional Agent integration is disabled'
+elif [[ -x "$KNOWLEDGE_ROOT/bin/cann-rag" ]]; then
   pass 'cann-rag command found'
   if "$KNOWLEDGE_ROOT/bin/cann-rag" verify >/dev/null 2>&1; then
     pass 'CANN knowledge index verifies successfully'

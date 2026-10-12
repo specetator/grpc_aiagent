@@ -13,7 +13,21 @@ http://127.0.0.1:9010/index.html
 - Docker / Docker Compose；
 - CMake、C++17 编译器；
 - `curl`（启动脚本用它确认 metrics 和 Job→Comet 长连接已经就绪）；
-- gRPC、Protobuf、librdkafka、Redis、MySQL、Muduo 等构建依赖。
+- gRPC、Protobuf、librdkafka、hiredis、MySQL client、OpenSSL、libcurl 等开发包；Muduo 已随仓库提供源码。
+
+Ubuntu 22.04 的构建依赖：
+
+```bash
+sudo apt-get update
+sudo apt-get install -y build-essential cmake pkg-config curl python3 \
+  libssl-dev libcurl4-openssl-dev default-libmysqlclient-dev libhiredis-dev \
+  librdkafka-dev libprotobuf-dev protobuf-compiler protobuf-compiler-grpc \
+  libgrpc++-dev nlohmann-json3-dev bubblewrap util-linux
+docker info
+docker compose version
+```
+
+默认仅启用 IM，不要求 Pi Agent、CANN RAG、模型账号或 GPU。Agent/推理服务按对应专题另行启用。
 
 如果 Docker daemon 没有运行，先启动 Docker Desktop 或 `docker.service`。
 
@@ -22,7 +36,7 @@ http://127.0.0.1:9010/index.html
 首次使用时执行：
 
 ```bash
-cd /home/peco/cppcode/fenbushi/11.2-spark_push
+# 在克隆后的仓库根目录执行
 cp .env.example .env.local
 ${EDITOR:-vi} .env.local
 ```

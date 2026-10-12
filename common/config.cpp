@@ -127,8 +127,7 @@ Config LoadConfig(const std::string& path) {
     cfg.admin_password.clear();
     cfg.hermes_enabled = false;
     cfg.hermes_bot_user_id = 900000000001LL;
-    cfg.cann_knowledge_root =
-        "/home/peco/cppcode/fenbushi/cann-agent-knowledge";
+    cfg.cann_knowledge_root = "../cann-agent-knowledge";
     cfg.attachment_dir = "data/attachments";
 
     std::ifstream fin(path);

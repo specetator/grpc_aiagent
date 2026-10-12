@@ -1,7 +1,7 @@
 # Spark Push 项目指引与简历手册
 
 > 更新：2026-10-12；以 `11.2-spark_push/` 根目录当前源码为准。
-> 实现与测试工具基线：`340d5b7fda1252cc5a06f892c35e4626a4b4780c`；旧教学快照已移出根目录，主线实现不变。
+> 实现与测试工具基线：`340d5b7fda1252cc5a06f892c35e4626a4b4780c`；旧版本、课件与预编译文件已归档，主线消息算法保留。
 > 仓库：[specetator/grpc_aiagent](https://github.com/specetator/grpc_aiagent)。
 
 本文保留当前架构、核心链路、算法细节、运行方法、最新测试和简历材料。
@@ -498,6 +498,7 @@ GPU 使用 NVML 按 PCI bus ID 采样，避免 CUDA visible ordinal 重排造成
 ### 5.1 最小运行路径
 
 依赖包括 CMake/C++17、OpenSSL、gRPC/Protobuf、librdkafka、hiredis、MySQL client、Docker。
+基础 IM 不需要 Pi/CANN/GPU；首次使用先按 [README](../README.md) 安装依赖并创建 .env.local。
 从项目根目录执行；已有环境先完成下节迁移：
 
 ```bash
@@ -669,6 +670,7 @@ python3 cannbot/scripts/test_pi_citations.py
 | 推理架构 | [Inference](inference-serving.md)、inference/gateway/、inference/worker/ |
 | GPU 历史实验 | [CUDA 2026-10-07](performance-report-2026-10-07-rtx3060.md)、[ROCm 2026-09-30](performance-report-2026-09-30-rx9070xt.md) |
 
-旧教学快照已移出根目录，演进对照可查 Git 历史；旧专题里的 Redis 取号描述不是当前运行真源。
+旧教学快照、课件、Android 迁移备份与旧 CMake/预编译库已移出工作树，演进对照可查 Git 历史。
+弹幕演示改为浏览器选择本地视频，不上传视频；旧专题里的 Redis 取号描述不是当前运行真源。
 有冲突时回到根目录代码与本手册。
 后续顺序：真实故障/迁移演练→热点会话性能分解→安全与路由租约→告警恢复→多机与长期容量验证。

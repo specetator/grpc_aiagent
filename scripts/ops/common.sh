@@ -49,7 +49,7 @@ resolve_pi_command() {
     command -v pi-spark-agent
     return 0
   fi
-  local user_home_path="${HOME:-/home/peco}"
+  local user_home_path="${HOME:-}"
   if [[ -x "$user_home_path/.local/bin/pi-spark-agent" ]]; then
     printf '%s\n' "$user_home_path/.local/bin/pi-spark-agent"
     return 0

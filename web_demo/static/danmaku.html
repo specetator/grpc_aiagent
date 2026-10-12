@@ -229,10 +229,14 @@
 
   <div id="main">
     <div id="video-wrap">
-      <video id="video" controls>
-        <source src="demo.mp4" type="video/mp4" />
-      </video>
+      <video id="video" controls></video>
       <div id="danmaku-layer"></div>
+    </div>
+
+    <div style="margin-top:12px;">
+      <label for="video-file">选择本地视频：</label>
+      <input id="video-file" type="file" accept="video/*" />
+      <span id="video-file-status">视频仅在浏览器播放，不上传服务器。</span>
     </div>
 
     <div class="controls-container">
@@ -255,7 +259,7 @@
     </div>
     
     <div style="width:960px; max-width:100%; margin-top:10px; color:#555; font-size:12px; line-height:1.5;">
-       💡 提示：本页面模拟了视频网站的弹幕功能。登录后会连接 WebSocket 并自动加入 room_id=1001。
+       💡 提示：选择视频后播放；多人测试请使用同一视频。登录后会连接 WebSocket 并自动加入 room_id=1001。
     </div>
   </div>
 
@@ -304,6 +308,27 @@
     const danmakuLoadedRanges = [];     // 已成功加载的时间段 [{from_ms,to_ms}]
     const danmakuLoadingKeys = new Set(); // 正在加载中的片段 key: "from-to"
     let lastPreloadCheckTime = -1;      // 上次预加载检查时的视频时间（秒）
+
+    let localVideoUrl = null;
+    document.getElementById('video-file').addEventListener('change', (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      if (file.type && !file.type.startsWith('video/')) {
+        document.getElementById('video-file-status').textContent = '请选择视频文件。';
+        return;
+      }
+      video.pause();
+      if (localVideoUrl) URL.revokeObjectURL(localVideoUrl);
+      localVideoUrl = URL.createObjectURL(file);
+      video.src = localVideoUrl;
+      video.load();
+      danmakuLayer.replaceChildren();
+      for (const item of danmakus) item.displayed = false;
+      document.getElementById('video-file-status').textContent = file.name + '（仅本地播放）';
+    });
+    window.addEventListener('beforeunload', () => {
+      if (localVideoUrl) URL.revokeObjectURL(localVideoUrl);
+    });
 
     // Auth State
     // let authMode = 'login'; // Removed

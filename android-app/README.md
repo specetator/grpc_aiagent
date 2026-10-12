@@ -6,9 +6,9 @@
 
 界面采用 Claude Desktop 的视觉语言做手机化适配：暖白画布、低对比分隔线、窄信息层级、无边框助手消息、淡紫用户消息和轻量 Agent 操作卡。Android 目标版本为 `0.4.0`；聊天页显式处理 Android 15 状态栏和键盘 `adjustResize` 安全区。
 
-在 WSL/Android Studio 中打开本目录并执行 `./gradlew assembleDebug`。手机和 PC 登录同一 Tailnet 后，建议使用 `https://<电脑名>.<tailnet>.ts.net:9010/index.html`；如果服务暂时只有 HTTP，可使用对应 `http://...ts.net:9010/index.html` 开发地址。确保 PC 防火墙允许 Tailscale 网卡访问 9010、9000、9101 等端口。
+准备 Android SDK、JDK，并在 Android Studio 中打开本目录；或从仓库根目录执行 `cd android-app && ./gradlew assembleDebug`。手机和 PC 登录同一 Tailnet 后，建议使用 `https://<电脑名>.<tailnet>.ts.net:9010/index.html`；如果服务暂时只有 HTTP，可使用对应 `http://...ts.net:9010/index.html` 开发地址。确保 PC 防火墙允许 Tailscale 网卡访问 9010、9000、9101 等端口。
 
-APK 使用 `com.peco.sparkim` 包名。构建后安装 `app/build/outputs/apk/debug/app-debug.apk`。首次启动输入 PC 的 Tailscale 地址（例如 `http://100.89.19.125`），客户端会自动派生 9101 HTTP API 和 9000 WebSocket 地址，并把服务器地址保存在 Android 本地。手机和 PC 需要能通过同一 Tailnet 访问这些端口。
+APK 使用 `com.peco.sparkim` 包名。构建后安装 `app/build/outputs/apk/debug/app-debug.apk`。首次启动输入 PC 的 Tailscale 地址（例如 `http://<服务主机IP>`），客户端会自动派生 9101 HTTP API 和 9000 WebSocket 地址，并把服务器地址保存在 Android 本地。手机和 PC 需要能通过同一 Tailnet 访问这些端口。
 
 
 ## 代码与验证索引

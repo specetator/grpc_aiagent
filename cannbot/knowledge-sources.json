@@ -417,6 +417,12 @@
       "path": "docs/benchmarks/2026-10-11-current/README.md",
       "authority": "snapshot",
       "topics": ["testing", "performance", "e2e", "sql", "kafka", "timeout"]
+    },
+    {
+      "id": "third-party-notices",
+      "path": "THIRD_PARTY_NOTICES.md",
+      "authority": "canonical",
+      "topics": ["distribution", "third-party", "license"]
     }
   ]
 }
