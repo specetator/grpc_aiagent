@@ -27,6 +27,8 @@ bool ContainsSpaceOrControl(const std::string& value) {
     });
 }
 
+// 这些动词会改知识库。聊天里的 /kb 只允许只读检索和 status，
+// 建库、删除必须走 cann-rag CLI。匹配的是参数的第一个词。
 bool IsKnowledgeManagementCommand(const std::string& arguments) {
     const std::string lowered = LowerCopy(TrimCopy(arguments));
     const size_t separator = lowered.find_first_of(" \t\r\n");
@@ -50,6 +52,9 @@ bool ApplyModelArgument(const std::string& arguments, bool* model_override,
     }
     // A trailing colon is the explicit provider-browse form used by native
     // clients. It is distinct from provider:model and never changes state.
+    // 译：结尾的冒号是客户端用来浏览某个 provider 的写法，
+    // 和 provider:model 不是一回事，而且**绝不改变**当前模型。
+    // model_override 保持 false，只把 provider 填上供列表过滤。
     if (target.size() > 1 && target.back() == ':') {
         *provider = target.substr(0, target.size() - 1);
         if (provider->empty() || provider->find(':') != std::string::npos) {
@@ -67,6 +72,8 @@ bool ApplyModelArgument(const std::string& arguments, bool* model_override,
         }
         return false;
     }
+    // 拒绝 --global：模型覆盖是会话级的，写在消息历史里（见头文件）。
+    // 放行全局切换会让一条聊天命令改掉所有会话的模型。
     if (target == "--global" || target.rfind("--global", 0) == 0) {
         if (error) {
             *error = "Spark Push 只支持会话级模型切换，不允许 /model --global";
@@ -92,6 +99,9 @@ bool ApplyModelArgument(const std::string& arguments, bool* model_override,
 
 void ApplyPersistedEntry(const HermesConversationEntry& entry,
                          HermesPromptPlan* plan, int64_t* pending_new_seq) {
+    // 旧版 /new 确认：用户那条 /new 的序号先记在 pending_new_seq，
+    // 直到看见助手的确认回复才真正切开上下文。只有确认，没有用户意图，
+    // 不能切——否则一条没被接受的 /new 也会把历史丢掉。
     if (entry.assistant && entry.legacy_new_confirmation && *pending_new_seq > plan->context_start_seq) {
         plan->context_start_seq = *pending_new_seq;
         plan->messages.clear();
@@ -131,6 +141,8 @@ void ApplyPersistedEntry(const HermesConversationEntry& entry,
         case HermesCommandKind::kRestart:
         case HermesCommandKind::kRetry:
             // User intent and preview cards cannot mutate confirmed context.
+            // 译：用户的意图和预览卡片不能改动已经确认的上下文。
+            // 历史里的 "/retry" "/restart" 既不进入 prompt，也不移动 context_start_seq。
             break;
         case HermesCommandKind::kCann:
         case HermesCommandKind::kKnowledge:
@@ -139,6 +151,9 @@ void ApplyPersistedEntry(const HermesConversationEntry& entry,
         case HermesCommandKind::kModel: {
             // A user command is intent, not confirmation. Only the Agent's
             // verified model snapshot may change subsequent request state.
+            // 译：用户命令只是意图，不是确认。只有 Agent 已验证的模型快照
+            // 才能改变后续请求的模型。上面 has_model_state 那一支才是写入点，
+            // 这里看到的 "/model gpt-4" 用户消息什么都不改。
             break;
         }
         case HermesCommandKind::kAgent:
@@ -297,6 +312,10 @@ HermesPromptPlan BuildHermesPromptPlan(
             break;
         case HermesCommandKind::kRetry:
             // The runtime selects the last user message under its session lock.
+            // 译：上一条用户消息由运行时在会话锁里选，不在本函数里选。
+            // 确认词才把 call_model 置真；"/retry now" 本身不会被塞进 messages。
+            // 未确认时只回用法。Bridge 看到 call_model 且命令名是 retry，
+            // 才把 retry 标志交给 Gateway。
             plan.call_model = plan.command.arguments == "now" || plan.command.arguments == "--yes" ||
                               plan.command.arguments == "-y";
             if (!plan.command.arguments.empty() && !plan.call_model)
@@ -321,6 +340,9 @@ HermesPromptPlan BuildHermesPromptPlan(
             }
             break;
         case HermesCommandKind::kCreative:
+            // 创作命令不在这里生成回复。call_model=false 且 local_error 留空，
+            // Bridge 才会把它当成控制命令走 /agent/control。
+            // 若在这里填 local_error，Bridge 会直接把那句话当回复，控制命令发不出去。
             plan.call_model = false;
             break;
     }

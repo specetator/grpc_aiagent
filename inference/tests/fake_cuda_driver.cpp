@@ -1,4 +1,9 @@
 // Deterministic Driver API fixture. Never used by production workers.
+// 译：确定性的 Driver API 替身，生产 worker 不会加载它。
+// 测试用 LD_PRELOAD / 同名 so 把它当成 libcuda.so.1。
+// PCI 固定报 0000:01:00.0，必须和 fake_nvml 接受的那条总线号一致，否则 NVML 对不上。
+// SPARK_TEST_CUDA_FAIL=init 让 cuInit 失败；=sample 让 cuMemGetInfo 失败。
+// 显存固定 8 GiB 空闲 / 12 GiB 总量，和 NVML 的 6 GiB 空闲区分开，测试靠这个判断走了哪条探针。
 #include <cstdlib>
 #include <cstddef>
 #include <cstring>

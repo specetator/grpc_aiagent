@@ -30,12 +30,21 @@ RedisConnectionPool::~RedisConnectionPool() {
 }
 
 // 创建 redisContext，包含鉴权、选择 DB 以及超时设置。
+//
+// 顺序有讲究：必须先设 rw 超时再发 AUTH/SELECT。
+// 若不先设，AUTH 本身就可能无限阻塞（Redis 卡住时），
+// 建连函数就再也回不来了。
+//
+// 命名里的 Unlocked 同样表示「调用时不得持 mutex_」：
+// 建连与 AUTH 都是阻塞网络操作，持锁会把整个池卡死。
 redisContext* RedisConnectionPool::CreateContextUnlocked() {
     struct timeval tv;
     tv.tv_sec = cfg_.connect_timeout_ms / 1000;
     tv.tv_usec = (cfg_.connect_timeout_ms % 1000) * 1000;
     redisContext* ctx =
         redisConnectWithTimeout(cfg_.host.c_str(), cfg_.port, tv);
+    // hiredis 的一个坑：连接失败时它**仍会返回非空 ctx**，错误放在
+    // ctx->err 里。因此必须同时检查两者，只看 nullptr 会漏掉大部分失败。
     if (!ctx || ctx->err) {
         if (ctx) {
             LOG_ERROR << "redisConnect failed: " << ctx->errstr;
@@ -208,6 +217,14 @@ void RedisConnectionPool::CleanupIdleUnlocked() {
 }
 
 // 校验连接是否可用，失败则释放并置空。
+// 用 PING 探测连接是否仍可用。
+//
+// 为何需要：Redis 服务端会在 timeout 后关连接，TCP 半开时客户端
+// 并不知情。不探测就会把一个死 context 交给 RedisStore，而 hiredis
+// 在已断开的 context 上发命令会持续返回错误。
+//
+// 失败时必须 redisFree 并把 *ctx 置空：调用方（Acquire）靠
+// 「ctx 为空」判断该连接已不可用，若不置空它会去 free 一个野指针。
 bool RedisConnectionPool::Validate(redisContext** ctx) {
     if (!ctx || !(*ctx)) {
         return false;
@@ -230,6 +247,12 @@ bool RedisConnectionPool::Validate(redisContext** ctx) {
 }
 
 // 归还连接到空闲队列；停止阶段直接释放。
+//
+// 关键分支：ctx->err != 0 时**不放回池**而是直接销毁。
+// 一个已出现 I/O 错误的 context 在 hiredis 里是永久失效的（后续
+// 命令都会立即返回错误）。若放回池，每次借出都会失败，
+// 表现为「Redis 明明恢复了但服务一直报错」，直到池被逐渐洗干。
+// 因此这里主动丢弃并 notify，让等待者去建新连接。
 void RedisConnectionPool::Release(redisContext* ctx) {
     std::unique_lock<std::mutex> lock(mutex_);
     if (stopping_) {

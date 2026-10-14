@@ -10,6 +10,12 @@
 
 namespace sparkpush::inference {
 
+// Worker 注册表。心跳超过 timeout 的节点在快照里被标成不健康，
+// 调度器不会再把新请求分给它。用 steady_clock 算超时，不被 NTP 回拨影响。
+//
+// gateway_managed_only 为真时，running_requests 只信本网关自己的
+// ChangeRunning 计数，不采信心跳里上报的负载。心跳最多晚一秒，
+// 会在请求已经结束之后仍显示「满载」。
 class WorkerRegistry {
  public:
   explicit WorkerRegistry(std::chrono::milliseconds timeout = std::chrono::seconds(5),

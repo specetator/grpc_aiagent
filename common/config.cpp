@@ -22,6 +22,8 @@ static void Trim(std::string& s) {
 }
 
 // 展开 ${ENV_NAME}。变量未设置时展开为空串，避免把占位符当成口令使用。
+// 未闭合的 ${ 原样留下：宁可启动后连不上，也不要把半截占位符当成主机名。
+// 空名字 ${} 同样展开为空，不读环境变量。
 static std::string ExpandEnvironment(const std::string& input) {
     std::string output;
     size_t cursor = 0;
@@ -51,6 +53,9 @@ static void OverrideFromEnv(const char* name, std::string* value) {
     if (env_value) *value = env_value;
 }
 
+// 环境变量盖过文件。容器和 CI 用这一层注入口令，仓库里的 conf 可以留空。
+// hermes_enabled 只认 "true" 和 "1"；环境变量设成 "yes" 不会打开。
+// 变量没设时保持文件里的值，不会被清空。
 static void ApplySensitiveEnvOverrides(Config* cfg) {
     if (!cfg) return;
     OverrideFromEnv("SPARK_PUSH_MYSQL_PASSWORD", &cfg->mysql_password);
@@ -131,6 +136,9 @@ Config LoadConfig(const std::string& path) {
     cfg.attachment_dir = "data/attachments";
 
     std::ifstream fin(path);
+    // 文件打不开仍应用环境变量覆盖。容器可以不挂 conf，只靠环境变量启动。
+    // 注意：整数解析用 std::stoi / std::stoll，格式不对会抛异常，进程起不来。
+    // 这是有意的：带病配置继续跑，会在第一条业务请求上才爆。
     if (!fin) {
         LOG_ERROR << "LoadConfig open file failed: " << path << ", use defaults";
         ApplySensitiveEnvOverrides(&cfg);
@@ -162,7 +170,10 @@ Config LoadConfig(const std::string& path) {
             cfg.listen_addr = value;
         } else if (key == "listen_port") {
             cfg.listen_port = std::stoi(value);
-            // 若尚未显式配置 http_port / comet_grpc_port，则根据新的 listen_port 重新推导默认值
+            // 进循环前 http_port 已经被写成 listen_port+1（默认 9001），不是 0。
+            // 所以只改 listen_port、不写 http_port 时，HTTP 端口仍是 9001，
+            // 不会跟着 listen_port 走。== 0 只有配置文件里先写了 http_port=0 才成立。
+            // comet_grpc_port 同理。改这个推导之前先确认没有部署依赖现在的行为。
             if (cfg.http_port == 0) {
                 cfg.http_port = cfg.listen_port + 1;
             }
@@ -298,6 +309,9 @@ Config LoadConfig(const std::string& path) {
             cfg.hermes_bot_user_id = std::stoll(value);
         } else if (key == "agent_bot_users") {
             // Semicolon separated ID:name entries, configured by the operator.
+            // 译：分号分隔的 ID:name，由运维配置。
+            // 缺冒号、id<=0、名字空或超过 120 的项直接跳过，不让一条坏记录
+            // 把整份配置解析打崩。合法项仍会留下。
             cfg.agent_bot_users.clear();
             std::istringstream entries(value);
             std::string entry;
@@ -316,9 +330,11 @@ Config LoadConfig(const std::string& path) {
         }
     }
 
-    // 环境变量优先级最高，便于容器/CI 注入敏感配置。
+    // 环境变量优先级最高，便于容器/CI 注入敏感配置。放在文件解析之后，
+    // 所以文件里写了 mysql_password 也会被 SPARK_PUSH_MYSQL_PASSWORD 盖掉。
     // 老配置只有 kafka_push_topic 时，两个新队列先回退到旧 topic，保持兼容；
     // 根目录模板显式配置独立 topic，因此默认运行会启用隔离队列。
+    // 只回退「文件里没写」的那一侧：写了 kafka_single_topic 就不会被旧 topic 覆盖。
     if (has_legacy_push_topic && !has_single_topic) {
         cfg.kafka_single_topic = cfg.kafka_push_topic;
     }

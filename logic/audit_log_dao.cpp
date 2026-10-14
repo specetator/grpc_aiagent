@@ -63,11 +63,17 @@ bool AuditLogDao::EnsureSchema(std::string* err_msg) {
     return true;
 }
 
+// 追加一条审计记录。只插不改不删，这是审计表能被信任的前提。
 bool AuditLogDao::Append(int64_t actor_user_id, int64_t target_user_id,
                          const std::string& action,
                          const std::string& reason,
                          const std::string& metadata_json,
                          std::string* err_msg) {
+    // 长度上限与 schema 列宽对齐（action VARCHAR(64)、reason VARCHAR(512)）。
+    // 在应用层先拦下而不是让 MySQL 报 "Data too long"：后者在非严格模式下
+    // 会静默截断而不报错，审计内容被截半比写失败更糟。
+    // metadata 的 1 MiB 上限是防止一个 bug 把整份消息正文写进审计表。
+    // 注意 actor_user_id 不做正数校验：允许为 0（系统自发动作）。
     if (!pool_ || action.empty() || action.size() > 64 || reason.size() > 512 ||
         metadata_json.size() > 1024 * 1024) {
         if (err_msg) *err_msg = "invalid audit log arguments";
@@ -92,6 +98,10 @@ bool AuditLogDao::Append(int64_t actor_user_id, int64_t target_user_id,
     BindLongLong(&bind[0], &actor);
     BindLongLong(&bind[1], &target);
 
+    // 三个文本列用循环绑定：写法完全一致，只是下标从 2 开始
+    // （0/1 已被两个 BIGINT 占掉）。lengths 必须是独立数组而不能取
+    // values[i]->size() 的临时值：MYSQL_BIND.length 存的是**指针**，
+    // mysql_stmt_bind_param 之后、execute 之前这些地址必须一直有效。
     const std::string* values[] = {&action, &reason, &metadata_json};
     unsigned long lengths[3] = {
         static_cast<unsigned long>(action.size()),

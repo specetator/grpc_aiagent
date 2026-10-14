@@ -68,13 +68,23 @@ bool AttachmentDao::EnsureSchema(std::string* err_msg) {
     return true;
 }
 
+// 全工程唯一把附件 id 拼成文件系统路径的地方。
+// fs::path 的 / 运算符对 "../x"、"/etc/passwd" 这类输入**不做任何防护**
+// （绝对路径甚至会直接取代左边），因此所有调用方必须先过
+// IsValidAttachmentId。把拼接收拢到这一个函数，就是为了让这道校验
+// 无处可逃——审查时只需要确认每个 FilePath 调用点前面都有校验。
 std::string AttachmentDao::FilePath(const std::string& id) const {
     return (fs::path(storage_dir_) / id).string();
 }
 
+// 写临时文件 + 原子 rename。不直接写正式路径的原因：
+// 同目录下的 rename 在 POSIX 上是原子的，并发读者要么看到旧文件、
+// 要么看到完整的新文件，永远不会读到写一半的字节。
 bool AttachmentDao::WriteFile(const std::string& id, const std::string& bytes,
                               std::string* err_msg) const {
     std::error_code ec;
+    // 用 error_code 重载而不是抛异常版：目录已存在时 create_directories
+    // 在某些实现上会抛，而这里已经存在是正常情况。
     fs::create_directories(storage_dir_, ec);
     if (ec) {
         if (err_msg) *err_msg = "cannot create attachment dir: " + ec.message();
@@ -83,12 +93,15 @@ bool AttachmentDao::WriteFile(const std::string& id, const std::string& bytes,
     const std::string path = FilePath(id);
     const std::string tmp = path + ".tmp";
     {
+        // 大括号作用域让 ofstream 在 rename 之前析构，确保数据已落盘。
         std::ofstream out(tmp, std::ios::binary | std::ios::trunc);
         if (!out) {
             if (err_msg) *err_msg = "cannot open attachment temp file";
             return false;
         }
         out.write(bytes.data(), static_cast<std::streamsize>(bytes.size()));
+        // write 失败（磁盘满、超配额）不会抛异常，只能靠检查流状态发现。
+        // 不检查就会 rename 一个零字节文件上去，并入库一条假记录。
         if (!out) {
             if (err_msg) *err_msg = "failed to write attachment bytes";
             return false;
@@ -96,6 +109,7 @@ bool AttachmentDao::WriteFile(const std::string& id, const std::string& bytes,
     }
     fs::rename(tmp, path, ec);
     if (ec) {
+        // 失败时清掉 tmp：否则重试会不断积累 .tmp 垃圾文件。
         fs::remove(tmp, ec);
         if (err_msg) *err_msg = "cannot publish attachment file";
         return false;
@@ -103,6 +117,10 @@ bool AttachmentDao::WriteFile(const std::string& id, const std::string& bytes,
     return true;
 }
 
+// 存一张图片。四道门禁的顺序是有讲究的，便宜的检查先做：
+// 尺寸 -> 魔数探测 -> 白名单 -> 生成 id 并落盘。
+// 把尺寸放最前是因为它是 O(1)，而探测需要扫字节；
+// 先拒掉 4 MiB 以上的上传能避开无谓的内存与 CPU 开销。
 bool AttachmentDao::CreateImage(int64_t owner_user_id,
                                 const std::string& session_id,
                                 const std::string& display_name,
@@ -117,6 +135,9 @@ bool AttachmentDao::CreateImage(int64_t owner_user_id,
         if (err_msg) *err_msg = "image must be 1 byte to 4 MiB";
         return false;
     }
+    // 一律用魔数探测结果，**从不采信客户端声明的 Content-Type**。
+    // 否则一个声明为 image/png 的 HTML/JS 文件会被存下来，
+    // 再通过附件下载接口以 image/png 返回，在部分浏览器上就成了存储型 XSS 载体。
     const std::string mime = DetectImageMime(bytes);
     if (!IsAllowedImageMime(mime)) {
         if (err_msg) *err_msg = "only jpeg/png/gif/webp images are allowed";
@@ -124,16 +145,23 @@ bool AttachmentDao::CreateImage(int64_t owner_user_id,
     }
     std::string id;
     if (!GenerateAttachmentId(&id, err_msg)) return false;
+    // 先磁盘后数据库：若反过来，INSERT 成功后写盘失败就会留下一行
+    // 指向不存在文件的记录，读取时报 404 很难定位；
+    // 而当前顺序下失败只会留下一个没人引用的孤儿文件，仅浪费磁盘。
     if (!WriteFile(id, bytes, err_msg)) return false;
 
     StoredAttachment row;
     row.id = id;
     row.owner_user_id = owner_user_id;
     row.session_id = session_id;
+    // display_name 为空时退化为 "<id>.img"，保证列非空且前端有东西可展示。
     row.display_name = display_name.empty() ? (id + ".img") : display_name;
+    // 截到 256 而不是报错：display_name 是纯展示字段，超长不应该让整次上传失败。
     if (row.display_name.size() > 256) row.display_name.resize(256);
     row.mime = mime;
     row.bytes = bytes.size();
+    // sha256 存的是内容的哈希而不是 id 的：相同图片会得到相同哈希，
+    // 将来做内容级去重或校验文件是否被篡改时直接可用。
     row.sha256 = Sha256Hex(bytes);
     row.storage_key = id;
     row.status = "ready";
@@ -343,11 +371,15 @@ bool AttachmentDao::BindSession(const std::string& id,
     return true;
 }
 
+// 从磁盘读回附件字节。
 bool AttachmentDao::ReadBytes(const StoredAttachment& attachment,
                               std::string* bytes, std::string* err_msg) const {
     if (!bytes) return false;
+    // storage_key 为空时回退到 id：早期数据只有 id，两个字段值本来就相同。
     const std::string key = attachment.storage_key.empty() ? attachment.id
                                                            : attachment.storage_key;
+    // 重复校验（调用方已经校过 id）是有意的纵深防御：本方法接收的是
+    // 一个完整的 StoredAttachment，无法假定它一定是从 GetById 出来的。
     if (!IsValidAttachmentId(key)) {
         if (err_msg) *err_msg = "invalid attachment storage key";
         return false;
@@ -359,6 +391,9 @@ bool AttachmentDao::ReadBytes(const StoredAttachment& attachment,
     }
     in.seekg(0, std::ios::end);
     const auto size = in.tellg();
+    // 不信任磁盘上的实际大小：文件可能在写入后被外部替换成巨文件，
+    // 而下面的 assign 会一次性把整个文件读进内存。
+    // size < 0 是 tellg 失败的返回值（例如目录而非文件），也要挡掉。
     if (size < 0 || static_cast<std::size_t>(size) > kMaxImageBytes) {
         if (err_msg) *err_msg = "attachment file is invalid";
         return false;
@@ -366,9 +401,14 @@ bool AttachmentDao::ReadBytes(const StoredAttachment& attachment,
     bytes->assign(static_cast<std::size_t>(size), '\0');
     in.seekg(0);
     in.read(bytes->data(), size);
+    // 转成 bool 检查流状态：读不满（文件在 seekg 与 read 之间被截断）会置 failbit。
     return static_cast<bool>(in);
 }
 
+// 拼出 Pi Agent 需要的 images 负载，实际读文件与 base64 编码在
+// common/image_attachment.cpp 的 LoadPiImagesFromDir 里。
+// 放在 common/ 而不是这里，是为了让 hermes_bridge 与单测能直接复用
+// 同一套探测/编码逻辑，避开两边行为不一致。
 bool AttachmentDao::LoadPiImages(const std::vector<ImageRef>& refs,
                                  nlohmann::json* images,
                                  std::string* err_msg) const {

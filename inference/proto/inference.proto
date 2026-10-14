@@ -1,24 +1,36 @@
 syntax = "proto3";
 package sparkpush.inference;
 
+// 网关调度看到的 worker 快照。一个进程只服务一个 model_id。
 message WorkerInfo {
   string worker_id = 1;
+  // worker 自己监听的 gRPC 地址。网关按它建下游 channel，不经过注册表以外的发现。
   string endpoint = 2;
   string model_id = 3;
   string device_type = 4;
   int32 device_index = 5;
+  // 探针失败时这两个都是 0。调度把「总显存为 0」当成压力 0，而不是当成已经占满。
   uint64 total_memory_bytes = 6;
   uint64 free_memory_bytes = 7;
+  // 调度和准入用的在途数。gateway_managed_only 时只信网关自己的租约，
+  // 否则取心跳上报和网关计数的较大值。见 WorkerRegistry::Snapshot。
   uint32 running_requests = 8;
+  // 运行时自己的等待队列（llama/vLLM 指标），不是网关那条全局 FIFO。
   uint32 waiting_requests = 9;
   uint64 kv_cache_bytes = 10;
   bool healthy = 11;
+  // 最近一次注册或心跳的墙上时间。网关用它算心跳年龄，过期判定用的是 steady_clock。
   int64 timestamp_ms = 12;
+  // 0 表示不设上限（LeastLoadedScheduler 会跳过「已满」判断）。
+  // worker 进程的命令行不允许传 0，避免和「这个进程必须有并发上限」搞混。
   uint32 max_concurrent_requests = 13;
+  // 探针读到的原始值，不参与准入。调度看的是上面的 running_requests。
   uint32 runtime_running_requests = 14;
   uint32 runtime_waiting_requests = 15;
   double kv_cache_usage_ratio = 16;
   // nvml (device-wide), cuda_driver (OS/context accounting), hip, unavailable.
+  // 译：显存数从哪读来的。nvml 是整卡，cuda_driver 是当前 context 的记账，
+  // hip 是 ROCm。unavailable 时上面两个字节数字段保持 0，不要拿旧值凑合。
   string memory_probe_source = 17;
 }
 
@@ -28,15 +40,24 @@ message HeartbeatRequest { WorkerInfo worker = 1; }
 message HeartbeatReply { bool accepted = 1; string error = 2; }
 message GenerateRequest {
   string request_id = 1;
+  // 非空时网关用它做会话亲和，让同一会话回到上次的 worker 以复用 KV cache。
   string session_id = 2;
   string model = 3;
+  // 旧字段。llama 后端只在 chat_turns 为空时把它当成单条 user 消息。
+  // Bridge 会把这里写成最后一条，完整历史在 chat_turns。
   string prompt = 4;
+  // 更早的纯文本列表，没有 role。新路径不要再填它，worker 的空请求检查仍认它。
   repeated string messages = 5;
+  // 0 表示「调用方没指定」。llama 后端会改用 128，mock 会改用 6。不是「生成 0 个 token」。
   uint32 max_tokens = 6;
   // Explicit oneof preserves presence and field-7 wire encoding on protoc 3.12.
+  // 译：显式 oneof 是为了保留「这个字段有没有设过」，以及 protoc 3.12 上 field 7 的线上编码。
+  // proto3 的普通 float 分不清「没设」和「设成 0」。没设时 llama 用 0.7；
+  // 设成 0 必须原样传下去，那是贪心解码。改成 optional 会改 wire，旧客户端对不上。
   oneof sampling_temperature {
     float temperature = 7;
   }
+  // 后端只认白名单：seed，以及 llamacpp 的 cache_prompt / ignore_eos。其余键丢掉。
   map<string, string> metadata = 8;
   repeated ChatTurn chat_turns = 9;
 }
@@ -46,8 +67,11 @@ message ChatTurn {
 }
 message GenerateChunk {
   string request_id = 1;
+  // 从 0 连续递增。终态块也占一个序号。网关见到终态后再来一块，或者序号对不上，判 DATA_LOSS。
   uint64 sequence = 2;
   string text_delta = 3;
+  // 终态块 finished=true，text_delta 为空，token 计数在这一块上。
+  // 流结束却没有这一块，网关和 Bridge 都当失败，不把半截文本当成完整回答。
   bool finished = 4;
   string finish_reason = 5;
   string error = 6;

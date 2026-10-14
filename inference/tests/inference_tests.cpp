@@ -36,6 +36,10 @@ GenerateRequest MakeRequest(const std::string& id) {
   request.set_prompt("hello");
   return request;
 }
+// 锁住 temperature 的 presence 和 field 7 的线上字节。
+// 5 个字节是 proto 的 key（field 7, fixed32）加 4 字节 0。
+// 解析之后必须仍是「设过，值为 0」，再序列化回去字节不变。
+// clear 之后 presence 消失。这条坏了，CLI 的 temperature=0 会被后端当成没设，改用 0.7。
 void WireTemperaturePresence() {
   GenerateRequest request;
   Check(request.sampling_temperature_case() != GenerateRequest::kTemperature,
@@ -50,6 +54,9 @@ void WireTemperaturePresence() {
   Check(request.sampling_temperature_case() != GenerateRequest::kTemperature,
         "cleared temperature presence");
 }
+// 注册表和调度：重复注册更新负载但不另起一条；平分时按 worker_id 选较小的；
+// 满员的 worker 被滤掉；心跳超时后 Find 为空，但 List 仍能看到不健康的节点。
+// gateway_managed_only 下，本地租约释放后必须立刻可调度，即使心跳里还写着 running=1。
 void RegistryAndScheduler() {
   WorkerRegistry registry(std::chrono::milliseconds(25));
   auto a = MakeWorker("a"), b = MakeWorker("b");
@@ -91,6 +98,7 @@ void RegistryAndScheduler() {
   std::this_thread::sleep_for(std::chrono::milliseconds(35));
   Check(managed.FindWorkersForModel("mock-model").empty(), "managed mode preserves TTL");
 }
+// 卡在 Generate 里，直到测试放开或取消。用来占住唯一的并发槽。
 class BlockingBackend final : public GenerationBackend {
  public:
   std::atomic<bool> entered{false}, release{false};
@@ -105,6 +113,9 @@ class BlockingBackend final : public GenerationBackend {
     return emit(end);
   }
 };
+// 队列长度 1、worker 并发 1。第一条占住槽，第二条排队，第三条 RESOURCE_EXHAUSTED。
+// 取消排队中的请求得到 CANCELLED；槽还被占着时再来一条，等满 queue_timeout 得到 DEADLINE_EXCEEDED。
+// 绕过网关直连 worker，同样受 max_concurrent 限制。放开后 running 必须回到 0。
 void AdmissionAndCapacity() {
   WorkerRegistry registry;
   LeastLoadedScheduler scheduler;
@@ -172,6 +183,10 @@ void AdmissionAndCapacity() {
         "Prometheus histogram buckets exported");
   ws->Shutdown(); gs->Shutdown();
 }
+// 没有 worker 时 UNAVAILABLE，且一个块都不吐。
+// mock 流是 6 个文本块加 1 个终态块，序号 0..6，所以 count==7。
+// Cancel 之后不能再读到块，running 回到 0。客户端 TryCancel 得到 CANCELLED。
+// worker 进程关掉之后，网关侧的在途计数也必须回到 0，不能把坑占死。
 void StreamAndCancel() {
   WorkerRegistry registry(std::chrono::seconds(5));
   LeastLoadedScheduler scheduler;
@@ -214,6 +229,7 @@ void StreamAndCancel() {
       Check(chunk.sequence() == static_cast<uint64_t>(count++), "ordered sequence");
       terminal = chunk.finished();
     }
+    // 6 个词加 1 个终态块。终态也占序号，所以是 7 而不是 6。
     Check(reader->Finish().ok() && count == 7 && terminal, "stream terminal");
     Check(registry.ListWorkers()[0].running_requests() == 0, "running count decremented");
   }

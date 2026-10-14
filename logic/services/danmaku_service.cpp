@@ -36,6 +36,9 @@ DanmakuResult DanmakuService::Send(const std::string& token,
         return result;
     }
     int64_t token_user_id = 0;
+    // token 反查而不是信任请求体里的 user_id：http_server 会把 body 里的
+    // user_id 读进来，但本函数完全不用它，只认 token 解出的身份。
+    // 否则客户端只要写 {"user_id": 123} 就能冒充任何人发弹幕。
     if (!redis_->GetUserIdByToken(token, &token_user_id) || token_user_id <= 0) {
         result.status = {401, "invalid token"};
         return result;
@@ -52,6 +55,11 @@ DanmakuResult DanmakuService::Send(const std::string& token,
     const int64_t kDanmakuRoomId = 1001;
 
     // 构造下行给前端的 JSON 内容
+    //
+    // 已知缺陷：这里是**手工拼 JSON**，video_id 与 text 都没转义。
+    // 一条包含 " 或 \ 的弹幕会产出非法 JSON，下游 JSON.parse 直接失败。
+    // 改成 nlohmann::json{{"type","danmaku"}, ...}.dump() 就能自动转义，
+    // 而且不会比现在的写法长。全链路对 text 也没有长度上限。
     std::ostringstream content_oss;
     content_oss << "{\"type\":\"danmaku\"" << ",\"video_id\":\"" << video_id << "\""
                 << ",\"timeline_ms\":" << timeline_ms << ",\"content\":{\"text\":\""
@@ -65,11 +73,17 @@ DanmakuResult DanmakuService::Send(const std::string& token,
         if (!dao_->InsertDanmaku(video_id, timeline_ms, user_id, content_json, &row_id,
                                  &err)) {
             // 中：写库失败只打日志，不中断实时推送
+            // 这是弹幕与普通 IM 消息的关键差异：普通消息必须持久化成功
+            // 才回 accepted_ack，而弹幕宁可丢历史也要保实时。
+            // 理由是弹幕的价值随时间迅速衰减（几秒后就没人看了），
+            // 为它阻塞实时链路不值得。普通消息绝不能照搬这个做法。
             LOG_ERROR << "InsertDanmaku failed: " << err;
         }
     }
 
     // 写入内存模型（会话 & 消息），并更新 Redis 中的 last_seq
+    // 注意弹幕因此也占用房间会话的 msg_seq：它同时存在于
+    // video_danmaku（回放用）与 message（序号轴 + 实时推送用）两张表。
     Session session;
     std::string err;
     if (!store_->GetOrCreateRoomSession(kDanmakuRoomId, &session, &err)) {
@@ -100,6 +114,14 @@ DanmakuResult DanmakuService::Send(const std::string& token,
     cm.set_content_json(msg.content_json);
 
     // 计算需要推送到哪些 comet
+    //
+    // 两种扇出策略，优先用第一种：
+    //   路由集存在   只按 comet 维度发，targets 留空，由 Comet 自己按
+    //                房间成员二次分发。扇出工作量从 Logic 转移到各 Comet，
+    //                Logic 只需要发 N 条（N = 有人的 comet 数）而不是 M 条（M = 成员数）
+    //   路由集为空   退化到「查成员表 + 逐个查用户路由」的精确扇出。
+    //                慢很多（两次数据库/Redis 查询 × 成员数），仅作兜底。
+    // 路由集由 RoomService::ReportRoomJoin/Leave 维护（见 room_service.h）。
     std::unordered_map<std::string, std::vector<int64_t>> comet_to_users;
     std::vector<std::string> room_comets;
     bool use_room_comets = false;

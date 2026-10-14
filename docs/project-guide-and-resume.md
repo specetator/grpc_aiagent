@@ -6,7 +6,7 @@
 
 本文保留当前架构、核心链路、算法细节、运行方法、最新测试和简历材料。
 已移除旧 Redis 取号算法、重复面试稿、历史发布流水和过时性能表；完整实验留在带日期的专题报告中。
-快速复习顺序：第 1～3 节理解项目，第 4 节准备算法追问，第 6～7 节查看证据和简历。
+快速复习顺序：第 1～3 节理解项目，第 4 节准备算法追问，第 6～7 节查看证据和简历。不认识的词先查第 9 节。
 
 ## 1. 项目定位与边界
 
@@ -687,3 +687,439 @@ python3 cannbot/scripts/test_pi_citations.py
 弹幕演示改为浏览器选择本地视频，不上传视频；旧专题里的 Redis 取号描述不是当前运行真源。
 有冲突时回到根目录代码与本手册。
 后续顺序：真实故障/迁移演练→热点会话性能分解→安全与路由租约→告警恢复→多机与长期容量验证。
+
+## 9. 术语索引
+
+本节解释正文里的模块名、协议、状态词和缩写。每条先说这个词本身是什么，再说它在 Spark Push 里落在哪。步骤、数字和证据仍以第 1～8 节为准。
+
+同一个英文词会指不同的东西，要连着它的宾语看：
+
+| 看到的词 | 实际是什么 |
+|---|---|
+| 登录 token | 证明“你是这个用户”的随机字符串，存在 Redis |
+| 令牌桶 token | 限流用的许可，花掉 1 个才能发一次 |
+| 模型 token | 大模型吐出的一小段文本，和登录无关 |
+| Redis generation | 这次上线的路由代次，用来挡住迟到的下线 |
+| 连接 generation | 客户端这次连接的代号，旧连接的回调不能改新连接 |
+
+查词顺序：9.1 看一条消息会留下哪些证据，9.2～9.4 看 Kafka、canonical 原文和 gRPC，后面的表按主题补其余词。
+
+### 9.1 一条消息会留下哪些证据
+
+用户发出一条单聊后，系统分几步记账。后一步的成功，只证明后一步自己的事。
+
+| 状态 | 这时已经发生的事 | 这时还不能当作已经发生 |
+|---|---|---|
+| reserved | MySQL 分配了 `msg_seq`，并冻结 canonical 原文 | 发给 Kafka 的字节还没写好 |
+| prepared | 同一行写入了不可变的二进制 outbox | Kafka 还没确认 |
+| accepted_ack | `persist_message` 的 Kafka 收条已回来 | 历史表可能还没写入；对方可能不在线 |
+| delivered_ack | 目标连接所属的 IO 线程检查容量后，接受了这次发送 | 对方客户端未必已经显示，也未必已读 |
+| history persisted | Job 把历史行幂等写入 MySQL，阶段变成 3 | 用户未必已读 |
+| read_seq | 客户端主动说“我读到这里” | 发送方当时未必收到这条已读 |
+
+现场例子：1 号还停在 prepared，2 号已经 delivered。连续水位停在 0。客户端要等 1 号落库并补投之后，才能把水位推进到 2。直接取“已投递序号的最大值”会把 1 号永久跳过。
+
+`ai_delta` 是模型回答的临时预览。它不取号、不写历史、不推动上面任何一个水位。完整答案 `ai_reply` 才重新走这条持久链路。
+
+### 9.2 Kafka 是什么
+
+Kafka 是一个按主题保存记录的日志服务。发送方把记录追加到主题末尾；消费方按自己记住的位置往下读。这个位置叫 offset。
+
+普通消息由 Logic 写入、Job 执行。AI 主题的方向不同，见下表。主题分开，积压和故障也分开：
+
+| 主题 | 谁写入 | 谁消费 | 消费完做什么 |
+|---|---|---|---|
+| `persist_message` | Logic | Job | 幂等写入 MySQL 历史 |
+| `push_single`、`push_group`、`broadcast_task` | Logic | Job | 经 gRPC 推给对应 Comet |
+| `ai_request` | Logic | Bridge | 调用 Pi 或推理网关 |
+| `ai_delta` | Bridge | Logic | 只把预览推给在线客户端 |
+| `ai_reply` | Bridge | Logic | 再走 `persist_message` 和推送，成为可恢复的答案 |
+
+几个跟着 Kafka 一起出现的词：
+
+| 术语 | 含义 |
+|---|---|
+| broker | 一台 Kafka 服务进程。本轮测试是单 broker |
+| topic | 一类记录的名字，例如持久化和单聊推送各用各的主题 |
+| partition | 主题内部的一段有序日志。顺序只在同一个 partition 内有效 |
+| producer | 往 Kafka 写的一方。Logic 写持久化和推送，Bridge 写 `ai_delta`、`ai_reply` |
+| consumer | 从 Kafka 读的一方。Job 读持久化和推送，Bridge 读 `ai_request`，Logic 读 `ai_delta`、`ai_reply` |
+| consumer group | 共用一个组名的消费者。组内分 partition，并共用 offset |
+| offset | 消费进度。处理成功后才提交；提交前崩溃，这条会再被读到 |
+| commit / commitSync | 把 offset 正式记到 Kafka。`commitSync` 会等这次提交完成 |
+| auto commit | 客户端按时间自动提交。本项目关掉了它，避免业务没做完就记成完成 |
+| acks=all | 生产者等到同步副本都确认。副本数只有 1 时，确认的就是那一台 |
+| RF | replication factor，一个 partition 有几份副本。本轮 RF=1 |
+| idempotence | 这里指 Kafka 生产者自己的重试去重。它管的是“同一次生产不要写成两条” |
+| DR | delivery report，broker 对这一次写入的收条。`SendAndWait` 等的就是它 |
+| opaque | 随这条写入交给 Kafka、收条回来时原样带回的指针。收条到达前不能释放 |
+| librdkafka | 本项目使用的 C 语言 Kafka 客户端库 |
+| lag | 消费者落后日志末尾多少条。队列被拒绝、排队年龄也要一起看 |
+| DLQ | dead letter queue，死信队列。处理失败的记录可以改存到这里 |
+| KRaft | Kafka 自己保存集群元数据的方式。这些文件在数据目录里，迁移时要一起搬 |
+| log.dirs | Kafka 存放日志和 KRaft 元数据的目录 |
+| best-effort | 实时推送失败后有限重试并记日志。这条路径本身没有完整的可重放死信 |
+| exactly-once | 崩溃和重试之后，效果仍只出现一次。本项目的模型是“提交前可能重放，下游按同一身份合并” |
+
+因此简历里可以把实现说成：Kafka 收条和连接接受发送分成两段确认，提交 offset 前允许重放，历史写入和客户端会合并重复。第 6 节给出的是三轮短负载，以及一次没有通过的同会话大突发。
+
+### 9.3 canonical 原文具体是什么
+
+canonical 的意思是“被认定的那一份正式版本”。这里的原文，就是这条消息第一次受理时冻结下来的内容。
+
+它的物理位置是表 `message_reservation` 的 `original_message` 列，类型是二进制大对象。第一次 `Reserve` 成功时，Logic 写入一份 JSON，字段固定为：
+
+| JSON 字段 | 内容 |
+|---|---|
+| session | 会话号 |
+| seq | 刚分配的 `msg_seq` |
+| sender | 发送者 |
+| type | 消息类型 |
+| content | 正文 |
+| time | 当时的时间戳，单位毫秒 |
+| client | 客户端带来的 `client_msg_id` |
+
+代码里的输出参数就叫 `canonical`。三种结果：
+
+1. 这个会话、这个发送者、这个 `client_msg_id` 第一次出现：分配新序号，把上面这份 JSON 存进去，并把它当作结果返回。
+2. 同一个身份再来，类型和正文的字节也相同：读出旧 JSON，返回原来的序号、正文和时间戳。
+3. 同一个身份再来，但类型或正文有差异：拒绝。同一个 ID 不能改口。
+
+时间戳必须沿用旧值。若重试时改成“现在”，Job 逐字段比较会把这次合法重试看成另一条消息。
+
+它和 outbox 是相邻的两份数据。原文回答“这条消息是什么”；outbox 是依据这份原文编出来、准备发给 Kafka 的 protobuf 字节，放在同一行的 `persist_payload`。prepare 时写入 outbox，已有字节必须完全相同。
+
+正文还有第二处 canonical。Agent 的 `route_key` 把 tenant、channel、conversation、thread 收成字段顺序固定的 JSON，再做哈希。那是“同一身份永远得到同一个键”的规范写法，和消息原文无关。
+
+### 9.4 gRPC 是什么
+
+gRPC 是两个进程之间的调用方式。调用方按函数的形式发出请求，参数和返回值用 Protobuf 编成二进制。双方靠同一份 `.proto` 知道每个字段的编号和类型。
+
+用户侧用 HTTP 和 WebSocket。gRPC 用在服务进程之间：Comet、Logic、Job，以及可选的推理 Gateway 与 Worker。
+
+| 形态 | 样子 | 本项目中的例子 |
+|---|---|---|
+| Unary | 一次请求，一次响应 | Comet 拿 token 请 Logic 做 `VerifyToken`；流失败时的 Unary fallback |
+| 双向流 | 一条调用上两边可以连续发送 | 上行 `MessageStream`：Comet → Logic；下行 `PushStream`：Job → Comet |
+
+流里的回复按 `request_id` 找回那一次请求。先发出的请求，可以后收到回复。`Write` 成功只说明 gRPC 库收下了字节；Job 收到同一个 ID 的成功 reply，才认为这次推送调用完成。
+
+旁边几个协议词：
+
+| 术语 | 含义 |
+|---|---|
+| HTTP | 一问一答的文本/二进制协议。登录、拉历史、上传图片用它 |
+| WebSocket / WS | 先用 HTTP 握手，再在同一条连接上双向发送帧。客户端和 Comet 的长连接 |
+| WSS / HTTPS | 跑在 TLS 上的 WebSocket / HTTP。公网部署要用加密这层 |
+| TLS | 传输加密，并靠证书确认对面是哪台服务器 |
+| CA | 证书签发者。客户端用它判断服务器证书是否可信 |
+| SSE | Server-Sent Events。服务器沿一条 HTTP 响应持续推文本事件。Bridge 用它读模型输出 |
+| Protobuf | Protocol Buffers。带字段编号的二进制格式。outbox 和 gRPC 参数都用它 |
+| RPC | remote procedure call，远程过程调用。gRPC 是其中一种实现 |
+| metadata | 随一次 RPC 附带的键值。内部调用要恰好带一个 `x-spark-rpc-key` |
+| channel | 到某个 gRPC 服务的连接 |
+| stub | 由 `.proto` 生成的客户端对象，上面是一个个可调用的方法 |
+| context | 一次调用的取消和期限句柄。取消表示“请停”，线程仍要等它真正退出 |
+| deadline | 绝对截止时间。Comet 的 ACK 从入队算起 8 秒；池子借连接的 3 秒也不会因为多次醒来而延长 |
+| flow control | 接收方声明自己还能收多少字节。发送方必须遵守，避免把慢的一方撑爆 |
+| Bearer | HTTP 头 `Authorization: Bearer` 后面放登录 token，用来表明这次请求带着访问凭证 |
+
+内部密钥只区分 Comet、Job、管理员这几个进程角色。用户是谁、能不能进这个会话，仍要拿连接上的登录 token 再查一次。
+
+### 9.5 模块和角色
+
+| 术语 | 含义 |
+|---|---|
+| IM | instant messaging，即时通讯。单聊、房间、已读、离线补拉都属于这一层 |
+| Spark Push | 这个 C++17 项目的名字。连接、业务、异步任务分进程 |
+| Comet | 守着用户长连接的接入进程。WebSocket 9000，内部 RPC 9105，指标 9203 |
+| Logic | 业务进程。管登录、会话、序号、幂等、路由和历史查询。HTTP 9101，内部 RPC 9100 |
+| Job | 消费 Kafka 的进程。负责推送到 Comet，以及把历史写入 MySQL。指标 9202 |
+| Bridge | 可选进程。消费 AI 请求，用 HTTP/SSE 调模型，再把预览和最终答案发回 |
+| Pi / Pi Gateway | 可选的编程 Agent 及其本地网关，默认端口 8643。管会话、轮次、事件和工具 |
+| Inference Gateway | 可选推理入口。负责排队、挑选 Worker、取消 |
+| Inference Worker | 可选推理进程。管模型运行时、心跳和本进程并发 |
+| WebDemo | 浏览器演示页，HTTP 9010。自己做排序、去重和补拉 |
+| Kotlin / Compose | 写 Android 客户端的语言和界面框架 |
+| Muduo | 本项目使用的 C++ 网络库。一条连接固定归某一个事件循环线程 |
+| adapter | HTTP 或 gRPC 的外壳。它取出凭证、翻译协议，再调用 Service |
+| Service | 业务规则所在的层。鉴权、序号、成员、附件都在这里统一 |
+| Repository | Service 下面的存储封装，挡住 SQL、Redis、Kafka 的具体写法 |
+| DAO | data access object。针对某张表或一类查询执行 SQL 的对象 |
+| actor | 这次请求声称的操作者。提交时用连接上的 token 重新核对 |
+| 路由 | “这个用户或房间当前连在哪台 Comet”。在线路由放 Redis |
+| presence | 某条 WebSocket 还连着。房间能不能发言，以数据库中的成员为准 |
+| fanout | 把一条消息复制给多个连接或多个 Comet。群聊和广播都要做这件事 |
+| 弹幕 | 叠在画面上的短消息。它和单聊、旧 HTTP 发送共用同一套 SQL 取号。演示时由浏览器选择本地视频，视频文件不上传 |
+
+拆成 Comet、Logic、Job 是为了分别限制连接数、业务复杂度和消费速度。机器的 CPU、Kafka 和网卡仍然可以是同一套。
+
+### 9.6 消息身份和表
+
+| 术语 | 含义 |
+|---|---|
+| session_id | 会话号。单聊是 `s_` 加两个用户号，小号在前；房间是 `r_` 加房间号 |
+| msg_seq | 会话内部的递增序号。只保证这个会话内的顺序，跨会话没有总顺序 |
+| msg_id | `session_id` 加 `-` 再加 `msg_seq`。服务端给这条消息的身份 |
+| client_msg_id | 客户端给“一次发送”起的 ID。唯一范围是同一个会话加同一个发送者。WebSocket 上长度为 1～128 字节 |
+| request_id | 一次内部流请求的配对号。Job 默认用 `msg_id@comet_id`。业务发送身份看 `client_msg_id`，流上的配对看 `request_id` |
+| reservation | `message_reservation` 中的一行。保存序号、canonical 原文、outbox 和阶段 |
+| outbox | 发件箱模式：先把即将送出的事件写进数据库，确认失败后再用同一份字节重发。本项目放在 `persist_payload` |
+| stage | 这一行走到哪一步。0 已预留，1 已准备，2 Kafka 已发布，3 历史已落库，4 已封存 |
+| sealed | stage=4。只有超过 10 分钟且从未 prepare 的行能封存。封存会留下一个可以跳过的缺号 |
+| protobuf | 见 9.4。persist outbox 是 protobuf 字节 |
+| message_sequence | 每个会话一行，锁住它来分配下一个 `msg_seq` |
+| message | 历史消息表。和 reservation 分开；Job 幂等插入后，用户才能从历史里读到 |
+| receipt | `message_delivery_receipt` 的一行，证明这个用户的这个序号曾经被接受发送 |
+| delivered_seq | 连续已投递水位。它以下的历史消息都已有投递证明；封存缺号可以越过，尚未落库的预约不能越过 |
+| read_seq | 客户端上报的已读水位。它晚于投递，不能用来推断哪些消息已经送到 |
+| safe_seq | 服务端先算 safe：持久序号，与最早未落库预约的前一位，取较小者。返回本页时再和本页最后一条取较小值；空页可以返回完整 safe。客户端按 4.6 的条件用它补齐游标 |
+| 水位 | 连续确认到的最大位置。更高的序号可以已经出现，但中间有洞时不能跳过去 |
+| continuation | 跨会话离线补拉的书签，记住下一个会话和序号从哪里接着查 |
+| 游标 cursor | 客户端已经连续收齐的序号。比它大、中间还有洞的序号放进 seen，先不把游标跳到最大值 |
+| seen | 客户端已经见过、但还连不上游标的序号集合 |
+| TreeMap | 按键排序的树形映射。Android 用它把乱序的 `ai_delta` 按 `delta_index` 排好 |
+| envelope | 最终答案的包裹。它的 sequence 要等于 delta 的条数 |
+
+阶段 0 超过 10 分钟会被封存。阶段 1 和 2 还没走完，不能按“创建满一天”删掉。阶段 3 和 4 满一天后才分批清理，所以幂等只保证留在这个窗口内。
+
+### 9.7 可靠性、游标和投递
+
+| 术语 | 含义 |
+|---|---|
+| ACK | acknowledgement，确认。本项目把 accepted 和 delivered 分成两次 ACK |
+| 两阶段 ACK | 第一次确认 Kafka 已收持久化事件，第二次确认目标连接已接受发送 |
+| 幂等 | 同一操作做两次，结果和做一次一样。相同 `client_msg_id` 返回同一条；相同历史事件字段全同才算重复成功 |
+| sequence collision | 序号相同，但内容字段不同。这是冲突，历史写入不能悄悄覆盖 |
+| Sync | 在一个会话里，按“序号大于 after”拉取安全前缀内的一页 |
+| Offline / SyncOffline | 握手后按会话逐个补拉离线消息，用 continuation 记住读到哪 |
+| has_more | 这次多读了一条，说明后面还有下一页 |
+| next_seq | 本页最后一条的序号。它本身不证明前面的缺号都已结算 |
+| 413 | HTTP“内容过大”。单条历史超过本页字节预算时返回它，并且不推进游标 |
+| 半包 | TCP 这次只送到了请求或帧的一部分。解析停下来等下一次数据 |
+| coalesced | 一次读里同时到了握手头和后面的第一帧。计算头的长度时不能把帧算进去 |
+| FIN / opcode / mask / RSV | WebSocket 帧头。FIN 表示这一帧结束，opcode 表示文本、关闭或心跳，客户端数据必须带 mask，RSV 在本项目中为 0 |
+| Ping / Pong / Close | 控制帧。Ping 回一份相同内容的 Pong；Close 先回应再关闭。Pong 不是聊天消息 |
+| 高水位 | 单条连接的待发送字节上限。这里是帧加输出缓冲 4 MiB，超过就关慢连接 |
+| Unary fallback | 流上的回复没在期限内回来时，Job 可以改用一次一问一答再推 |
+| watchdog | 独立计时器。写线程堵住时，仍由它把超过 deadline 的排队请求判失败 |
+| 背压 | 下游满了以后，上游改为拒绝、限速或断开，避免内存无限增长 |
+| 令牌桶 | 按固定速率补充许可、最多存 burst 个。许可不足时拒绝，HTTP 状态是 429 |
+| burst | 桶里允许积攒的许可上限，用来放过一小段突发 |
+| 429 | HTTP Too Many Requests。这次被限流拒绝 |
+| steady_clock | 单调时钟。系统时间被改掉时，它不会跟着回拨，适合算速率和等待 |
+| readiness | `/ready` 表示这个进程现在能正常服务。端口还在听，只能说明进程还活着 |
+| metrics | 一段可抓取的运行计数，例如队列长度、ACK 超时、流是否就绪 |
+| dry-run | 只检查并打印将要做什么。`dlq_replay` 默认如此，加上 `--apply` 才真正发布 |
+| schema | 数据的结构。重放死信时要先核对结构、目标和十六进制内容 |
+
+入口限流、SQL、Kafka、Job 队列、gRPC 流量控制、Comet 输出缓冲、慢客户端，是一整条链。只放宽其中一处的超时，不会让整条链变快。
+
+### 9.8 MySQL、Redis 和 SQL 写法
+
+| 术语 | 含义 |
+|---|---|
+| MySQL | 关系型数据库。序号、原文、历史、投递收据以它为准 |
+| Redis | 内存键值库。放登录 token、在线路由、在线计数和未读缓存 |
+| SQL | 操作 MySQL 的语句。正文里的“SQL 取号”就是用事务在 MySQL 里分配序号 |
+| 事务 | 一组 SQL 要么一起提交，要么一起撤销。取号、查重、保存原文在同一个事务里 |
+| 唯一键 | 数据库拒绝重复的键。同一会话的序号不能重复；同一发送者的 `client_msg_id` 也不能重复 |
+| UPSERT | `INSERT ... ON DUPLICATE KEY UPDATE`。行不存在就插入，存在就走更新。这里用它保证会话序号行存在 |
+| FOR UPDATE | 读的同时给这行加排他锁，别的事务要等本次提交。同一个会话的取号因此串行 |
+| INSERT IGNORE | 键冲突时静默跳过。用在这条序号行上时，两个事务可能先拿共享锁，再互相等待升级，所以当前实现不用它取号 |
+| 共享锁 / 锁升级 | 共享锁允许多人读；之后若要改，必须升级成排他锁。两个人同时升级就会互相等 |
+| prepared statement | SQL 文本里用 `?` 占位，数值另送。比较按传入的字节进行 |
+| 字符集排序规则 | MySQL 比较字符串的规则。二进制列按原始字节比较，避免看起来相近的 ID 被当成同一个 |
+| GREATEST | 取两个数里较大的一个。用来避免乱序更新把阶段或 `last_msg_seq` 改小 |
+| MEDIUMTEXT / MEDIUMBLOB | 存放较长文本或二进制的列类型。历史正文、原文和 outbox 用这类大字段 |
+| 连接池 | 预先维持有限个数据库连接，请求来了借出，用完归还 |
+| RAII | 用 C++ 对象的生命周期管理资源。guard 析构时自动还连接，中途返回也会还 |
+| SQLite | 单个文件里的数据库。Pi Gateway 用它记轮次和事件 |
+| TTL | time to live，存活时间。到期后 Redis 键或本地路由缓存失效。路由缓存默认 1 秒 |
+| Lua | Redis 执行的一小段脚本。比较租约和删除在脚本里一次做完，中间插不进别的命令 |
+| generation | 这个用户在这台 Comet 上的上线次数。旧的下线请求必须带当时的次数 |
+| nonce | 配在 generation 后面的随机数。Redis 计数器丢失后重新从小数开始，旧请求仍然对不上 |
+| lease | 租约，这里是 Redis 里的 `generation:nonce`。只有持有当前值的下线可以删路由 |
+| 路由代次 | 就是上面的 generation。新连接先注册，旧连接后下线，也不能把新路由删掉 |
+| INCR / SET / GET | Redis 命令：整数加一、写入、读取 |
+| SADD / SREM | 向集合加入成员、从集合移除成员。路由集合用它们记录 Comet |
+| SCAN / KEYS | 两种遍历键的方式。SCAN 分段进行；KEYS 会一次卡住服务器。旧 token 只偶尔用 SCAN |
+| 未读缓存 | Redis 里的未读计数缓存。投递事实以 MySQL 收据和 `delivered_seq` 为准 |
+
+当前序号权威是 MySQL。Redis 整库清空后，已分配的 `msg_seq` 不会因此重号；token 和在线路由需要重新建立。
+
+### 9.9 线程、锁、队列和复杂度
+
+| 术语 | 含义 |
+|---|---|
+| main loop | Muduo 的主事件循环线程，负责接受新连接并分发给 IO 线程 |
+| IO worker | 跑事件循环的工作线程。Comet 默认 8 个 |
+| owner loop | 拥有某条连接的那个事件循环。这条连接的状态变更都回到它上面做 |
+| mutex | 互斥锁。同一时刻只让一个线程进入被保护的代码 |
+| 临界区 | 拿着锁执行的那段代码。这段里如果还要等 Kafka，整个会话的后续提交都要排队 |
+| try_lock | 试着拿锁，拿不到就先返回。会话锁每 5 毫秒试一次，最多等 8 秒 |
+| condition_variable / cv | 条件变量。线程睡在上面，等别人通知，避免空转查队列 |
+| shared_ptr | 共享所有权的指针。还有副本在，对象就不会销毁 |
+| weak_ptr | 不增加所有权的指针。使用前先 `lock()`；对象已经没了就拿不到 |
+| atomic | 可以安全地被多个线程同时读写的变量 |
+| UAF | use after free。对象已经析构，回调仍使用它的地址。退出时要等线程和回调真正结束 |
+| join | 等到那个线程的函数返回。取消 context 之后仍然需要 join |
+| callback | 稍后由网络库、Kafka 或定时器调用的函数 |
+| ThreadPool | 固定数量的工作线程，加一个有上限的任务队列 |
+| 有界队列 | 限制条数和字节数的队列。满了就拒绝本次提交 |
+| deque | 两端都能进出的队列。本项目用它按插入顺序忘掉最早的 ID，也用它放空闲连接 |
+| unordered_set / 哈希表 | 按键平均一次定位。`request_id` 去重和 pending 表都用它 |
+| FIFO | first in, first out，先进入的先出来。ID 窗口满了就丢掉最早的那个 |
+| LRU | least recently used，最近用过的留到最后。本项目的 ID 窗口不因为再次命中而刷新位置 |
+| 哈希 | 把一段数据变成固定长度的摘要。路由键和源码副本用哈希当身份 |
+| O(1) | 数据变多时，这项操作的代价基本不变。平均查找哈希表就是这样 |
+| O(log N) | 代价随数量缓慢增长。数据库索引定位、树的插入属于这一类 |
+| O(n²) | 代价随长度的平方增长。每次都重新拼接整段文本就会这样，所以增量用树加追加 |
+| map | 有序映射。会话锁表用它保存键到锁的弱引用 |
+| shared_mutex | 允许多人同时读，写的时候只留一个写者。本地路由缓存用它 |
+| 字节权重 | 入队时由调用方估计的任务大小。它是队列上限，不是整个进程的内存上限 |
+| KiB / MiB | 1 KiB = 1024 字节，1 MiB = 1024 KiB。正文里的 16 KiB、8 MiB 都是字节上限 |
+
+`request_id` 的内存窗口容量是 100000。满了就忘掉最早的 ID，之后的重复要靠客户端和 MySQL 再挡一次。
+
+### 9.10 密码、token 和附件
+
+| 术语 | 含义 |
+|---|---|
+| PBKDF2 | 把密码反复哈希很多轮，让猜密码变慢。这里用 HMAC-SHA256，120000 轮 |
+| HMAC | 带密钥的哈希。PBKDF2 内部使用它 |
+| salt | 每个密码旁边的随机字节。相同密码因此得到不同摘要 |
+| digest | 哈希结果。这里是 32 字节 |
+| 常量时间比较 | 比较摘要时，耗时不随第一个不同字节的位置变化 |
+| CSPRNG | 适合安全用途的随机数生成器。登录 token 的 32 字节从这里来 |
+| hex | 十六进制文本。32 字节随机数会变成一串十六进制再交给客户端 |
+| MD5 | 旧的快速哈希。只有旧账号登录成功时才用来验证，随后改写成 PBKDF2 |
+| SHA-1 | WebSocket 握手用来计算 Accept 值的哈希。这里不用它保管密码 |
+| SHA-256 | 256 位哈希。源码副本和 Agent 路由键用它 |
+| Base64 | 把二进制写成可放进文本协议的字符。握手计算里用到 |
+| GUID | WebSocket 标准规定的固定字符串，和客户端的 key 拼在一起再做 SHA-1 |
+| 魔数 | 文件开头用来识别 JPEG、PNG 等类型的固定字节。上传检查看它，不看文件名 |
+| rehash | 旧算法验证通过后，用新算法重新保存这份密码 |
+
+图片先经 HTTP 上传，检查成员、类型和尺寸，再用临时文件改名落到附件目录。聊天帧和 Kafka 只携带附件 ID。Bridge 需要把图送给模型时，才按 ID 读文件。
+
+### 9.11 Agent 与推理
+
+| 术语 | 含义 |
+|---|---|
+| Agent | 这里指能接工具、按任务改源码并给出最终回答的程序。人类的话先作为普通消息保存 |
+| ai_request | 请模型处理的事件。发生在对应的人类消息已经走持久链路之后 |
+| ai_delta | 模型输出的一段预览。只用于临时显示 |
+| ai_reply | 完整答案。它重新进入持久化、推送和历史 |
+| delta_index | 预览片段的序号。客户端按它重排，和 `msg_seq` 不是同一个空间 |
+| flush | 把积攒的片段发出去。Bridge 大约凑满 48 字节或 50 毫秒发一次 |
+| DONE | 模型流结束的标记。没有合法结束标记时，不能写成成功的 reply |
+| tenant / channel | 租户和渠道。路由键把它们和会话、线程编在一起，避免把不同用户的上下文串起来 |
+| turn / event | Agent 的一轮，以及这一轮里按序号记下的事件。Pi 把它们记在 SQLite |
+| input_hash | 这次请求输入的哈希。同一个 `request_id` 重放时必须还是这份输入 |
+| route_key | 由规范 JSON 哈希得到的路由身份 |
+| FIFO 调度 | 每个会话一张票队列。只有队首、会话空闲、配额还够，才能开始执行 |
+| monotonic | 只向前走的时钟。排队超时用它，避免改系统时间影响谁该执行 |
+| CAS | compare-and-swap。更新时带上读到的版本，版本仍匹配才写成功。冲突返回 409 |
+| 409 | HTTP Conflict。交接的版本已经旧了，这次写入不会覆盖新版本 |
+| 内容寻址 | 用内容的 SHA-256 当作这份源码副本的身份。内容相同，身份相同 |
+| checkpoint | 协作过程中的检查点，带版本号，供 CAS 更新 |
+| bubblewrap | Linux 上收紧进程可见范围的沙箱。固定测试器跑在里面 |
+| prlimit | 限制进程可用的 CPU、内存等资源 |
+| runner | 执行测试的固定程序。调用者不能改成任意 shell 命令 |
+| CANN | 华为昇腾的神经网络软件栈。简历中的 CANN Agent 指这套协作能力 |
+| NPU | neural processing unit，神经网络处理器。当前测试器是 Linux 主机示例 |
+| runtime | 真正执行模型的运行时。批处理和 KV 由它负责，不由 Gateway 代替 |
+| 心跳 / heartbeat | Worker 大约每秒报告自己还活着、负载和显存。超过约 5 秒没有心跳就视为过期 |
+| lease（推理） | Gateway 记下的进行中调用。用来估算这个 Worker 上已经有多少请求 |
+| Prefill | 模型先读完整段输入，并填好缓存 |
+| Decode | 之后一个模型 token 一个模型 token 地生成 |
+| TTFT | time to first token。从请求到第一个输出 token 的时间，含排队和预填充 |
+| TPOT | time per output token。第一个 token 之后，每个后续 token 的耗时 |
+| KV cache | 为已处理 token 保存的 Key/Value。解码时复用它，显存随缓存 token 数增长 |
+| continuous batching | 运行中的批次有空位时补进新请求。网关队列和计算批次是两层 |
+| slot | 批次里的一个并发位置 |
+| Flash Attention | 一种分块、融合的注意力实现，用来减少中间矩阵的读写 |
+| prefix cache | 复用相同提示词前缀的预填充。是否命中看 `cached_prompt_tokens` |
+| CUDA | NVIDIA 的 GPU 计算平台 |
+| ROCm | AMD 的 GPU 计算平台 |
+| NVML | NVIDIA 的管理库。本项目按 PCI 总线号读取对应显卡的显存 |
+| PCI bus ID | 显卡在主板上的总线地址。用它避免“第 0 号 GPU”被环境变量重新编号后读错卡 |
+| OOM | out of memory，内存或显存耗尽。监控读数不是一份严格的 OOM 预算 |
+| 量化 | 用更少的位数存 KV 或模型权重。两种量化是不同的开关 |
+
+本轮推理测试核对的是适配器和探针合同，没有重跑 CUDA、ROCm 或 NPU 的真实性能。
+
+### 9.12 构建、测试和性能词
+
+| 术语 | 含义 |
+|---|---|
+| C++17 | 2017 年发布的 C++ 语言标准。本项目按这一版编写 |
+| CMake | 读取 `CMakeLists.txt` 并生成编译命令的工具。`cmake --build` 才开始编译 |
+| ctest / CTest | CMake 自带的测试运行器。默认注册 43 项，其中 3 项要另选才跑 |
+| opt-in | 默认不跑、需要明确打开的测试 |
+| OpenSSL | 提供哈希、随机数和 TLS 的库 |
+| hiredis | 访问 Redis 的 C 库 |
+| Docker | 用容器运行 MySQL、Redis、Kafka。测试脚本只清理自己创建的容器和卷 |
+| CI | 持续集成。这里指 GitHub Actions 在远端编译并跑测试 |
+| E2E | end to end，从发送端到另一个独立接收端，并核对 ACK 和 SQL |
+| QPS | queries per second，每秒查询次数。历史查询的吞吐用它 |
+| msg/s | 每秒消息数。端到端数字按独立接收端完成的条数计算 |
+| TPS | transactions per second。Kafka 到 Comet 这一段的速度不能写成整条链路的 TPS |
+| p99 | 把耗时从小到大排列后，99% 的样本都比它快。表中是各轮 p99 的中位数 |
+| 中位数 | 排序后位于中间的那个数。三轮结果用它代表集中位置 |
+| WSL2 | 跑在 Windows 上的 Linux 环境。第 6 节的机器是一台 WSL2 |
+| ASan | AddressSanitizer。编译期加入的内存错误检查 |
+| TSan | ThreadSanitizer。编译期加入的数据竞争检查 |
+| mock | 替身。CUDA 探针的 mock 结果不是真实显卡性能 |
+| Gradle | Android 的构建工具。编译成功只说明工程能编过 |
+| 指纹 | 用来辨认这次二进制和配置的摘要。压测报告用它对应到具体构建 |
+| 预热 | 正式计时前先发送一批消息，让连接和缓存进入工作状态 |
+| 并发 | 同一时段有多份工作在进行。同一会话的取号仍是串行的 |
+
+1 KiB = 1024 字节，1 MiB = 1024 KiB。第 5、6 节里的命令可以直接复制；个人密码和角色密钥放在不提交的环境文件中。
+
+### 9.13 缩写对照
+
+| 缩写 | 展开 | 在本文中的位置 |
+|---|---|---|
+| ACK | acknowledgement | 9.1、9.7 |
+| CA | certificate authority | 9.4 |
+| CAS | compare-and-swap | 9.11 |
+| CI | continuous integration | 9.12 |
+| CLI | command line interface，命令行工具 | 5.3 的 DLQ 重放 |
+| CSPRNG | cryptographically secure pseudo-random number generator | 9.10 |
+| CUDA | Compute Unified Device Architecture | 9.11 |
+| DAO | data access object | 9.5 |
+| DLQ | dead letter queue | 9.2 |
+| DR | delivery report | 9.2 |
+| E2E | end to end | 9.12 |
+| FIFO | first in, first out | 9.9 |
+| gRPC | 远程过程调用框架的名字 | 9.4 |
+| GUID | globally unique identifier；这里是协议固定字符串 | 9.10 |
+| HMAC | hash-based message authentication code | 9.10 |
+| HTTP | Hypertext Transfer Protocol | 9.4 |
+| IM | instant messaging | 9.5 |
+| IO | input/output | 9.9 |
+| KV | key-value，推理里指注意力缓存 | 9.11 |
+| LRU | least recently used | 9.9 |
+| NVML | NVIDIA Management Library | 9.11 |
+| NPU | neural processing unit | 9.11 |
+| OOM | out of memory | 9.11 |
+| PBKDF2 | Password-Based Key Derivation Function 2 | 9.10 |
+| PCI | Peripheral Component Interconnect | 9.11 |
+| QPS | queries per second | 9.12 |
+| RAII | Resource Acquisition Is Initialization | 9.8 |
+| RF | replication factor | 9.2 |
+| RPC | remote procedure call | 9.4 |
+| ROCm | Radeon Open Compute | 9.11 |
+| SHA | Secure Hash Algorithm | 9.10 |
+| SSE | Server-Sent Events | 9.4 |
+| SQL | Structured Query Language | 9.8 |
+| TLS | Transport Layer Security | 9.4 |
+| TPS | transactions per second | 9.12 |
+| TTFT | time to first token | 9.11 |
+| TPOT | time per output token | 9.11 |
+| TTL | time to live | 9.8 |
+| UAF | use after free | 9.9 |
+| WS | WebSocket | 9.4 |

@@ -281,13 +281,38 @@ bool RedisStore::GetUserRoutesFromRedis(int64_t user_id,
 
 namespace {
 
+// =====================================================================
+// 序号分配 Lua 脚本——整个系统并发正确性的基石。
+//
+// KEYS[1] = session:msg_seq:{session_id}   分配用计数器（单调递增）
+// KEYS[2] = session:last_seq:{session_id}  已落库水位（供未读计算/safe_seq）
+// KEYS[3] = message:dedup:{sid}:{sender}:{client_msg_id}  幂等键（可为空串）
+// ARGV[1] = floor_seq    计数器下限，ARGV[2] = 幂等键 TTL 秒
+//
+// 返回 {msg_seq, is_new}：is_new=0 表示命中幂等键，调用方不应重复投递。
+//
+// 为什么必须用 Lua 而不是多条命令：Redis 单线程执行脚本，整个
+// 「校准-去重-递增-回写」是原子的。如果拆成 GET/SETNX/INCR 三条，
+// 两个并发请求可能拿到相同的 seq，直接破坏 uk_session_seq 唯一约束。
+//
+// 为什么用 Redis 而不是 MySQL 自增：热路径上避开 MySQL 会话行锁。
+// 序号只在 Redis 里分配，MySQL 由 Job 异步写入，这是 QPS 的关键来源。
 const char* kAllocateSeqScript = R"lua(
+-- 第 1 步：floor 校准。
+-- Redis 可能被清空、重启或丢数据，但 MySQL 里已有历史消息。
+-- floor_seq 由调用方从 MySQL 的 max(msg_seq) 算出，把计数器抬到
+-- 不低于已落库的最大值，避免重新从 1 开始而撞上唯一索引。
+-- 注意只会抬高不会降低：正常情况下 current 已经大于 floor，此分支不生效。
 local current = tonumber(redis.call('GET', KEYS[1]) or '0')
 local floor = tonumber(ARGV[1])
 if current < floor then
   redis.call('SET', KEYS[1], floor)
 end
 
+-- 第 2 步：幂等去重。
+-- 命中时直接返回「旧 seq + is_new=0」，**不递增计数器**。
+-- 这保证客户端重试（网络超时、Comet 流断开重发）不会产生新消息，
+-- 也不会因重试而消耗序号、在历史里留下空洞。
 if KEYS[3] ~= '' then
   local existing = redis.call('GET', KEYS[3])
   if existing then
@@ -295,11 +320,20 @@ if KEYS[3] ~= '' then
   end
 end
 
+-- 第 3 步：分配新序号。
 local next_seq = redis.call('INCR', KEYS[1])
+
+-- 第 4 步：以 max 语义推进已落库水位。
+-- 用比较而不是直接 SET：多分区/乱序写入时，较小的 seq 不能把
+-- 水位拉回去，否则未读数会突然变大、safe_seq 会倒退。
 local last_seq = tonumber(redis.call('GET', KEYS[2]) or '0')
 if next_seq > last_seq then
   redis.call('SET', KEYS[2], next_seq)
 end
+
+-- 第 5 步：登记幂等键，带 TTL（默认 86400s = 1 天）。
+-- TTL 是必要的：不设过期会让 dedup 键无限增长。
+-- 1 天的窗口远大于任何合理的客户端重试周期。
 if KEYS[3] ~= '' then
   redis.call('SET', KEYS[3], next_seq, 'EX', tonumber(ARGV[2]))
 end
@@ -308,6 +342,13 @@ return {next_seq, 1}
 
 }  // namespace
 
+// 执行上面的 Lua 脚本，一次 EVAL 完成去重与序号分配。
+//
+// 参数校验里 floor_seq < 0 直接拒绝：负的 floor 会把计数器抬到非法值。
+// dedup_ttl_seconds <= 0 时兜底为 86400，避免 SETEX 拿到 0 或负数报错。
+//
+// 回复校验很严：必须是恰好 2 个元素的 INTEGER 数组。任何形状不符
+// 都当失败处理（返回 false），宁可让上层报 500 也不能把脏值当 seq 用。
 bool RedisStore::AllocateSessionMsgSeq(const std::string& session_id,
                                        int64_t sender_id,
                                        const std::string& client_msg_id,

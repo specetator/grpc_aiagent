@@ -193,6 +193,16 @@ void JobRunner::InitStreams() {
     }
 }
 
+// 重建到指定 Comet 的 PushStream。与 Comet 侧重连逻辑对称，但有一个
+// 关键差异：这里会把 pending 里的请求全部标为 ok=false 失败掉。
+//
+// 为什么必须失败而不能丢弃：每个 pending 背后都有一个阻塞等待的
+// Kafka 消费线程。只有 completion->done 被置位，那个线程才会醒来；
+// ok=false 使它返回 false，KafkaConsumer 因此**不提交 offset**，
+// 消息会在下次 poll 时重放。这就是「至少一次投递」的实现点。
+//
+// 拆除顺序同 Comet::ReconnectStream：TryCancel 先唤醒阻塞的 Read，
+// 否则 join 会永远卡住；join 时排除自己（读线程内部也可能触发重连）。
 bool JobRunner::ReconnectStream(const std::string& comet_id,
                                 StreamState* state) {
     if (!state || !streams_running_) return false;
@@ -244,6 +254,16 @@ bool JobRunner::ReconnectStream(const std::string& comet_id,
     return true;
 }
 
+// 向消息的**发送者**所在 Comet 回传 delivered_ack。
+//
+// 注意目标是 ack_comet_id（发送者接入的节点），不是 request.comet_id()
+// （接收者所在节点）——两者在跨节点单聊时通常不同。
+//
+// 只在 delivered_count > 0 时才调：接收方全离线时没有「已投递」可言，
+// 发假 ACK 会让客户端把气泡从「发送中」错改成「已送达」。
+//
+// 丢到独立的 delivery_ack_pool_ 而不是当前线程：这是一次额外的同步
+// RPC，在流读线程里做会阻塞后续 reply 的分发。
 void JobRunner::SendDeliveryAck(const PushToCometRequest& request) {
     if (request.ack_comet_id().empty() || request.ack_user_id() <= 0) return;
     CometService::Stub* stub = GetStub(request.ack_comet_id());
@@ -268,6 +288,16 @@ void JobRunner::SendDeliveryAck(const PushToCometRequest& request) {
     MetricsRegistry::Instance().Increment("spark_push_delivery_ack_total");
 }
 
+// 流读线程：按 request_id 把 Comet 的 reply 分发给阻塞等待的消费线程。
+//
+// PromiseState 的作用：Kafka 消费是同步模型（回调返回 true 才提交
+// offset），而流是异步的。用 mutex+cv+done 把异步 reply 桥接回同步调用，
+// 让消费线程能阻塞等到结果再决定是否提交位点。
+//
+// 只有这个线程读取 stream，按 request_id 将 Comet reply 分发给等待者。
+// unmatched reply 只记指标不报错：超时路径可能已经把该项摘掉了。
+//
+// delivered_count > 0 时才发 delivered_ack，理由见 SendDeliveryAck。
 void JobRunner::StreamReaderLoop(const std::string& comet_id) {
     auto it = streams_.find(comet_id);
     if (it == streams_.end()) return;
@@ -575,6 +605,16 @@ bool JobRunner::HandleMessageForScene(const std::string& key,
     return ProcessPushRequest(request);
 }
 
+// 投递主入口：流优先，Unary 兜底。
+//
+// scene 的推导带了向后兼容：旧事件没有 scene 字段时，用 session_id
+// 是否以 "r_" 开头来猜（房间会话的命名约定）。
+//
+// 两条路径都失败才计 delivery_lost。这个指标是 E2E 验收的硬门禁：
+// sent == accepted_ack == delivered_ack == delivered 必须成立。
+//
+// 投递延迟用消息自带的 timestamp_ms 算，因此它包含了「Logic 受理 ->
+// Kafka -> Job 消费 -> Comet」的全链路耗时，不只是 Job 本地开销。
 bool JobRunner::ProcessPushRequest(const PushToCometRequest& request) {
     if (request.comet_id().empty()) return false;
     const std::string scene = request.scene().empty()
@@ -660,6 +700,24 @@ bool JobRunner::HandleBroadcastTask(const std::string& key,
     return ok;
 }
 
+// 幂等落库：persist topic 的唯一消费者，也是全系统唯一写 message 表的地方。
+//
+// 四步必须全部成功才算完成：
+//   GetOrCreateSession          保证会话行存在（Logic 热路径不建会话）
+//   InsertMessage               写消息本体
+//   reservations().Persisted    把 outbox 记录标为已落库，停止重发
+//   UpdateLastMessageSeqAtLeast 用 GREATEST 语义推水位，防乱序回退
+//
+// 重试 4 次、递增退避（100/200/300ms）：主要对付 MySQL 瞬时不可用。
+// 全部失败返回 false，KafkaConsumer 不提交 offset，最终进 DLQ。
+//
+// 重复消费为何安全：InsertMessage 用的是普通 INSERT，靠唯一索引
+// uk_session_seq(session_id, msg_seq) 挡掉重复。撞到 errno 1062 时
+// 它会再查一次已存行做内容比对（IsSameStoredMessage）：
+//   内容一致 -> 返回 true，重放被幂等吸收
+//   内容不一致 -> 返回 false，报「序号冲突」并进 DLQ
+// 这就是「同 ID 改正文被拒绝」契约的实现点：不允许用同一个
+// msg_seq 悄悄覆写已落库的历史。
 bool JobRunner::PersistMessage(const PersistMessageRequest& request) {
     if (!session_dao_ || !message_dao_) return false;
     const auto& pb = request.message();

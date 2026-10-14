@@ -206,6 +206,13 @@ std::string ComputeWebSocketAccept(const std::string& client_key) {
 }  // namespace
 
 // 构造：TcpServer + Logic gRPC stub；可选双向流模式（对齐 06）
+//
+// 关键设计点：
+// 1) channel_ 由 CreateKeepaliveChannel 创建，带 TCP keepalive 与 HTTP2 ping，
+//    能在 NAT/防火墙静默丢包时主动发现死连接，而不是等 Write 失败才知道。
+// 2) 所有超时/数量类配置都做了「<=0 则用默认值」的兜底，配置缺失
+//    不会让服务进入 0 超时的忙等。
+// 3) 这里只注册 muduo 回调，不启动任何线程；真正启动在 Start()。
 CometServer::CometServer(EventLoop* loop, const Config& cfg)
     : server_(loop, muduo::net::InetAddress(cfg.listen_port), "comet_server"),
       grpc_pool_(cfg.comet_grpc_pool_size > 0 ? cfg.comet_grpc_pool_size : 4,
@@ -236,6 +243,13 @@ CometServer::CometServer(EventLoop* loop, const Config& cfg)
                                          std::placeholders::_3));
 }
 
+// 析构顺序至关重要（逆序释放依赖）：
+//   1. shutting_down_ 置位，让所有在飞回调快速返回
+//   2. 停 metrics，避免外部再读到半死状态
+//   3. stream_running_ = false + 停看门狗
+//   4. 唤醒并 Cancel 每条流，join 读写线程。此时 grpc_pool_ 还活着，
+//      pending 回调里若用到它仍然安全
+//   5. 最后停 grpc_pool_（drain=false，不等在途 RPC，避免关闭卡死）
 CometServer::~CometServer() {
     shutting_down_.store(true);
     metrics_server_.Stop();
@@ -256,10 +270,22 @@ void CometServer::SetThreadNum(int thread_num) {
     server_.setThreadNum(thread_num);
 }
 
+// 流内单调递增的 request_id，双重用途：
+//   a) 在 pending 表里匹配 reply
+//   b) 在 SendToStream 里对 stream_count_ 取模做分片，实现多流并发
 uint64_t CometServer::NextRequestId() {
     return request_id_counter_.fetch_add(1, std::memory_order_relaxed);
 }
 
+// 把 pending 表整体 swap 到局部再逐个回调。
+//
+// 必须这样做的两个原因：
+// 1) 回调里可能再调 SendToStream（比如 error 帧触发客户端重发），
+//    持锁执行会自死锁；
+// 2) swap 之后 pending 已空，即使回调耗时也不会阻塞读线程摘除新 reply。
+//
+// 统一以 503 失败，语义是「服务端暂不可用，请重试」。客户端凭
+// client_msg_id 重试时会命中 Redis 幂等键，不会产生重复消息。
 void CometServer::FailStreamPending(StreamState* state,
                                     const std::string& message) {
     if (!state) return;
@@ -276,6 +302,13 @@ void CometServer::FailStreamPending(StreamState* state,
     }
 }
 
+// 扫描 pending 表，把超过 deadline 的请求摘出来失败掉（由看门狗周期调用）。
+//
+// 为什么超时后要 CancelStream 整条流：Write 返回 true 只代表写进了 gRPC
+// 本地缓冲，长时间没有 reply 说明这条流的传输层已经不健康（半开连接、
+// 对端 hang 住）。继续在上面发只会让请求堆积，不如直接取消重建。
+//
+// 注意：回调在锁外执行，理由同 FailStreamPending。
 void CometServer::ExpireStreamPending(StreamState* state) {
     if (!state || stream_ack_timeout_ms_ <= 0) return;
     const auto now = std::chrono::steady_clock::now();
@@ -306,6 +339,9 @@ void CometServer::ExpireStreamPending(StreamState* state) {
     }
 }
 
+// 把所有流的健康度汇总成单个 0/1 指标。
+// 判定为不健康（0）的三种情况：未启用流模式、流已停、任一条流 broken。
+// 运维脚本与健康检查都以它为门禁，避免「进程活着但消息发不出去」。
 void CometServer::UpdateLogicStreamReadyMetric() {
     int ready = 1;
     if (!use_stream_ || !stream_running_ || streams_.empty()) {
@@ -322,6 +358,17 @@ void CometServer::UpdateLogicStreamReadyMetric() {
                                     ready);
 }
 
+// 重建指定下标的双向流。由写线程和看门狗共用，因此全程持 reconnect_mutex 串行化。
+//
+// 拆除旧流的步骤必须严格按这个顺序，否则会死锁或访问已释放对象：
+//   TryCancel   唤醒阻塞在 Read/Write 里的线程，否则下面 join 会永远卡住
+//   WritesDone  告知对端不再写入
+//   join reader 但排除自己（读线程内部触发重连时不能 join 自己）
+//   Finish      回收流资源
+//   FailPending 旧流上没收到 reply 的请求全部 503，交客户端重试
+//
+// 只重建 ClientContext 和 stream，channel_/logic_stub_ 全生命周期不变：
+// 替换 stub 会让在飞工作线程持有的裸指针失效。
 bool CometServer::ReconnectStream(int stream_idx) {
     if (stream_idx < 0 || stream_idx >= static_cast<int>(streams_.size())) {
         return false;
@@ -370,6 +417,10 @@ bool CometServer::ReconnectStream(int stream_idx) {
     return true;
 }
 
+// 创建 stream_count_ 条流并为每条起写线程；创建成功的再起读线程。
+//
+// 容忍部分流创建失败：标记 broken 后不阻塞启动，首次发送时
+// StreamWriterLoop 会自动重连。这样 Logic 还没就绪时 Comet 也能先起来。
 void CometServer::InitStreams() {
     streams_.resize(stream_count_);
     for (int i = 0; i < stream_count_; ++i) {
@@ -396,6 +447,15 @@ void CometServer::InitStreams() {
     LOG_INFO << "gRPC bidirectional streams ready, count=" << stream_count_;
 }
 
+// 写线程主循环。同时承担两个职责：发送队列消费 + 空闲期流健康维护。
+//
+// wait_ms 的取值是个容易忽略的细节：流不健康或处于退避期时用 idle_backoff
+// 等待（给重连锁留时间），健康时用 200ms 短等待（保证 ExpireStreamPending
+// 即使没新消息也能周期跑，不会让超时请求永久挂住）。
+//
+// 发送重试循环的不变量：每次 Write 前先把 callback 登记进 pending，
+// Write 失败立即从 pending 摘除。顺序不能颠倒，否则读线程可能在
+// 登记完成前就拿到 reply 而找不到对应项。
 void CometServer::StreamWriterLoop(int stream_idx) {
     auto& state = streams_[stream_idx];
     if (!state) return;
@@ -482,6 +542,14 @@ void CometServer::StreamWriterLoop(int stream_idx) {
     }
 }
 
+// 读线程主循环。Read 是阻塞调用，返回 false 意味着流已终止。
+//
+// 回调在锁外执行（先在锁内 move 出来再调），理由同 FailStreamPending。
+// 找不到匹配 request_id 的 reply 不报错，因为超时路径可能已经把它摘掉了，
+// 这是正常竞态而非异常。
+//
+// 退出时置 broken 并 notify 写线程，由写线程去做重连（只有写线程会重建流，
+// 避免两个线程同时重连）。
 void CometServer::StreamReaderLoop(int stream_idx) {
     auto& state = streams_[stream_idx];
     if (!state || !state->stream) return;
@@ -514,6 +582,18 @@ void CometServer::CancelStream(StreamState* state) {
     std::lock_guard<std::mutex> lock(state->context_mutex);
     if (state->ctx) state->ctx->TryCancel();
 }
+// 上行请求入队。这是 Comet 唯一的背压闸门。
+//
+// 三层保护：
+// 1) once 标志：超时路径和正常 reply 路径可能同时触发回调，
+//    exchange(true) 保证业务回调只执行一次，不会给客户端发两个 ACK。
+// 2) 长度 + 字节双重限额：512 条且总量不超 8 MiB。只限条数会让
+//    少量巨型消息耗尽内存，只限字节又会让海量小消息卡住队头。
+// 3) 超限直接回 429 而不是阻塞：调用方是 muduo IO 线程，阻塞会拖垮
+//    整个节点的所有连接。
+//
+// scoped_lock 同时拿两把锁：入队与登记 pending 必须原子，否则读线程
+// 可能在写线程登记前就处理完 reply。
 void CometServer::SendToStream(StreamMessage msg, std::function<void(const StreamResponse&)> callback) {
     const auto id = NextRequestId();
     msg.set_request_id(std::to_string(id));
@@ -542,6 +622,12 @@ void CometServer::SendToStream(StreamMessage msg, std::function<void(const Strea
     } else state->send_queue_cv.notify_one();
 }
 
+// 启动全部子系统。顺序有讲究：
+//   metrics 先起，让运维在业务就绪前就能拉到指标；
+//   流与看门狗在 TcpServer 之前，保证客户端连上来时上行通道已可用。
+//
+// 看门狗除了处理 pending 超时，还会丢弃 send_queue 里已经过期、
+// 根本来不及发的请求（回 504），防止队列堆积后发出大量陈旧消息。
 void CometServer::Start() {
     if (metrics_port_ > 0 && !metrics_server_.Start(metrics_port_)) {
         LOG_ERROR << "Comet metrics HTTP server start failed on port "
@@ -575,6 +661,17 @@ void CometServer::Start() {
 
 // 按用户列表推送消息；一个 user_id 可能存在多条连接（多设备/多标签页）。
 // 使用局部拷贝规避锁期间的发送开销。
+//
+// 本函数是 Comet 下推的核心，三个关键设计：
+// 1) 持锁只做「拷贝连接列表」，绝不在锁内 send。send 会进 muduo
+//    输出缓冲并可能触发回调，持锁执行会与 OnConnection 争锁甚至死锁。
+// 2) 每条连接的实际 send 通过 runInLoop 派到它所属的 IO 线程执行，
+//    遵守 muduo 「one loop per thread」约束，避免跳线程写 socket。
+// 3) 慢连接保护：输出缓冲超 4 MiB 直接 forceClose。IM 场景下积压的
+//    旧消息对客户端已无价值，不如断开让它重连走 SyncOffline 全量补齐。
+//
+// 返回值语义：成功 send 的连接数（不是用户数）。调用方据此判断
+// 是否可以 MarkDelivered。
 size_t CometServer::PushToUsers(const ChatMessage& msg, const std::vector<int64_t>& user_ids,
                                std::vector<int64_t>* delivered_users) {
     if (delivered_users) delivered_users->clear();
@@ -619,6 +716,13 @@ size_t CometServer::PushToUsers(const ChatMessage& msg, const std::vector<int64_
     return sent;
 }
 
+// request_id 幂等去重。Job 重连重放、Unary 兜底与流路径重叠时，
+// 同一条消息可能多次到达 Comet；不去重会让客户端看到重复气泡。
+//
+// 用 set + deque 而不是带 TTL 的缓存：插入序 deque 保证淘汰的是最早
+// 的 id，且不需要后台线程扫描过期。上限 10 万条，内存可控。
+//
+// 空 request_id 直接放行（返回 true）：兼容不带幂等键的旧调用方。
 bool CometServer::AcceptPushRequest(const std::string& request_id) {
     if (request_id.empty()) return true;
     std::lock_guard<std::mutex> lock(conns_mu_);
@@ -637,6 +741,13 @@ bool CometServer::AcceptPushRequest(const std::string& request_id) {
     return true;
 }
 
+// 向发送者回 delivered_ack 帧。
+//
+// 语义边界（很容易误解）：这**不是**已读回执。它只表示 Job 已确认
+// Comet 把消息交给了目标在线连接。客户端是否渲染、用户是否看到，
+// 都不在这个 ACK 的保证范围内。
+//
+// 先持锁拷贝连接列表再锁外 send，理由同 PushToUsers。
 void CometServer::PushDeliveryAck(int64_t user_id, const ChatMessage& msg) {
     if (user_id <= 0) return;
     nlohmann::json ack;
@@ -663,6 +774,13 @@ void CometServer::PushDeliveryAck(int64_t user_id, const ChatMessage& msg) {
     }
 }
 
+// 批量上报 delivered 游标，推进 user_session_state.delivered_seq。
+//
+// 这个游标是 SyncOffline 的唯一依据：下次连接时只会补推 seq 大于它的
+// 消息。因此必须在 send 真正成功后才上报，否则会造成消息永久丢失。
+//
+// 先过滤掉本机不在线的用户（uid<=0、重复、无连接），避免把没投递
+// 成功的人也计入游标。
 void CometServer::ReportDeliveredToUsers(
     const ChatMessage& msg, const std::vector<int64_t>& user_ids) {
     if (!logic_stub_ || msg.session_id().empty() || msg.msg_seq() <= 0 ||
@@ -804,6 +922,19 @@ std::string CometServer::ParseTokenFromHandshake(const std::string& req) {
 // 1) 读取完整 HTTP 头，提取 token 与 Sec-WebSocket-Key。
 // 2) 通过 logic.VerifyToken 校验用户身份，绑定 user_id。
 // 3) 生成 Sec-WebSocket-Accept 返回 101 切换协议响应，进入开放状态。
+//
+// 这里最难看懂的是「两次 weak.lock() + 状态回检」的防御结构：
+//   VerifyToken 是耗时同步 RPC，被丢到 grpc_pool_ 里执行。在它返回之前，
+//   客户端可能已经断开、可能已经超时被 5s 定时器关掉、进程也可能在退出。
+//   因此 RPC 前后各检查一次连接存活，回到 IO 线程后再检查一次
+//   state 是否仍为 kAuthenticating（防止重复处理）。
+//
+// 任何一个分支失败时，如果 VerifyToken 其实已经成功（路由已写入 Redis），
+// 必须调 CleanupAuthenticatedRoute 把它摘掉，否则 Logic 会永远认为该用户
+// 在线，向一个不存在的连接投递消息。这是路由泄漏的主要来源。
+//
+// 注意：buf->retrieve(length) 在提交异步任务**之前**执行，因为 Buffer
+// 属于 IO 线程，不能在工作线程里操作；token/key 已拷成值捕获。
 void CometServer::HandleHandshake(const TcpConnectionPtr& conn, Buffer* buf) {
     const char* end = static_cast<const char*>(memmem(buf->peek(), buf->readableBytes(), "\r\n\r\n", 4));
     if (!end) {
@@ -862,8 +993,11 @@ void CometServer::HandleHandshake(const TcpConnectionPtr& conn, Buffer* buf) {
             }
             connection->send("HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: " + ComputeWebSocketAccept(key) + "\r\n\r\n");
             MetricsRegistry::Instance().Increment("spark_push_comet_connections_total");
+            // 握手成功立即补推离线消息，不等客户端开口。
             RequestOfflineSync(reply.user_id());
             // A TCP read may contain both the upgrade and first masked frame.
+            // 握手报文后面可能已经黏了第一个业务帧（TCP 粘包），
+            // 这里主动再解析一次 inputBuffer，否则会等到下次可读事件才处理。
             HandleWebSocketFrame(connection, connection->inputBuffer(), *state);
         });
     })) conn->forceClose();
@@ -1088,6 +1222,11 @@ void CometServer::OnTextMessage(const TcpConnectionPtr& conn,
     }
     req.set_content_json(payload);
 
+    // 上行通道选择：优先走双向流，流不可用时退化到 Unary。
+    //
+    // 两条路径的 ACK 帧格式完全一致（都是 accepted_ack），客户端无感知。
+    // 流路径：回调在流读线程里执行，conn->send 由 muduo 内部派到对应 IO 线程；
+    // 捕获裸 conn（shared_ptr）而非 weak，因为需要在回调里直接发送。
     if (use_stream_ && stream_running_) {
         StreamMessage stream_msg;
         *stream_msg.mutable_upstream() = req;
@@ -1116,6 +1255,10 @@ void CometServer::OnTextMessage(const TcpConnectionPtr& conn,
     }
 
     // 传统 Unary：丢线程池，避免堵死 muduo IO 线程
+    //
+    // 与流路径的关键差异：Submit 带了 req.ByteSizeLong() 做字节级配额，
+    // 队满时返回 false，这里就能给客户端一个明确的「upstream queue full」
+    // 而不是静默丢弃。deadline 固定 8s，比流模式的 ack_timeout 略宽。
     auto* stub = logic_stub_.get();
     const auto deadline = std::chrono::system_clock::now() + std::chrono::seconds(8);
     if (!grpc_pool_.Submit([conn, stub, req, deadline]() {
@@ -1194,6 +1337,12 @@ void CometServer::NotifyUserOffline(int64_t user_id, int64_t generation, const s
     });
 }
 
+// 鉴权成功却发现连接已不在时的补偿路径。
+//
+// 分两种情况：
+//   该用户在本机还有别的连接 -> 只更新代数/令牌，不能摘路由
+//   本机已无任何连接          -> 走 NotifyUserOffline 摘除路由
+// 没有这一步，秒断的客户端会在 Redis 里留下永久脏路由。
 void CometServer::CleanupAuthenticatedRoute(int64_t user, int64_t generation, const std::string& token) {
     {
         std::lock_guard<std::mutex> lock(conns_mu_);
@@ -1206,6 +1355,18 @@ void CometServer::CleanupAuthenticatedRoute(int64_t user, int64_t generation, co
     NotifyUserOffline(user, generation, token);
 }
 
+// 离线补推：握手成功后把「已落库但尚未交给连接」的消息补发给客户端。
+//
+// 与 RequestCursorSync 的区别：
+//   本函数由服务端主动发起，跨会话遍历，依据是 delivered_seq 游标；
+//   CursorSync 由客户端发 sync 帧触发，只针对单个会话的已知缺口。
+//
+// 可靠性关键点：逐条 PushToUsers，一旦返回 0（连接已断或输出缓冲满）
+// 就立即 return，**不推进游标也不继续翻页**。这样下次重连会从同
+// 一个位置重新补推，宁可重复（客户端按 msg_seq 去重）也不丢失。
+//
+// 翻页递归带了前进判定（next != after 或 seq 变大），防止 Logic 返回
+// 相同游标时无限递归。
 void CometServer::RequestOfflineSync(int64_t user_id, const std::string& after_session, int64_t after_seq) {
     if (!logic_stub_ || user_id <= 0) return;
     auto* stub = logic_stub_.get();
@@ -1249,6 +1410,19 @@ void CometServer::RequestOfflineSync(int64_t user_id, const std::string& after_s
     });
 }
 
+// 客户端主动缺口补齐。客户端发现本地 msg_seq 不连续时发：
+//   {"type":"sync","session_id":"...","after_seq":12,"limit":100}
+//
+// 回帧结构：N 条消息帧 + 1 条 sync_end 帧。
+// sync_end 里带 safe_seq（已完整落库的前缀），这是客户端能安全推进
+// 连续游标的依据——next_seq 只代表本页最大值，中间可能还有空洞。
+//
+// promise/future 的用途：发送在 IO 线程里做，但 MarkDelivered 必须等
+// 「哪些帧真正 send 成功了」这个结果，所以用 future 把结果从 IO 线程
+// 传回工作线程。只上报成功的 seq，失败的那部分下次重连会再补。
+//
+// 只有全部帧都发成功才发 sync_end：部分成功时不发，避免客户端
+// 误以为补齐已完成而推进游标。
 void CometServer::RequestCursorSync(const TcpConnectionPtr& conn,
                                     int64_t user_id,
                                     const std::string& session_id,

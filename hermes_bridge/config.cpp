@@ -18,6 +18,8 @@ void Trim(std::string* value) {
     *value = value->substr(begin, end - begin + 1);
 }
 
+// 与 common/config.cpp 同一套规则：未设置的 ${VAR} 展开为空串，
+// 未闭合的 ${ 原样留下。空展开是为了不把占位符当成 API key。
 std::string ExpandEnvironment(const std::string& input) {
     std::string output;
     size_t cursor = 0;
@@ -41,6 +43,8 @@ std::string ExpandEnvironment(const std::string& input) {
     return output;
 }
 
+// 必须整串都被消费。拒绝 "12abc" 这种前缀合法的写法，
+// std::stoi 自己会把它解析成 12。
 bool ParseInt(const std::string& value, int* output) {
     if (!output || value.empty()) return false;
     try {
@@ -63,6 +67,8 @@ bool LoadHermesBridgeConfig(const std::string& path,
         if (err_msg) *err_msg = "config output is null";
         return false;
     }
+    // 和 Logic 的 LoadConfig 不同：这里文件打不开是硬失败，
+    // 不会带着默认值继续跑。Bridge 缺 topic 或密钥时继续跑只会把请求吃进 DLQ。
     std::ifstream input(path);
     if (!input) {
         if (err_msg) *err_msg = "cannot open config: " + path;
@@ -109,6 +115,8 @@ bool LoadHermesBridgeConfig(const std::string& path,
             config->inference_cache_prompt = value == "true" || value == "1";
         } else if (key == "inference_max_tokens" || key == "inference_temperature_milli") {
             int* target = key == "inference_max_tokens" ? &config->inference_max_tokens : &config->inference_temperature_milli;
+            // 这一支失败时没有写 err_msg，调用方只能看到空错误。
+            // 下面的超时和并发键会带上行号。补错误文本时不要只改一半。
             if (!ParseInt(value, target)) return false;
         } else if (key == "processing_workers" || key == "max_batch_records") {
             int* target = key == "processing_workers" ? &config->processing_workers : &config->max_batch_records;
@@ -117,6 +125,7 @@ bool LoadHermesBridgeConfig(const std::string& path,
                 return false;
             }
         } else if (key == "hermes_streaming") {
+            // 空值不改默认值。写成空串不是「关闭流式」。
             if (!value.empty()) {
                 config->streaming = value == "true" || value == "1";
             }
@@ -139,6 +148,10 @@ bool LoadHermesBridgeConfig(const std::string& path,
         }
     }
 
+    // 环境变量盖过文件，且只在变量存在时覆盖。
+    // 并发上下限与 KafkaConsumer::Init 同一套：workers 在 [1,64]，
+    // max_batch_records 不小于 workers 且不超过 1024。
+    // 配得比 worker 数还小会被两边同时拒绝，进程起不来。
     const char* env_value = std::getenv("SPARK_PUSH_HERMES_BASE_URL");
     if (env_value) config->hermes_base_url = env_value;
     env_value = std::getenv("SPARK_PUSH_HERMES_API_KEY");
@@ -186,6 +199,8 @@ bool LoadHermesBridgeConfig(const std::string& path,
         if (err_msg) *err_msg = "inference gateway and model are required";
         return false;
     }
+    // 两种后端的必填项互斥：pi 要 HTTP 地址和密钥，grpc 要网关地址和模型名。
+    // 缺了在这里失败，而不是等到第一条请求才发现连不上。
     if (config->inference_backend == "pi" &&
         (config->hermes_base_url.empty() || config->hermes_api_key.empty())) {
         if (err_msg) *err_msg =

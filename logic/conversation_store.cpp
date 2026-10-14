@@ -58,6 +58,10 @@ bool ConversationStore::AppendMessage(const Session& session, int64_t sender_id,
         if (err_msg) *err_msg = "conversation store not initialized";
         return false;
     }
+    // 顺序固定：持久预约序号 -> INSERT message -> 标 Persisted -> 推进 last_msg_seq。
+    // 任一步失败都直接返回，**不回滚已经写下的预约**。
+    // 同一个 client_msg_id 重试会命中旧预约，序号不会再涨。
+    // 若在这里删掉预约，重试会分配一个新序号，而客户端可能已经拿着旧 msg_id。
     Message msg;
     bool fresh = false;
     if (!AppendMessageHotPath(session.id, sender_id, msg_type, content_json, timestamp_ms,
@@ -70,7 +74,8 @@ bool ConversationStore::AppendMessage(const Session& session, int64_t sender_id,
     }
 
     if (redis_store_) {
-        // 将最新 seq 写入 Redis，便于未读计算
+        // Redis 是未读计算的缓存。写失败只记日志，GetUnread miss 时会回源 session 表。
+        // 不能因为缓存失败把已经落库的消息报成失败，否则调用方重试会以为没写上。
         if (!redis_store_->SetSessionLastSeq(session.id, msg.msg_seq)) {
             LOG_ERROR << "SetSessionLastSeq failed for session " << session.id;
         }
@@ -83,6 +88,7 @@ bool ConversationStore::AppendMessage(const Session& session, int64_t sender_id,
 }
 
 // The allocation authority is durable SQL; Redis is a cache/routing service.
+// 译：分配权在持久 SQL；Redis 只是缓存和路由。本方法不写 message 行。
 bool ConversationStore::AppendMessageHotPath(
     const std::string& session_id, int64_t sender_id,
     const std::string& msg_type, const std::string& content_json,
@@ -121,6 +127,11 @@ bool ConversationStore::PersistMessage(const Message& message,
         if (err_msg) *err_msg = "conversation store not initialized";
         return false;
     }
+    // Job 消费 persist_message 时调用。序号在更早的预约里已经定了，
+    // 这里只补 session 行、INSERT、标 Persisted、推进 last_msg_seq。
+    // 最多 4 次，退避 50/100/200ms。序号冲突不重试：内容与已有序号对不上，
+    // 再试结果一样，继续睡只会拖住消费线程。锁等待、瞬时断连才退避。
+    // scene 不是 single/chatroom 时按 message.session_id 取已有会话，不新建。
     constexpr int kMaxAttempts = 4;
     std::string last_error;
     for (int attempt = 0; attempt < kMaxAttempts; ++attempt) {
@@ -146,6 +157,7 @@ bool ConversationStore::PersistMessage(const Message& message,
         }
 
         last_error = err.empty() ? "unknown persistence error" : err;
+        // rfind(..., 0) 是「前缀匹配」。冲突文本由 message_dao 产生，改措辞会让这里重新重试。
         if (last_error.rfind("message sequence collision", 0) == 0) break;
         if (attempt + 1 < kMaxAttempts) {
             const int backoff_ms = 50 * (1 << attempt);
@@ -189,11 +201,13 @@ bool ConversationStore::MarkRead(int64_t user_id, const std::string& session_id,
         if (err_msg) *err_msg = "state dao not initialized";
         return false;
     }
+    // MySQL 成功才算成功。先写库再写缓存：若先写 Redis 而 MySQL 失败，
+    // 缓存会超前于库，未读会被算少，直到有人把缓存覆盖掉。
     if (!state_dao_->UpsertReadSeq(user_id, session_id, read_seq, err_msg)) {
         return false;
     }
     if (redis_store_) {
-        // 写入缓存，快速读取未读
+        // 缓存写失败只记日志。下次 GetUnread miss 会从 MySQL 回源。
         if (!redis_store_->SetUserReadSeq(user_id, session_id, read_seq)) {
             LOG_ERROR << "SetUserReadSeq failed for user "
                       << std::to_string(user_id);
@@ -215,6 +229,10 @@ bool ConversationStore::GetUnread(int64_t user_id,
         return false;
     }
 
+    // 未读 = last_seq - read_seq。两个数都是 Redis 优先，miss 回源并回填。
+    // 回填失败不影响本次结果，权威值已经拿到。
+    // 这不是无空洞计数：中间缺的序号也算未读。送达水位才做无空洞，
+    // 见 UserSessionStateDao::AdvanceDelivered。这个数字只用于角标。
     int64_t read_seq = 0;
     bool read_seq_ok = false;
     if (redis_store_) {

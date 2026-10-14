@@ -88,9 +88,35 @@ ArgParseResult ParseConfigPath(int argc, char** argv, std::string* config_path) 
 namespace sparkpush {
 
 // 启动逻辑服务：初始化 Kafka/MySQL/Redis、构造服务并启动 gRPC/HTTP
+//
+// 【启动顺序的约束】本函数里各步的先后位置不是随意的：
+//   1. RequireRpcKey / InternalServerCredentials 先跑：两者都会抛异常，
+//      目的是“凭证没配好就不要启动”，而不是起来后所有 RPC 静默 401。
+//   2. Kafka producer -> MySQL/Redis 池 -> DAO -> service：依赖方向自下而上。
+//   3. schema 校验/建表（EnsureSchema / CheckSchema）在构造 service 之前，
+//      任何一项失败都直接 return 1，不开端口。
+//   4. Hermes consumer 的 **Init** 在 gRPC 绑定之前（连不上 Kafka 就不开服务），
+//      但 **Start** 在服务器启动之后（避开还没准备好就开始消费）。
+//   5. spark_push_service_ready 置 1 在最后，之前任何一步失败都不会让
+//      /ready 报健康。
+//
+// 【返回值的含义】return 1 表示“启动失败或运行期故障”，return 0 表示
+// “收到停止信号后干净退出”。两者对 systemd/docker 的重启策略意义不同。
 int RunLogic(const Config& cfg) {
+    // 下面两行是启动门禁，失败会抛 std::runtime_error，由 main() 的
+    // try/catch 接住并记日志。这里只验 "comet" 角色密钥：Logic 作为
+    // 服务端只需要知道“谁能调我”，不需要自己的客户端密钥。
+    // InternalServerCredentials 还会强制一条部署约束：非回环地址必须用 TLS。
     RequireRpcKey("comet");
     auto credentials = InternalServerCredentials(cfg.internal_grpc_listen_addr);
+    // 四个业务 producer，每个在 Init 时绑定一个固定 topic。
+    // 分四个实例是被接口形状逼出来的：KafkaProducer::Init(brokers, topic)
+    // 把 topic 存在成员 topic_name_ 里，发送接口上并没有 topic 参数，
+    // 因此一个实例只能对一个 topic。
+    // 注意四个实例的 librdkafka 配置是**完全相同**的（acks=all +
+    // enable.idempotence，见 common/kafka_producer.cpp），不要误以为
+    // 它们有不同的可靠性等级。分实例的代价是四份缓冲区与各自的
+    // librdkafka 后台线程。
     KafkaProducer single_producer;
     if (!single_producer.Init(cfg.kafka_brokers, cfg.kafka_single_topic)) {
         LOG_ERROR << "Failed to initialize Kafka single producer";
@@ -267,10 +293,21 @@ int RunLogic(const Config& cfg) {
     KafkaConsumer hermes_delta_consumer;
     if (cfg.hermes_enabled) {
         KafkaConsumer::Options hermes_consumer_options;
+        // 三个选项各自针对一个具体风险：
+        //   enable_auto_commit=false  手动提交。自动提交会在“已提交但还没
+        //                             处理完”的窗口里崩溃时丢消息，而 AI 回复
+        //                             丢了用户就会永久等一个不会来的回复。
+        //   auto_offset_reset=earliest 新消费组从最早开始。Logic 重启期间
+        //                             累积的 AI 回复必须被补上，用 latest
+        //                             就会静默丢掉重启窗口里的全部回复。
+        //   max_processing_attempts=3 三次失败后进 DLQ，避开一条毒消息
+        //                             把消费卡死（无限重试会堵住整个分区）。
         hermes_consumer_options.enable_auto_commit = false;
         hermes_consumer_options.auto_offset_reset = "earliest";
         hermes_consumer_options.max_processing_attempts = 3;
         hermes_consumer_options.dead_letter_topic = cfg.kafka_ai_reply_topic + ".dlq";
+        // 两个 consumer 用**不同的消费组**（_hermes_reply / _hermes_delta）：
+        // 它们读不同 topic，若共用一个组名，偏移量提交会互相干扰。
         if (!hermes_reply_consumer.Init(
                 cfg.kafka_brokers, cfg.kafka_consumer_group + "_hermes_reply",
                 cfg.kafka_ai_reply_topic,
@@ -282,6 +319,16 @@ int RunLogic(const Config& cfg) {
             return 1;
         }
         // ai_delta is ephemeral; it must not use the durable reply DLQ.
+        //
+        // 译：ai_delta 是临时数据，它绝不能复用上面那个持久回复的 DLQ。
+        //
+        // 为何要 clear 而不是给 delta 也配一个 DLQ：流式增量（打字机效果）
+        // 丢了只是少看到一段中间过程，最终的 ai_reply 仍然会完整到达；
+        // 而把它们写进 DLQ 会把一个高频、可丢的 topic 的失败记录
+        // 永久堆积在磁盘上，而且与真正需要人工处理的 ai_reply 混在一起，
+        // 让 DLQ 失去“每一条都值得看”这个性质。
+        // 注意这里改的是**同一个 Options 对象**，因此必须在 reply consumer
+        // Init 之后才能 clear，顺序不能颠倒。
         hermes_consumer_options.dead_letter_topic.clear();
         if (!hermes_delta_consumer.Init(
                 cfg.kafka_brokers, cfg.kafka_consumer_group + "_hermes_delta",
@@ -311,14 +358,30 @@ int RunLogic(const Config& cfg) {
          room_service, admin_service, danmaku_service, knowledge_service,
          &room_agent_service, &operator_task_service}, cfg.logic_http_threads);
     httpServer.start();
+    // outbox 崩溃恢复定时器（每 1s）。这是事务性 outbox 模式的另一半：
+    // 正常路径上 Submit 会同步走完 PrepareOutbox -> SendAndWait -> Published，
+    // 但如果在三步中间崩溃，就会留下 stage=1（payload 已存、Kafka 未确认）
+    // 的记录。本定时器把它们扫出来重发，重发用同一个 msg_id，
+    // Job 侧幂等落库，因此最终语义是“至少一次事件 + 幂等消费”。
     PeriodicWorker outbox_recovery([&] {
         std::vector<std::pair<Message, std::string>> pending;
         std::string error;
+        // 每轮最多 10 条：把单次定时器的耗时封顶。Pending 内部还会先做
+        // 两件事：封存超时的 stage=0 预约（10 分钟）与清理已终结的行，
+        // 封存必须在扫描之前，否则 SafePrefix 会被这些空洞一直压低。
         if (!message_dao.reservations().Pending(&pending, 10, &error)) {
             LOG_ERROR << "Message outbox scan failed";
             return;
         }
         for (const auto& record : pending) {
+            // 两处都是 **break** 而不是 continue，这是本函数最关键的设计：
+            //   1. Pending 返回的顺序是 ORDER BY created_at 升序，同一会话内
+            //      的重发顺序必须与首次提交顺序一致。跳过失败的那条去发
+            //      后面的，就会打乱会话内的消息顺序。
+            //   2. SendAndWait 失败通常意味着 Kafka 整体不可用，而它会
+            //      阻塞直到 persist_kafka_timeout_ms。不 break 就会在一个
+            //      1s 周期的定时器里连续烧十次超时，把定时器线程占死。
+            // break 之后本轮放弃，下一秒从队头重试，顺序与耗时都可控。
             if (!persist_producer.SendAndWait(record.first.session_id, record.second,
                                              cfg.persist_kafka_timeout_ms)) break;
             if (!message_dao.reservations().Published(record.first, &error)) break;
@@ -327,9 +390,26 @@ int RunLogic(const Config& cfg) {
     LOG_INFO << "Logic HTTP server listening on port " << std::to_string(cfg.http_port);
 
     // gRPC 使用单独线程阻塞 Wait，muduo EventLoop 在当前线程运行
+    //
+    // InstallStopSignals 放在两个服务器都启动之后：早装的话一个在
+    // 启动过程中到达的 SIGTERM 会被记录下来但没人看，晚装则可能错过信号。
     InstallStopSignals();
     bool consumer_failed = false;
+    // 就绪信号置 1。/ready 读的就是这个 gauge（见 http_server.cpp），
+    // 启动脚本与健康检查都要求它为 1，避开“进程在、但发不出去”。
     MetricsRegistry::Instance().Set("spark_push_service_ready", 1);
+    // 0.1s 周期的自监定时器，同时承担两个职责：
+    //   1. 监控 Kafka consumer。consumer 死了是**不可降级**的故障：
+    //      AI 回复永远不会到达，而进程看起来还活着。因此主动退出，
+    //      让 systemd/docker 重启比带着故障跑更好。
+    //   2. 监控 stop_requested（由 InstallStopSignals 置位）。
+    //
+    // 两个分支都先把 ready 置 0 再 loop.quit()，这个顺序很重要：
+    // 它让 /ready 在进程真正退出**之前**先变不健康，给上游负载均衡
+    // 一个摘掉本节点的窗口。若直接退出，负载均衡会在接下来几秒里
+    // 持续把请求发给一个已死的节点。
+    // consumer_failed 写成成员外的局部变量而不是当场 return：它要在
+    // loop() 返回后被用作进程退出码。
     loop.runEvery(0.1, [&] {
         consumer_failed = cfg.hermes_enabled && (hermes_reply_consumer.failed() || hermes_delta_consumer.failed());
         if (consumer_failed || stop_requested) {
@@ -338,6 +418,8 @@ int RunLogic(const Config& cfg) {
         }
     });
 
+    // consumer 的 Start 放在最后（而不是 Init 之后立即启）：
+    // 避开 gRPC/HTTP 还没开始监听就已经在消费 AI 回复并尝试下推。
     if (cfg.hermes_enabled) {
         hermes_reply_consumer.Start();
         hermes_delta_consumer.Start();
@@ -349,18 +431,46 @@ int RunLogic(const Config& cfg) {
     }
 
     // 必须在创建 EventLoop 的线程中调用 loop()
+    //
+    // 本行阻塞直到上面的定时器调了 loop.quit()。因此它下面的四行
+    // 就是整个进程的**关闭序列**，顺序不能随便改：
+    //   1. server->Shutdown(now + 3s)  停止接受新 RPC，给在飞的 3 秒完成。
+    //      用带 deadline 的重载而不是无参版本：无参版会立即断开所有
+    //      在飞调用，而一个正在等 Kafka delivery report 的 Submit 被断开
+    //      就会让客户端收到错误、但消息其实已经进了 outbox。
+    //   2. server->Wait()  阻塞到 gRPC 真的停了。
+    //   3. outbox_recovery.Stop()  **必须在 gRPC 之后**：反过来就会在
+    //      还有请求在 Reserve/PrepareOutbox 的时候关掉重发兜底，
+    //      那些预约只能等下一次进程启动才被扫到。
+    //   4. consumer.Stop()  最后停消费：它会在处理完当前消息后才退。
+    // 注意四个 producer 没有显式 Stop：它们是栈上对象，靠析构函数
+    // 停 poll 线程并 flush(3000)（见 common/kafka_producer.cpp）。
+    // 析构发生在 return 之后，顺序在以上四步之后，因此不会丢消息。
+    // 但 flush 只等 3 秒：Kafka 完全不可用时仍可能丢下未发完的事件，
+    // 而这些事件已由 outbox 兜住（stage=1 的记录下次启动会被重发）。
     loop.loop();
     server->Shutdown(std::chrono::system_clock::now() + std::chrono::seconds(3));
     server->Wait();
     outbox_recovery.Stop();
     hermes_reply_consumer.Stop();
     hermes_delta_consumer.Stop();
+    // 退出码区分“干净关闭”与“consumer 故障”：前者应该被 systemd 当成
+    // 正常停止（不触发告警），后者需要进告警。两者都会重启，
+    // 但运维需要能从退出码上看出发生了什么。
     return consumer_failed ? 1 : 0;
 }
 
 }  // namespace sparkpush
 
 // 程序入口：解析配置路径，加载配置并启动逻辑服务
+//
+// ret 初值是 1：只有 RunLogic 正常返回才会改写它。因此上面 try 块里
+// 任何一步抛异常（RequireRpcKey 密钥不足、InternalServerCredentials 要求
+// TLS 而没配、LoadConfig 文件读不了）都会让进程以 1 退出。
+//
+// InitLogging 在 LoadConfig **之前**：否则配置错误本身就没地方记。
+// ShutdownLogging 无论成败与否都要调：异步日志需要 flush，
+// 漏了就会丢掉最后几条（往往正是最关键的那几条错误）。
 int main(int argc, char** argv) {
     std::string config_path;
     ArgParseResult result = ParseConfigPath(argc, argv, &config_path);

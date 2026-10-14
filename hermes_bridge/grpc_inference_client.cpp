@@ -23,6 +23,8 @@ bool GrpcInferenceClient::ChatStream(const nlohmann::json& messages,
         if (err_msg) *err_msg = "invalid inference request";
         return false;
     }
+    // 图片只在 Pi HTTP 路径上支持。这里直接失败，不把图片静默丢掉，
+    // 否则用户会收到一个没看过图的回答。
     if (!options.images.empty()) {
         if (err_msg) *err_msg = "gRPC inference backend does not support images";
         return false;
@@ -39,6 +41,8 @@ bool GrpcInferenceClient::ChatStream(const nlohmann::json& messages,
             !message["content"].is_string()) continue;
         const auto content = message["content"].get<std::string>();
         request.add_messages(content);
+        // prompt 被每次覆盖，循环结束后只剩最后一条。完整多轮在 chat_turns 里。
+        // 不要删掉 set_prompt：旧 worker 仍读这一个字段。
         request.set_prompt(content);
         auto* turn = request.add_chat_turns();
         turn->set_role(message.value("role", "user"));
@@ -53,6 +57,9 @@ bool GrpcInferenceClient::ChatStream(const nlohmann::json& messages,
     grpc::ClientContext context;
     context.set_deadline(std::chrono::system_clock::now() +
                          std::chrono::milliseconds(config_.request_timeout_ms));
+    // 每次调用新建 channel。停机时 gRPC 的阻塞 Read 不会自己返回，
+    // 所以用一个监视线程在 running_ 变 false 时 TryCancel。
+    // 监视线程必须在 Finish 之后 join，否则 context 先析构。
     std::atomic<bool> done{false};
     std::thread monitor([&] {
         while (!done.load()) {
@@ -68,6 +75,8 @@ bool GrpcInferenceClient::ChatStream(const nlohmann::json& messages,
     bool finished = false;
     uint64_t sequence = 0;
     while (reader->Read(&chunk)) {
+        // 序号必须从 0 连续递增，且 request_id 对得上。
+        // 错位说明串流了别的请求，立刻取消，不把那些 token 拼进本次回答。
         if (chunk.request_id() != options.request_id || chunk.sequence() != sequence++) {
             context.TryCancel();
             break;
@@ -94,6 +103,8 @@ bool GrpcInferenceClient::ChatStream(const nlohmann::json& messages,
     const auto status = reader->Finish();
     done.store(true);
     monitor.join();
+    // 流正常结束但没见到 finished 块，也是失败。
+    // 否则半截回答会被当成完整回复写进 ai_reply。
     if (!status.ok() || !finished) {
         if (err_msg && err_msg->empty())
             *err_msg = status.ok() ? "inference stream ended without terminal chunk"

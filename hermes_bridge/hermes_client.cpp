@@ -88,6 +88,9 @@ int Connect(const ParsedUrl& url, int timeout_ms, std::string* err_msg) {
         timeval timeout{};
         timeout.tv_sec = timeout_ms / 1000;
         timeout.tv_usec = (timeout_ms % 1000) * 1000;
+        // 这两个超时管的是后续 read/write，不是 connect()。
+        // 模型如果有超过 request_timeout_ms 的静默，recv 会失败，整次调用中断。
+        // 流式路径靠这个把卡住的生成拉回来，而不是无限等。
         setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
         setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
         if (::connect(fd, item->ai_addr, item->ai_addrlen) == 0) break;
@@ -131,6 +134,8 @@ bool ReadAll(int fd, std::string* output, std::string* err_msg) {
             return false;
         }
         output->append(buffer, static_cast<size_t>(n));
+        // 与 SSE 解析器的 16 MiB 上限一致。非流式路径在这里截断，
+        // 不把超大响应交给 JSON 解析。
         if (output->size() > 16 * 1024 * 1024) {
             if (err_msg) *err_msg = "Hermes response exceeds 16 MiB";
             return false;
@@ -413,6 +418,8 @@ std::string ExtractText(const nlohmann::json& value) {
 bool HermesClient::Chat(const nlohmann::json& messages,
                         const HermesChatOptions& options,
                         HermesChatResult* result, std::string* err_msg) const {
+    // 空 messages 只在两种情况下合法：控制命令（不需要提示词），
+    // 以及 retry（由 Gateway 自己选上一条用户消息）。
     if (!result || (options.control.is_null() && !options.retry && (!messages.is_array() || messages.empty()))) {
         if (err_msg) *err_msg = "Hermes chat messages are empty";
         return false;
@@ -442,6 +449,8 @@ bool HermesClient::Chat(const nlohmann::json& messages,
     if (options.images.is_array() && !options.images.empty()) {
         request_body["images"] = options.images;
     }
+    // 控制命令整份替换请求体，不合并上面的 model/messages/stream。
+    // 合并的话，一次 /model 会把聊天提示词也发给 /agent/control。
     if (!options.control.is_null()) {
         request_body = options.control;
         request_body["session_id"] = options.session_id;
@@ -497,6 +506,8 @@ bool HermesClient::Chat(const nlohmann::json& messages,
         }
         const auto& choice = response_json.at("choices").at(0);
         result->finish_reason = choice.value("finish_reason", "");
+        // 非 stop 的 finish_reason（长度截断、内容过滤）当失败。
+        // 和 sse_parser 的规则一致，避免两条路径对「什么叫答完了」理解不同。
         if (response_json.contains("error") || result->finish_reason != "stop") {
             if (err_msg) *err_msg = "Pi gateway did not return a successful answer";
             return false;
@@ -527,6 +538,8 @@ bool HermesClient::Chat(const nlohmann::json& messages,
     return true;
 }
 
+// 流式路径不处理 control。控制命令一律走上面的 Chat()，
+// 因为 /agent/control 没有 SSE。调用方（main.cpp）在 call_model 为假时不会进这里。
 bool HermesClient::ChatStream(
     const nlohmann::json& messages,
     const HermesChatOptions& options,

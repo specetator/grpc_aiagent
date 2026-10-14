@@ -3,6 +3,8 @@
 
 namespace sparkpush {
 namespace {
+// 缓冲、单条事件、最终回答共用这一个上限。超限走 Fail，
+// 不截断：截断后的半句话会被当成完整回答落库。
 constexpr size_t kMaxBytes = 16 * 1024 * 1024;
 
 std::string Text(const nlohmann::json& value) {
@@ -24,6 +26,9 @@ std::string Text(const nlohmann::json& value) {
 
 bool HermesSseParser::Fail(const std::string& message, HermesChatResult* result,
                           std::string* error) {
+  // 第一次失败的原因留住。后续 Feed 再进来仍报这句，
+  // 不会被更后面的解析错误盖掉。同时清空 result：
+  // 已经吐给 on_delta 的预览作废，不能让半截文本看起来像成功。
   if (failure_.empty()) failure_ = message;
   if (error) *error = failure_;
   if (result) {
@@ -73,8 +78,11 @@ bool HermesSseParser::Finish(
     const std::function<void(const std::string&)>& on_delta, std::string* error) {
   if (!failure_.empty()) return Fail(failure_, result, error);
   if (!result) return Fail("missing gateway stream result", result, error);
+  // 连接在最后一个事件的空行之前断开时，补一个换行把挂着的事件送出去。
   if (!pending_.empty() && !Feed("\n", result, on_delta, error)) return false;
   if (!ProcessEvent(result, on_delta, error)) return false;
+  // done_ 来自 [DONE]。final_ / stopped_ 来自终态事件或 finish_reason=stop。
+  // 只有预览、没有终态，整次调用失败。
   if (!done_ || (!final_ && !stopped_)) {
     return Fail("gateway stream ended without a successful terminal event", result, error);
   }
@@ -98,6 +106,7 @@ bool HermesSseParser::ProcessEvent(
   while (!data.empty() && data.back() == '\n') data.pop_back();
   if (done_) return Fail("gateway sent data after stream completion", result, error);
   if (data == "[DONE]") {
+    // [DONE] 不能把一次没有终态的流洗成成功。
     if (!final_ && !stopped_) return Fail("gateway omitted the successful final result", result, error);
     done_ = true;
     return true;
@@ -139,6 +148,8 @@ bool HermesSseParser::ProcessEvent(
       }
       const auto metadata = event.value("response_metadata", nlohmann::json::object());
       if (!metadata.is_object()) return Fail("invalid gateway response metadata", result, error);
+      // 同一条流里出现两份终态时，正文和元数据必须完全一致。
+      // 不一致说明网关拼接了两次回答，不能挑一份留下。
       if (final_ && (final_text_ != text || result->metadata != metadata)) {
         return Fail("conflicting gateway final answers", result, error);
       }
@@ -176,6 +187,8 @@ bool HermesSseParser::ProcessEvent(
         return Fail("gateway finish_reason has invalid type", result, error);
       }
       result->finish_reason = choice["finish_reason"].get<std::string>();
+      // 只接受 stop。length / content_filter 等都会让整次调用失败，
+      // 避免把被截断的回答当成完整回复持久化。
       if (result->finish_reason != "stop") {
         return Fail("gateway answer did not finish successfully", result, error);
       }

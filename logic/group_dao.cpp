@@ -22,6 +22,11 @@ bool GroupDao::CreateChatroom(const std::string& name, int64_t owner_id,
 
     std::ostringstream oss;
     // group_type=1 表示聊天室
+    // 安全缺陷：name 直接拼进单引号里，**没有过 mysql_real_escape_string**，
+    // 也没用占位符绑定。一个包含单引号的房间名就能截断语句并注入任意 SQL。
+    // 当前只能靠上游兜：该路径是 /api/admin/chatroom/create，有 requireAdmin 门禁，
+    // 且 RoomService 只校验了 name.empty()。不要把这个接口开给普通用户，
+    // 也不要拷贝这段写法到新代码里。
     oss << "INSERT INTO im_group(name, owner_id, group_type) VALUES('" << name
         << "'," << owner_id << ",1)";
     std::string sql = oss.str();
@@ -30,6 +35,8 @@ bool GroupDao::CreateChatroom(const std::string& name, int64_t owner_id,
         LOG_ERROR << "CreateChatroom failed: " << std::string(mysql_error(conn));
         return false;
     }
+    // 必须在连接还给池之前取 insert_id：它属于连接而不是结果集，
+    // guard 析构后连接会被其他请求复用，晚取就可能拿到别人的自增值。
     if (group_id) {
         *group_id = static_cast<int64_t>(mysql_insert_id(conn));
     }
@@ -140,6 +147,12 @@ bool GroupMemberDao::AddOrUpdateMember(int64_t group_id, int64_t user_id,
     }
     std::ostringstream oss;
     // 简化：使用 INSERT IGNORE，再按需更新 role
+    // 名实不符：下面**只有 INSERT IGNORE，没有任何 UPDATE role 的语句**。
+    // 因此成员已存在时 role 会被静默忽略，函数返回 true 但什么都没改。
+    // 另外 INSERT IGNORE 会吸收**所有**错误（包括数据截断、外键失败）
+    // 而不只是主键冲突，真正的故障会被当成「已存在」静默吞掉。
+    // 若要修，应改成 INSERT ... ON DUPLICATE KEY UPDATE role=VALUES(role)，
+    // 并靠 affected_rows 区分「新插入(1)」与「已存在(0)」。
     oss << "INSERT IGNORE INTO group_member(group_id, user_id, role) VALUES("
         << group_id << "," << user_id << "," << role << ")";
     std::string sql = oss.str();
@@ -226,6 +239,9 @@ bool GroupMemberDao::IsMember(int64_t group_id, int64_t user_id,
         if (err_msg) *err_msg = "invalid membership arguments";
         return false;
     }
+    // 先置 false 再查：本方法是对象级鉴权的依据，必须 fail-closed。
+    // 下面任何一条失败路径（拿不到连接、SQL 报错、store_result 失败）
+    // 都会留下 *is_member == false，调用方因此会拒绝访问而不是放行。
     *is_member = false;
     if (!pool_) {
         if (err_msg) *err_msg = "mysql pool not initialized";
@@ -238,6 +254,8 @@ bool GroupMemberDao::IsMember(int64_t group_id, int64_t user_id,
         return false;
     }
     std::ostringstream oss;
+    // COUNT(*) 而不是 SELECT 1 LIMIT 1：两者都能回答「存不存在」，
+    // 但 COUNT 的返回值不需要处理空结果集，下面的 row 判空逻辑更简单。
     oss << "SELECT COUNT(*) FROM group_member WHERE group_id=" << group_id
         << " AND user_id=" << user_id;
     if (mysql_query(conn, oss.str().c_str()) != 0) {
@@ -255,7 +273,13 @@ bool GroupMemberDao::IsMember(int64_t group_id, int64_t user_id,
     return true;
 }
 
-// 功能：列出聊天室成员
+// 功能：列出聊天室成员。
+// 这个列表是多处扇出逻辑的共同输入：
+//   message_service  群聊/房间消息按成员查 comet_id 再写 push_group topic
+//   danmaku_service  弹幕广播的目标集
+//   room_service     在线人数统计的兜底路径
+// 因此本查询的正确性直接决定了「谁能收到房间消息」。
+// 注意没有 LIMIT：成员数无上限，超大房间会一次拉回全部 id。
 bool GroupMemberDao::ListRoomMembers(int64_t group_id,
                                      std::vector<int64_t>* user_ids,
                                      std::string* err_msg) {

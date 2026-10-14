@@ -18,6 +18,16 @@
 namespace sparkpush {
 
 // Composition root supplies business services, never DAOs or network clients.
+//
+// 译：组装根（main.cpp）只供给业务 service，绝不供给 DAO 或网络客户端。
+//
+// 这条约束把 HTTP 适配层钉在了边界上：本文件里的代码只能调 service，
+// 因此任何鉴权/幂等/序号规则都不可能在这里被“绕过去”。
+// 对比 gRPC 适配层（grpc_service.h）：它同样只持 service 指针。
+//
+// 用引用而不是指针的八个成员是**必需**依赖（main.cpp 里都是栈上对象）；
+// 最后两个用指针 + 默认 nullptr，因为房间 Agent 是**可选特性**
+//（未启用时 main.cpp 不传），handler 里靠空指针判定回 503。
 struct LogicHttpServices {
     UserService& users;
     ConversationService& conversations;
@@ -32,6 +42,25 @@ struct LogicHttpServices {
 };
 
 // HTTP adapter: request parsing, bearer extraction and response serialization.
+//
+// 译：HTTP 适配层：请求解析、bearer 提取、响应序列化。
+//
+// 阅读本类前先记住四件事（都在 .cpp 顶部的大段注释里展开了）：
+//   1. 响应体统一是 {"code":..,"message":..,"data":{..}}，而 **HTTP 状态码
+//      与 body.code 并不一一对应**：500/503/409/413/429 等业务码会以
+//      HTTP 200 返回。客户端必须读 body.code，不能只看状态码。
+//   2. 鉴权分两道门：requireUser（普通用户，kHttpUser audience）与
+//      requireAdmin（管理员，验 token 解出的 id 必须等于 kAdminUserId）。
+//      requireAdmin **不输出 user_id**，各 admin handler 直接用常量
+//      kAdminUserId 当 actor——绝不从请求 JSON 里取。
+//   3. 路由是一张 path -> 成员函数指针的静态表，**多对一是允许的**：
+//      四个 /api/admin/user/{status,disable,restore,delete} 共用一个 handler，
+//      三个 /api/chatroom/agent/* 共用 handleRoomAgent，内部再按 path 分派。
+//   4. /ready 与 /metrics 在路由表**之前**处理且不需鉴权。
+//
+// 线程模型：muduo 的 HttpServer 配 io_threads 个 IO 线程，handler 可能
+// 并发执行。因此本类**没有任何可变成员状态**（十个指针构造后不再变），
+// 并发安全完全依靠 service 层自己的锁。
 class HttpApiServer {
    public:
     HttpApiServer(muduo::net::EventLoop* loop, const muduo::net::InetAddress& address,
@@ -136,8 +165,20 @@ class HttpApiServer {
     void handleAdminListAuditLogs(const muduo::net::HttpRequest& req,
                                   muduo::net::HttpResponse* resp);
 
+    // 两道鉴权门。两者都已经把错误写进 resp 了，因此调用方的写法
+    // 统一是 `if (!requireUser(req, resp, &uid)) return;`，不需要再回一次错。
+    //
+    // requireUser：解出 Bearer token -> Authenticate(kHttpUser) -> 写 *user_id。
+    //   注意 audience 与 gRPC 侧的 VerifyToken 不同（那边是 kRealtimeUser），
+    //   差异是：kRealtimeUser 下内置管理员账号与 bot 账号会被 403，
+    //   而 kHttpUser 下**不会**。也就是说管理员 token 可以调普通用户接口。
+    // requireAdmin：AdminEnabled() 门禁 + AuthenticateAdmin（要求 id == kAdminUserId）。
+    //   它的鉴权失败一律回 HTTP 400（而不是 401/403），与 requireUser 不一致，
+    //   这是历史遗留（见 .cpp 里 WriteAdminServiceError 的说明）。
     bool requireUser(const muduo::net::HttpRequest& req, muduo::net::HttpResponse* resp,
                      int64_t* user_id);
+    // 房间共享 Agent 的三个端点共用本 handler（configure / task / checkpoint），
+    // 内部按 req.path() 分派。task 路径是兜底分支（else）。
     void handleRoomAgent(const muduo::net::HttpRequest& req,
                          muduo::net::HttpResponse* resp);
     bool requireAdmin(const muduo::net::HttpRequest& req,

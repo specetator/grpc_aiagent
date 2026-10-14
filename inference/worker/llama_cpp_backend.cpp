@@ -15,6 +15,7 @@ int64_t NowMs() {
       std::chrono::system_clock::now().time_since_epoch()).count();
 }
 
+// curl 的写回调。返回 0 会中止这次传输。异常不能穿过 libcurl 的 C 回调。
 class StreamState {
  public:
   StreamState(const GenerateRequest& request, const std::atomic<bool>& cancelled,
@@ -28,6 +29,7 @@ class StreamState {
     for (size_t i = 0; i < bytes; ++i) {
       if (data[i] != '\r') state->pending_.push_back(data[i]);
     }
+    // 未完成的事件先攒着。超过 1 MiB 中止，不截断：截断后的半句会被当成完整 token。
     if (state->pending_.size() > 1'048'576) {
       state->error_ = "llama.cpp SSE event exceeds 1 MiB";
       return 0;
@@ -40,17 +42,24 @@ class StreamState {
         if (!state->Process(event)) return 0;
       } catch (...) {
         state->error_ = "invalid runtime SSE field type";
-        return 0;  // Exceptions must not unwind through libcurl's C callback.
+        // Exceptions must not unwind through libcurl's C callback.
+        // 译：异常不能穿过 libcurl 的 C 回调往外抛。这里吞掉并返回 0，
+        // 让 curl_easy_perform 失败，由 Generate 抛出带 error_ 的异常。
+        return 0;
       }
     }
     return bytes;
   }
 
+  // curl 规定进度回调返回非 0 就中止传输。取消时靠它打断正在阻塞的 perform，
+  // 而不是干等写回调下一次被调用。
   static int Progress(void* user, curl_off_t, curl_off_t, curl_off_t, curl_off_t) {
     const auto* state = static_cast<const StreamState*>(user);
     return state->cancelled_.load() ? 1 : 0;
   }
 
+  // 三件套缺一不可：[DONE]、choice 上的 finish_reason、以及每次 emit 都成功。
+  // 只有 [DONE] 没有 finish_reason，Generate 会当失败，不发终态块。
   bool completed() const { return done_ && saw_finish_ && accepted_; }
   bool cancelled() const { return cancelled_.load() || !accepted_; }
   const std::string& error() const { return error_; }
@@ -72,6 +81,8 @@ class StreamState {
       start = end + 1;
     }
     if (data.empty()) return true;
+    // [DONE] 只标记流结束。终态块不在这个回调里发：
+    // usage 和 timings 可能紧跟在 finish_reason 后面，等 perform 返回再打包才是全的。
     if (data == "[DONE]") { done_ = true; return true; }
     auto json = nlohmann::json::parse(data, nullptr, false);
     if (!json.is_object() || json.contains("error")) {
@@ -89,6 +100,7 @@ class StreamState {
       prefill_ms_ = json["timings"].value("prompt_ms", 0.0);
       decode_ms_ = json["timings"].value("predicted_ms", 0.0);
     }
+    // 只有 usage / timings、没有 choices 的事件是合法的，不能当成错误丢掉计数。
     if (!json.contains("choices") || !json["choices"].is_array() ||
         json["choices"].empty()) return true;
     const auto& choice = json["choices"][0];
@@ -97,6 +109,7 @@ class StreamState {
         choice["delta"].contains("content") &&
         choice["delta"]["content"].is_string()) {
       const std::string token = choice["delta"]["content"].get<std::string>();
+      // 空 token 不占序号。网关要求序号从 0 连续，空块会把后续序号撑出空洞。
       if (!token.empty()) {
         GenerateChunk chunk;
         chunk.set_request_id(request_.request_id());
@@ -149,6 +162,7 @@ class StreamState {
 bool LlamaCppBackend::Generate(const GenerateRequest& request,
     const std::atomic<bool>& cancelled,
     const std::function<bool(const GenerateChunk&)>& emit) {
+  // 只允许 http。https 或裸地址直接抛，worker 映射成 INTERNAL，不是 CANCELLED。
   if (endpoint_.rfind("http://", 0) != 0)
     throw std::runtime_error("llama.cpp endpoint must use http://");
   nlohmann::json messages = nlohmann::json::array();
@@ -159,15 +173,25 @@ bool LlamaCppBackend::Generate(const GenerateRequest& request,
       throw std::runtime_error("unsupported chat role");
     messages.push_back({{"role", turn.role()}, {"content", turn.content()}});
   }
+  // 有 chat_turns 就用多轮。空 content 的轮次丢掉。角色只认 user / assistant / system。
+  // 这里不读 request.messages()。只填那个字段、prompt 又为空时，会发出一条空的 user。
+  // 网关的空请求检查认 messages，所以这种请求进得来。新客户端不要只填 messages。
+  // 只有旧客户端只填 prompt 时，才退化成单条 user。
+  // Bridge 的 gRPC 客户端两边都写：prompt 被覆盖成最后一条，完整历史在 chat_turns。
   if (messages.empty())
     messages.push_back({{"role", "user"}, {"content", request.prompt()}});
+  // max_tokens 为 0 是「没指定」，用 128，不是生成 0 个 token。
+  // temperature 没设（oneof 没有 presence）用 0.7。设成 0 必须原样传下去，那是贪心解码。
   nlohmann::json body = {
       {"model", request.model()}, {"messages", messages}, {"stream", true},
       {"max_tokens", request.max_tokens() == 0 ? 128 : request.max_tokens()},
       {"temperature", request.sampling_temperature_case() == GenerateRequest::kTemperature
           ? request.temperature() : 0.7f}};
   body["stream_options"] = {{"include_usage", true}};
+  // metadata 只认白名单。其余键丢掉，避免把上游随便塞的字段转发给 llama-server。
+  // cache_prompt / ignore_eos 只在 llamacpp 运行时转发，vLLM 不吃这两个字段。
   for (const auto& item : request.metadata()) {
+    // seed 不是整数会抛到 Generate 外面，变成 INTERNAL。不把坏 seed 悄悄丢掉。
     if (item.first == "seed") body["seed"] = std::stoi(item.second);
     if (runtime_ == "llamacpp" &&
         (item.first == "cache_prompt" || item.first == "ignore_eos"))
@@ -195,6 +219,8 @@ bool LlamaCppBackend::Generate(const GenerateRequest& request,
   const CURLcode code = curl_easy_perform(curl.get());
   long http_status = 0;
   curl_easy_getinfo(curl.get(), CURLINFO_RESPONSE_CODE, &http_status);
+  // 取消返回 false，由 worker 映射成 CANCELLED。
+  // 其他失败抛异常，映射成 INTERNAL。没见到 finish 块也算失败，不返回半截回答。
   if (state.cancelled()) return false;
   if (code != CURLE_OK || http_status != 200 || !state.error().empty() ||
       !state.completed())
@@ -226,9 +252,13 @@ void LlamaCppBackend::GetRuntimeStatus(WorkerInfo* info) {
     return code == CURLE_OK && status == 200;
   };
   std::string body;
+  // /health 决定 healthy。失败会把心跳里的 healthy 写成 false，调度随即跳过这台。
+  // 不要在这里改 running_requests：那是 GetStatus 按 active_ 填的准入数。
   info->set_healthy(get("health", &body));
   body.clear();
-  if (!get("metrics", &body)) return;  // Optional exporter, health remains authoritative.
+  // /metrics 没有也没关系。healthy 仍以上面的 /health 为准。
+  // Optional exporter, health remains authoritative.
+  if (!get("metrics", &body)) return;
   std::istringstream lines(body);
   std::string line;
   double running = 0, waiting = 0, kv = 0;
@@ -237,6 +267,8 @@ void LlamaCppBackend::GetRuntimeStatus(WorkerInfo* info) {
     if (line.empty() || line[0] == '#') continue;
     // A label value can itself contain spaces. The sample follows the closing
     // label brace (or the metric name for an unlabeled sample).
+    // 译：标签值本身可以含空格。样本值在右花括号之后；没有标签时跟在指标名后面。
+    // 不能用「第一个空格」切，否则带空格的标签会把数值切错。
     const auto labels_end = line.find('}');
     const auto space = line.find_first_of(" \t", labels_end == std::string::npos ? 0 : labels_end + 1);
     if (space == std::string::npos) continue;
@@ -255,6 +287,7 @@ void LlamaCppBackend::GetRuntimeStatus(WorkerInfo* info) {
   if (found_running) info->set_runtime_running_requests(std::max(0.0, running));
   if (found_waiting) {
     info->set_runtime_waiting_requests(std::max(0.0, waiting));
+    // 这是运行时自己的队列，调度权重比 running 高。网关那条全局 FIFO 不在这里。
     info->set_waiting_requests(info->runtime_waiting_requests());
   }
   info->set_kv_cache_usage_ratio(kv);

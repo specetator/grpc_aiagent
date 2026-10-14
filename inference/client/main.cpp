@@ -9,6 +9,9 @@
 
 #include "inference.grpc.pb.h"
 
+// 手测用的生成客户端。只填 prompt，不填 chat_turns，走后端的单条 user 退路。
+// temperature 显式设成 0：依赖 proto 里 oneof 的 presence，后端才会贪心解码，
+// 而不是把「没设」当成 0.7。request_id 用 steady_clock 计数，同一次进程里不撞。
 int main(int argc, char** argv) {
   std::string gateway = "127.0.0.1:9300", model = "mock-model", prompt = "hello";
   int cancel_after_chunks = 0;
@@ -53,6 +56,8 @@ int main(int argc, char** argv) {
   context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(timeout_ms));
   std::atomic<bool> timer_done{false};
   std::thread cancel_timer;
+  // 取消定时器和读循环并发。timer_done 在 Finish 之后才置位，
+  // join 之前 context 还活着，TryCancel 不会打到已析构的 context。
   if (cancel_after_ms > 0) {
     cancel_timer = std::thread([&] {
       for (int elapsed = 0; elapsed < cancel_after_ms && !timer_done.load(); elapsed += 10)
@@ -84,6 +89,7 @@ int main(int argc, char** argv) {
       result["runtime_decode_ms"] = chunk.runtime_decode_ms();
       if (!json_output) std::cout << "finished: " << chunk.finish_reason() << '\n';
     }
+    // 只数带文本的块。终态块 text_delta 为空，不占用取消配额。
     if (!chunk.text_delta().empty() && cancel_after_chunks > 0 &&
         ++chunks >= cancel_after_chunks) {
       context.TryCancel();
@@ -93,6 +99,8 @@ int main(int argc, char** argv) {
   auto status = reader->Finish();
   result["ttft_ms"] = ttft;
   result["e2e_ms"] = elapsed();
+  // grpc 成功还不够，必须见到带 finish_reason 的终态块。
+  // 半截流即使状态码是 OK，这里也记成 ok=false。进程退出码仍只看 status。
   result["ok"] = status.ok() && result.contains("finish_reason");
   result["grpc_code"] = status.error_code();
   if (json_output) std::cout << result.dump() << '\n';

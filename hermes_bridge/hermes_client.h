@@ -21,14 +21,20 @@ struct HermesChatOptions {
     // 重启而用同一请求重复调用 Agent 工具。
     std::string request_id;
     // Trusted Logic scope. Not accepted from a public chat message body.
+    // 译：这是 Logic 已经信任过的作用域，不从公开聊天消息体里取。
+    // 房间、任务这些字段若改成客户端直接传，就等于让用户自己指定协作范围。
     nlohmann::json collaboration;
     int64_t context_start_seq{0};
     bool retry{false};
     std::function<void(const std::string&)> on_progress;
     std::function<void(const nlohmann::json&)> on_agent_event;
     // Agent control uses /agent/control; it never sends a prompt to the model.
+    // 译：控制命令走 /agent/control，绝不把提示词送给模型。
+    // Chat() 在 control 非空时会整份替换请求体，不走 /chat/completions。
     nlohmann::json control;
     // Pi RPC images for the current turn only; base64 payloads, never Kafka IDs.
+    // 译：只带本轮的 Pi RPC 图片。载荷是 base64，不是 Kafka 里的附件 id。
+    // 附件 id 留在 Kafka 上，Bridge 读盘之后才填这个字段。
     nlohmann::json images = nlohmann::json::array();
 };
 
@@ -38,6 +44,8 @@ struct HermesChatResult {
     std::string text;
     // Provider/gateway terminal diagnostics. These are observational fields;
     // they do not change the existing request or message protocol.
+    // 译：供应商/网关的终态诊断。这些字段只用于观察，
+    // 不改变现有的请求或消息协议。finish_reason 不是 "stop" 时调用失败。
     std::string finish_reason;
     std::size_t stream_chunk_count{0};
     nlohmann::json agent_event{nlohmann::json::object()};

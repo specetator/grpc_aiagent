@@ -30,6 +30,9 @@ GpuMemoryProbe::GpuMemoryProbe(const WorkerInfo& info) : device_index_(info.devi
     // WSL cuMemGetInfo can omit other processes' allocations. Prefer NVML's
     // device-wide counters; match PCI identity, never assume a visible CUDA
     // ordinal equals an NVML physical index (CUDA_VISIBLE_DEVICES may reorder).
+    // 译：WSL 上的 cuMemGetInfo 可能漏掉其他进程占用的显存。优先用 NVML 的整卡计数。
+    // 用 PCI 总线号对上设备，不要假设 CUDA 可见序号等于 NVML 物理序号：
+    // CUDA_VISIBLE_DEVICES 会把序号重排。对错卡会把空闲显存报成另一张卡的。
     auto pci_id = reinterpret_cast<int (*)(char*, int, int)>(dlsym(library_, "cuDeviceGetPCIBusId"));
     char pci[32] = {};
     if (cuda_device_ >= 0 && pci_id && pci_id(pci, sizeof(pci), cuda_device_) == 0) {
@@ -72,6 +75,8 @@ void GpuMemoryProbe::Sample(WorkerInfo* info) {
   size_t free = 0, total = 0;
   if (cuda_context_) {
     void* previous = nullptr;
+    // cuMemGetInfo 读的是当前 context 所在设备。采样前切过去，之后必须切回来。
+    // 切不回去就放弃这次采样，不把别的线程的 context 留在我们这边。
     if (cuda_get_current_(&previous) != 0) return;
     const int set_result = cuda_set_current_(cuda_context_);
     const int sample_result = set_result == 0 ? memory_info_(&free, &total) : -1;

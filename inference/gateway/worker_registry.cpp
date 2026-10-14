@@ -14,6 +14,8 @@ bool WorkerRegistry::Register(const WorkerInfo& worker) {
   if (worker.worker_id().empty() || worker.endpoint().empty() ||
       worker.model_id().empty()) return false;
   std::lock_guard<std::mutex> lock(mutex_);
+  // 重复注册只刷新 info 和心跳，不把 active_gateway_requests 清零。
+  // 清零会让网关以为这个 worker 突然空了，把正在跑的请求再塞一批进来。
   auto& entry = workers_[worker.worker_id()];
   entry.info = worker;
   entry.info.set_timestamp_ms(NowMs());
@@ -44,6 +46,9 @@ WorkerInfo WorkerRegistry::Snapshot(
   // In an exclusively gateway-managed fleet, local RPC leases are the live
   // admission truth. Heartbeat load can remain full up to one second after all
   // those RPCs complete. Default mode still accounts for reported/direct load.
+  // 译：只由本网关管辖时，本地 RPC 租约才是准入的实时真相。
+  // 心跳里的负载在全部 RPC 结束后最多还能满一秒。
+  // 默认模式取「心跳上报」和「本网关计数」的较大值，避免漏算直接打到 worker 的请求。
   info.set_running_requests(gateway_managed_only_ ? entry.active_gateway_requests :
       std::max<uint32_t>(info.running_requests(), entry.active_gateway_requests));
   return info;
@@ -74,6 +79,7 @@ std::vector<WorkerInfo> WorkerRegistry::FindWorkersForModel(
 bool WorkerRegistry::ChangeRunning(const std::string& worker_id, int delta) {
   std::lock_guard<std::mutex> lock(mutex_);
   auto it = workers_.find(worker_id);
+  // 减到负数直接拒绝，计数保持原值。调用方拿到 false 不能假设已经减过。
   if (it == workers_.end() || it->second.active_gateway_requests + delta < 0)
     return false;
   it->second.active_gateway_requests += delta;

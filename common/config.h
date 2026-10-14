@@ -9,9 +9,21 @@
 namespace sparkpush {
 
 // 配置项集中描述所有组件启动所需的参数，便于统一加载和透传。
+//
+// 三个服务共用同一个 Config 结构（而不是每个进程一份）：
+// 好处是跨服务的约定（topic 名、流参数、限流档位）只有一份定义，
+// 不会出现 Comet 与 Logic 对同一个参数理解不一致的情况。
+// 代价是每个进程会携带一堆用不到的字段，但它们都有默认值，
+// 不填就不会生效。
+//
+// 所有字段都带默认值，因此配置文件可以只写差异项。
+// 敏感项（mysql_password、admin_password、RPC 密钥）不放在这里，
+// 而是由 .env.local / .env.rpc 注入环境变量，避开进仓库。
 struct Config {
     // 监听地址与端口
     std::string listen_addr;
+    // 内部 gRPC 的绑定地址。默认回环：非回环时
+    // InternalServerCredentials 会强制要求 TLS（见 internal_rpc.h）。
     std::string internal_grpc_listen_addr{"127.0.0.1"};
     int listen_port{0};
 
@@ -74,10 +86,15 @@ struct Config {
     // Comet 异步 Unary gRPC 线程池
     int comet_grpc_pool_size{4};
     // Comet↔Logic 双向流（对齐 06）
+    // use_grpc_stream=false 时上行退化为 Unary + 线程池，仍可正常工作，
+    // 只是吞吐低一些。保留这个开关是为了对比测量与故障隔离。
     bool use_grpc_stream{false};
+    // 流条数。多条流按 request_id 取模分片，绕开单条流 Write 串行的瓶颈。
     int grpc_stream_count{4};
     int grpc_stream_reconnect_base_ms{200};
     int grpc_stream_reconnect_max_ms{5000};
+    // Write 成功后等 reply 的上限。超过就判定这条流不健康并重建，
+    // 避免前端气泡永远停在「发送中」。必须小于客户端的重试周期。
     int grpc_stream_ack_timeout_ms{8000};
 
     // Job -> Comet 长连接推送。
@@ -88,6 +105,10 @@ struct Config {
     int push_rpc_deadline_ms{2000};
 
     // Logic 写入持久化 topic 时等待 broker delivery report 的超时。
+    //
+    // 这个值直接决定了 accepted_ack 的延迟下限：Submit 里是同步
+    // SendAndWait，因此每条消息的受理时间至少是一个 Kafka round-trip。
+    // 调小会增加超时失败（回 503）的概率，调大会拖慢整体响应。
     int persist_kafka_timeout_ms{5000};
 
     // 单聊/群聊/广播分别使用令牌桶，避免广播流量挤占单聊资源。
@@ -113,6 +134,12 @@ struct Config {
 };
 
 // 简单 key=value 文本配置加载，读取失败则返回内置默认值。
+//
+// 注意「失败返回默认值」而不是抛异常：文件不存在时服务仍能带着
+// 默认配置跑起来（便于本地快速试跑）。但敏感项（密码、密钥）
+// 没有默认值，因此生产部署漏配会在后续的 Init 里失败，不会静默跑错。
+//
+// 具体解析规则（注释、引号、环境变量覆盖）见 config.cpp。
 Config LoadConfig(const std::string& path);
 
 }  // namespace sparkpush

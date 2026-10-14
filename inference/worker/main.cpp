@@ -19,6 +19,8 @@ int64_t NowMs() {
 }
 }  // namespace
 
+// 推理 worker 进程。mock 走本地假流；llamacpp 和 vllm 共用 LlamaCppBackend，
+// 用 backend 字符串区分指标名，以及要不要转发 cache_prompt。
 int main(int argc, char** argv) {
   std::string id = "worker-0", listen = "127.0.0.1:9400";
   std::string model = "mock-model", gateway = "127.0.0.1:9300";
@@ -38,6 +40,9 @@ int main(int argc, char** argv) {
     else if (arg == "--device-index" && i + 1 < argc) device_index = std::stoi(argv[++i]);
     else { std::cerr << "usage: inference_worker [--worker-id id] [--listen host:port] [--model id] [--gateway host:port] [--backend mock|llamacpp|vllm] [--model-endpoint http://host:port] [--max-concurrent N] [--device-type cpu|rocm|cuda|cann] [--device-index N]\n"; return 2; }
   }
+  // capacity 不允许 0。调度器把 max_concurrent_requests==0 当成「不设上限」，
+  // 这里若放行，这个进程就没有并发保护。非 mock 必须带 model_endpoint，
+  // 否则 LlamaCppBackend 没有可连的 llama-server / vLLM。
   if ((backend != "mock" && backend != "llamacpp" && backend != "vllm") ||
       (backend != "mock" && model_endpoint.empty()) || capacity <= 0 || capacity > 1024 || device_index < 0) {
     std::cerr << "invalid worker backend or missing model endpoint\n";
@@ -69,6 +74,10 @@ int main(int argc, char** argv) {
   std::signal(SIGINT, Stop);
   std::signal(SIGTERM, Stop);
   std::cerr << "inference worker " << id << " listening on " << listen << '\n';
+  // 大约每秒一次。先 GetStatus 把在途数和显存写进 info，再注册或心跳。
+  // 心跳失败（网关重启、节点被摘掉）把 registered 置回 false，下一轮重新 RegisterWorker。
+  // 继续 Heartbeat 会被拒，网关侧永远看不到这个进程。
+  // 退出时不主动注销：协议里没有注销 RPC，网关靠 5 秒心跳超时把节点标成不健康。
   bool registered = false;
   while (running) {
     grpc::ServerContext status_context;

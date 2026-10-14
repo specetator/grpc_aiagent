@@ -9,6 +9,12 @@
 namespace sparkpush {
 namespace {
 
+// mysql_stmt_bind_result 要求缓冲区在 fetch 期间一直存活，因此把七个定长缓冲
+// 打包成一个结构体按值传递。字段顺序与 UserSelectSql 的 SELECT 列一一对应，
+// 改其中一边必须同步改另一边。
+// 缓冲区尺寸均按 schema 上限留了一倍余量：account/name 是 VARCHAR(64) -> 128 字节，
+// password_hash 是 VARCHAR(128) -> 256 字节。余量是为了将来改宽列时
+// 不会静默触发截断（mysql 只会回 MYSQL_DATA_TRUNCATED，不报错）。
 struct UserResultBuffers {
     long long id{0};
     char account[128]{};
@@ -77,6 +83,9 @@ bool FetchOneUser(MYSQL_STMT* stmt, User* user, std::string* err_msg) {
         if (err_msg) *err_msg = mysql_stmt_error(stmt);
         return false;
     }
+    // 先用 num_rows 判空再 fetch：这样能给出确定的 "user not found" 文本。
+    // 上层（UserService::Register / Login）靠比对这个字符串区分
+    // 「账号不存在」与「数据库出错」，不要改成别的措辞。
     if (mysql_stmt_num_rows(stmt) == 0) {
         if (err_msg) *err_msg = "user not found";
         return false;
@@ -98,21 +107,35 @@ bool FetchOneUser(MYSQL_STMT* stmt, User* user, std::string* err_msg) {
     return true;
 }
 
+// 执行一条 DDL，把「已经存在」当成成功。
 bool ExecSchemaStatement(MYSQL* conn, const char* sql,
                          std::string* err_msg) {
     if (mysql_query(conn, sql) == 0) return true;
     // MySQL 8.0 does not have identical IF NOT EXISTS support across all
     // ALTER TABLE variants. Duplicate column/index means the migration has
     // already been applied and is therefore a successful idempotent result.
+    //   1060 = Duplicate column name
+    //   1061 = Duplicate key name
+    // 其他任何 errno（权限不足、表不存在、磁盘满）都必须当失败：
+    // 启动时 schema 不完整而继续跑，只会在第一条业务 SQL 上报一个
+    // 难认的错误，比在这里直接拒绝启动难查得多。
     const unsigned int code = mysql_errno(conn);
     if (code == 1060 || code == 1061) return true;
     if (err_msg) *err_msg = mysql_error(conn);
     return false;
 }
 
+// 拼出完整的用户查询 SQL。suffix 是已经写死的 WHERE/ORDER 片段，
+// **不接受任何用户输入**：两个调用点传的都是字面量（"WHERE status=? ..."），
+// 参数值一律走占位符绑定。若将来需要根据用户输入拼条件，
+// 必须先改成本函数只返回固定前缀、条件另外用绑定参数表达。
 std::string UserSelectSql(const char* suffix) {
     std::string sql =
         "SELECT id, account, name, password_hash, status, "
+        // COALESCE + DATE_FORMAT 把 NULL 时间变成空串：直接绑定 DATETIME 需要
+        // MYSQL_TYPE_DATETIME 结构与 is_null 标志，而业务层只把它当展示字符串用，
+        // 在 SQL 层格式化能避开一整套 NULL 处理样板代码。
+        // 格式里的 'Z' 是写死的：数据库统一存 UTC，不是真正的时区转换。
         "COALESCE(DATE_FORMAT(deleted_at, '%Y-%m-%dT%H:%i:%sZ'), ''), "
         "COALESCE(DATE_FORMAT(created_at, '%Y-%m-%dT%H:%i:%sZ'), '') "
         "FROM `user` ";
@@ -131,6 +154,10 @@ bool BindUserIdParam(MYSQL_BIND* bind, long long* user_id) {
 
 }  // namespace
 
+// 启动时幂等补齐用户中心的三个字段与一个索引。
+// 写成四条独立 DDL 而不是一个迁移脚本，是为了让本地开发库（可能是
+// 任何历史版本初始化的）都能直接启动，不需要人工判断该跑哪个迁移。
+// 代价是每次启动多四次 DDL 尝试，但这是一次性动作，不在热路径上。
 bool UserDao::EnsureUserCenterSchema(std::string* err_msg) {
     if (!pool_) {
         if (err_msg) *err_msg = "mysql pool not initialized";
@@ -143,6 +170,8 @@ bool UserDao::EnsureUserCenterSchema(std::string* err_msg) {
         return false;
     }
 
+    // status 默认 1（active）：ADD COLUMN 会给已有行全部填上这个值，
+    // 因此迁移后老用户不会被误判为禁用。
     if (!ExecSchemaStatement(
             conn,
             "ALTER TABLE `user` ADD COLUMN `status` TINYINT NOT NULL "
@@ -165,6 +194,9 @@ bool UserDao::EnsureUserCenterSchema(std::string* err_msg) {
             err_msg)) {
         return false;
     }
+    // 复合索引 (status, deleted_at) 只能加速 ListUsers 的 status 过滤；
+    // 那里排序用的是 ORDER BY id DESC，走的是主键，因此本索引并不参与排序。
+    // deleted_at 放在第二列是为了将来按删除时间筛软删除行时能直接用上。
     return ExecSchemaStatement(
         conn,
         "CREATE INDEX `idx_user_status` ON `user` (`status`, `deleted_at`)",
@@ -290,6 +322,14 @@ bool UserDao::EnsureHermesBotUser(int64_t bot_user_id,
     return true;
 }
 
+// 创建普通用户。id 由 AUTO_INCREMENT 分配，因此用 mysql_insert_id 取回。
+//
+// 与 EnsureHermesBotUser 的关键区别：本函数**不**处理 1062。
+// 账号已存在时会直接返回 false 并带上 MySQL 原始错误文本，
+// 上层 UserService::Register 会把它包成 500。注册路径靠先调
+// FindByAccount 预检来给 409，那是一个 check-then-act：
+// 并发注册同名账号时，预检都通过的那两个请求里有一个会落到 500。
+// 若要修正，应该在这里捕获 1062 并返回一个可区别的错误码。
 bool UserDao::CreateUser(const std::string& account, const std::string& name,
                          const std::string& password, int64_t* user_id,
                          std::string* err_msg) {
@@ -342,6 +382,8 @@ bool UserDao::CreateUser(const std::string& account, const std::string& name,
         mysql_stmt_close(stmt);
         return false;
     }
+    // 必须在 close 之前取 insert_id：它属于连接而不是 stmt，
+    // 但池里的连接会被复用，晚取就可能拿到下一个请求的值。
     if (user_id) *user_id = static_cast<int64_t>(mysql_insert_id(conn));
     mysql_stmt_close(stmt);
     return true;
@@ -465,9 +507,15 @@ bool UserDao::UpdatePasswordHash(int64_t user_id,
     return true;
 }
 
+// 管理员分页查用户。两条独立语句：先 COUNT(*) 拿总数，再 LIMIT/OFFSET 拿当页。
+// 两者不在同一快照里，因此分页过程中有新增时 total 可能与实际页数轻微不一致。
+// 对管理后台而言这是可接受的，换成本（包事务 + 一致性快照）不值得。
 bool UserDao::ListUsers(int offset, int limit, int status,
                         std::vector<User>* users, int* total,
                         std::string* err_msg) {
+    // limit 上限 100 是硬性钳制：管理后台一次看不完 100 条，
+    // 而 OFFSET 分页在大偏移量下本来就很贵，不钳住容易被误用或滥用。
+    // status 的合法区间是 [0, kUserStatusDeleted]，0 是「全部」的哨兵值。
     if (!pool_ || !users || !total || offset < 0 || limit <= 0 || limit > 100 ||
         status < 0 || status > kUserStatusDeleted) {
         if (err_msg) *err_msg = "invalid user list arguments";
@@ -482,6 +530,8 @@ bool UserDao::ListUsers(int offset, int limit, int status,
         return false;
     }
 
+    // status > 0 才加过滤条件。写成两条固定 SQL 而不是拼 "WHERE 1=1"，
+    // 是为了避开无意义的恒真条件干扰优化器选择索引。
     const char* count_sql = status > 0
                                 ? "SELECT COUNT(*) FROM `user` WHERE status=?"
                                 : "SELECT COUNT(*) FROM `user`";
@@ -584,8 +634,16 @@ bool UserDao::ListUsers(int offset, int limit, int status,
     return true;
 }
 
+// 修改用户状态（软删除）。
+// 两条 SQL 分支的区别只在 deleted_at：转为 deleted 时盖时间戳，
+// 转回 active/disabled 时必须**清空**它，否则一个被解禁的用户会带着
+// 旧的删除时间，前端按 deleted_at 非空判断就会继续当已删除展示。
 bool UserDao::UpdateStatus(int64_t user_id, int status,
                            std::string* err_msg) {
+    // 区间校验把非法 status 挡在 SQL 之前：数据库列是 TINYINT 没有 CHECK 约束，
+    // 写个 99 进去不会报错。好在 UserService::IsActive 的判定是
+    // status == kUserStatusActive && deleted_at.empty()，未知值会归为「不可用」（fail-closed），
+    // 因此不会造成权限提升，但会让账号莫名其妙登不上，排查成本很高。
     if (!pool_ || user_id <= 0 || status < kUserStatusActive ||
         status > kUserStatusDeleted) {
         if (err_msg) *err_msg = "invalid user status arguments";

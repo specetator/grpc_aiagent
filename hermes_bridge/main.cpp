@@ -42,6 +42,9 @@ uint64_t Fnv1a64(const std::string& value, uint64_t seed) {
     return hash;
 }
 
+// 事件 id 由 request_id 和序号确定性地算出来，不读随机源。
+// Kafka 重放同一条请求时，下游看到的 event_id 必须相同，
+// 否则客户端会把同一段增量当成两条。
 std::string ProjectedEventId(const std::string& request_id, int sequence) {
     const std::string material = request_id + std::string(1, '\0') +
                                  std::to_string(sequence);
@@ -121,6 +124,9 @@ class HermesBridgeRunner {
         // Poll resumes after a bounded durable batch. A worst-case batch may
         // contain only one session, so budget for serial processing of every
         // record, including business retries and DLQ confirmation.
+        // 译：一次 poll 要能撑完一整批的处理时间。最坏情况下一批全是同一会话，
+        // 只能串行，所以按「每条记录的超时 × 重试」来估，把业务重试和 DLQ 确认也算进去。
+        // 估少了，Kafka 会认为消费者卡住并把分区收走，正在跑的请求会被另一个实例再跑一次。
         const int64_t poll_budget = 3LL * (config_.request_timeout_ms +
             static_cast<int64_t>(config_.reply_delivery_timeout_ms)) + 65000;
         const auto batch_budget = poll_budget *
@@ -140,6 +146,9 @@ class HermesBridgeRunner {
             if (it == reply_cache_.end()) return KafkaConsumer::RecoveryRecord{};
             // Retain an already generated answer for recovery to ai_reply;
             // replaying ai_request could execute Agent tools a second time.
+            // 译：已经生成的回答留在缓存里，恢复时直接重发到 ai_reply。
+            // 再消费一次 ai_request 会把 Agent 工具再执行一遍（发消息、改文件）。
+            // 缓存没命中就返回空，交给消费者走正常重试或 DLQ。
             return KafkaConsumer::RecoveryRecord{config_.reply_topic, id, it->second};
         };
         if (!request_consumer_.Init(
@@ -161,6 +170,8 @@ class HermesBridgeRunner {
     bool failed() const { return request_consumer_.failed(); }
 
    private:
+    // local_error 非空时原样返回（用法提示）。否则这是一条本 Bridge
+    // 不认识的本地命令，给一句固定的「暂不支持」，不调用模型。
     std::string BuildLocalCommandReply(const nlohmann::json& command) const {
         const std::string local_error = command.value("local_error", "");
         if (!local_error.empty()) return local_error;
@@ -309,6 +320,8 @@ class HermesBridgeRunner {
                     auto envelope = latest_agent_envelope;
                     // Bridge batching is a channel projection, so its sequence
                     // follows the emitted legacy delta order.
+                    // 译：Bridge 的合并是通道上的投影，序号跟已发出的 delta 顺序走，
+                    // 不跟模型原始 token 序号走。Logic 侧要求终态 sequence == delta_count。
                     envelope["sequence"] = sequence;
                     envelope["event_id"] = ProjectedEventId(request_id, sequence);
                     envelope["terminal"] = false;
@@ -360,6 +373,8 @@ class HermesBridgeRunner {
                                           .count();
                 // 首个 token 立即显示；后续按字节数或时间合并，避免一个
                 // token 产生一个 Kafka/Job/Comet 消息。
+                // 48 字节或 50ms 合并一次。阈值改小会把 Kafka/Job/Comet 的消息数放大，
+                // 改大则首屏之后的字来得更顿。第一个 token 不受这两个阈值限制。
                 if (first_delta_at_ms == 0 || delta_buffer.size() >= 48 ||
                     elapsed >= 50) {
                     flush_delta();
@@ -379,6 +394,9 @@ class HermesBridgeRunner {
                 if (!PublishDelta(request_id, progress)) delta_publish_failed = true;
             };
             bool ok = true;
+            // call_model 为假且没有 local_error 的已知命令走 /agent/control，
+            // 不把命令文本送给模型。local_error 非空会落到下面的本地回复。
+            // 创作类命令能进这一支，是因为 hermes_command.cpp 故意不填 local_error。
             if (!call_model && (command_name == "agent" || command_name == "model" || command_name == "reasoning" ||
                 command_name == "new" || command_name == "retry" || command_name == "restart" || command_name == "status" ||
                 command_name == "help" || command_name == "roleplay" || command_name == "write" ||
@@ -464,6 +482,10 @@ class HermesBridgeRunner {
                     // delta_index domain. Project the terminal event into the
                     // same sequence so the channel observes 0..N without a
                     // gap or collision.
+                    // 译：中间事件已经被收进 Bridge 的 delta_index 空间。
+                    // 终态事件也投影到同一个序号，通道上才能看到连续的 0..N，
+                    // 不会和某一条 delta 撞号，也不会中间缺一号。
+                    // PrepareHermesReply 会核对 sequence == delta_count，对不上整条拒。
                     final_event["envelope"]["sequence"] = delta_count;
                     final_event["envelope"]["event_id"] =
                         ProjectedEventId(request_id, delta_count);
@@ -488,6 +510,8 @@ class HermesBridgeRunner {
             reply["total_latency_ms"] = completed_at_ms - request_started_at_ms;
             // Keep the historical prompt_chars field for compatibility. The
             // explicit byte/code-point fields are debug-only extensions.
+            // 译：prompt_chars 这个老字段里存的其实是字节数，为了兼容已有指标。
+            // 真正的码点数列在 prompt_unicode_chars，而且只在长度审计打开时写入。
             reply["prompt_chars"] = prompt_bytes;
             if (LengthAuditEnabled()) {
                 reply["prompt_bytes"] = prompt_bytes;
@@ -556,6 +580,8 @@ class HermesBridgeRunner {
             const std::string serialized = reply.dump();
             {
                 std::lock_guard<std::mutex> lock(cache_mutex_);
+                // 满 10000 就整表清空，不是 LRU。清空之后，更早请求的失败恢复
+                // 找不到答案，会重新执行 Agent 工具。这是进程内缓存，重启同样丢失。
                 if (reply_cache_.size() >= 10000) reply_cache_.clear();
                 reply_cache_[request_id] = serialized;
             }

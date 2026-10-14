@@ -4,6 +4,9 @@
 #include <dlfcn.h>
 #include <iostream>
 
+// 三件事：NVML 按 PCI 命中时用 6 GiB；NVML 失败时退回 Driver API 的 8 GiB；
+// 采样结束后调用方原来的 CUDA context（这里的 sentinel）必须还在。
+// 其他失败把显存写成 0、来源写成 unavailable，不能留下采样前塞进去的 123/456。
 int main() {
   using namespace sparkpush::inference;
   void* lib = dlopen("libcuda.so.1", RTLD_NOW | RTLD_LOCAL);

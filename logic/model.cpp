@@ -5,7 +5,12 @@
 
 namespace sparkpush {
 
-// 注册或返回已有用户（内存模型）
+// 本文件是 InMemoryModel 的实现。头文件已经说明：全仓库没有调用者，
+// 生产路径是 SessionDao / MessageDao / ConversationStore。
+// 下面每处注释标的是它和现网实现的差距，避免把它当成参考实现抄走。
+
+// 同账号直接返回已有用户，**不核对 password**。
+// password_hash 字段存的是调用方传来的原文，没有做摘要。
 User InMemoryModel::RegisterOrGetUser(const std::string& account,
                                       const std::string& password) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -63,7 +68,10 @@ Session InMemoryModel::GetOrCreateRoomSession(int64_t room_id) {
     return s;
 }
 
-// 追加消息并递增序号
+// 追加消息并递增序号。
+// 不看 client_msg_id：同一条客户端消息再追加一次就会拿到新序号。
+// sessions_[session.id] 在 key 不存在时会默认构造，
+// 一个过期的 Session 参数也能凭空造出会话，且 user1/user2 是空的。
 Message InMemoryModel::AppendMessage(const Session& session, int64_t sender_id,
                                      const std::string& msg_type,
                                      const std::string& content_json,
@@ -85,7 +93,8 @@ Message InMemoryModel::AppendMessage(const Session& session, int64_t sender_id,
     return m;
 }
 
-// 获取会话历史（anchor 向前、limit 数量）
+// 从 anchor_seq 往旧取 limit 条，不包含 anchor 本身（msg_seq < anchor）。
+// anchor_seq==0 表示不设上界。先倒着收再反转，返回仍是时间正序。
 std::vector<Message> InMemoryModel::GetHistory(const std::string& session_id,
                                                int64_t anchor_seq, int limit) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -173,7 +182,7 @@ std::string InMemoryModel::makeUserSessionKey(
     return std::to_string(user_id) + ":" + session_id;
 }
 
-// 标记用户已读
+// 已读只向前走。更小的 read_seq 被忽略，避免旧回执把水位拉回去。
 void InMemoryModel::MarkRead(int64_t user_id, const std::string& session_id,
                              int64_t read_seq) {
     std::lock_guard<std::mutex> lock(mutex_);
@@ -184,7 +193,8 @@ void InMemoryModel::MarkRead(int64_t user_id, const std::string& session_id,
     }
 }
 
-// 计算未读数
+// 未读 = last_msg_seq - read_seq。中间缺的序号也算进去，
+// 没有现网那套无空洞送达水位。
 int64_t InMemoryModel::GetUnread(int64_t user_id,
                                  const std::string& session_id) {
     std::lock_guard<std::mutex> lock(mutex_);
