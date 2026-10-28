@@ -57,6 +57,15 @@ inline bool AgentSlugValid(const std::string& value) {
 inline bool AgentEnvelopeValid(const nlohmann::json& envelope) {
     if (!envelope.is_object() ||
         envelope.value("schema", nlohmann::json()) != "sparkpush.agent_envelope.v1") return false;
+    if (envelope.contains("run_id")) {
+        if (!envelope["run_id"].is_string()) return false;
+        const auto id = envelope["run_id"].get<std::string>();
+        if (id.empty() || id.size() > 80 ||
+            !std::all_of(id.begin(), id.end(), [](unsigned char c) {
+                return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+                       (c >= '0' && c <= '9') || c == '_' || c == '-';
+            })) return false;
+    }
     for (const auto* key : {"event_id", "request_id", "route_key", "session_key",
                             "tenant_id", "channel_id", "conversation_id", "thread_id", "agent_id"})
         if (!envelope.contains(key) || !envelope[key].is_string()) return false;
@@ -168,10 +177,11 @@ inline bool AgentCommandActionValid(const nlohmann::json& action) {
 // Web/Android 客户端的公开结构。
 //
 // 流程：
-//   1) 卡 schema 与 type 白名单（只四种：assistant_delta / assistant_final /
-//      assistant_progress / error）
-//   2) 正文长度分级限制：final/delta 可到 16 MiB，但 progress 与 error
-//      只允许 1 KiB——它们是状态提示，不应承载正文，限制能挡住
+//   1) 卡 schema 与 type 白名单：assistant_delta / assistant_final /
+//      assistant_progress / error，以及只含短文本的 tool_start /
+//      tool_update / tool_end。工具事件不是回答，不能带 presentation。
+//   2) 正文长度分级限制：final/delta 可到 16 MiB，但 progress、error
+//      和工具事件只允许 1 KiB——它们是状态提示，不应承载正文，限制能挡住
 //      用「进度事件」大量泵数据的滥用
 //   3) 若有 presentation，按 kind 分支逐个校验并**重建**
 //   4) 最后只把 schema/type/data(/envelope) 四个字段写进 output
@@ -189,12 +199,14 @@ inline bool NormalizeAgentEvent(const nlohmann::json& input, nlohmann::json* out
         !input.contains("data") || !input["data"].is_object()) return false;
     const auto kind = input["type"].get<std::string>();
     const auto& data = input["data"];
+    const bool tool_event = kind == "tool_start" || kind == "tool_update" || kind == "tool_end";
     if ((kind != "assistant_delta" && kind != "assistant_final" &&
-         kind != "assistant_progress" && kind != "error") ||
+         kind != "assistant_progress" && kind != "error" && !tool_event) ||
         !data.contains("text") || !data["text"].is_string() ||
         data["text"].get<std::string>().size() > 16 * 1024 * 1024) return false;
-    if ((kind == "assistant_progress" || kind == "error") &&
+    if ((kind == "assistant_progress" || kind == "error" || tool_event) &&
         data["text"].get<std::string>().size() > 1024) return false;
+    if (tool_event && data.contains("presentation")) return false;
     nlohmann::json public_data = {{"text", data["text"]}};
     if (data.contains("presentation")) {
         const auto& ui = data["presentation"];

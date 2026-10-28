@@ -13,6 +13,7 @@
 #include <unordered_map>
 
 #include "config.h"
+#include "native_control.h"
 #include "hermes_client.h"
 #include "grpc_inference_client.h"
 #include "kafka_consumer.h"
@@ -135,6 +136,11 @@ class HermesBridgeRunner {
         options.max_poll_interval_ms = static_cast<int>(std::max<int64_t>(300000, batch_budget));
         options.processing_workers = config_.processing_workers;
         options.max_batch_records = config_.max_batch_records;
+        if (!config_.native_control_bot_users.empty()) {
+            options.interrupt_predicate = [this](const std::string&, const std::string& value) {
+                return IsNativeInterrupt(value, config_.native_control_bot_users);
+            };
+        }
         options.failure_recovery = [this](const std::string& key, const std::string& value) {
             const auto request = nlohmann::json::parse(value, nullptr, false);
             if (!request.is_object()) return KafkaConsumer::RecoveryRecord{};
@@ -399,7 +405,9 @@ class HermesBridgeRunner {
             // 创作类命令能进这一支，是因为 hermes_command.cpp 故意不填 local_error。
             if (!call_model && (command_name == "agent" || command_name == "model" || command_name == "reasoning" ||
                 command_name == "new" || command_name == "retry" || command_name == "restart" || command_name == "status" ||
-                command_name == "help" || command_name == "roleplay" || command_name == "write" ||
+                command_name == "help" || command_name == "stop" || command_name == "approve" ||
+                command_name == "deny" || command_name == "compact" ||
+                command_name == "roleplay" || command_name == "write" ||
                 command_name == "scene" || command_name == "character" || command_name == "world" ||
                 command_name == "memory" || command_name == "remember" || command_name == "forget") &&
                 command.value("local_error", "").empty()) {
@@ -577,6 +585,11 @@ class HermesBridgeRunner {
                          << " response_chars=" << reply.value("response_unicode_chars", 0)
                          << " finish_reason=" << reply.value("finish_reason", "");
             }
+            if (!ok && chat_result.native_unconfirmed) {
+                // The Gateway will query the durable original Run on redelivery.
+                // No error reply/cache may hide a later recovered success.
+                return false;
+            }
             const std::string serialized = reply.dump();
             {
                 std::lock_guard<std::mutex> lock(cache_mutex_);
@@ -591,6 +604,23 @@ class HermesBridgeRunner {
             LOG_ERROR << "Hermes bridge failed to publish ai_reply request_id="
                       << request_id;
             return false;
+        }
+        const auto metadata = reply.value("response_metadata", nlohmann::json::object());
+        if (reply.value("ok", false) && metadata.is_object() &&
+            metadata.value("runtime", "") == "hermes_native") {
+            HermesChatOptions receipt;
+            receipt.session_id = reply.value("session_id", "");
+            receipt.control = {{"operation", "confirm_reply"}, {"request_id", request_id},
+                               {"run_id", metadata.value("run_id", "")}};
+            auto receipt_config = config_;
+            receipt_config.request_timeout_ms = std::min(5000, config_.request_timeout_ms);
+            HermesChatResult result;
+            std::string error;
+            if (!HermesClient(receipt_config).Chat(nlohmann::json::array(), receipt, &result, &error)) {
+                // Kafka already accepted the reply. Retry the same cached result
+                // and receipt; never rerun tools. IM deduplicates its request id.
+                return false;
+            }
         }
         LOG_INFO << "Hermes bridge completed request_id=" << request_id
                  << ", ok=" << (reply.value("ok", false) ? "true" : "false")

@@ -90,6 +90,11 @@ Client ──WebSocket──► Comet ──MessageStream──► Logic
 
 ## 可靠性与实际边界
 
+可选 [Hermes Native Runs API](docs/hermes-native-runtime-integration.md) 提供独立 API Session、
+执行账本、原生事件、停止与一次性审批，复用现有 AgentRouter/Bridge/IM 历史。
+默认关闭，Pi 与 `hermes_http` Legacy 保留；自动化合同测试已覆盖，真实 Hermes 与完整 IM E2E 仍待验收。
+配置和回滚步骤见该文档，勿直接替换正在使用的联系人或 Profile。
+
 - `accepted_ack`：持久化事件已获 Kafka broker 确认；不等于历史已入 SQL或接收者已收到。
 - `delivered_ack`：目标连接接受下推；不等于客户端已经显示或阅读。
 - SQL 保存会话序号、canonical 原文和 outbox；同 ID 改正文被拒绝，确认不确定时使用同 ID 重试。

@@ -6,6 +6,8 @@
 #include <librdkafka/rdkafkacpp.h>
 #include <algorithm>
 #include <chrono>
+#include <deque>
+#include <future>
 #include <thread>
 #include <vector>
 #include <unordered_map>
@@ -58,6 +60,8 @@ bool KafkaConsumer::Init(const std::string& brokers,
         options_.max_batch_records < options_.processing_workers ||
         options_.max_batch_records > 1024 || options_.batch_window_ms < 0 ||
         (options_.processing_workers > 1 && options_.enable_auto_commit)) return false;
+    if (options_.interrupt_predicate && (options_.enable_auto_commit ||
+        options_.processing_workers != 1 || options_.max_batch_records < 2)) return false;
     if (!options_.dead_letter_topic.empty()) {
         if (options_.enable_auto_commit || options_.dead_letter_timeout_ms <= 0 ||
             options_.dead_letter_topic == topic_) return false;
@@ -86,7 +90,7 @@ bool KafkaConsumer::Init(const std::string& brokers,
     // enable.auto.offset.store=false 是关键：它把「消费到」与「已处理完」
     // 解耦。默认行为是 consume() 返回就自动记下位点，那样即使业务
     // 失败，下次重启也不会重放。关掉后必须显式 commitSync 才推位点。
-    if (dead_letter_producer_ || options_.processing_workers > 1)
+    if (dead_letter_producer_ || options_.processing_workers > 1 || options_.interrupt_predicate)
         set_config("enable.auto.offset.store", "false");
     set_config("auto.commit.interval.ms", std::to_string(options_.auto_commit_interval_ms));
     // max.poll.interval.ms 必须大于单条消息的最坏处理时间（包含重试与
@@ -149,8 +153,9 @@ void KafkaConsumer::Stop() {
 // 错误消息（err != NO_ERROR）总是走逐条路径：它们不需要并行，
 // 且 HandleMessage 里会按错误码分类处理。
 void KafkaConsumer::Loop() {
+    if (options_.interrupt_predicate) LoopWithControls();
     // 简单的阻塞拉取循环，使用 1 秒超时以便及时感知停止信号
-    while (running_) {
+    while (running_ && !options_.interrupt_predicate) {
         std::unique_ptr<RdKafka::Message> msg(consumer_->consume(1000));
         if (!msg) {
             continue;
@@ -187,6 +192,72 @@ void KafkaConsumer::Loop() {
         consumer_->close();
         consumer_.reset();
     }
+}
+
+void KafkaConsumer::LoopWithControls() {
+    struct Pending {
+        std::unique_ptr<RdKafka::Message> message;
+        bool durable{false};
+    };
+    std::deque<Pending> pending;
+    std::future<bool> work;
+    size_t pending_bytes = 0;
+    const auto halt = [&] {
+        failed_ = true;
+        running_ = false;
+        MetricsRegistry::Instance().Set("spark_push_kafka_consumer_failed_" + topic_, 1);
+    };
+    try {
+        while (running_) {
+            if (work.valid() && work.wait_for(std::chrono::milliseconds(0)) == std::future_status::ready) {
+                if (!work.get()) { halt(); break; }
+                pending.front().durable = true;
+            }
+            // A later stop/approval may finish first, but never commits past an
+            // earlier unfinished message, even when both share a partition/key.
+            while (!pending.empty() && pending.front().durable && !failed_) {
+                auto* message = pending.front().message.get();
+                if (consumer_->commitSync(message) != RdKafka::ERR_NO_ERROR) { halt(); break; }
+                pending_bytes -= message->len();
+                pending.pop_front();
+            }
+            if (!running_) break;
+            if (!work.valid() && !pending.empty()) {
+                auto* message = pending.front().message.get();
+                work = std::async(std::launch::async, [this, message] {
+                    return HandleMessage(message, false);
+                });
+            }
+            // Bounded lookahead. On overload apply backpressure without losing
+            // records or offsets. Control latency is not guaranteed beyond this
+            // window; Gateway approval deadlines still deny independently.
+            if (pending.size() >= static_cast<size_t>(options_.max_batch_records) ||
+                pending_bytes >= 16 * 1024 * 1024) {
+                if (work.valid()) work.wait_for(std::chrono::milliseconds(25));
+                continue;
+            }
+            std::unique_ptr<RdKafka::Message> next(consumer_->consume(25));
+            if (!next) continue;
+            if (next->err() != RdKafka::ERR_NO_ERROR) {
+                HandleMessage(next.get(), false);
+                continue;
+            }
+            const std::string key = next->key() ? *next->key() : std::string{};
+            const std::string value(next->len() ? static_cast<const char*>(next->payload()) : "", next->len());
+            const bool control = options_.interrupt_predicate(key, value);
+            pending_bytes += next->len();
+            pending.push_back({std::move(next), false});
+            if (control) {
+                if (!HandleMessage(pending.back().message.get(), false)) { halt(); break; }
+                pending.back().durable = true;
+            }
+        }
+    } catch (...) {
+        halt();
+    }
+    // Join before freeing the polled record. Shutdown leaves unresolved offsets
+    // uncommitted; no detached worker or second Kafka consumer owns this input.
+    if (work.valid()) work.wait();
 }
 
 // 按错误码分类处理 Kafka 消息，确保业务回调后再提交位点。
@@ -334,7 +405,7 @@ bool KafkaConsumer::HandleMessage(RdKafka::Message* message, bool commit) {
                     }
                 }
             }
-            if (!handled && options_.processing_workers > 1) return false;
+            if (!handled && (options_.processing_workers > 1 || options_.interrupt_predicate)) return false;
             break;
         }
         case RdKafka::ERR__TIMED_OUT:

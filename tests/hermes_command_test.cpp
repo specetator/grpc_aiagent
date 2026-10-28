@@ -165,6 +165,27 @@ int main() {
         return 1;
     }
 
+    plan = BuildHermesPromptPlan({}, "/stop", 2);
+    if (!Check(!plan.call_model && plan.local_error.empty() &&
+                   plan.command.kind == HermesCommandKind::kStop &&
+                   sparkpush::HermesCommandName(plan.command.kind) == "stop",
+               "/stop was not forwarded as a control command")) {
+        return 1;
+    }
+    plan = BuildHermesPromptPlan({}, "/approve req_1", 3);
+    if (!Check(!plan.call_model && plan.local_error.empty() &&
+                   plan.command.kind == HermesCommandKind::kApprove &&
+                   plan.command.arguments == "req_1",
+               "/approve did not keep its request token")) {
+        return 1;
+    }
+    plan = BuildHermesPromptPlan({User(1, "/deny req_1")}, "下一问", 4);
+    if (!Check(plan.call_model && plan.messages.size() == 1 &&
+                   plan.messages[0].second == "下一问",
+               "/deny history entered the model prompt")) {
+        return 1;
+    }
+
     plan = BuildHermesPromptPlan({}, "/cann DataCopyPad 非对齐搬运", 1);
     if (!Check(plan.call_model && plan.force_knowledge_retrieval,
                "/cann should force a model knowledge lookup") ||

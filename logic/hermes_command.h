@@ -30,6 +30,10 @@ enum class HermesCommandKind {
     kCann,        // /cann                    CANN 相关
     kKnowledge,   // /kb                      知识库检索
     kCreative,    // 创作类（roleplay/rp/write/scene/... 共十多个别名）
+    kStop,        // /stop                    停止当前 Hermes run
+    kApprove,     // /approve                 一次性允许当前审批
+    kDeny,        // /deny                    拒绝当前审批
+    kCompact,     // /compact                 仅在原生运行时支持时转发
     kUnknown,
 };
 

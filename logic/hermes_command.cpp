@@ -140,6 +140,10 @@ void ApplyPersistedEntry(const HermesConversationEntry& entry,
             break;
         case HermesCommandKind::kRestart:
         case HermesCommandKind::kRetry:
+        case HermesCommandKind::kStop:
+        case HermesCommandKind::kApprove:
+        case HermesCommandKind::kDeny:
+        case HermesCommandKind::kCompact:
             // User intent and preview cards cannot mutate confirmed context.
             // 译：用户的意图和预览卡片不能改动已经确认的上下文。
             // 历史里的 "/retry" "/restart" 既不进入 prompt，也不移动 context_start_seq。
@@ -226,6 +230,14 @@ HermesCommand ParseHermesCommand(const std::string& text) {
         result.kind = HermesCommandKind::kCann;
     } else if (token == "kb") {
         result.kind = HermesCommandKind::kKnowledge;
+    } else if (token == "stop") {
+        result.kind = HermesCommandKind::kStop;
+    } else if (token == "approve") {
+        result.kind = HermesCommandKind::kApprove;
+    } else if (token == "deny") {
+        result.kind = HermesCommandKind::kDeny;
+    } else if (token == "compact") {
+        result.kind = HermesCommandKind::kCompact;
     } else if (token == "roleplay" || token == "rp" || token == "write" ||
                token == "scene" || token == "character" || token == "world" ||
                token == "memory" || token == "remember" || token == "forget" ||
@@ -263,6 +275,14 @@ std::string HermesCommandName(HermesCommandKind kind) {
             return "kb";
         case HermesCommandKind::kCreative:
             return "creative";
+        case HermesCommandKind::kStop:
+            return "stop";
+        case HermesCommandKind::kApprove:
+            return "approve";
+        case HermesCommandKind::kDeny:
+            return "deny";
+        case HermesCommandKind::kCompact:
+            return "compact";
         case HermesCommandKind::kUnknown:
             return "unknown";
         case HermesCommandKind::kNone:
@@ -343,6 +363,15 @@ HermesPromptPlan BuildHermesPromptPlan(
             // 创作命令不在这里生成回复。call_model=false 且 local_error 留空，
             // Bridge 才会把它当成控制命令走 /agent/control。
             // 若在这里填 local_error，Bridge 会直接把那句话当回复，控制命令发不出去。
+            plan.call_model = false;
+            break;
+        case HermesCommandKind::kStop:
+        case HermesCommandKind::kApprove:
+        case HermesCommandKind::kDeny:
+        case HermesCommandKind::kCompact:
+            // Same forwarding rule as creative commands. The bridge sends these
+            // to /agent/control. Pi and legacy Hermes refuse them there; native
+            // Hermes handles stop/approve/deny outside the session lock.
             plan.call_model = false;
             break;
     }

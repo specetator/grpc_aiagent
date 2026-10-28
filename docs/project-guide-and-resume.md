@@ -1,7 +1,7 @@
 # Spark Push 项目指引与简历手册
 
-> 更新：2026-10-12；以 `11.2-spark_push/` 根目录当前源码为准。
-> 实现与测试工具基线：`496f3e1d4d132342e7482388e72052eb451d9a13`；旧版本、课件与预编译文件已归档，主线消息算法保留。
+> 更新：2026-10-28；以 `sparkpush_project/` 根目录当前源码为准。
+> Hermes Native 基于 `0c4f1f2c4204481ce77a4a16162a360bbf2bf2fc` 增量实现；测试回执保存源码 SHA-256。2026-10-12 启动验收基线仍为 `496f3e1`。
 > 仓库：[specetator/grpc_aiagent](https://github.com/specetator/grpc_aiagent)。
 
 本文保留当前架构、核心链路、算法细节、运行方法、最新测试和简历材料。
@@ -12,7 +12,8 @@
 
 Spark Push 是一个基于 C++17 的实时消息/IM 与 Agent 协作项目。
 Comet 接入 WebSocket，Logic 管鉴权、会话、序号、幂等和路由，Job 消费 Kafka 做投递与历史持久化。
-可选 Bridge 把消息接入 Pi Agent 或 Inference Gateway，最终答案复用消息恢复链路。
+可选 Bridge 经 AgentRouter 接入 Pi Agent、Hermes Legacy/Native，或使用 Inference Gateway，最终答案复用消息恢复链路。
+Hermes Native 通过官方 Runs API 复用 Runtime；默认关闭，尚未完成真实 Hermes 与完整 IM 端到端验收。
 
 | 能力 | 当前实现 |
 |---|---|
@@ -21,7 +22,7 @@ Comet 接入 WebSocket，Logic 管鉴权、会话、序号、幂等和路由，J
 | 可靠性 | SQL 持久序号、原文 reservation/outbox、两阶段 ACK、Kafka 业务完成后提交 offset |
 | 恢复 | 历史游标分页、逐条 delivery receipt、safe_seq、跨会话离线 continuation、客户端缺口补偿 |
 | 容量/运维 | 有界队列、流 deadline、慢连接输出上限、路由代次、readiness、DLQ CLI、日志轮转 |
-| Agent | HTTP/SSE 流式输出、任务/源码交接、工具权限、CAS 检查点与版本化测试回执 |
+| Agent | Pi 与 Hermes 隔离路由、HTTP/SSE、Native 执行账本/审批/停止；任务交接、CAS 与版本化测试回执 |
 | 可选推理 | gRPC Gateway/Worker、容量准入、会话路由、CPU/CUDA/ROCm 后端与显存观测 |
 
 这是可复现的工程实践项目，尚未完成多机高可用、长期压力、全 IM 混沌和生产 SLA 验证。
@@ -39,8 +40,9 @@ Client ── HTTP 登录/历史 ───────────────�
                                               └─ push_single/group ─► Job
 Client ◄── WebSocket ◄── Comet ◄── PushStream ───┘
 
-Agent：Logic ─► ai_request ─► Bridge ─► Pi / Inference Gateway
-       Logic ◄── ai_delta / ai_reply ◄───────────┘
+Agent：Logic ─► ai_request ─► Bridge ─► AgentRouter ─► Pi / Hermes Legacy / Hermes Runs
+       Logic ◄── ai_delta / ai_reply ◄────────────┘
+       Bridge 也可按配置选择 Inference Gateway
 ```
 
 | 模块 | 职责/并发单元 | 默认入口 |
@@ -49,7 +51,7 @@ Agent：Logic ─► ai_request ─► Bridge ─► Pi / Inference Gateway
 | Logic | HTTP 默认 4 个 IO worker；gRPC 线程；共享 Service/Repository；后台 outbox 恢复 | HTTP 9101、内部 RPC 9100 |
 | Job | 按 topic 的 consumer；每 Comet 一组 PushStream reader/writer；ACK 工作池 | metrics 9202 |
 | Bridge | Kafka AI consumer + 模型 HTTP/SSE；隔离秒级模型请求 | 默认无外部监听 |
-| Pi Gateway | session/turn/event 账本、FIFO 调度与工具执行 | 本机 8643 |
+| Pi Gateway / AgentRouter | session/turn/event 账本、FIFO 调度、Runtime 路由；工具由对应 Runtime 执行 | 本机 8643 |
 | WebDemo | 用户与管理 UI；客户端排序、去重、补拉 | HTTP 9010 |
 
 拆分让连接密集、业务密集与消费任务分别治理；CPU、broker、网络仍可共享，拆进程不等于绝对隔离。
@@ -493,6 +495,25 @@ GPU 使用 NVML 按 PCI bus ID 采样，避免 CUDA visible ordinal 重排造成
 线程 current context、retain/release primary context。观测值不是严格 OOM 预算。
 本轮运行的是 adapter/探针合同测试，没有重跑真实 CUDA/ROCm/NPU 性能。
 
+### 4.21 Hermes Native：执行账本、原生终态和控制抢占
+
+入口：[Native Adapter](../cannbot/scripts/hermes_native_adapter.py)、[Kafka 控制循环](../common/kafka_consumer.cpp)、
+[完整设计与回滚](hermes-native-runtime-integration.md)。本机核对的是 Hermes 0.21.1，而非假设线上最新文档全部可用。
+
+1. Logic 已验证的 tenant/channel/conversation/thread/user/agent 路由形成 Native Session 身份，使用独立 API Session，不借用 CLI Session。
+2. AgentStore 在唯一一次 `POST /v1/runs` 前持久化准入意图，稳定派生 Idempotency-Key；同 request_id 改输入拒绝。
+3. SSE 只投影过滤后的文本、工具与审批进度；仅原生 completed 且输出有效才落成功结果，再进入 `ai_reply`。
+4. 中断或重投查询原 Run；已落盘结果直接复用。提交丢响应且无 run_id 时保留 unknown，不能在幂等窗口过期后盲目 POST。
+5. `/stop` 与审批通过独立控制池；可选 Kafka 控制窗口越过长任务执行控制，但 offset 只提交连续完成前缀。
+6. 审批令牌绑定用户会话、Run、请求、代次及时效，只支持 once/deny；默认关闭，超时或缺少交互支持时拒绝。
+7. `/new` 先确认原生 Session 创建，再切本地指针；失败保留旧上下文。终态输出与已确认发布状态不可被迟到恢复覆盖。
+
+这是执行幂等与消息可靠性分工，不是跨 Hermes/SQLite/Kafka 的分布式事务。没有端到端 exactly-once；
+无 run_id 的 unknown 需人工核对，有界控制窗口外不保证低延迟。Runs 没有 compact/clarify 端点时明确返回不支持。
+PiRpcClient、Legacy Adapter、Scheduler 和原 WindowsRelayPool 保持原实现；Native 不复制 Memory 或重造 Agent Loop。
+
+**追问**：已经有 Idempotency-Key，为什么不重发？服务端有保留期；执行过工具但幂等记录过期后重发可能再次执行。
+
 ## 5. 构建、启动、升级与排障
 
 ### 5.1 最小运行路径
@@ -545,7 +566,8 @@ dlq_replay 默认 dry-run，--apply 才发布；校验 schema/目标/hex，不�
 
 ## 6. 最新测试与性能数据
 
-测试日期 2026-10-11，环境为 WSL2、12 logical CPU、约 15.52 GiB 内存。
+第 6.1～6.4 节保留 2026-10-11 的 IM 实测；第 6.6 节记录 2026-10-28 Native 验证，两者不混作一次测试。
+历史 IM 测试环境为 WSL2、12 logical CPU、约 15.52 GiB 内存。
 客户端、三个服务及隔离 Docker MySQL 8.0/Redis 7.2/Kafka 3.7 同机；其他主机负载未停。
 SQL 接受路径使用当前实现，MySQL 为临时容器磁盘层，单 broker、单 partition、RF=1，AI 关闭。
 配置和二进制指纹、各轮原始结果见 [本轮测试报告](benchmarks/2026-10-11-current/README.md)。
@@ -631,6 +653,24 @@ python3 cannbot/scripts/test_pi_citations.py
 临时服务和数据卷清理完成；原本已停止的依赖容器仅临时更名，验收后恢复原名。
 这是启动与正确性 smoke test，不覆盖多机/长压，也不替代第 6.2 节的三轮容量测量。
 
+### 6.6 Hermes Native 增量验证（2026-10-28）
+
+证据：[技术报告](hermes-native-runtime-integration.md)、[机器可读回执](benchmarks/2026-10-28-hermes-native.json)。
+
+| 验证 | 结果与范围 |
+|---|---|
+| Native 单元 | 38 通过；fake Hermes、临时 SQLite，含准入丢响应、取消竞态、终态不可变与 `/new` 失败恢复 |
+| Native Gateway | 6 通过；真实本机 HTTP/SSE + fake Hermes，含审批、停止、回放与发布回执 |
+| Pi / Router | 40 / 31 通过；PiRpcClient AST 与基线一致，原运行配置和 Session 未迁移 |
+| 构建 / 默认 CTest | 构建通过；47 项注册，44 通过、3 数据库 opt-in 跳过、0 失败 |
+| 隔离数据库补跑 | 自建临时 MySQL/Redis 容器，1 + 2 项通过；默认跳过的 3 项全部补验 |
+| 真实 Kafka 恢复 | 独立临时容器/卷，替换后消息与已提交 offset 保留、重放获 broker 确认 |
+| 知识 / 引用 | 严格知识与引用校验通过；`sync_pi_agent --check` 保留既有快照/settings 差异，不覆盖个人配置 |
+| 真实 Hermes | 仅只读 capabilities 探测；未执行真实模型、工具、Skills/Memory 或完整 Native IM E2E |
+
+自动化测试证明合同与恢复逻辑，不能替代真实部署或性能验收。Native 默认关闭，原四个 Pi/Hermes 联系人保留。
+真实灰度需独立测试联系人、Session 与工具沙箱，并验证离线历史、原生审批及长任务停止。
+
 ## 7. 简历与项目介绍
 
 ### 7.1 30 秒介绍
@@ -647,8 +687,10 @@ python3 cannbot/scripts/test_pi_citations.py
 - 以 MySQL 会话事务、canonical 原文和二进制 outbox 统一当前发送入口的序号/幂等，支持确认失败重试和 prepared 恢复；保留原时间戳，拒绝同 ID 改正文。
 - 分离 accepted/delivered/read，以逐条 receipt、safe_seq 和跨会话分页处理晚落库、乱序及重连，避免 MAX delivered 导致永久跳过缺口。
 - 修复 HTTP 半包与异常输入、跨线程连接闭包、慢鉴权与流 context 取消；引入有界队列、字节预算、慢连接输出上限、可 join RPC 池及受控退出。
-- 建立角色 RPC 鉴权、generation+nonce 路由防迟到删除、readiness/DLQ 重放及日志轮转；43 项注册回归及隔离 SQL/Redis/Kafka 验证对应边界。
+- 建立角色 RPC 鉴权、generation+nonce 路由防迟到删除、readiness/DLQ 重放及日志轮转；以自动化回归及隔离 SQL/Redis/Kafka 验证对应边界，结果按日期分别记录。
 - 在 IM 中实现共享 CANN Agent，使用任务/原生会话/工作区绑定、CAS 交接、内容寻址版本和固定 runner 测试回执支持跨用户接手；设备/NPU 性能另行验证。
+- 在保留 Pi 与 Legacy 通路的前提下，通过 Hermes Runs API 实现独立 Session、准入/结果账本、原生终态投影与一次性审批；对未知提交禁止盲目重跑，完成 38 项 Native 单元与 6 项 HTTP/SSE 合同测试，真实 E2E 待验收。
+- 为长任务增加可选 Kafka 控制抢占，保持普通任务顺序并仅提交连续完成的 offset 前缀；用本地 mock broker 验证停止抢占、失败重放与位点安全，保留有界窗口限制。
 
 数字只有附带日期/环境/负载才使用：本轮可写“三轮各 160 条消息 ACK/唯一接收/SQL 完整”，
 不把旧 1100 msg/s 写成当前吞吐，不把 Kafka 分层速率写成整链路 TPS。
@@ -667,6 +709,9 @@ python3 cannbot/scripts/test_pi_citations.py
 | 为什么大突发失败？ | 持锁范围、排队 deadline 与 SQL/Kafka 时延，4.3/6.3 |
 | Agent 多人接手如何可恢复？ | task/session/actor 分离，账本、CAS、源码与测试 hash，4.19 |
 | 推理缓存/批处理如何区分？ | 服务准入、runtime batch、KV/prefix cache，4.20 |
+| Hermes 工具会不会重复执行？ | 准入预写、稳定身份、原 Run 查询；无 run_id 的 unknown 不自动重发，4.21 |
+| 长任务没结束，stop 怎样送达？ | 独立控制池 + Kafka 可选控制窗口；完成前缀提交位点，4.21 |
+| Native 是否已经上线验收？ | 默认关闭；区分 fake、只读实机探针和未完成的完整 E2E，6.6 |
 
 不要声称：exactly-once、百万连接、生产级多租户沙箱、全链路 DLQ、全量故障自愈、NPU 实机通过。
 回答按“结论→结构/步骤→真实证据→边界”展开，先解释当前实现，再谈改进方案。
@@ -680,6 +725,7 @@ python3 cannbot/scripts/test_pi_citations.py
 | 工程修复/迁移 | [review-remediation](review-remediation.md)、sql/migrations/ |
 | 最新测试 | [本轮报告](benchmarks/2026-10-11-current/README.md)、tests/、load_test/ |
 | Pi/多 Agent/协作 | [Pi](pi-agent-integration.md)、[多 Agent](multi-agent-integration.md)、[房间协作](room-agent-collaboration.md) |
+| Hermes Native | [架构/部署/回滚](hermes-native-runtime-integration.md)、[测试回执](benchmarks/2026-10-28-hermes-native.json) |
 | 推理架构 | [Inference](inference-serving.md)、inference/gateway/、inference/worker/ |
 | GPU 历史实验 | [CUDA 2026-10-07](performance-report-2026-10-07-rtx3060.md)、[ROCm 2026-09-30](performance-report-2026-09-30-rx9070xt.md) |
 

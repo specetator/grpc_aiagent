@@ -98,6 +98,12 @@
       "topics": ["hermes", "openai-compatible", "streaming", "conversation"]
     },
     {
+      "id": "hermes-native-runtime",
+      "path": "docs/hermes-native-runtime-integration.md",
+      "authority": "canonical",
+      "topics": ["hermes", "runs-api", "runtime", "approval", "idempotency"]
+    },
+    {
       "id": "pi-agent-integration",
       "path": "docs/pi-agent-integration.md",
       "authority": "canonical",

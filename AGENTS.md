@@ -23,6 +23,9 @@
   cursor. Only final `ai_reply` enters normal message persistence and delivery.
 - Spark Push owns authentication, membership, sequencing, idempotency, history,
   and delivery. Pi Agent owns reasoning, tools, Skills, and model access.
+- `hermes_native` stays off unless a registry entry selects it. It calls the
+  existing technical Runs API and does not replace Pi, IM history, or
+  `hermes_http`. See `docs/hermes-native-runtime-integration.md`.
 - Room Agent scopes come only from Logic after bearer and membership checks;
   never derive tool permission from prompts or treat WS presence as membership.
   Keep private Agent owner ACLs unchanged. Test receipts must identify the

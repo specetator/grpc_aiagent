@@ -1,0 +1,427 @@
+{
+  "schema": "sparkpush.hermes_native_validation.v1",
+  "validation_date": "2026-10-28",
+  "timezone": "Asia/Shanghai",
+  "head": "0c4f1f2c4204481ce77a4a16162a360bbf2bf2fc",
+  "branch": "hermes-native-runtime",
+  "working_tree": "uncommitted; existing user changes preserved; no deployment",
+  "source_sha256": {
+    "AGENTS.md": "bfe1f43947e9b4acfd0bfa784abc76d9e3bb8826c98c103a7e2bfd338afc2d8c",
+    "cannbot/knowledge-sources.json": "a7c7c124fa64de02019a7b873dbced98660ea02ce9813b3cb26df3480f667e09",
+    "cannbot/pi/hermes-native-agent.json.example": "c228f07f3e196a9eb43cdad33342f0b8f697f8b76502f68076275d5eeeeda2e7",
+    "cannbot/scripts/agent_router.py": "e8da06f0f6a58b55e08502c3914e4ccd35bfa317427e57a59a773df19c5da10c",
+    "cannbot/scripts/hermes_native_adapter.py": "9ea54e3413cbe67b14f94ad5d12424eb627db1ae9381a580d37074308470dc07",
+    "cannbot/scripts/pi_gateway.py": "382e4de5897c1d185f4a0087ac28775517c8c052ec0c55f60f761a93daaa6cef",
+    "cannbot/scripts/test_hermes_native.py": "da1b04ad1959c8e9fcab6cd50a7f0056da3722098cb5acb6c73d5912856de5a6",
+    "cannbot/scripts/test_hermes_native_gateway.py": "7bea14af5e9a87d8adc5ed74b4b6b95ea1e328f5fa84149a560687f9eb4ae390",
+    "cannbot/scripts/windows_agent_http.py": "7318743703f6d491d17627895b45f007cf89e6f1d3b927fa030518ec098ac16a",
+    "cannbot/skills/spark-push-knowledge/references/architecture-map.md": "dd0919c721a8700ed5cd833e7d7530e8a57144ae0dff1213ee35d440e38ed627",
+    "common/agent_event.h": "b6a0be9910be7caf5828eda421db47d3b1bd706f52a6c77f12a4f1ac7839ac13",
+    "common/kafka_consumer.cpp": "8544548e4c089c4b8be3d7117c31cde8e0b059b1836c511d536a459d37260683",
+    "common/kafka_consumer.h": "1048250f2d6c02c288d01ae0b79fa2c993f267e736a45572adee16a47d22d7ce",
+    "hermes_bridge/config.cpp": "03743974045df9dc0c03ffb321b9ab0853266ae125f5b5c6455591891d9358dc",
+    "hermes_bridge/config.h": "42e1539de7e26a7f3353b02aa141c5ef8ae0dfd03645709c6ddae34b0d6f593b",
+    "hermes_bridge/hermes_client.cpp": "c15acad8740c01b0e91f24150c9f8bbce8a1845ed434fc2794d77d230fbeacbc",
+    "hermes_bridge/hermes_client.h": "613878522bbf8aa846ccfb734521d43a97ff8746856190bf5560c5f890ea6e5c",
+    "hermes_bridge/main.cpp": "f3dd3cf49962687d6cc788380506e821b36ca5219007fa60b1bdbd374d547c6e",
+    "hermes_bridge/native_control.h": "f2f3b36d32ce16f56408a249cb2a93195dbe9ad126eecc3bfbabbe218ac3f791",
+    "hermes_bridge/sse_parser.cpp": "30074c1f17685a3a3b0cd01a046accb29fd266ae22102a0a24d5847ff7b2523c",
+    "logic/hermes_command.cpp": "ed669f1104d188e9459081b9d7fda76a01a0993953682d2aa0e493182cd80eb8",
+    "logic/hermes_command.h": "0b19dabd8ae91e8869b58711bb21483fce81a775886a107df32d5c9ca320ea5a",
+    "tests/CMakeLists.txt": "45907ae35e0805ad17183ab055308e864e1636ba16ad0036f35a1356e05ae988",
+    "tests/hermes_command_test.cpp": "7ae4e569b2b0a2aa9688f6ed3b6b57291109bf0611b2b485b16f39ab6094c6e6",
+    "tests/hermes_native_config_test.cpp": "bbaaa86d34a2b67b112d6e01a09718c06b86281f086847221f0720e376ee6585",
+    "tests/hermes_sse_parser_test.cpp": "7338ca9d9f2cd288eb47aeb3bc1c767839dc0d04b43ac0f9b50f8714ea196da2",
+    "tests/kafka_native_control_integration_test.cpp": "ca464ec29d4956d74867f285527b46aed0c48217b1b56e183e1edd1933ea990d"
+  },
+  "initial_changed_files": {
+    "AGENTS.md": "bfe1f43947e9b4acfd0bfa784abc76d9e3bb8826c98c103a7e2bfd338afc2d8c",
+    "cannbot/knowledge-sources.json": "a7c7c124fa64de02019a7b873dbced98660ea02ce9813b3cb26df3480f667e09",
+    "cannbot/scripts/agent_router.py": "ec995b0e8ede13bde1c514f9a83839ae2e870505159afa1bc57a2b62aaf4b870",
+    "cannbot/scripts/pi_gateway.py": "ce8fe4e2d3936427209f9bab9642383082bdbdbd2206a10e0ae667e69841e04e",
+    "cannbot/scripts/windows_agent_http.py": "f3a86a80fbed0617f699abf59f25c8cc7a3545fd4f24e3fd7504c09cddbdb860",
+    "cannbot/skills/spark-push-knowledge/references/architecture-map.md": "dd0919c721a8700ed5cd833e7d7530e8a57144ae0dff1213ee35d440e38ed627",
+    "common/agent_event.h": "cef1a12cfb85bac3dcf9dc5dbfea8e77031630f18adf84334d4331a9b86401cd",
+    "docs/multi-agent-integration.md": "830cefdf974d0d2c32646b7ee2ab3f39d43d4b3879aa41a18551615c9100f332",
+    "hermes_bridge/main.cpp": "2197ad478adb4efb3efcb1eff267b496af55a83e1c312b4beb88612fa00c1494",
+    "hermes_bridge/sse_parser.cpp": "20b871894fec667f6c672f9e1edd91d8d294debe529e9c0ff217b8ba1e97ae7b",
+    "logic/hermes_command.cpp": "ed669f1104d188e9459081b9d7fda76a01a0993953682d2aa0e493182cd80eb8",
+    "logic/hermes_command.h": "0b19dabd8ae91e8869b58711bb21483fce81a775886a107df32d5c9ca320ea5a",
+    "tests/CMakeLists.txt": "db98c38f8b541ba2c7924d7011c6b0ccdc01942082623810a7fc83498ef8d84a",
+    "tests/hermes_command_test.cpp": "7ae4e569b2b0a2aa9688f6ed3b6b57291109bf0611b2b485b16f39ab6094c6e6",
+    "tests/hermes_sse_parser_test.cpp": "d643cc2218c85867f17d5a6b829e77788c34b4089a1c705c737e77657f683335",
+    "cannbot/scripts/hermes_native_adapter.py": "30f8364f07306b36aaade66b9b83a4d5d4d8e559cbf99db9ea6ba0b9c19cb539",
+    "cannbot/scripts/test_hermes_native.py": "a1c324a7d7b609d7d0c6c4581362a77eb8a1f4c95e9c805d507de34967aace42",
+    "docs/hermes-native-runtime-integration.md": "482eeca513615a2ddd1bf361b072f48f67749d0e50375f8cd04b1dac6a58ff21"
+  },
+  "installed_hermes": {
+    "version": "0.21.1",
+    "commit": "67764dc0863349a384c16425e73ee8571f3a94b7",
+    "selected_source_files_clean": true,
+    "live_probe": "read-only GET /v1/capabilities via existing Windows relay",
+    "model": "technical",
+    "run_submission": true,
+    "run_events_sse": true,
+    "run_stop": true,
+    "run_approval_response": true,
+    "runs_idempotency": {
+      "supported": true,
+      "durable": true,
+      "retention_seconds": 86400
+    }
+  },
+  "baseline": {
+    "hermes_native_cases": 11,
+    "agent_router_cases": 31,
+    "pi_gateway_cases": 40,
+    "build": "passed",
+    "ctest": {
+      "registered": 44,
+      "passed": 41,
+      "failed": 0,
+      "skipped": 3
+    },
+    "sync_pi_check_exit": 1
+  },
+  "final": {
+    "build": {
+      "command": "cmake --build build-wsl -j2",
+      "exit_code": 0
+    },
+    "ctest": {
+      "command": "ctest --test-dir build-wsl --output-on-failure",
+      "exit_code": 0,
+      "registered": 47,
+      "passed": 44,
+      "failed": 0,
+      "skipped": 3,
+      "elapsed_seconds": 77.14,
+      "skipped_tests": [
+        "route_generation_integration_test",
+        "message_reservation_integration_test",
+        "redis_sequence_integration_test"
+      ]
+    },
+    "python_suites_within_ctest": {
+      "room_agent_test": {
+        "cases": 10,
+        "seconds": 1.006,
+        "passed": true
+      },
+      "pi_gateway_test": {
+        "cases": 40,
+        "seconds": 2.757,
+        "passed": true
+      },
+      "agent_router_test": {
+        "cases": 31,
+        "seconds": 6.533,
+        "passed": true
+      },
+      "hermes_native_test": {
+        "cases": 31,
+        "seconds": 1.884,
+        "passed": true
+      },
+      "hermes_native_gateway_test": {
+        "cases": 6,
+        "seconds": 3.799,
+        "passed": true
+      }
+    },
+    "ancillary": [
+      {
+        "command": "python3 cannbot/scripts/test_pi_citations.py",
+        "exit_code": 0,
+        "output": "pi citation tests passed\n"
+      },
+      {
+        "command": "python3 cannbot/scripts/validate_knowledge.py --strict",
+        "exit_code": 0,
+        "output": "knowledge validation passed: 74 source(s)\n"
+      },
+      {
+        "command": "python3 cannbot/scripts/sync_pi_agent.py --check",
+        "exit_code": 1,
+        "output": "spark-push-agent: current (/home/peco/.pi-spark-agent/skills/spark-push-agent)\nspark-push-knowledge: changed (/home/peco/.pi-spark-agent/skills/spark-push-knowledge)\ncann-advisor: current (/home/peco/.pi-spark-agent/extensions/cann-advisor.ts)\nsettings: changed (/home/peco/.pi-spark-agent/settings.json)\nmodels: present (/home/peco/.pi-spark-agent/models.json)\n"
+      }
+    ]
+  },
+  "pi_regression": {
+    "PiRpcClient_ast_identical_to_HEAD": true,
+    "unchanged_files": [
+      "cannbot/scripts/hermes_adapter.py",
+      "cannbot/scripts/agent_scheduler.py",
+      "cannbot/scripts/windows_agent_transport.py",
+      "cannbot/pi/agents.json.example"
+    ],
+    "runtime_config_and_sessions_modified": false
+  },
+  "test_environment": {
+    "native_unit": "fake Hermes HTTP; temporary AgentStore",
+    "native_gateway": "real loopback HTTP/SSE Gateway with fake Hermes",
+    "kafka_control": "librdkafka local mock broker; same-key interrupt, FIFO and committed-prefix failure recovery",
+    "socket_tests": "executed outside filesystem/network sandbox after its socket denial"
+  },
+  "real_hermes_agent_e2e": {
+    "executed": false,
+    "reason": "No isolated real Profile/tool sandbox provisioned; live technical only probed read-only"
+  },
+  "full_native_im_e2e": {
+    "executed": false
+  },
+  "native_enabled_in_live_registry": false,
+  "production_enablement_approved": false,
+  "limits": [
+    "bounded Kafka control lookahead can backpressure",
+    "unknown admission without run_id requires manual reconciliation",
+    "no native Runs compact/clarify API",
+    "sync_pi_agent --check retains pre-existing snapshot/settings differences"
+  ],
+  "diff_tracked_files": [
+    {
+      "path": "AGENTS.md",
+      "added": 3,
+      "deleted": 0
+    },
+    {
+      "path": "cannbot/knowledge-sources.json",
+      "added": 6,
+      "deleted": 0
+    },
+    {
+      "path": "cannbot/scripts/agent_router.py",
+      "added": 126,
+      "deleted": 5
+    },
+    {
+      "path": "cannbot/scripts/pi_gateway.py",
+      "added": 41,
+      "deleted": 5
+    },
+    {
+      "path": "cannbot/scripts/windows_agent_http.py",
+      "added": 22,
+      "deleted": 3
+    },
+    {
+      "path": "cannbot/skills/spark-push-knowledge/references/architecture-map.md",
+      "added": 2,
+      "deleted": 0
+    },
+    {
+      "path": "common/agent_event.h",
+      "added": 18,
+      "deleted": 6
+    },
+    {
+      "path": "common/kafka_consumer.cpp",
+      "added": 74,
+      "deleted": 3
+    },
+    {
+      "path": "common/kafka_consumer.h",
+      "added": 6,
+      "deleted": 0
+    },
+    {
+      "path": "docs/multi-agent-integration.md",
+      "added": 7,
+      "deleted": 2
+    },
+    {
+      "path": "hermes_bridge/config.cpp",
+      "added": 31,
+      "deleted": 0
+    },
+    {
+      "path": "hermes_bridge/config.h",
+      "added": 5,
+      "deleted": 0
+    },
+    {
+      "path": "hermes_bridge/hermes_client.cpp",
+      "added": 2,
+      "deleted": 0
+    },
+    {
+      "path": "hermes_bridge/hermes_client.h",
+      "added": 3,
+      "deleted": 0
+    },
+    {
+      "path": "hermes_bridge/main.cpp",
+      "added": 31,
+      "deleted": 1
+    },
+    {
+      "path": "hermes_bridge/sse_parser.cpp",
+      "added": 5,
+      "deleted": 1
+    },
+    {
+      "path": "logic/hermes_command.cpp",
+      "added": 29,
+      "deleted": 0
+    },
+    {
+      "path": "logic/hermes_command.h",
+      "added": 4,
+      "deleted": 0
+    },
+    {
+      "path": "tests/CMakeLists.txt",
+      "added": 13,
+      "deleted": 0
+    },
+    {
+      "path": "tests/hermes_command_test.cpp",
+      "added": 21,
+      "deleted": 0
+    },
+    {
+      "path": "tests/hermes_sse_parser_test.cpp",
+      "added": 29,
+      "deleted": 4
+    }
+  ],
+  "untracked_deliverables_before_receipt": [
+    "cannbot/pi/hermes-native-agent.json.example",
+    "cannbot/scripts/hermes_native_adapter.py",
+    "cannbot/scripts/test_hermes_native.py",
+    "cannbot/scripts/test_hermes_native_gateway.py",
+    "docs/hermes-native-runtime-integration.md",
+    "hermes_bridge/native_control.h",
+    "tests/hermes_native_config_test.cpp",
+    "tests/kafka_native_control_integration_test.cpp"
+  ],
+  "logs_sha256": {
+    "build-final.log": "e02b36591941ddfff76437b699ff65324ebba42e9c9c0a7f8f6d02abed524940",
+    "ctest-final.log": "af379a0b3a16a0cf51f55687d9642c1f01cfb3b90e0cda80b03d9aff97624af1",
+    "final-sources.json": "ac2d2b1112c53791456c5b2d80962f30d7393b6a67d739b259d312e539eaf095"
+  },
+  "log_directory": "/tmp/spark-native-baseline",
+  "release_validation": {
+    "date": "2026-10-28",
+    "base_commit": "0c4f1f2c4204481ce77a4a16162a360bbf2bf2fc",
+    "description": "User-authorized publication follow-up; supersedes initial final counts and hashes below for changed files. Native remains opt-in.",
+    "source_sha256": {
+      "AGENTS.md": "bfe1f43947e9b4acfd0bfa784abc76d9e3bb8826c98c103a7e2bfd338afc2d8c",
+      "README.md": "1a95df2cae5eae0a517a4ba35f07330f6ccf47b8561d5f525e26a71db2f8ed98",
+      "cannbot/knowledge-sources.json": "a7c7c124fa64de02019a7b873dbced98660ea02ce9813b3cb26df3480f667e09",
+      "cannbot/pi/hermes-native-agent.json.example": "c228f07f3e196a9eb43cdad33342f0b8f697f8b76502f68076275d5eeeeda2e7",
+      "cannbot/scripts/agent_router.py": "e8da06f0f6a58b55e08502c3914e4ccd35bfa317427e57a59a773df19c5da10c",
+      "cannbot/scripts/hermes_native_adapter.py": "43f7c5b8e5004a4416582c5692822ede26e6326b12cc10a6b2d27c13a90ba50c",
+      "cannbot/scripts/pi_gateway.py": "382e4de5897c1d185f4a0087ac28775517c8c052ec0c55f60f761a93daaa6cef",
+      "cannbot/scripts/test_hermes_native.py": "0935ed206ae5d7e9db72e7fc255107e3e3c9a87e86cc00e933af5d4fe343e1ed",
+      "cannbot/scripts/test_hermes_native_gateway.py": "7bea14af5e9a87d8adc5ed74b4b6b95ea1e328f5fa84149a560687f9eb4ae390",
+      "cannbot/scripts/windows_agent_http.py": "7318743703f6d491d17627895b45f007cf89e6f1d3b927fa030518ec098ac16a",
+      "cannbot/skills/spark-push-knowledge/references/architecture-map.md": "dd0919c721a8700ed5cd833e7d7530e8a57144ae0dff1213ee35d440e38ed627",
+      "common/agent_event.h": "b6a0be9910be7caf5828eda421db47d3b1bd706f52a6c77f12a4f1ac7839ac13",
+      "common/kafka_consumer.cpp": "8544548e4c089c4b8be3d7117c31cde8e0b059b1836c511d536a459d37260683",
+      "common/kafka_consumer.h": "1048250f2d6c02c288d01ae0b79fa2c993f267e736a45572adee16a47d22d7ce",
+      "docs/hermes-native-runtime-integration.md": "b673ad7637df548ccf02e119e64f65acac806d123d3b90a5faddc1acf252ce91",
+      "docs/multi-agent-integration.md": "0d53a5811c4ebfb1a7be93c58c44a272453f56759876b3fe13843e368a01bf1b",
+      "docs/project-guide-and-resume.md": "9c77900f7a10c531a7277c45db227e8f96d311f00a0b297889ccf2debfdb75a4",
+      "hermes_bridge/config.cpp": "03743974045df9dc0c03ffb321b9ab0853266ae125f5b5c6455591891d9358dc",
+      "hermes_bridge/config.h": "42e1539de7e26a7f3353b02aa141c5ef8ae0dfd03645709c6ddae34b0d6f593b",
+      "hermes_bridge/hermes_client.cpp": "c15acad8740c01b0e91f24150c9f8bbce8a1845ed434fc2794d77d230fbeacbc",
+      "hermes_bridge/hermes_client.h": "613878522bbf8aa846ccfb734521d43a97ff8746856190bf5560c5f890ea6e5c",
+      "hermes_bridge/main.cpp": "f3dd3cf49962687d6cc788380506e821b36ca5219007fa60b1bdbd374d547c6e",
+      "hermes_bridge/native_control.h": "f2f3b36d32ce16f56408a249cb2a93195dbe9ad126eecc3bfbabbe218ac3f791",
+      "hermes_bridge/sse_parser.cpp": "30074c1f17685a3a3b0cd01a046accb29fd266ae22102a0a24d5847ff7b2523c",
+      "logic/hermes_command.cpp": "ed669f1104d188e9459081b9d7fda76a01a0993953682d2aa0e493182cd80eb8",
+      "logic/hermes_command.h": "0b19dabd8ae91e8869b58711bb21483fce81a775886a107df32d5c9ca320ea5a",
+      "tests/CMakeLists.txt": "45907ae35e0805ad17183ab055308e864e1636ba16ad0036f35a1356e05ae988",
+      "tests/hermes_command_test.cpp": "7ae4e569b2b0a2aa9688f6ed3b6b57291109bf0611b2b485b16f39ab6094c6e6",
+      "tests/hermes_native_config_test.cpp": "bbaaa86d34a2b67b112d6e01a09718c06b86281f086847221f0720e376ee6585",
+      "tests/hermes_sse_parser_test.cpp": "7338ca9d9f2cd288eb47aeb3bc1c767839dc0d04b43ac0f9b50f8714ea196da2",
+      "tests/kafka_native_control_integration_test.cpp": "ca464ec29d4956d74867f285527b46aed0c48217b1b56e183e1edd1933ea990d"
+    },
+    "native_unit": {
+      "cases": 38,
+      "passed": 38
+    },
+    "native_gateway": {
+      "cases": 6,
+      "passed": 6
+    },
+    "pi_gateway": {
+      "cases": 40,
+      "passed": 40
+    },
+    "agent_router": {
+      "cases": 31,
+      "passed": 31
+    },
+    "build": {
+      "command": "cmake --build build-wsl -j2",
+      "exit_code": 0
+    },
+    "ctest": {
+      "command": "ctest --test-dir build-wsl --output-on-failure",
+      "registered": 47,
+      "passed": 44,
+      "skipped": 3,
+      "failed": 0,
+      "seconds": 77.28
+    },
+    "isolated_mysql": {
+      "command": "python3 tests/run_mysql_review_tests.py build-wsl",
+      "passed": 1,
+      "exit_code": 0
+    },
+    "isolated_redis": {
+      "command": "python3 tests/run_redis_review_tests.py build-wsl",
+      "passed": 2,
+      "exit_code": 0
+    },
+    "isolated_kafka": {
+      "command": "python3 tests/run_kafka_volume_test.py build-wsl",
+      "exit_code": 0,
+      "result": "record and committed offset retention across container replacement; replay confirmed"
+    },
+    "pi_regression": {
+      "PiRpcClient_ast_identical_to_base": true,
+      "byte_identical_files": [
+        "cannbot/scripts/hermes_adapter.py",
+        "cannbot/scripts/agent_scheduler.py",
+        "cannbot/scripts/windows_agent_transport.py",
+        "cannbot/pi/agents.json.example"
+      ],
+      "live_config_modified": false
+    },
+    "knowledge_strict": {
+      "sources": 74,
+      "exit_code": 0
+    },
+    "pi_citations_exit_code": 0,
+    "sync_pi_check_exit_code": 1,
+    "sync_pi_check_note": "Pre-existing installed knowledge/settings drift; no personal installation/config update",
+    "real_hermes_e2e": false,
+    "native_im_e2e": false,
+    "native_live_enabled": false,
+    "new_regressions": [
+      "new-session failure preserves old mapping",
+      "completed output and broker receipt are immutable",
+      "stop before admission",
+      "stop while admission is in flight",
+      "unknown admission stop cannot claim idle",
+      "invalid denial receipt triggers cancellation",
+      "expired timer cannot deny replacement prompt"
+    ],
+    "local_guide": "/home/peco/cppcode/fenbushi/项目指引与简历书写.md",
+    "local_guide_sha256": "bcbdcda6af87a973224cfa502a060ee6984fbd21de505c1a0e865d1cbc0304cf",
+    "logs_sha256": {
+      "build.log": "d2a08998d44bb43379df8d4ec906f556f4ee3b0ae8d0fa1498ceddbcc6569923",
+      "check-0.log": "265a417a1e4d47ac74cd59e66a14d38bd5fa579dce4e5d6560a3825d84c659ca",
+      "check-1.log": "01a43506d267a7a8c1fa33c62440e0f358f234ab91c15370875742cf02a9f8d4",
+      "check-2.log": "6cb47f41a5f8d48882901e00eb47bf39bfc272fe4a5b20ccaeadb418ad3cfc1f",
+      "ctest.log": "98c71ad9177008b3269831171adaa0030bd13a5a5ecae2a7cfbf1848c0992070",
+      "kafka.log": "4870b2df04de860c8d8f5ce7feb04e6ef748a12697fc4a5f6feb1a6afb7e0815",
+      "mysql.log": "2f48de1a30865fe585e4b78cbb5a8d3e6013da5d81106afcdac9e59fea0cdbab",
+      "redis.log": "39655e2dc7bdb4a1e854c481e27acbd4df4b143dfe00302ccb04879e24492c72"
+    },
+    "logs_directory": "/tmp/spark-native-release"
+  }
+}

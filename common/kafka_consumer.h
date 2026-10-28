@@ -46,6 +46,11 @@ public:
         int processing_workers{1};
         int max_batch_records{16};
         int batch_window_ms{10};
+        // Opt-in control lane on the SAME consumer. Ordinary work remains FIFO;
+        // selected control records can run while it waits. All offsets still
+        // commit only through the durable consumed prefix. Requires one ordinary
+        // worker and manual commits. Empty predicate preserves the existing loop.
+        std::function<bool(const std::string&, const std::string&)> interrupt_predicate;
     };
 
     KafkaConsumer() = default;
@@ -68,6 +73,7 @@ public:
 private:
     // 主消费循环，阻塞拉取消息
     void Loop();
+    void LoopWithControls();
     // 根据消息错误码分发处理或记录错误
     bool HandleMessage(RdKafka::Message* message, bool commit = true);
     void ProcessBatch(std::vector<std::unique_ptr<RdKafka::Message>>& batch);

@@ -58,6 +58,25 @@ bool ParseInt(const std::string& value, int* output) {
     }
 }
 
+bool ParseNativeBots(const std::string& value, std::set<int64_t>* output) {
+    output->clear();
+    if (value.empty()) return true;
+    std::istringstream input(value);
+    std::string token;
+    while (std::getline(input, token, ',')) {
+        Trim(&token);
+        try {
+            size_t used = 0;
+            const auto id = std::stoll(token, &used);
+            if (used != token.size() || id <= 0 || std::to_string(id) != token ||
+                id == 900000000001LL || id == 900000000201LL || output->size() >= 12)
+                return false;
+            output->insert(id);
+        } catch (...) { return false; }
+    }
+    return !output->empty() && value.back() != ',';
+}
+
 }  // namespace
 
 bool LoadHermesBridgeConfig(const std::string& path,
@@ -118,6 +137,11 @@ bool LoadHermesBridgeConfig(const std::string& path,
             // 这一支失败时没有写 err_msg，调用方只能看到空错误。
             // 下面的超时和并发键会带上行号。补错误文本时不要只改一半。
             if (!ParseInt(value, target)) return false;
+        } else if (key == "native_control_bot_users") {
+            if (!ParseNativeBots(value, &config->native_control_bot_users)) {
+                if (err_msg) *err_msg = "invalid Native control contact allowlist";
+                return false;
+            }
         } else if (key == "processing_workers" || key == "max_batch_records") {
             int* target = key == "processing_workers" ? &config->processing_workers : &config->max_batch_records;
             if (!ParseInt(value, target)) {
@@ -173,9 +197,16 @@ bool LoadHermesBridgeConfig(const std::string& path,
     if (env_value && !ParseInt(env_value, &config->processing_workers)) return false;
     env_value = std::getenv("SPARK_PUSH_BRIDGE_MAX_BATCH_RECORDS");
     if (env_value && !ParseInt(env_value, &config->max_batch_records)) return false;
+    env_value = std::getenv("SPARK_PUSH_NATIVE_CONTROL_BOTS");
+    if (env_value && !ParseNativeBots(env_value, &config->native_control_bot_users)) return false;
     if (config->processing_workers < 1 || config->processing_workers > 64 ||
         config->max_batch_records < config->processing_workers || config->max_batch_records > 1024) {
         if (err_msg) *err_msg = "invalid Bridge concurrency bounds";
+        return false;
+    }
+    if (!config->native_control_bot_users.empty() &&
+        (config->processing_workers != 1 || config->max_batch_records < 2)) {
+        if (err_msg) *err_msg = "Native control lane requires one ordinary worker and lookahead >= 2";
         return false;
     }
 

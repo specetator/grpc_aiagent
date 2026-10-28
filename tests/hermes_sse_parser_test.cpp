@@ -1,4 +1,5 @@
 #include "sse_parser.h"
+#include "agent_event.h"
 
 #include <iostream>
 #include <string>
@@ -27,15 +28,30 @@ bool Reject(const std::string& stream) {
 
 int main() {
   {
+    sparkpush::HermesSseParser parser;
+    sparkpush::HermesChatResult result;
+    std::string error;
+    const std::string unknown = "event: agent.event\ndata: {\"schema\":\"sparkpush.agent_event.v1\",\"type\":\"error\",\"data\":{\"text\":\"unknown\",\"native_unconfirmed\":true}}\n\n";
+    if (!Check(!parser.Feed(kDelta + unknown, &result, {}, &error) &&
+               result.native_unconfirmed && result.text.empty() &&
+               !parser.Finish(&result, {}, &error) && result.native_unconfirmed,
+               "native unknown must fail without losing recovery marker")) return 1;
+  }
+  {
     std::string status, error, delta;
-    sparkpush::HermesSseParser parser([&](const std::string& s) {status = s;});
+    sparkpush::HermesSseParser parser([&](const std::string& s) {status += s;});
     sparkpush::HermesChatResult result;
     const std::string progress = "event: agent.event\ndata: {\"schema\":\"sparkpush.agent_event.v1\",\"type\":\"assistant_progress\",\"data\":{\"text\":\"waiting\"}}\n\n";
-    if (!Check(parser.Feed(progress + kDelta + kFinal + kDone, &result,
+    const std::string tool =
+        "event: agent.event\ndata: {\"schema\":\"sparkpush.agent_event.v1\",\"type\":\"tool_start\",\"data\":{\"text\":\"工具开始：read_file\"}}\n\n";
+    if (!Check(parser.Feed(progress + tool + kDelta + kFinal + kDone, &result,
                           [&](const std::string& s) {delta += s;}, &error) &&
-               parser.Finish(&result, {}, &error) && status == "waiting" && delta == "partial" &&
-               result.text == "最终答案🙂", "progress contaminated answer")) return 1;
+               parser.Finish(&result, {}, &error) && status == "waiting工具开始：read_file" &&
+               delta == "partial" && result.text == "最终答案🙂",
+               "tool event contaminated answer")) return 1;
     if (!Reject(kFinal + progress + kDone)) return 1;
+    if (!Reject(kFinal + tool + kDone)) return 1;
+    if (!Reject("event: agent.event\ndata: {\"schema\":\"sparkpush.agent_event.v1\",\"type\":\"tool_start\",\"data\":{\"text\":\"工具开始：read_file\",\"presentation\":{\"kind\":\"command_card\"}}}\n\n" + kFinal + kDone)) return 1;
   }
   {
     sparkpush::HermesSseParser parser;
@@ -55,6 +71,15 @@ int main() {
                result.metadata.contains("model_state") && sequences == std::vector<int64_t>({0, 1}) &&
                result.agent_event["envelope"]["terminal"] == true,
                "generic AgentEvent envelope stream failed")) return 1;
+    auto native = result.agent_event;
+    native["envelope"]["run_id"] = "run_abc";
+    nlohmann::json normalized;
+    if (!Check(sparkpush::NormalizeAgentEvent(native, &normalized) &&
+               normalized["envelope"]["run_id"] == "run_abc",
+               "native run identity was lost")) return 1;
+    native["envelope"]["run_id"] = "../private/path";
+    if (!Check(!sparkpush::NormalizeAgentEvent(native, &normalized),
+               "invalid native run identity accepted")) return 1;
   }
   using sparkpush::HermesSseParser;
   using sparkpush::HermesChatResult;

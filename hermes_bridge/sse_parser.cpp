@@ -121,9 +121,13 @@ bool HermesSseParser::ProcessEvent(
       if (on_agent_event_) on_agent_event_(normalized);
       const auto payload = event["data"];
       if (event["type"] == "error") {
+        result->native_unconfirmed = payload.value("native_unconfirmed", nlohmann::json()) == true;
         return Fail("Pi gateway reported an execution error", result, error);
       }
-      if (event["type"] == "assistant_progress") {
+      // Tool events are execution progress. They must not become agent.final,
+      // or a tool name would be persisted as the assistant answer.
+      if (event["type"] == "assistant_progress" || event["type"] == "tool_start" ||
+          event["type"] == "tool_update" || event["type"] == "tool_end") {
         if (final_ || stopped_) return Fail("progress arrived after final answer", result, error);
         if (on_progress_) on_progress_(normalized["data"]["text"].get<std::string>());
         return true;

@@ -32,6 +32,10 @@ Pi 使用现有 WSL 项目工作区和 `~/.pi-spark-agent` 配置；Hermes 使�
 Hermes Agent 进程共同写同一 profile。短暂的 Windows HTTP 管道进程只转发本机请求，不加载
 Agent 或修改 profile 状态。API 仅监听 Windows loopback，不新增局域网监听或端口转发。
 
+可选的 `hermes_native` 仍走上面这条中继和已经运行的 API，只是把 Chat Completions 换成该进程的
+Runs API。默认注册表保持 `hermes_http`。启用条件、会话隔离和回滚见
+[`hermes-native-runtime-integration.md`](hermes-native-runtime-integration.md)。
+
 这提供独立配置、运行时、会话及默认工作目录；**不是操作系统权限沙箱**。两端现有本地工具仍有
 原来的文件权限。共享同一 Hermes profile 的渠道仍可使用它的长期记忆，`/new` 不清空记忆。
 个人 technical 仅向其所有者开放，不能作为所有用户共用的公共 Agent。
@@ -46,7 +50,7 @@ Agent 或修改 profile 状态。API 仅监听 Windows loopback，不新增局�
 | `id` | 稳定 Agent 标识 |
 | `bot_user_id` | 独立联系人 ID；打开卡片只携带公开的联系人 ID，不执行斜杠命令 |
 | `name` | IM 显示名称 |
-| `runtime` | 当前实现 `pi_rpc`、`hermes_http` |
+| `runtime` | 当前实现 `pi_rpc`、`hermes_http`；`hermes_native` 需单独条目，默认不启用 |
 | `owner_user_ids` | 可访问用户；空数组为管理员配置的公共 Agent |
 | `base_url` | Hermes Agent 服务入口，不是直接的模型服务地址 |
 | `credential_env_file/key` | 服务端凭据引用，不发送给 IM |
@@ -154,7 +158,8 @@ CLI 参数；保持原有 owner ACL，不接受聊天输入提供命令、profil
 
 Hermes technical 已支持会话级 `/reasoning`：`low/high/xhigh/max` 四档通过兼容接口的
 `reasoning_effort` 传递，状态保存在独立 Hermes session 中，不修改 Windows profile 文件。
-Stop、steering、附件等仍不属于本批实现。
+Legacy 仍不提供 Stop、steering 或附件控制。可选 Native 的停止、once/deny 审批与
+默认关闭的 Kafka 控制通道见 `hermes-native-runtime-integration.md`；不改变 Pi/Legacy 的运行方式。
 
 ## 验证
 

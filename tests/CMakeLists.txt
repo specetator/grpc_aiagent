@@ -87,6 +87,13 @@ add_executable(kafka_parallel_integration_test kafka_parallel_integration_test.c
 target_link_libraries(kafka_parallel_integration_test PRIVATE spark_push_common)
 add_test(NAME kafka_parallel_integration_test COMMAND kafka_parallel_integration_test)
 set_tests_properties(kafka_parallel_integration_test PROPERTIES TIMEOUT 60)
+add_executable(kafka_native_control_integration_test kafka_native_control_integration_test.cpp)
+target_link_libraries(kafka_native_control_integration_test PRIVATE spark_push_common)
+add_test(NAME kafka_native_control_integration_test COMMAND kafka_native_control_integration_test)
+set_tests_properties(kafka_native_control_integration_test PROPERTIES TIMEOUT 60)
+add_executable(hermes_native_config_test hermes_native_config_test.cpp
+  ${PROJECT_SOURCE_DIR}/hermes_bridge/config.cpp)
+add_test(NAME hermes_native_config_test COMMAND hermes_native_config_test)
 
 add_executable(hermes_sse_parser_test
   hermes_sse_parser_test.cpp
@@ -149,6 +156,12 @@ add_test(NAME pi_gateway_test
 add_test(NAME agent_router_test
   COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/cannbot/scripts/test_agent_router.py)
 set_tests_properties(agent_router_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 30)
+add_test(NAME hermes_native_test
+  COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/cannbot/scripts/test_hermes_native.py)
+set_tests_properties(hermes_native_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 30)
+add_test(NAME hermes_native_gateway_test
+  COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/cannbot/scripts/test_hermes_native_gateway.py)
+set_tests_properties(hermes_native_gateway_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 30)
 set_tests_properties(pi_gateway_test PROPERTIES
   ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1"
   TIMEOUT 45

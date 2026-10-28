@@ -1,0 +1,16 @@
+{
+  "id": "hermes-native-test",
+  "name": "Hermes Native Test",
+  "runtime": "hermes_native",
+  "bot_user_id": 900000000301,
+  "owner_user_ids": [12345],
+  "profile": "technical",
+  "base_url": "http://127.0.0.1:8644/v1",
+  "transport": "windows_stdio",
+  "windows_python": "/mnt/f/hermes/hermes-agent/venv/Scripts/python.exe",
+  "expected_model": "technical",
+  "credential_env_file": "/mnt/f/hermes/profiles/technical/.env",
+  "credential_env_key": "API_SERVER_KEY",
+  "native_interactive_approvals": false,
+  "native_approval_timeout_s": 60
+}

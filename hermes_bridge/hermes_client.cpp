@@ -487,6 +487,8 @@ bool HermesClient::Chat(const nlohmann::json& messages,
         return false;
     }
     if (status < 200 || status >= 300) {
+        if (response_json.is_object() && response_json.contains("error") && response_json["error"].is_object())
+            result->native_unconfirmed = response_json["error"].value("native_unconfirmed", nlohmann::json()) == true;
         if (err_msg) *err_msg = "HTTP " + std::to_string(status) + ": Pi gateway request failed";
         return false;
     }

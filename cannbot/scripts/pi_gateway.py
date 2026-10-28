@@ -1125,7 +1125,10 @@ def make_handler(state: GatewayState):
                         request_id=request_id, images=images,
                     )
                 except Exception as exc:
-                    self._json(502, {"error": {"message": str(exc)}})
+                    failure = {"message": str(exc)}
+                    if getattr(exc, "execution_unknown", False):
+                        failure["native_unconfirmed"] = True
+                    self._json(502, {"error": failure})
                     return
                 output_metrics = text_metrics(text)
                 length_audit({
@@ -1176,19 +1179,22 @@ def make_handler(state: GatewayState):
             try:
                 stream_stats = {"chunk_count": 0, "bytes": 0, "chars": 0}
                 event_sequence = 0
+                runtime_run_id = None
                 pending_delta = ""
                 last_event_flush = time.monotonic()
                 sent_first_delta = False
 
                 def emit_event(kind: str, data: dict, terminal: bool = False,
-                               is_replay: bool = False) -> dict:
+                               is_replay: bool = False, persist: bool = True) -> dict:
                     nonlocal event_sequence
                     envelope = (event_envelope(request_id, route, event_sequence,
                                                terminal=terminal, replayed=is_replay)
                                 if route is not None else None)
+                    if envelope is not None and runtime_run_id:
+                        envelope["run_id"] = runtime_run_id
                     event = agent_event(kind, data, envelope)
                     event_sequence += 1
-                    if envelope is not None and hasattr(state.rpc, "record_event"):
+                    if persist and envelope is not None and hasattr(state.rpc, "record_event"):
                         try:
                             state.rpc.record_event(event)
                         except Exception as persist_error:
@@ -1227,11 +1233,30 @@ def make_handler(state: GatewayState):
                     flush_delta_event()
                     emit_event("assistant_progress", {"text": status})
 
+                def on_runtime_event(kind: str, data: dict) -> None:
+                    nonlocal runtime_run_id
+                    if kind not in {"tool_start", "tool_end", "tool_update"}:
+                        return
+                    text = data.get("text") if isinstance(data, dict) else None
+                    if not isinstance(text, str) or not text or len(text) > 1024:
+                        return
+                    run_id = data.get("run_id")
+                    if isinstance(run_id, str) and re.fullmatch(r"[A-Za-z0-9_-]{1,80}", run_id):
+                        runtime_run_id = run_id
+                    flush_delta_event()
+                    emit_event(kind, {"text": text})
+
+                chat_kwargs = {}
+                # PiRpcClient.chat() has no on_event. Only the router opts in,
+                # and it forwards the callback solely to hermes_native.
+                if generic_events and getattr(state.rpc, "routes_runtime_events", False):
+                    chat_kwargs["on_event"] = on_runtime_event
+
                 text, metadata = state.rpc.chat(
                     prompt, on_delta, timeout_s, provider, model,
                     session_id, context_start_seq, retry=retry,
                     on_progress=on_progress if generic_events else None,
-                    request_id=request_id, images=images,
+                    request_id=request_id, images=images, **chat_kwargs,
                 )
                 if generic_events:
                     flush_delta_event()
@@ -1259,6 +1284,10 @@ def make_handler(state: GatewayState):
                     "gateway_output_chars": output_metrics["chars"],
                 })
                 wire_metadata = dict(metadata) if isinstance(metadata, dict) else {}
+                if wire_metadata.get("runtime") == "hermes_native":
+                    candidate = wire_metadata.get("run_id")
+                    if isinstance(candidate, str) and re.fullmatch(r"[A-Za-z0-9_-]{1,80}", candidate):
+                        runtime_run_id = candidate
                 replayed = wire_metadata.pop("turn_replayed", False) is True
                 if generic_events and replayed and hasattr(state.rpc, "replay_events"):
                     events, _ = state.rpc.replay_events(request_id, -1)
@@ -1311,7 +1340,14 @@ def make_handler(state: GatewayState):
             except Exception as exc:
                 try:
                     if generic_events and route is not None:
-                        emit_event("error", {"text": "Agent execution failed"}, terminal=True)
+                        # Native may later recover the original Run by GET. An
+                        # HTTP delivery/transport failure must not poison its
+                        # durable event replay with a false terminal failure.
+                        failure_data = {"text": "Agent execution failed"}
+                        if getattr(exc, "execution_unknown", False):
+                            failure_data["native_unconfirmed"] = True
+                        emit_event("error", failure_data, terminal=True,
+                                   persist=route.get("runtime") != "hermes_native")
                     self._sse(json.dumps({"error": {"message": str(exc)}}, ensure_ascii=False))
                 except (OSError, TimeoutError):
                     pass

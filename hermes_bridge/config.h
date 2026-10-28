@@ -1,6 +1,8 @@
 #pragma once
 
 #include <string>
+#include <set>
+#include <cstdint>
 
 namespace sparkpush {
 
@@ -26,6 +28,9 @@ struct HermesBridgeConfig {
     int reply_delivery_timeout_ms{5000};
     int processing_workers{1};
     int max_batch_records{16};
+    // Empty by default. Only these operator-provisioned Native contacts may
+    // send out-of-band stop/approval/status commands on the same Kafka consumer.
+    std::set<int64_t> native_control_bot_users;
     std::string attachment_dir{"data/attachments"};
 };
 

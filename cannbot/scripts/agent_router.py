@@ -78,11 +78,15 @@ class AgentStore:
         with self.connect() as db:
             db.execute("INSERT OR REPLACE INTO states VALUES (?,?,?)", (namespace,key,json.dumps(value,ensure_ascii=False)))
 
-    def update(self, namespace, key, mutate):
+    def update(self, namespace, key, mutate, *, durable=False):
         """Atomically read/modify/write one routing record under SQLite's write lock."""
         if not callable(mutate):
             raise ValueError("mutate must be callable")
         with self.connect() as db:
+            if durable:
+                # Native admissions precede external tool side effects. Keep
+                # the existing Pi/preview write policy unless explicitly asked.
+                db.execute("PRAGMA synchronous=FULL")
             db.execute("BEGIN IMMEDIATE")
             row = db.execute("SELECT value FROM states WHERE namespace=? AND key=?", (namespace, key)).fetchone()
             current = json.loads(row[0]) if row else {}
@@ -239,6 +243,24 @@ class AgentStore:
                 WHERE request_id=? AND status='running'""",
                        (str(error_code)[:80], now, request_id))
 
+    def mark_turn_unknown(self, request_id):
+        """Native transport failure does not prove that tool execution failed."""
+        with self.connect() as db:
+            db.execute("""UPDATE agent_turns SET status='unknown',error_code='native_unconfirmed'
+                WHERE request_id=? AND status='running'""", (request_id,))
+
+    def settle_unconfirmed(self, request_id, text, metadata):
+        """Complete a turn whose owner process is gone. Running turns stay owned."""
+        now = int(time.time() * 1000)
+        encoded = json.dumps(metadata, ensure_ascii=False, separators=(",", ":"))
+        with self.connect() as db:
+            changed = db.execute("""UPDATE agent_turns SET status='completed',result_text=?,
+                metadata_json=?,error_code=NULL,completed_at_ms=?
+                WHERE request_id=? AND status='unknown'""",
+                                 (text, encoded, now, request_id)).rowcount
+        if changed != 1:
+            raise RuntimeError("Agent turn recovery lost its unknown owner")
+
     def append_event(self, event):
         envelope = event.get("envelope") if isinstance(event, dict) else None
         if not isinstance(envelope, dict):
@@ -369,6 +391,8 @@ class SessionLocks:
 
 
 class AgentRouter:
+    # Gateway may pass on_event. PiRpcClient.chat() does not accept it.
+    routes_runtime_events = True
     def __init__(self, entries: list[dict], adapters: dict, store: AgentStore,
                  default="pi", bot_user_id=900000000001,
                  tenant_id="local", channel_id="spark_pc"):
@@ -499,10 +523,16 @@ class AgentRouter:
         revision = saved.get("revision", 0) if isinstance(saved, dict) else 0
         mode = "contact" if self.bot_agents else "sticky"
         backend = session
+        if getattr(self.adapters[key], "supports_native_runtime", False):
+            # Native is a new namespace. Include trusted tenant/channel/user/
+            # thread identity without migrating Pi or Legacy backend refs.
+            backend = route["session_key"] + ":u" + str(user_id)
         if session.startswith("r_"):
             backend = "room_" + str(self.room_scope.get()["room_id"]) + "_" + self.room_scope.get()["task_id"]
         persisted = self.store.bind_route(route, mode, backend, revision)
-        return {**route, "mode": mode,
+        native = ({"runtime": "hermes_native"} if
+                  getattr(self.adapters[key], "supports_native_runtime", False) else {})
+        return {**route, **native, "mode": mode,
                 "selection_source": "contact" if self.bot_agents else saved.get("source", "persisted"),
                 "revision": persisted.get("revision", revision),
                 "backend_session_ref": persisted.get("backend_session_ref", session)}
@@ -571,10 +601,33 @@ class AgentRouter:
     def available_models(self):
         return self.adapters[self.default].available_models()
 
+    def _unsupported_command(self, operation):
+        """Pi and legacy Hermes do not gain a fake native control result."""
+        return agent_event("assistant_final", {"text":
+            "暂不支持 Pi Agent 命令 /" + str(operation) +
+            "。发送 /help 查看当前可用命令。"})
+
     def control(self, request, timeout_s=30):
         session = request.get("session_id")
         visible = self._visible(session)
         operation = request.get("operation")
+        # Stop and approval must not wait behind the running turn's session lock.
+        # Pi has no interrupt port, so these commands stay a local unsupported reply.
+        if operation in {"stop", "approve", "deny", "compact", "status", "confirm_reply"}:
+            key, _ = self._selected(session)
+            adapter = self.adapters[key]
+            if getattr(adapter, "supports_native_runtime", False) and operation in {"stop", "approve", "deny", "status", "confirm_reply"}:
+                route = self._describe_route(session)
+                routed = {**request, "session_id": route["backend_session_ref"]}
+                event = adapter.control(routed, max(0.1, timeout_s))
+                return {**event, "data": self._decorate(key, event["data"])}
+            if operation == "compact" and not getattr(adapter, "supports_native_runtime", False):
+                return self._unsupported_command(operation)
+            if operation in {"stop", "approve", "deny"}:
+                interrupt = getattr(adapter, "interrupt", None)
+                if interrupt is None:
+                    return self._unsupported_command(operation)
+                return interrupt(request, max(0.1, timeout_s))
         started = time.monotonic()
         with self.locks.hold(session,timeout_s):
             if operation in {"list_agents","set_agent"}:
@@ -622,11 +675,14 @@ class AgentRouter:
             # runtime or inject its model choice. Adapter stores are authoritative.
             routed = {k:v for k,v in request.items() if k not in {"provider","model"}}
             routed["context_start_seq"] = 0
+            if getattr(self.adapters[key], "supports_native_runtime", False):
+                routed["session_id"] = self._describe_route(session)["backend_session_ref"]
             event = self.adapters[key].control(routed,max(0,timeout_s-(time.monotonic()-started)))
             return {**event,"data":self._decorate(key,event["data"])}
 
     def chat(self,message,on_delta,timeout_s,provider=None,model=None,session_id="",
-             context_start_seq=0,retry=False,on_progress=None,request_id="",images=None):
+             context_start_seq=0,retry=False,on_progress=None,request_id="",images=None,
+             on_event=None):
         self._visible(session_id)
         room_scope = self.room_scope.get() if session_id.startswith("r_") else None
         started=time.monotonic()
@@ -640,6 +696,7 @@ class AgentRouter:
                 route = self._describe_route(session_id)
                 input_hash = hashlib.sha256(json.dumps({
                     "route_key": route["route_key"], "agent_id": agent_hint,
+                    **self._native_input_scope(agent_hint),
                     "message": message, "retry": retry,
                     "context_start_seq": context_start_seq,
                     **({"room_scope": room_scope} if room_scope else {}),
@@ -652,6 +709,10 @@ class AgentRouter:
                                  "agent_route": route})
                 return existing.get("text", ""), metadata
             if existing.get("status") == "unknown":
+                recovered = self._recover_unknown(
+                    session_id, request_id, message, retry, context_start_seq, images, existing)
+                if recovered is not None:
+                    return recovered
                 raise RuntimeError("上次执行结果未知，未自动重跑带副作用的请求")
             if existing.get("status") == "failed":
                 raise RuntimeError("Agent 请求先前已失败，未使用相同 request_id 重复执行")
@@ -662,6 +723,7 @@ class AgentRouter:
                 route = self._describe_route(session_id)
                 input_hash = hashlib.sha256(json.dumps({
                     "route_key": route["route_key"], "agent_id": key,
+                    **self._native_input_scope(key),
                     "message": message, "retry": retry,
                     "context_start_seq": context_start_seq,
                     **({"room_scope": room_scope} if room_scope else {}),
@@ -685,11 +747,16 @@ class AgentRouter:
                     if on_progress:
                         on_progress(self.entries[key]["name"] + " · 正在生成")
                     adapter = self.room_adapter.for_scope(room_scope) if room_scope else self.adapters[key]
+                    native_events = {}
+                    # Pi's chat() has no on_event parameter. Only the native
+                    # Hermes adapter opts in, so the Pi call shape stays put.
+                    if on_event is not None and getattr(adapter, "accepts_runtime_events", False):
+                        native_events["on_event"] = on_event
                     text, metadata = adapter.chat(
                         message, on_delta, max(0, timeout_s-(time.monotonic()-started)),
                         None, None, route["backend_session_ref"], 0, retry=retry,
                         on_progress=on_progress, request_id=request_id,
-                        images=images)
+                        images=images, **native_events)
                     context = self.store.append_context(session_id, "assistant", text)
                     data = self._decorate(key,{"text":text})
                     metadata = {**metadata, "agent_state":data["agent_state"],
@@ -704,10 +771,61 @@ class AgentRouter:
                     return data["text"], metadata
                 except Exception as exc:
                     if request_id:
-                        self.store.fail_turn(request_id, type(exc).__name__)
+                        if (getattr(exc, "execution_unknown", False) or
+                                (getattr(self.adapters[key], "supports_native_runtime", False) and
+                                 not getattr(exc, "execution_failed", False) and
+                                 not isinstance(exc, ValueError))):
+                            self.store.mark_turn_unknown(request_id)
+                            if not getattr(exc, "execution_unknown", False):
+                                from hermes_native_adapter import NativeUnknown
+                                raise NativeUnknown("Native 结果尚未完成本地确认，将查询原 Run") from None
+                        else:
+                            self.store.fail_turn(request_id, type(exc).__name__)
                     raise
 
         return self.scheduler.run(session_id, agent_hint, timeout_s, on_progress, run_turn)
+
+    def _native_input_scope(self, key):
+        adapter = self.adapters[key]
+        if not getattr(adapter, "supports_native_runtime", False):
+            return {}
+        config = getattr(adapter, "config", {})
+        return {"runtime": "hermes_native", "profile": config.get("profile"),
+                "endpoint_hash": hashlib.sha256(str(config.get("base_url", "")).encode()).hexdigest()}
+
+    def _recover_unknown(self, session_id, request_id, message, retry, context_start_seq, images, existing):
+        """Ask a native adapter for the original run. Pi has no such port."""
+        key, _ = self._selected(session_id)
+        recover = getattr(self.adapters[key], "recover_turn", None)
+        if recover is None:
+            return None
+        route = self._describe_route(session_id)
+        room_scope = self.room_scope.get() if isinstance(session_id, str) and session_id.startswith("r_") else None
+        input_hash = hashlib.sha256(json.dumps({
+            "route_key": route["route_key"], "agent_id": key,
+            **self._native_input_scope(key),
+            "message": message, "retry": retry,
+            "context_start_seq": context_start_seq,
+            **({"room_scope": room_scope} if room_scope else {}),
+            "images": len(images or [])}, ensure_ascii=False,
+            sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+        if existing.get("input_hash") != input_hash:
+            raise ValueError("request_id was reused with different Agent input")
+        outcome = recover(route["backend_session_ref"], request_id, existing)
+        if outcome is None:
+            return None
+        text, metadata = outcome
+        data = self._decorate(key, {"text": text})
+        metadata = {**metadata, "agent_state": data["agent_state"], "request_id": request_id,
+                    "agent_route": route, "turn_recovered": True, "turn_replayed": True}
+        try:
+            self.store.settle_unconfirmed(request_id, data["text"], metadata)
+        except RuntimeError:
+            settled = self.store.get_turn(request_id)
+            if settled.get("status") != "completed" or settled.get("input_hash") != input_hash:
+                raise
+            return settled["text"], {**settled["metadata"], "turn_replayed": True}
+        return data["text"], metadata
 
     def stop(self):
         for adapter in self.adapters.values():
@@ -750,6 +868,9 @@ def load_router(path: Path, pi, state_root: Path):
             adapters[entry["id"]]=pi_adapter
         elif runtime=="hermes_http":
             adapters[entry["id"]]=HermesHttpAdapter(entry,store)
+        elif runtime=="hermes_native":
+            from hermes_native_adapter import HermesNativeAdapter
+            adapters[entry["id"]]=HermesNativeAdapter(entry,store)
         else:
             raise ValueError("unsupported Agent runtime")
     router = AgentRouter(config["agents"], adapters, store,
