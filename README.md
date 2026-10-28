@@ -120,7 +120,8 @@ python3 tests/run_redis_review_tests.py build
 python3 tests/run_kafka_volume_test.py build
 ```
 
-默认 CTest 注册 43 项，其中 3 项 SQL/Redis 集成测试按环境跳过；GitHub CI 会额外执行集成验证。
+默认 CTest 注册 47 项，其中 3 项 SQL/Redis 集成测试按环境跳过；GitHub CI 会额外执行集成验证。
+2026-10-28 本地回归 44 项通过，3 项数据库测试在隔离容器补跑通过；详见 [Native 测试回执](docs/benchmarks/2026-10-28-hermes-native.json)。
 可用标准库 harness 启动隔离三服务并做实际 ACK/接收/SQL 校验，不使用个人 `.env.local`：
 
 ```bash

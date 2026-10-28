@@ -307,7 +307,7 @@
     "description": "User-authorized publication follow-up; supersedes initial final counts and hashes below for changed files. Native remains opt-in.",
     "source_sha256": {
       "AGENTS.md": "bfe1f43947e9b4acfd0bfa784abc76d9e3bb8826c98c103a7e2bfd338afc2d8c",
-      "README.md": "1a95df2cae5eae0a517a4ba35f07330f6ccf47b8561d5f525e26a71db2f8ed98",
+      "README.md": "7733274f3a011fa72f76bff62c8db9e7332106cd80f42401f2e9927c9ce6777e",
       "cannbot/knowledge-sources.json": "a7c7c124fa64de02019a7b873dbced98660ea02ce9813b3cb26df3480f667e09",
       "cannbot/pi/hermes-native-agent.json.example": "c228f07f3e196a9eb43cdad33342f0b8f697f8b76502f68076275d5eeeeda2e7",
       "cannbot/scripts/agent_router.py": "e8da06f0f6a58b55e08502c3914e4ccd35bfa317427e57a59a773df19c5da10c",
@@ -422,6 +422,7 @@
       "mysql.log": "2f48de1a30865fe585e4b78cbb5a8d3e6013da5d81106afcdac9e59fea0cdbab",
       "redis.log": "39655e2dc7bdb4a1e854c481e27acbd4df4b143dfe00302ccb04879e24492c72"
     },
-    "logs_directory": "/tmp/spark-native-release"
+    "logs_directory": "/tmp/spark-native-release",
+    "tested_code_commit": "7daff133be03079befb3486d03a2522e27368b90"
   }
 }
