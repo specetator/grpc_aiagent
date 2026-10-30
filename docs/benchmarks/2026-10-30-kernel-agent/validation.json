@@ -1,0 +1,66 @@
+{
+  "date": "2026-10-30",
+  "scope": "Isolated publication worktree based on c5c396d; excludes pre-existing customer connector work",
+  "base_revision": "c5c396dc51ca3ccb74ed321044dcc76885c9b2f7",
+  "source_sha256": {
+    "cannbot/pi/extensions/kernel-subagents.ts": "97df7d1afe7072df27e8515a3b5fc2a3bf9f861e798e5f44e77b920fc11f44a6",
+    "cannbot/pi/extensions/lib/kernel-agent-control.ts": "419d3332b632dced6ae9a40286f6ea4fe069b73daf185f7942a02dd539d6b1fc",
+    "cannbot/pi/extensions/room-workspace.ts": "94ee184e8902a18396c48348b7023f71b731f78068d48605f75939c79373b037",
+    "cannbot/scripts/pi_gateway.py": "521be96b0fa9c4208a858db5f05de25b339acea40174523f93f6dde57580425a",
+    "cannbot/scripts/agent_router.py": "91ecf26c3e7ba8e0fa9629105bdfd88f1430f9d02a4018e656930a2097b1eba2",
+    "cannbot/scripts/room_agent.py": "4a89e385f984f88817da6895ed12c10330326e393d7021c0a76bb5904c93c8aa",
+    "tests/kernel_subagents_test.cjs": "d09a8de7362225179274d0da56d6c6187f81d76652c0cac873a9dc2c3851cc55",
+    "tests/kernel_subagents_integration_test.cjs": "0829eaffb3669899e379579f4fe11ceceaae446bd11d04b5cc8ba5c7ce3e3409",
+    "tests/kernel_agent_identity_browser_test.cjs": "c80faa29d2b49a54b7fd9ecefd8355f116ff479bceea06acc5ed5b0338fc5710"
+  },
+  "runtime": {
+    "pi_sdk": "0.84.4",
+    "model_service": "ephemeral loopback OpenAI-compatible SSE fixture",
+    "external_model_calls": false,
+    "npu_validation": false
+  },
+  "checks": {
+    "clean_cmake_build": "passed",
+    "ctest": {
+      "total": 49,
+      "passed": 46,
+      "failed": 0,
+      "skipped": [
+        "route_generation_integration_test",
+        "message_reservation_integration_test",
+        "redis_sequence_integration_test"
+      ]
+    },
+    "kernel_subagent_lifecycle": {
+      "passed": 53
+    },
+    "kernel_subagent_real_sdk_integration": {
+      "passed": 32
+    },
+    "kernel_identity_browser": {
+      "passed": 6
+    },
+    "pi_gateway_python": {
+      "passed": 41
+    },
+    "agent_router_python": {
+      "passed": 32
+    },
+    "room_agent_python": {
+      "passed": 10
+    },
+    "knowledge_strict": "passed",
+    "pi_citations": "passed",
+    "room_workspace_guard": "passed",
+    "room_agent_ui_contract": "passed",
+    "isolated_install_and_check": "passed; existing models/settings preserved; scoped room guard excluded from global extension discovery"
+  },
+  "known_baseline_failures": [
+    {
+      "test": "tests/agent_channel_browser_test.cjs:129",
+      "condition": "Reasoning command card buttons become enabled again after sending selection",
+      "reproduced_on": "unmodified base c5c396d and Kernel release worktree",
+      "scope": "Existing broad browser regression, outside Kernel identity/orchestration changes; not counted as passing"
+    }
+  ]
+}

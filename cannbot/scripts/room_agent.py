@@ -120,14 +120,17 @@ class RoomPiTurn:
         prototype = factory.prototype
         source = Path(__file__).resolve().parents[1]
         tools = ["read", "cann_knowledge_search", "cann_knowledge_get",
-                 "cann_knowledge_neighbors", "cann_knowledge_status"]
+                 "cann_knowledge_neighbors", "cann_knowledge_status",
+                 "spawn_agent", "send_input", "wait_agent", "close_agent", "list_agents"]
         if scope["can_develop"]:
             tools += ["write", "edit", "room_run_tests"]
         # Do not inherit global extensions, shell tools, project Skills or the
-        # private Spark-development prompt. Keep only the CANN RAG and guard.
+        # private Spark-development prompt. Children are read-only and scoped
+        # to this room; the workspace guard is deliberately loaded last.
         argv = [prototype.argv[0], "--mode", "rpc", "--approve", "--session-dir", str(sessions),
                 "--no-extensions", "--no-skills", "--no-prompt-templates",
                 "--tools", ",".join(tools), "-e", str(source / "pi/extensions/cann-advisor.ts"),
+                "-e", str(source / "pi/extensions/kernel-subagents.ts"),
                 "-e", str(source / "pi/extensions/room-workspace.ts"),
                 "--append-system-prompt", str(source / "pi/room-system-prompt.md")]
         for option in ("--provider", "--model"):

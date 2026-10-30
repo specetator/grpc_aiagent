@@ -9,7 +9,7 @@ if (($#)); then
       cat <<'EOF'
 用法：scripts/sparkctl.sh doctor
 
-只读检查本机命令、环境配置、Docker、Pi Agent 和 CANN 知识索引。
+只读检查本机命令、环境配置、Docker、Kernel Agent 和 CANN 知识索引。
 EOF
       exit 0
       ;;
@@ -63,12 +63,12 @@ if hermes_enabled; then
     pass 'Pi gateway API key is configured (value hidden)' || fail 'Pi gateway API key is missing'
   if hermes_is_local; then
     resolve_pi_command >/dev/null 2>&1 &&
-      pass 'local pi-spark-agent command found' || fail 'local Pi Agent command not found'
+      pass 'local Kernel Agent command found' || fail 'local Kernel Agent command not found'
   else
     warn 'Pi endpoint is remote; lifecycle will not be managed locally'
   fi
 else
-  warn 'Pi Agent integration is disabled'
+  warn 'Kernel Agent integration is disabled'
 fi
 
 if ! hermes_enabled; then

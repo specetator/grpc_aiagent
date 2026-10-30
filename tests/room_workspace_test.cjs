@@ -28,6 +28,9 @@ const jiti = createJiti(__filename,{alias:{typebox:require.resolve('typebox',{pa
       assert((await handler({toolName:'bash',input:{command:'echo unsafe'}})).block);
       assert((await handler({toolName:'read',input:{path:'/etc/passwd'}})).block);
       assert(!(await handler({toolName:'cann_knowledge_search',input:{query:'Tiling'}})));
+      for (const toolName of ['spawn_agent','send_input','wait_agent','close_agent','list_agents']) {
+        assert(!(await handler({toolName,input:{}})), 'room lifecycle tool blocked: '+toolName);
+      }
       assert.equal(Boolean((await handler({toolName:'room_run_tests',input:{}}))?.block),!developer);
       delete process.env.SPARK_ROOM_TEST_RUNNER;
       assert((await tools.room_run_tests.execute()).content[0].text.includes('不能宣称测试通过'));

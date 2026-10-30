@@ -1,7 +1,12 @@
 {
   "schema_version": 1,
-  "description": "Curated truth sources packaged for the Spark Push Pi knowledge skill.",
+  "description": "Curated truth sources packaged for the Kernel Agent knowledge skill.",
   "sources": [
+    {"id":"kernel-agent-validation","path":"docs/benchmarks/2026-10-30-kernel-agent/validation.json","authority":"snapshot","topics":["kernel","subagents","validation","source-revision"]},
+    {"id":"kernel-agent","path":"docs/kernel-agent.md","authority":"canonical","topics":["kernel","agent","subagents","permissions","configuration"]},
+    {"id":"codex-subagent-reference","path":"docs/codex-subagent-reference.md","authority":"canonical","topics":["codex","pi","reuse","subagents","license"]},
+    {"id":"kernel-agent-control","path":"cannbot/pi/extensions/lib/kernel-agent-control.ts","authority":"code","topics":["kernel","subagents","lifecycle","concurrency","permissions"]},
+    {"id":"kernel-subagents-extension","path":"cannbot/pi/extensions/kernel-subagents.ts","authority":"code","topics":["kernel","subagents","tools","lifecycle"]},
     {"id": "downstream-message-payload", "path": "common/message_payload.h", "authority": "code", "topics": ["websocket", "recovery", "history", "protocol"]},
     {"id": "review-remediation", "path": "docs/review-remediation.md", "authority": "canonical", "topics": ["review", "reliability", "migration", "authentication", "startup", "tests"]},
     {"id": "message-reservation", "path": "logic/message_reservation.cpp", "authority": "code", "topics": ["sequence", "idempotency", "outbox", "mysql", "recovery"]},

@@ -50,7 +50,7 @@ check 'Comet WebSocket port' tcp_ok 127.0.0.1 9000
 check 'Logic gRPC port' tcp_ok 127.0.0.1 9100
 
 if hermes_enabled; then
-  check 'Pi Agent Gateway /health' http_ok "$(hermes_health_url)" 4
+  check 'Kernel Agent Gateway /health' http_ok "$(hermes_health_url)" 4
 fi
 
 if (( failures )); then

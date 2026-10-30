@@ -232,7 +232,7 @@ fun isDesktopAgent(peerId: Long): Boolean = peerId == DESKTOP_PI_ID || peerId ==
 fun singleSessionId(a: Long, b: Long): String = "s_${minOf(a, b)}_${maxOf(a, b)}"
 
 fun knownConversation(userId: Long, peerId: Long): Conversation = when (peerId) {
-    ANDROID_PI_ID -> Conversation(singleSessionId(userId, peerId), peerId, "Pi Agent · Android", "CANN / 通用 Agent · 独立会话", Color(0xFF159A9C), true)
+    ANDROID_PI_ID -> Conversation(singleSessionId(userId, peerId), peerId, "Kernel Agent · Android", "CANN 算子研发 · 独立会话", Color(0xFF159A9C), true)
     ANDROID_HERMES_ID -> Conversation(singleSessionId(userId, peerId), peerId, "Hermes · Android", "technical · 独立模型与记忆", Color(0xFF8064A2), true)
     else -> Conversation(singleSessionId(userId, peerId), peerId, "用户 $peerId", "Spark Push 单聊", Color(0xFF718096))
 }

@@ -128,6 +128,12 @@ add_test(NAME room_agent_test
 set_tests_properties(room_agent_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 45)
 find_program(SPARK_NODE_EXECUTABLE node)
 if(SPARK_NODE_EXECUTABLE)
+  add_test(NAME kernel_subagents_test
+    COMMAND ${SPARK_NODE_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/kernel_subagents_test.cjs)
+  add_test(NAME kernel_subagents_integration_test
+    COMMAND ${SPARK_NODE_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/kernel_subagents_integration_test.cjs)
+  set_tests_properties(kernel_subagents_test kernel_subagents_integration_test PROPERTIES
+    TIMEOUT 60 SKIP_RETURN_CODE 77)
   add_test(NAME cursor_recovery_test COMMAND ${SPARK_NODE_EXECUTABLE}
     ${PROJECT_SOURCE_DIR}/tests/cursor_recovery_test.cjs)
   add_test(NAME room_agent_channel_test

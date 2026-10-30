@@ -129,7 +129,7 @@ private fun SetupScreen(state: SparkUiState, vm: SparkViewModel) {
     Column(Modifier.fillMaxSize().padding(28.dp), verticalArrangement = Arrangement.Center) {
         Text("Spark IM", fontSize = 34.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF30283B))
         Text(
-            "Hermes technical · CANN Pi Agent · Android 独立通道",
+            "Kernel Agent · Hermes technical · Android 独立通道",
             color = Color(0xFF777477),
             modifier = Modifier.padding(top = 8.dp, bottom = 28.dp)
         )

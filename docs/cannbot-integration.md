@@ -1,7 +1,7 @@
-# CANNBot Agent 思路的 Pi 接入与二次开发
+# Kernel Agent：CANNBot 思路与 Pi 运行时二次开发
 
-本项目只保留 CANNBot 中有价值的“Agent 角色 + Skills + 工作流”分层思想，执行引擎统一使用
-Pi Agent。运行和二次开发不需要 OpenCode、CANNBot Toolkit 或 GitCode 登录；第三方模型由 Pi 的
+Kernel Agent 是本项目的算子研发助手，使用 CANNBot 的“角色 + Skills + 工作流”分层思想，
+复用 Pi coding agent 作为执行引擎。运行和二次开发不需要 OpenCode、CANNBot Toolkit 或 GitCode 登录；第三方模型由 Pi 的
 provider / `models.json` 接入。原先 WSL Hermes 只作为已替换的基座，不要再把 Bridge 指回 Hermes。
 
 > 名称说明：仓库继续使用 `cannbot/` 目录表示这套 Agent 分层的来源思路，但其中内容是本项目
@@ -16,38 +16,40 @@ Spark Push 用户
 Logic ──Kafka ai_request──► hermes_bridge
                                  │ OpenAI-compatible HTTP/SSE
                                  ▼
-                         Pi gateway :8643
-                          ├─ Pi Agent loop / tools
+                         Kernel Agent gateway :8643
+                          ├─ Pi runtime / tools + Kernel 子 Agent 编排
                           ├─ spark-push-agent
                           ├─ spark-push-knowledge
                           ├─ cann-advisor RAG 扩展
                           └─ custom provider ──► 第三方 LLM API
 ```
 
-Pi gateway 的 `/v1/chat/completions` 在服务端进入完整 Agent loop；底层 provider 才负责访问
-第三方 OpenAI-compatible 模型。`hermes_bridge` 因此应指向 Pi gateway，不能直接指向第三方
+Kernel Agent gateway 的 `/v1/chat/completions` 在服务端进入完整 Agent loop；底层 provider 才负责访问
+第三方 OpenAI-compatible 模型。`hermes_bridge` 因此应指向 Kernel Agent gateway，不能直接指向第三方
 模型地址，否则 Skills、RAG 工具都会被绕过。完整安装步骤见
 [`pi-agent-integration.md`](pi-agent-integration.md)。
 
 Spark Push 继续负责用户鉴权、会话成员、`msg_seq`、Kafka 持久化、幂等、实时投递和离线恢复。
-Hermes 只负责推理、工具和答案生成：`ai_delta` 是不落库的临时体验，最终 `ai_reply` 才进入普通
+Kernel Agent 负责推理、工具、子 Agent 编排和答案生成：`ai_delta` 是不落库的临时体验，最终 `ai_reply` 才进入普通
 单聊消息链路。
 
 ## 2. 保留的 Agent 层
 
-仓库内有两个 Hermes Skills：
+仓库内有两个项目 Skills，名称保留兼容：
 
 | Skill | 作用 |
 |---|---|
 | `spark-push-agent` | 非简单研发任务的 Architect、Developer、Reviewer、Tester 角色编排 |
 | `spark-push-knowledge` | 按权威等级检索项目文档、协议和关键源码，给出可引用证据 |
 
-根目录 `AGENTS.md` 提供从项目目录启动 Hermes 时的稳定工程约束。复杂任务由
-`spark-push-agent` 使用 Hermes 的 `delegate_task` 创建隔离子 Agent；简单问答或局部修改由主
-Agent 直接完成，避免无意义地增加模型费用和延迟。
+根目录 `AGENTS.md` 提供 Kernel Agent 的稳定工程约束。复杂任务通过
+`kernel-subagents` 扩展注册的 `spawn_agent`、`send_input`、`wait_agent`、`list_agents` 和
+`close_agent` 工具编排独立 Pi SDK 会话；简单问答或局部修改由主 Agent 直接完成。
 
-CANNBot 的角色文件格式不能被 Hermes 当作原生子 Agent 注册表直接执行。本项目将角色职责变成
-`delegate_task` 的显式 `goal/context` 模板，位置在：
+这不是 Hermes `delegate_task`，也不是在单个会话中更换角色名。编排接口参考 Codex CLI 的
+生命周期机制，模型循环与工具执行复用 Pi SDK。角色、权限和当前边界见
+[Kernel Agent](kernel-agent.md)，源码对照见 [Codex 参考](codex-subagent-reference.md)。
+角色职责和交接内容的项目模板位于：
 
 ```text
 cannbot/skills/spark-push-agent/
@@ -59,11 +61,11 @@ cannbot/skills/spark-push-agent/
 
 ## 3. 自包含知识包
 
-通过 Spark Push API 调用的 Hermes 会话不应假定工作目录就是项目根目录。若 Skill 只保存 `README.md` 之类的
-相对路径，Agent 实际无法读取项目文件。同步脚本因此会把登记过的文档和关键源码复制到：
+Kernel Agent 的当前 Gateway 使用实时项目目录；独立安装的 Skill 仍需要可携带的知识快照，
+不能只靠 `README.md` 之类的仓库相对路径猜测工作目录。同步脚本把登记过的文档和关键源码复制到：
 
 ```text
-<HERMES_HOME>/skills/spark-push-knowledge/references/sources/
+<PI_CODING_AGENT_DIR>/skills/spark-push-knowledge/references/sources/
 ```
 
 并生成 `references/installed-source-map.md`，记录 source ID、权威等级、原始项目路径、安装路径
@@ -94,12 +96,12 @@ RAG 不会扫描任意磁盘目录。默认离线检索不依赖 LLM endpoint �
 - `snapshot`：带环境和日期的测试/性能结果；
 - `historical`：教学演进、旧实现或背景材料。
 
-## 4. 安装到 Pi
+## 4. 安装 Kernel Agent
 
 先校验知识登记和 Skill 结构：
 
 ```bash
-cd /home/peco/cppcode/fenbushi/11.2-spark_push
+cd /home/peco/cppcode/fenbushi/sparkpush_project
 python3 cannbot/scripts/validate_knowledge.py --strict --list
 ```
 
@@ -113,7 +115,7 @@ python3 cannbot/scripts/sync_pi_agent.py --check \
 首次安装：
 
 ```bash
-bash cannbot/scripts/setup_pi_agent.sh
+bash cannbot/scripts/setup_kernel_agent.sh
 ```
 
 项目知识变化后使用 `--replace`。脚本不会静默覆盖旧 Skill 内容，而是先把旧目录移动为带时间戳的
@@ -124,21 +126,21 @@ python3 cannbot/scripts/sync_pi_agent.py --install --replace \
   --pi-home /home/peco/.pi-spark-agent
 ```
 
-完成后重启 Pi gateway，或新开 `pi-spark-agent` 会话。Spark Push 输入框的 slash command
+完成后重启 Kernel Agent gateway，或新开 `kernel-agent` 会话。Spark Push 输入框的 slash command
 当前由 Logic 自己解析，日常聊天直接用自然语言提问。
 
 ## 5. 第三方 LLM API
 
 第三方密钥和 endpoint 只配置在 Pi，不进入 Spark Push 仓库。独立 WSL Pi 使用 `cli-relay`
-provider 接入原 CLI Relay。Spark Push 侧只配置 Pi gateway 地址和 Bearer：
+provider 接入原 CLI Relay。Spark Push 侧只配置 Kernel Agent gateway 地址和 Bearer：
 
 ```dotenv
 SPARK_PUSH_HERMES_BASE_URL=http://127.0.0.1:8643/v1
-SPARK_PUSH_HERMES_API_KEY=<与 Pi gateway Bearer 相同>
-SPARK_PUSH_HERMES_MODEL=pi-agent
+SPARK_PUSH_HERMES_API_KEY=<与 Kernel Agent gateway Bearer 相同>
+SPARK_PUSH_HERMES_MODEL=kernel-agent
 ```
 
-`SPARK_PUSH_HERMES_MODEL` 对 Pi gateway 是虚拟模型名；真实模型由 `~/.pi-spark-agent`
+`SPARK_PUSH_HERMES_MODEL` 对 Kernel Agent gateway 是虚拟模型名；真实模型由 `~/.pi-spark-agent`
 的 `settings.json` / `models.json` 决定。会话内 `/model provider:model` 仍由现有适配层转发。
 真实密钥放在 `/home/peco/.pi-spark-agent/.env`，不写进 `.env.example`、Skill 或日志。
 完整说明见 [`pi-agent-integration.md`](pi-agent-integration.md)。
@@ -164,22 +166,23 @@ DocumentSource → Chunker → Retriever → optional Reranker
 ```
 
 该 RAG 已支持来源元数据、定向增量摄入、禁用来源、原子 generation、稳定文档/片段 ID、
-离线评测和结构化引用。RAG 只是 Pi 的知识工具，不能接管 Spark Push 的消息可靠性状态。
+离线评测和结构化引用。RAG 是 Kernel Agent 的知识工具，不能接管 Spark Push 的消息可靠性状态。
 
 ### 修改角色或工作流
 
 - 角色边界：`spark-push-agent/references/roles.md`；
 - 阶段、门禁和回退：`spark-push-agent/references/workflow.md`；
-- Pi 触发和总约束：`spark-push-agent/SKILL.md`；
+- Kernel Agent 触发和总约束：`spark-push-agent/SKILL.md`；
 - 项目级长期约束：根目录 `AGENTS.md`。
 
 修改后同时验证简单问答不会无故委派、复杂任务会传完整上下文、Reviewer/Tester 不依赖
-Developer 自报、只有实时项目可访问时才允许写代码。
+Developer 自报、只有实时项目可访问且子任务获得明确 allowed_writes 时才允许子 Agent 写代码。
+Tester 子 Agent 只读检查测试设计和证据；命令与房间固定 runner 由主 Agent 执行。
 
 ## 7. 使用边界
 
-通过 Spark Push Web/IM 调用时，Pi gateway 的工作目录就是项目根目录，可以使用 read/write/edit/bash
-修改和验证代码；最终回答仍走 Spark 的 `ai_reply` 落库。从项目根目录启动 `pi-spark-agent` CLI
+通过 Spark Push Web/IM 调用时，Kernel Agent gateway 的工作目录就是项目根目录，可以使用 read/write/edit/bash
+修改和验证代码；最终回答仍走 Spark 的 `ai_reply` 落库。从项目根目录启动 `kernel-agent` CLI
 时同样能访问该工作树，`AGENTS.md` 会成为项目上下文。
 
 同级的 `cannbot-skills` 上游克隆是首次建库和后续同步的显式来源，无需 GitCode 登录。

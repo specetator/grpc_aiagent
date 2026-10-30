@@ -3,7 +3,7 @@
   "default_agent": "pi",
   "bot_user_id": 900000000001,
   "agents": [
-    {"id": "pi", "name": "Pi Agent", "runtime": "pi_rpc", "owner_user_ids": [], "bot_user_id": 900000000001},
+    {"id": "pi", "name": "Kernel Agent", "runtime": "pi_rpc", "owner_user_ids": [], "bot_user_id": 900000000001},
     {
       "id": "hermes-technical",
       "bot_user_id": 900000000101,

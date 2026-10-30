@@ -23,7 +23,7 @@ event reached Kafka; `delivered_ack` confirms downstream connection delivery.
 Ephemeral `ai_delta` never advances a cursor. Final `ai_reply` uses the original
 persistence path. Default Bridge remains Pi for tools, Skills, images and control
 commands. Optional gRPC supports text generation; images are rejected and Pi
-control commands still require the Pi gateway.
+control commands still require the Kernel Agent gateway (Pi runtime).
 
 ## Gateway, worker, cancellation
 

@@ -24,7 +24,7 @@ inline constexpr int64_t kHermesBotUserId = 900000000001LL;
 // bot 账号名是保留字：UserService::Register 会直接 409 拒掉，
 // Login 也会 403。否则任何人都能注册一个叫 hermes_bot 的账号冒充 Agent。
 inline constexpr const char* kHermesBotAccount = "hermes_bot";
-inline constexpr const char* kHermesBotName = "Pi Agent";
+inline constexpr const char* kHermesBotName = "Kernel Agent";
 
 // 状态码 -> 展示文本。default 分支返回 "unknown" 而不是断言：
 // 未知状态可能来自脏数据，抛异常会把一个展示问题变成服务崩溃。

@@ -10,12 +10,12 @@ usage() {
   cat <<'EOF'
 用法：scripts/sparkctl.sh down [选项]
 
-默认停止 Spark 业务进程和本机 WSL Pi Agent Gateway，保留 Docker 数据依赖。
+默认停止 Spark 业务进程和本机 WSL Kernel Agent Gateway，保留 Docker 数据依赖。
 
 选项：
   --with-deps     同时停止 Redis / MySQL / Kafka，不删除数据卷
-  --keep-hermes   保持 Pi Agent Gateway 运行（兼容旧参数名）
-  --keep-pi       保持 Pi Agent Gateway 运行
+  --keep-hermes   保持 Kernel Agent Gateway 运行（兼容旧参数名）
+  --keep-pi       保持 Kernel Agent Gateway 运行
   -h, --help      显示帮助
 EOF
 }
@@ -35,7 +35,7 @@ args=()
 bash "$PROJECT_ROOT/scripts/stop_demo.sh" "${args[@]}"
 
 if (( ! KEEP_HERMES )) && hermes_enabled && hermes_is_local; then
-  echo "stopping local Pi Agent Gateway"
+  echo "stopping local Kernel Agent Gateway"
   if [[ -f "$PROJECT_ROOT/.run/pi_gateway.pid" ]]; then
     pid="$(sed -n '1p' "$PROJECT_ROOT/.run/pi_gateway.pid" 2>/dev/null || true)"
     if [[ "$pid" =~ ^[0-9]+$ ]]; then

@@ -13,7 +13,7 @@
 | --- | --- |
 | ACK / 游标 / 指标语义 | [`reliability-optimization.md`](reliability-optimization.md) |
 | 启动、排障、健康检查 | [`../scripts/00_prepare_and_run.md`](../scripts/00_prepare_and_run.md) |
-| Pi Agent / CANN 引用 | [`pi-agent-integration.md`](pi-agent-integration.md)、[`cannbot-integration.md`](cannbot-integration.md) |
+| Kernel Agent / CANN 引用 | [`pi-agent-integration.md`](pi-agent-integration.md)、[`cannbot-integration.md`](cannbot-integration.md) |
 | 图片发送 / 截图问答 | 大框架第 2.5 节；逐步算法第 32、31.5 节 |
 | 多 Agent 路由与隔离 | [`multi-agent-integration.md`](multi-agent-integration.md) |
 | 用户中心与管理员 | [`user-center.md`](user-center.md) |
