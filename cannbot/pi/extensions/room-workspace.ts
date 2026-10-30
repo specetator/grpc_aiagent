@@ -38,6 +38,9 @@ export default function (pi: ExtensionAPI) {
     if (release) { releases.delete(event.toolCallId); release(); }
   });
   pi.on("tool_call", async (event) => {
+    // The child registry enforces the same task root and room read-only
+    // policy; lifecycle tools cannot select arbitrary runtimes or workspaces.
+    if (["spawn_agent", "send_input", "wait_agent", "close_agent", "list_agents"].includes(event.toolName)) return;
     if (["cann_knowledge_search", "cann_knowledge_get", "cann_knowledge_neighbors", "cann_knowledge_status"].includes(event.toolName)) return;
     if (event.toolName === "room_run_tests") {
       if (canDevelop) { await acquire(event.toolCallId); return; }

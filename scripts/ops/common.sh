@@ -40,9 +40,18 @@ hermes_health_url() {
 }
 
 resolve_pi_command() {
+  if [[ -n "${SPARK_PUSH_KERNEL_COMMAND:-}" &&
+        -x "${SPARK_PUSH_KERNEL_COMMAND}" ]]; then
+    printf '%s\n' "$SPARK_PUSH_KERNEL_COMMAND"
+    return 0
+  fi
   if [[ -n "${SPARK_PUSH_PI_COMMAND:-}" &&
         -x "${SPARK_PUSH_PI_COMMAND}" ]]; then
     printf '%s\n' "$SPARK_PUSH_PI_COMMAND"
+    return 0
+  fi
+  if command -v kernel-agent >/dev/null 2>&1; then
+    command -v kernel-agent
     return 0
   fi
   if command -v pi-spark-agent >/dev/null 2>&1; then
@@ -50,6 +59,10 @@ resolve_pi_command() {
     return 0
   fi
   local user_home_path="${HOME:-}"
+  if [[ -x "$user_home_path/.local/bin/kernel-agent" ]]; then
+    printf '%s\n' "$user_home_path/.local/bin/kernel-agent"
+    return 0
+  fi
   if [[ -x "$user_home_path/.local/bin/pi-spark-agent" ]]; then
     printf '%s\n' "$user_home_path/.local/bin/pi-spark-agent"
     return 0

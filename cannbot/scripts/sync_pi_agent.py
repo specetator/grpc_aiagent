@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install Spark Push Skills and the CANN advisor extension into a Pi agent home."""
+"""Install Kernel Agent Skills and extensions into its compatible Pi runtime home."""
 
 from __future__ import annotations
 
@@ -51,7 +51,11 @@ def main() -> int:
     pi_home = (args.pi_home or default_pi_home()).expanduser().resolve()
     try:
         packages = hermes_sync.build_skill_packages(REPO_ROOT)
-        extension = (REPO_ROOT / "cannbot/pi/extensions/cann-advisor.ts").read_bytes()
+        extension_root = REPO_ROOT / "cannbot/pi/extensions"
+        extensions = {path.relative_to(extension_root): path.read_bytes()
+                      for path in extension_root.rglob("*.ts")
+                      if path.name != "room-workspace.ts"}
+        extensions[Path("lib/PI-LICENSE.txt")] = (REPO_ROOT / "third_party/pi/LICENSE").read_bytes()
         settings = (REPO_ROOT / "cannbot/pi/settings.json").read_bytes()
         models_example = (REPO_ROOT / "cannbot/pi/models.json.example").read_bytes()
     except (OSError, ValueError) as exc:
@@ -59,7 +63,6 @@ def main() -> int:
         return 2
 
     skill_targets = {name: pi_home / "skills" / name for name in packages}
-    extension_target = pi_home / "extensions" / "cann-advisor.ts"
     settings_target = pi_home / "settings.json"
     models_target = pi_home / "models.json"
     models_example_target = pi_home / "models.json.example"
@@ -70,9 +73,11 @@ def main() -> int:
             state = hermes_sync.package_state(target, packages[name])
             print(f"{name}: {state} ({target})")
             ok = ok and state == "current"
-        state = hermes_sync.file_state(extension_target, extension)
-        print(f"cann-advisor: {state} ({extension_target})")
-        ok = ok and state == "current"
+        for relative, content in sorted(extensions.items()):
+            target = pi_home / "extensions" / relative
+            state = hermes_sync.file_state(target, content)
+            print(f"{relative}: {state} ({target})")
+            ok = ok and state == "current"
         print(f"settings: {hermes_sync.file_state(settings_target, settings)} ({settings_target})")
         print(f"models: {'present' if models_target.is_file() else 'missing'} ({models_target})")
         return 0 if ok else 1
@@ -81,8 +86,13 @@ def main() -> int:
         for name, target in skill_targets.items():
             result = hermes_sync.install_directory(target, packages[name], args.replace)
             print(f"{name}: {result} ({target})")
-        result = hermes_sync.install_file(extension_target, extension, args.replace)
-        print(f"cann-advisor: {result} ({extension_target})")
+        # room-workspace is explicitly loaded only for scoped room workers.
+        # Keep it out of the auto-discovery root of the unrestricted CLI.
+        for relative, content in sorted(extensions.items()):
+            target = pi_home / "extensions" / relative
+            target.parent.mkdir(parents=True, exist_ok=True)
+            result = hermes_sync.install_file(target, content, args.replace)
+            print(f"{relative}: {result} ({target})")
         if not settings_target.exists():
             result = hermes_sync.install_file(settings_target, settings, replace=False)
             print(f"settings: {result} ({settings_target})")
@@ -98,7 +108,7 @@ def main() -> int:
         print(f"ERROR: {exc}", file=sys.stderr)
         return 2
 
-    print("Pi Agent 同步完成。新会话或重启 Pi gateway 后生效。")
+    print("Kernel Agent 同步完成。新会话或重启 Kernel Agent gateway 后生效。")
     return 0
 
 

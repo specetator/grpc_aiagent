@@ -183,7 +183,7 @@ class HermesBridgeRunner {
         if (!local_error.empty()) return local_error;
 
         const std::string input_name = command.value("input_name", "");
-        return "暂不支持 Pi Agent 命令 /" + input_name +
+        return "暂不支持 Kernel Agent 命令 /" + input_name +
                "。发送 /help 查看当前可用命令。";
     }
 

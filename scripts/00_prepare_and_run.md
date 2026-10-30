@@ -27,7 +27,7 @@ docker info
 docker compose version
 ```
 
-默认仅启用 IM，不要求 Pi Agent、CANN RAG、模型账号或 GPU。Agent/推理服务按对应专题另行启用。
+默认仅启用 IM，不要求 Kernel Agent、CANN RAG、模型账号或 GPU。Agent/推理服务按对应专题另行启用。
 
 如果 Docker daemon 没有运行，先启动 Docker Desktop 或 `docker.service`。
 

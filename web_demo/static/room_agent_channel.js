@@ -85,7 +85,7 @@
     }
     renderStreams() {
       this.panel.querySelector('[data-streams]').textContent = Array.from(this.streams.values()).map(s =>
-        `CANN → 用户 ${s.actor}\n${s.progress}\n` + Array.from(s.pieces.entries()).sort((a,b)=>a[0]-b[0]).map(x=>x[1]).join('')).join('\n\n');
+        `Kernel Agent → 用户 ${s.actor}\n${s.progress}\n` + Array.from(s.pieces.entries()).sort((a,b)=>a[0]-b[0]).map(x=>x[1]).join('')).join('\n\n');
     }
   }
   global.RoomAgentChannel = RoomAgentChannel;

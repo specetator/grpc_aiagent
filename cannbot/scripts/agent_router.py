@@ -398,6 +398,12 @@ class AgentRouter:
                  tenant_id="local", channel_id="spark_pc"):
         self.entries = {}
         for entry in entries:
+            # Preserve stable IDs/session namespaces while retiring the old
+            # product label in administrator registries already on disk.
+            if entry.get("runtime") == "pi_rpc":
+                name = entry.get("name", "")
+                if name in {"Pi Agent", "Pi", "Pi · Android", "Pi Agent · Android"}:
+                    entry = {**entry, "name": "Kernel Agent" + (" · Android" if "Android" in name else "")}
             key, name, owners = entry.get("id"), entry.get("name"), entry.get("owner_user_ids")
             routing_keywords = entry.get("routing_keywords", [])
             if (not isinstance(key,str) or not AGENT_ID.fullmatch(key) or key in self.entries or
@@ -604,7 +610,7 @@ class AgentRouter:
     def _unsupported_command(self, operation):
         """Pi and legacy Hermes do not gain a fake native control result."""
         return agent_event("assistant_final", {"text":
-            "暂不支持 Pi Agent 命令 /" + str(operation) +
+            "暂不支持 Kernel Agent 命令 /" + str(operation) +
             "。发送 /help 查看当前可用命令。"})
 
     def control(self, request, timeout_s=30):

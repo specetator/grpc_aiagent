@@ -2,7 +2,7 @@
 
 这是 Spark Push 的原生 Kotlin/Jetpack Compose Android 客户端。它不再把 WebDemo 嵌入手机，而是通过 Spark Push 的 HTTP API、Comet WebSocket 和通用 AgentEvent 协议连接 Android 专用 Agent 通道。界面采用轻量的 Claude Desktop 风格，适合手机竖屏使用。
 
-当前原生客户端覆盖：账号登录/注册、单聊历史与分页、实时消息和离线补推、发送回执、未读/已读、Android 专用 Pi Agent 与 Hermes technical 会话、Agent 命令和操作卡片、真实 provider 模型选择/思考深度/创作命令、CANN 引用与受保护知识原文、管理员用户/Token/审计/全站广播控制台。Android 使用专用 Agent 联系人 `900000000201/900000000211`、独立会话和模型状态，并从会话列表过滤 PC/WebDemo/Telegram 的旧 Agent 联系人 `900000000001/900000000101`；普通 Spark Push 用户仍可按需建立单聊。聊天室普通用户页、聊天室运营界面和视频弹幕页按当前产品范围不放入 Android 客户端，后端协议仍保留。
+当前原生客户端覆盖：账号登录/注册、单聊历史与分页、实时消息和离线补推、发送回执、未读/已读、Android 专用 Kernel Agent 与 Hermes technical 会话、Agent 命令和操作卡片、真实 provider 模型选择/思考深度/创作命令、CANN 引用与受保护知识原文、管理员用户/Token/审计/全站广播控制台。Android 使用专用 Agent 联系人 `900000000201/900000000211`、独立会话和模型状态，并从会话列表过滤 PC/WebDemo/Telegram 的旧 Agent 联系人 `900000000001/900000000101`；普通 Spark Push 用户仍可按需建立单聊。聊天室普通用户页、聊天室运营界面和视频弹幕页按当前产品范围不放入 Android 客户端，后端协议仍保留。
 
 界面采用 Claude Desktop 的视觉语言做手机化适配：暖白画布、低对比分隔线、窄信息层级、无边框助手消息、淡紫用户消息和轻量 Agent 操作卡。Android 目标版本为 `0.4.0`；聊天页显式处理 Android 15 状态栏和键盘 `adjustResize` 安全区。
 

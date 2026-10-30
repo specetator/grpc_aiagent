@@ -431,7 +431,7 @@ bool HermesClient::Chat(const nlohmann::json& messages,
         options.control.is_null() ? "/chat/completions" : "/agent/control");
 
     nlohmann::json request_body = {
-        {"model", options.model.empty() ? "pi-agent"
+        {"model", options.model.empty() ? "kernel-agent"
                                          : options.model},
         {"messages", messages},
         {"stream", false},
@@ -556,7 +556,7 @@ bool HermesClient::ChatStream(
     if (!ParseHttpUrl(config_.hermes_base_url, &base, err_msg)) return false;
     const std::string path = JoinPath(base.path, "/chat/completions");
     nlohmann::json request_body = {
-        {"model", options.model.empty() ? "pi-agent"
+        {"model", options.model.empty() ? "kernel-agent"
                                          : options.model},
         {"messages", messages},
         {"stream", true},

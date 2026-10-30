@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""OpenAI-compatible HTTP front for a local Pi coding-agent RPC process.
+"""Kernel Agent HTTP gateway, built on the Pi coding-agent RPC runtime.
 
 Spark Push's hermes_bridge keeps posting to /v1/chat/completions. This process
 is the drop-in replacement for Hermes' API server: it drives Pi, streams text
@@ -492,7 +492,7 @@ class PiRpcClient:
         target = saved["model"] if override else self.default_model
         # Compatibility for confirmed pre-migration IM history. A durable
         # gateway setting wins over a request built from stale message history.
-        if saved is None and model and model not in {"hermes-agent", "pi-agent", "pi"}:
+        if saved is None and model and model not in {"kernel-agent", "hermes-agent", "pi-agent", "pi"}:
             if not provider:
                 raise ValueError("model override requires an explicit provider")
             target = public_model({"provider": provider, "id": model})
@@ -693,13 +693,13 @@ class PiRpcClient:
                 text = "重试会将当前 Agent 上下文的最后一条用户消息再次发给 Agent，工具可能再次执行；已有回答和文件操作不会撤销。"
                 card = command_card("重试上一条消息？", ["retry_confirm", "cancel"])
             elif operation in {"restart", "restart_agent"}:
-                text = ("Pi Agent 不使用 Windows Hermes 的 /restart。"
+                text = ("Kernel Agent 不使用 Windows Hermes 的 /restart。"
                         "重置当前 Agent 上下文请用 /new；重启 Gateway 请在本机执行 "
                         "scripts/sparkctl.sh。")
-                card = command_card("Pi 会话操作", ["new", "status", "help"])
+                card = command_card("Kernel Agent 会话操作", ["new", "status", "help"])
             elif operation in creative:
                 text = ("剧情/人设/世界书命令由 Hermes · technical 处理。"
-                        "请发送 /agent 打开对应独立会话，不要在 Pi 对话里执行。")
+                        "请发送 /agent 打开对应独立会话，不要在 Kernel Agent 对话里执行。")
                 card = command_card("切换 Agent", ["help", "status"])
             elif operation == "status":
                 state = self.rpc({"type": "get_state"}).get("data") or {}
@@ -719,7 +719,7 @@ class PiRpcClient:
                         "/help（/commands）：命令菜单\n"
                         "/cann <问题>、/kb <问题>：知识库检索；/kb status：知识库状态\n"
                         "可直接发送 /new now 或 /retry now 确认操作。\n"
-                        "/restart 仅用于 Windows Hermes technical；Pi 请用 /new 重置上下文。")
+                        "/restart 仅用于 Windows Hermes technical；Kernel Agent 请用 /new 重置上下文。")
             if operation == "new_session":
                 self._save_state(self._state_path(session_id, ".route.json"),
                                  {"schema": 1, "context_start_seq": revision})
@@ -1000,7 +1000,9 @@ def make_handler(state: GatewayState):
             path = urlparse(self.path).path
             if path in {"/health", "/health/"}:
                 ready = state.rpc.is_ready()
-                self._json(200 if ready else 503, {"ok": ready, "agent": "multi" if hasattr(state.rpc, "entries") else "pi"})
+                self._json(200 if ready else 503, {"ok": ready,
+                    "agent": "multi" if hasattr(state.rpc, "entries") else "kernel-agent",
+                    "product": "Kernel Agent", "runtime": "pi_rpc"})
                 return
             if path in {"/v1/agent/metrics", "/agent/metrics"}:
                 scheduler = getattr(state.rpc, "scheduler", None)
@@ -1358,14 +1360,16 @@ def make_handler(state: GatewayState):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--host", default=os.environ.get("SPARK_PUSH_PI_HOST", "127.0.0.1"))
-    parser.add_argument("--port", type=int, default=int(os.environ.get("SPARK_PUSH_PI_PORT", "8643")))
-    parser.add_argument("--api-key", default=os.environ.get("SPARK_PUSH_HERMES_API_KEY") or os.environ.get("SPARK_PUSH_PI_API_KEY", ""))
+    def setting(key, default):
+        return os.environ.get("SPARK_PUSH_KERNEL_" + key, os.environ.get("SPARK_PUSH_PI_" + key, default))
+    parser.add_argument("--host", default=setting("HOST", "127.0.0.1"))
+    parser.add_argument("--port", type=int, default=int(setting("PORT", "8643")))
+    parser.add_argument("--api-key", default=os.environ.get("SPARK_PUSH_KERNEL_API_KEY") or os.environ.get("SPARK_PUSH_HERMES_API_KEY") or os.environ.get("SPARK_PUSH_PI_API_KEY", ""))
     parser.add_argument("--pi-bin", default=os.environ.get("SPARK_PUSH_PI_BIN", "pi"))
     parser.add_argument("--pi-home", default=os.environ.get("PI_CODING_AGENT_DIR", str(Path.home() / ".pi-spark-agent")))
-    parser.add_argument("--cwd", default=os.environ.get("SPARK_PUSH_PI_CWD", os.getcwd()))
-    parser.add_argument("--provider", default=os.environ.get("SPARK_PUSH_PI_PROVIDER", "cli-relay"))
-    parser.add_argument("--model", default=os.environ.get("SPARK_PUSH_PI_MODEL", "gpt-5.6-luna"))
+    parser.add_argument("--cwd", default=setting("CWD", os.getcwd()))
+    parser.add_argument("--provider", default=setting("PROVIDER", "cli-relay"))
+    parser.add_argument("--model", default=setting("MODEL", "gpt-5.6-luna"))
     return parser.parse_args()
 
 
@@ -1418,6 +1422,9 @@ def main() -> int:
         log(f"Pi RPC get_state failed: {type(exc).__name__}: {exc}")
     registry = Path(os.environ.get("SPARK_PUSH_AGENT_REGISTRY", str(pi_home / "agents.json")))
     adapter = rpc
+    if os.environ.get("SPARK_PUSH_AGENT_SELF_SERVICE") == "true" and not registry.is_file():
+        rpc.stop()
+        raise ValueError("customer Agent connections require an Agent registry")
     if registry.is_file():
         from agent_router import load_router
         try:
@@ -1427,7 +1434,7 @@ def main() -> int:
             raise
         log("Agent registry loaded")
     server = ThreadingHTTPServer((args.host, args.port), make_handler(GatewayState(adapter, args.api_key, args.model)))
-    log(f"Pi gateway listening on http://{args.host}:{args.port}/v1")
+    log(f"Kernel Agent gateway listening on http://{args.host}:{args.port}/v1")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

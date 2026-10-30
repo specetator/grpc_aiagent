@@ -1,6 +1,6 @@
 # Spark Push 项目指引与简历手册
 
-> 更新：2026-10-28；以 `sparkpush_project/` 根目录当前源码为准。
+> 更新：2026-10-30；以 `sparkpush_project/` 根目录当前源码为准。
 > Hermes Native 基于 `0c4f1f2c4204481ce77a4a16162a360bbf2bf2fc` 增量实现；测试回执保存源码 SHA-256。2026-10-12 启动验收基线仍为 `496f3e1`。
 > 仓库：[specetator/grpc_aiagent](https://github.com/specetator/grpc_aiagent)。
 
@@ -12,7 +12,7 @@
 
 Spark Push 是一个基于 C++17 的实时消息/IM 与 Agent 协作项目。
 Comet 接入 WebSocket，Logic 管鉴权、会话、序号、幂等和路由，Job 消费 Kafka 做投递与历史持久化。
-可选 Bridge 经 AgentRouter 接入 Pi Agent、Hermes Legacy/Native，或使用 Inference Gateway，最终答案复用消息恢复链路。
+可选 Bridge 经 AgentRouter 接入 Kernel Agent（基于 Pi）、Hermes Legacy/Native，或使用 Inference Gateway，最终答案复用消息恢复链路。
 Hermes Native 通过官方 Runs API 复用 Runtime；默认关闭，尚未完成真实 Hermes 与完整 IM 端到端验收。
 
 | 能力 | 当前实现 |
@@ -22,7 +22,7 @@ Hermes Native 通过官方 Runs API 复用 Runtime；默认关闭，尚未完成
 | 可靠性 | SQL 持久序号、原文 reservation/outbox、两阶段 ACK、Kafka 业务完成后提交 offset |
 | 恢复 | 历史游标分页、逐条 delivery receipt、safe_seq、跨会话离线 continuation、客户端缺口补偿 |
 | 容量/运维 | 有界队列、流 deadline、慢连接输出上限、路由代次、readiness、DLQ CLI、日志轮转 |
-| Agent | Pi 与 Hermes 隔离路由、HTTP/SSE、Native 执行账本/审批/停止；任务交接、CAS 与版本化测试回执 |
+| Agent | Kernel Agent 子任务编排、CANN RAG；与 Hermes 隔离路由、HTTP/SSE、执行账本；任务交接、CAS 与测试回执 |
 | 可选推理 | gRPC Gateway/Worker、容量准入、会话路由、CPU/CUDA/ROCm 后端与显存观测 |
 
 这是可复现的工程实践项目，尚未完成多机高可用、长期压力、全 IM 混沌和生产 SLA 验证。
@@ -40,7 +40,7 @@ Client ── HTTP 登录/历史 ───────────────�
                                               └─ push_single/group ─► Job
 Client ◄── WebSocket ◄── Comet ◄── PushStream ───┘
 
-Agent：Logic ─► ai_request ─► Bridge ─► AgentRouter ─► Pi / Hermes Legacy / Hermes Runs
+Agent：Logic ─► ai_request ─► Bridge ─► AgentRouter ─► Kernel Agent / Hermes Legacy / Hermes Runs
        Logic ◄── ai_delta / ai_reply ◄────────────┘
        Bridge 也可按配置选择 Inference Gateway
 ```
@@ -51,7 +51,7 @@ Agent：Logic ─► ai_request ─► Bridge ─► AgentRouter ─► Pi / Her
 | Logic | HTTP 默认 4 个 IO worker；gRPC 线程；共享 Service/Repository；后台 outbox 恢复 | HTTP 9101、内部 RPC 9100 |
 | Job | 按 topic 的 consumer；每 Comet 一组 PushStream reader/writer；ACK 工作池 | metrics 9202 |
 | Bridge | Kafka AI consumer + 模型 HTTP/SSE；隔离秒级模型请求 | 默认无外部监听 |
-| Pi Gateway / AgentRouter | session/turn/event 账本、FIFO 调度、Runtime 路由；工具由对应 Runtime 执行 | 本机 8643 |
+| Kernel Agent Gateway / AgentRouter | session/turn/event 账本、FIFO 调度、Runtime 路由；工具由对应 Runtime 执行 | 本机 8643 |
 | WebDemo | 用户与管理 UI；客户端排序、去重、补拉 | HTTP 9010 |
 
 拆分让连接密集、业务密集与消费任务分别治理；CPU、broker、网络仍可共享，拆进程不等于绝对隔离。
@@ -514,6 +514,56 @@ PiRpcClient、Legacy Adapter、Scheduler 和原 WindowsRelayPool 保持原实现
 
 **追问**：已经有 Idempotency-Key，为什么不重发？服务端有保留期；执行过工具但幂等记录过期后重发可能再次执行。
 
+### 4.22 Kernel Agent：复用运行时与子 Agent 编排
+
+入口：[Kernel 子 Agent 扩展](../cannbot/pi/extensions/kernel-subagents.ts)、
+[产品与权限边界](../docs/kernel-agent.md)、[Codex 源码对照](../docs/codex-subagent-reference.md)。
+
+Kernel Agent 是本项目的产品名称，Pi coding agent 是底层运行时。项目复用 Pi SDK 的
+`createAgentSession`、会话和工具实现，不另写模型请求、流式协议或 Agent Loop。
+子任务生命周期参考开源 Codex CLI 的 spawn / send / wait / close 机制，并按当前 Pi 环境适配。
+保留 `pi` / `pi_rpc`、bot ID、旧状态目录与 `pi_gateway.py`，产品改名不迁移聊天历史。
+
+```text
+主 Agent 接收任务
+  → 划分可并行研究 / 有依赖的设计与实现
+  → spawn_agent：独立 Session、角色、任务上下文、写入范围
+  → wait_agent / list_agents：查看状态并收集结果
+  → send_input：补充真实测试证据或安排修正
+  → 主 Agent 核对代码与测试，close_agent，汇总最终答案
+```
+
+1. 子任务按主 turn 归属管理，用独立内存 Session 隔离模型上下文；父模型和思考等级沿用，
+   必要事实由任务提示显式传递。隔离上下文不等于隔离操作系统或复制工作区。
+2. 工具按“父会话已有能力 ∩ 角色允许能力”收敛。researcher / architect / reviewer / tester 只读；
+   developer 只能写 `allowed_writes` 中的文件，并拒绝并发开发者持有重叠范围。
+3. 不给子 Agent shell 和继续派生能力。tester 负责检查测试设计与已有证据，主 Agent 执行命令；
+   房间子 Agent 仅只读工作区/CANN，房间写入和 runner 继续由可信授权的主 Agent 使用。
+4. 子任务数量、交互轮数、执行时间、wait 时长和返回文本均有上限。等待超时只表示本次没有等到，
+   不能直接认定子任务失败，更不能自动重跑产生副作用的修改。
+5. 父 turn 结束、取消、切换会话或关闭时回收子任务，避免 worker 重用时跨会话泄漏。
+   子会话不跨 turn 持久化或自动恢复；主 turn 的 SQLite 账本与子会话生命周期分别管理。
+
+| 并发层次 | 输入对象 | 解决的问题 |
+|---|---|---|
+| Gateway worker 池 | 不同会话的请求 | 同会话串行、跨会话有界并发 |
+| Kernel 子 Agent | 同一个任务的子任务 | 独立上下文、分工与结果收集 |
+| 房间协作 | 多人的同一算子任务 | 权限、交接与版本化证据 |
+
+**可讲的算法与工程点**：任务注册表与所有权；状态机和迟到结果处理；有界资源配额；
+取消与释放顺序；工具能力集合求交；并行写入冲突检查。子 Agent 报告“通过”后，
+主 Agent 仍要检查实际命令、退出码和源码版本，不能把模型自报当成测试回执。
+子任务的 CANN 引用也需由主 Agent 重新读取来源，才能进入父 turn 的引用校验账本。
+
+**追问**：为什么不直接把 Codex 的 Rust AgentControl 复制过来？它依赖 Codex 的线程、配置和协议栈；
+本项目借鉴并注明生命周期语义，执行部分复用已接入的 Pi SDK，避免再引入一套模型与会话运行时。
+这不等于已经实现完整 Codex multi-agent，也不代表 NPU 算子自动优化已完成实机闭环。
+
+**本轮验收（2026-10-30）**：子任务生命周期/权限 53 项、真实 Pi SDK + 受控模型集成 32 项、
+名称浏览器检查 6 项通过；独立分支 CTest 为 46 通过 / 3 跳过。
+[验收记录](benchmarks/2026-10-30-kernel-agent/validation.json)同时登记已有命令卡片浏览器失败，
+不将受控模型验证表述为真实模型或 NPU 性能验收。
+
 ## 5. 构建、启动、升级与排障
 
 ### 5.1 最小运行路径
@@ -547,6 +597,10 @@ start_demo 生成/载入 .env.rpc，手动启动要给进程注入对应角色�
 
 Logic/Job 新表缺失时启动失败，不自动迁移；重复迁移会再次重置 delivered，不作为每次启动步骤。
 完整兼容、回退和 DLQ 操作见 [工程修复与迁移](review-remediation.md)。
+
+Kernel Agent 产品入口使用 `bash cannbot/scripts/setup_kernel_agent.sh` 和 `kernel-agent gateway`。
+存量机器人显示名可执行 [名称迁移](../sql/migrations/20261030_kernel_agent_identity.sql)，
+它保留自定义名称和既有会话 ID。安装与重启是部署步骤，源码更新不表示正在运行的服务已迁移。
 
 ### 5.3 运维信号
 
@@ -688,6 +742,7 @@ python3 cannbot/scripts/test_pi_citations.py
 - 分离 accepted/delivered/read，以逐条 receipt、safe_seq 和跨会话分页处理晚落库、乱序及重连，避免 MAX delivered 导致永久跳过缺口。
 - 修复 HTTP 半包与异常输入、跨线程连接闭包、慢鉴权与流 context 取消；引入有界队列、字节预算、慢连接输出上限、可 join RPC 池及受控退出。
 - 建立角色 RPC 鉴权、generation+nonce 路由防迟到删除、readiness/DLQ 重放及日志轮转；以自动化回归及隔离 SQL/Redis/Kafka 验证对应边界，结果按日期分别记录。
+- 基于 Pi SDK 定制 Kernel Agent，参考 Codex CLI 子 Agent 生命周期实现独立子会话的派发、等待、补充输入与回收；用角色工具约束、显式写入范围和有界资源管理控制同任务并发。
 - 在 IM 中实现共享 CANN Agent，使用任务/原生会话/工作区绑定、CAS 交接、内容寻址版本和固定 runner 测试回执支持跨用户接手；设备/NPU 性能另行验证。
 - 在保留 Pi 与 Legacy 通路的前提下，通过 Hermes Runs API 实现独立 Session、准入/结果账本、原生终态投影与一次性审批；对未知提交禁止盲目重跑，完成 38 项 Native 单元与 6 项 HTTP/SSE 合同测试，真实 E2E 待验收。
 - 为长任务增加可选 Kafka 控制抢占，保持普通任务顺序并仅提交连续完成的 offset 前缀；用本地 mock broker 验证停止抢占、失败重放与位点安全，保留有界窗口限制。
@@ -707,6 +762,7 @@ python3 cannbot/scripts/test_pi_citations.py
 | FIFO/LRU/有序树分别用在哪里？ | queue/deque、近期 set、delta TreeMap，4.6/4.8/4.11 |
 | 回调如何防 UAF？ | owning 闭包、weak timer、owner loop 与析构/join，4.16 |
 | 为什么大突发失败？ | 持锁范围、排队 deadline 与 SQL/Kafka 时延，4.3/6.3 |
+| 子 Agent 与 worker 池有何区别？ | 同一任务拆分与跨会话准入是两层；子会话不跨 turn 持久化，4.22 |
 | Agent 多人接手如何可恢复？ | task/session/actor 分离，账本、CAS、源码与测试 hash，4.19 |
 | 推理缓存/批处理如何区分？ | 服务准入、runtime batch、KV/prefix cache，4.20 |
 | Hermes 工具会不会重复执行？ | 准入预写、稳定身份、原 Run 查询；无 run_id 的 unknown 不自动重发，4.21 |
@@ -724,7 +780,7 @@ python3 cannbot/scripts/test_pi_citations.py
 | 业务层与扩展 | [Logic 业务层](logic-business-layer.md)、logic/services/、logic/repositories/ |
 | 工程修复/迁移 | [review-remediation](review-remediation.md)、sql/migrations/ |
 | 最新测试 | [本轮报告](benchmarks/2026-10-11-current/README.md)、tests/、load_test/ |
-| Pi/多 Agent/协作 | [Pi](pi-agent-integration.md)、[多 Agent](multi-agent-integration.md)、[房间协作](room-agent-collaboration.md) |
+| Kernel Agent/多 Agent/协作 | [产品与子任务](kernel-agent.md)、[运行时](pi-agent-integration.md)、[多 Agent](multi-agent-integration.md)、[房间协作](room-agent-collaboration.md) |
 | Hermes Native | [架构/部署/回滚](hermes-native-runtime-integration.md)、[测试回执](benchmarks/2026-10-28-hermes-native.json) |
 | 推理架构 | [Inference](inference-serving.md)、inference/gateway/、inference/worker/ |
 | GPU 历史实验 | [CUDA 2026-10-07](performance-report-2026-10-07-rtx3060.md)、[ROCm 2026-09-30](performance-report-2026-09-30-rx9070xt.md) |
@@ -882,7 +938,7 @@ gRPC 是两个进程之间的调用方式。调用方按函数的形式发出请
 | Logic | 业务进程。管登录、会话、序号、幂等、路由和历史查询。HTTP 9101，内部 RPC 9100 |
 | Job | 消费 Kafka 的进程。负责推送到 Comet，以及把历史写入 MySQL。指标 9202 |
 | Bridge | 可选进程。消费 AI 请求，用 HTTP/SSE 调模型，再把预览和最终答案发回 |
-| Pi / Pi Gateway | 可选的编程 Agent 及其本地网关，默认端口 8643。管会话、轮次、事件和工具 |
+| Kernel Agent / Gateway | 基于 Pi 的算子研发助手及本地网关，默认端口 8643。管会话、轮次、事件、工具与子任务 |
 | Inference Gateway | 可选推理入口。负责排队、挑选 Worker、取消 |
 | Inference Worker | 可选推理进程。管模型运行时、心跳和本进程并发 |
 | WebDemo | 浏览器演示页，HTTP 9010。自己做排序、去重和补拉 |
@@ -980,7 +1036,7 @@ gRPC 是两个进程之间的调用方式。调用方按函数的形式发出请
 | MEDIUMTEXT / MEDIUMBLOB | 存放较长文本或二进制的列类型。历史正文、原文和 outbox 用这类大字段 |
 | 连接池 | 预先维持有限个数据库连接，请求来了借出，用完归还 |
 | RAII | 用 C++ 对象的生命周期管理资源。guard 析构时自动还连接，中途返回也会还 |
-| SQLite | 单个文件里的数据库。Pi Gateway 用它记轮次和事件 |
+| SQLite | 单个文件里的数据库。Kernel Agent Gateway 用它记主轮次和事件 |
 | TTL | time to live，存活时间。到期后 Redis 键或本地路由缓存失效。路由缓存默认 1 秒 |
 | Lua | Redis 执行的一小段脚本。比较租约和删除在脚本里一次做完，中间插不进别的命令 |
 | generation | 这个用户在这台 Comet 上的上线次数。旧的下线请求必须带当时的次数 |
@@ -1061,7 +1117,7 @@ gRPC 是两个进程之间的调用方式。调用方按函数的形式发出请
 | flush | 把积攒的片段发出去。Bridge 大约凑满 48 字节或 50 毫秒发一次 |
 | DONE | 模型流结束的标记。没有合法结束标记时，不能写成成功的 reply |
 | tenant / channel | 租户和渠道。路由键把它们和会话、线程编在一起，避免把不同用户的上下文串起来 |
-| turn / event | Agent 的一轮，以及这一轮里按序号记下的事件。Pi 把它们记在 SQLite |
+| turn / event | Agent 的一轮，以及这一轮里按序号记下的事件。Gateway 把主 turn 和事件记在 SQLite |
 | input_hash | 这次请求输入的哈希。同一个 `request_id` 重放时必须还是这份输入 |
 | route_key | 由规范 JSON 哈希得到的路由身份 |
 | FIFO 调度 | 每个会话一张票队列。只有队首、会话空闲、配额还够，才能开始执行 |

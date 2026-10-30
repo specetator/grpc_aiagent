@@ -831,7 +831,7 @@
           <button id="start-chat-btn" class="btn-primary" style="padding:0 14px; white-space:nowrap;">私聊</button>
         </div>
         <button id="start-hermes-btn" type="button" class="hermes-trigger-btn">
-          <span>✨</span> 与 Pi Agent 对话（ID 900000000001）
+          <span>✨</span> 与 Kernel Agent 对话（ID 900000000001）
         </button>
         <button id="agent-directory-btn" type="button" class="hermes-trigger-btn">🤖 打开其他 Agent 对话</button>
       </div>
@@ -912,7 +912,7 @@
     let currentSessionId = null; // 当前选中的会话ID
     let currentPeerId = null;    // 当前聊天的对象ID
     const hermesBotUserId = 900000000001;
-    const agentContacts = new Map([[hermesBotUserId, 'Pi Agent'], [900000000101, 'Hermes · technical']]);
+    const agentContacts = new Map([[hermesBotUserId, 'Kernel Agent'], [900000000101, 'Hermes · technical']]);
     const conversationDrafts = new Map();
     const sessionWorkspaces = new Map();
     const isAgentPeer = id => agentContacts.has(Number(id));

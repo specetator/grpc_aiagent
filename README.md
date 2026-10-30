@@ -1,10 +1,14 @@
 # Spark Push
 
-C++17 分布式实时消息 / IM 项目，提供 WebSocket 接入、gRPC 双向流、Kafka 投递、MySQL 历史与 SQL 幂等/outbox、Redis 路由缓存，以及 Web 和原生 Android 客户端。Pi Agent 和 GPU 推理为可选扩展。
+C++17 分布式实时消息 / IM 项目，提供 WebSocket 接入、gRPC 双向流、Kafka 投递、MySQL 历史与 SQL 幂等/outbox、Redis 路由缓存，以及 Web 和原生 Android 客户端。Kernel Agent 和 GPU 推理为可选扩展。
 
 ## 快速开始
 
-基础 IM 可独立运行，不需要模型 API、Pi Agent、CANN 知识库或 GPU。
+基础 IM 可独立运行，不需要模型 API、Kernel Agent、CANN 知识库或 GPU。
+
+Kernel Agent 是本项目基于 Pi coding agent 定制的算子研发助手，整合 CANN 检索、代码工具、
+子 Agent 编排和多人任务协作。Pi 是底层运行时依赖；旧 `pi` / `pi_rpc` 标识、机器人 ID、
+会话目录和 `pi_gateway.py` 路径保留兼容，不新建或迁移已有聊天历史。
 目前构建与 CI 验证环境为 Ubuntu 22.04 / Linux；Windows 用户可在 WSL2 中运行服务。
 
 ### 1. 准备依赖
@@ -145,7 +149,7 @@ python3 tests/run_release_smoke.py --out /tmp/spark-release-smoke.json --jobs 2
 | 当前架构与调用链 | [架构](docs/spark-push-architecture.md)、[Logic 业务层](docs/logic-business-layer.md) |
 | 算法、复杂度、锁与失败路径 | [项目手册](docs/project-guide-and-resume.md)、[模块算法](docs/spark-push-internals.md) |
 | ACK / 游标 / 迁移 / 排障 | [可靠性](docs/reliability-optimization.md)、[工程修复](docs/review-remediation.md) |
-| Pi Agent 与流式回复 | [Pi 集成](docs/pi-agent-integration.md)、[多 Agent](docs/multi-agent-integration.md) |
+| Kernel Agent 与流式回复 | [产品与子 Agent](docs/kernel-agent.md)、[Kernel Agent 集成](docs/pi-agent-integration.md)、[多 Agent](docs/multi-agent-integration.md) |
 | 共享房间 Agent | [房间协作](docs/room-agent-collaboration.md)，默认关闭 |
 | GPU / 推理 Gateway | [推理服务](docs/inference-serving.md)，独立部署与验证 |
 | Android | [构建与连接](android-app/README.md)，需 Android SDK / JDK |
