@@ -90,6 +90,36 @@ CANN 编译、Bridge 重启、Kafka 重投及整栈冷重启。构建和 60 项 
 [阶段回执](benchmarks/2026-11-01-legacy-cann-private.json)，其中保留此前失败、
 独立旧数据恢复证据和未覆盖事项；这不是最终发行验收。
 
-**备份兼容仍待完成。** 当前 `spark_backup.py` 的 bind 白名单会拒绝这个挂载；
-不能套用公共 Runtime 成套备份通过的结论。发行前需为公开知识依赖增加明确的
-身份记录与恢复校验。不要移除 overlay 来制作一个声称完整的 CANN 部署备份。
+## 公开文档备份
+
+`spark_backup.py` 支持此固定只读挂载，备份时保留 overlay 和实际环境文件：
+
+```bash
+python3 scripts/spark_backup.py backup --project sparkpush --env-file .env \
+  -f docker-compose.yml -f docker-compose.cann.yml \
+  --output "$HOME/spark-backups/with-cann-documents"
+```
+
+已启用 Connector 的部署还须带上其 Compose 文件和 profile。只接受导出的单代
+文档树，不接受整个知识库；错误挂载或目录在停服前拒绝。归档记录 generation、
+文档数和内容摘要，恢复前重新检查文档身份、结构和可读权限。
+
+恢复会将文档复制到新部署目录，Logic 不再引用原导出路径。整批公共 Runtime
+工具复用相同映射，disabled/enabled 配置都指向恢复副本；其支持范围仍遵循
+[备份恢复指南](backup-restore.md)。文档归档不包含 RAG 索引、知识库程序、CANN
+Gateway 原生状态或个人 Agent，不等于完整 CANN Runtime 搬迁。
+
+专项真实测试使用小型公开文档 fixture、真实 Compose 和 HTTP API，不调用模型：
+
+```bash
+python3.11 tests/backup_restore_e2e.py --image spark-push:legacy-gc \
+  --cann-documents --out /tmp/spark-cann-backup.json
+```
+
+它移走原导出路径，再验证新项目的 UID 10001 能读到相同 generation、文档和片段；
+同时回归六卷冷备、成员/附件权限及 Kafka 未落库消息恢复。非法归档即使重新计算
+校验和，也必须在创建恢复目录或卷前被拒绝。完整模型/RAG 回归仍见前述独立专项。
+
+2026-11-01 文档恢复真实 14 项、无 CANN 基础 IM 回归 10 项通过；实际容器挂载
+和启用配置的 Compose 解析也已核对。完整证据、并行维护失败与范围限制见
+[文档备份回执](benchmarks/2026-11-01-cann-document-backup.json)。

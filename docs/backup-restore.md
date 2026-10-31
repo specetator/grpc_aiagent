@@ -8,7 +8,13 @@
 ## 备份
 
 安排独占维护窗口：备份期间不要运行其他 Compose、启动容器或修改源目录；
-使用与实际部署一致的项目名、Compose 文件、profile 和环境文件。下面是默认基础 IM：
+使用与实际部署一致的项目名、Compose 文件、profile 和环境文件。
+
+同一 Docker daemon 上的备份/恢复验收须串行执行。工具会检查所有容器的卷占用；
+其他测试同时删除临时容器时，这项检查可能保守失败。此时命令返回非零，不能把
+未完成目录当作成功备份；停止并行维护活动后重新运行。
+
+默认基础 IM：
 
 ```bash
 python3 scripts/spark_backup.py backup --project sparkpush \
@@ -25,6 +31,13 @@ Compose 导出的规范形式，不进行二次转义。
 使用可选 Connector 的部署应同时传入 `-f docker-compose.yml
 -f docker-compose.agents.yml --profile agents`。外部 Gateway/Native Runtime
 必须先由运维停止；本工具无法停止它们，也不备份它们的目录。
+
+挂载公开 CANN 原文的部署还须传入 `-f docker-compose.cann.yml`，并保留实际
+`SPARK_PUSH_CANN_DATA_DIR`。该路径必须是 [公开文档导出器](cann-docker.md)
+生成的独立副本：仅含 `current.json` 和当前 generation 的 documents，目录 0755、
+文件 0644。工具在停服前检查固定只读挂载及文档树，拒绝整个知识库、索引、额外
+generation、链接和身份不一致的文档。清单以 `kind: cann_documents` 记录 generation、
+文档数和内容摘要；复制后复核源文件身份和内容。维护期间不要改动该副本。
 
 备份包含密码、证书、附件、用户数据和已解析的配置。目录权限为 0700，文件 0600；
 将整个集合保存在受控存储中，不提交 Git。SHA-256 用于发现损坏，不证明备份来源。
@@ -53,6 +66,11 @@ docker compose -p sparkpush-restored -f "$HOME/spark-restored/compose.json" ps
 源部署应保持停止；如仅在隔离测试中同时保留两个项目，须选择不同端口。工具在写入前
 验证所有文件和 Compose 计划，拒绝已有的任何目标卷或目标容器（包括已停止的容器）。
 它不覆盖、不合并、不自动删除已有数据。目标资源名通过原子容器名锁避免两个恢复命令竞争。
+
+公开 CANN 文档从备份恢复到 `bindings/<绑定名>/content`，Logic 只读挂载这个新路径，
+不依赖原机器上的文档目录。恢复前除 SHA 外还验证完整目录结构、文档/片段归属和
+读取权限；改过结构的归档即使重新计算校验和也会拒绝。无 CANN 的旧备份无需转换。
+这只恢复公开引用原文，不包含 CANN 检索索引、知识库程序或外部 Gateway 状态。
 
 启动失败时保留恢复目录、卷和 `restore-state.json` 的未完成状态供排查，命令返回非零。
 不要对原数据库执行降级迁移。恢复到新的空项目，确认账号、消息、附件和权限正常后，
@@ -145,6 +163,7 @@ docker compose -p sparkpush-restored -f "$HOME/spark-restored/compose.agents.jso
 
 `compose.agents.json` 是完整配置，不需要与 `compose.json` 合并。它和备份一样可能含
 已解析的私有环境值，文件权限为 0600。恢复后的 Logic 使用恢复目录里的 Catalog 副本；
+如果批次含公开 CANN 文档，关闭和开启 Agent 的两份配置都使用恢复后的文档副本。
 日后改 Catalog 时仍须同步 Gateway 使用的对应配置。不要同时启动源项目和恢复项目，
 它们可能使用相同的外部 Runtime 和端口。
 不要对仍运行的 disabled 栈直接执行 enabled `up`。实际测试中，热替换 Logic 的

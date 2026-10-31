@@ -4,12 +4,16 @@ import copy
 import importlib.util
 import io
 import json
+import os
 from pathlib import Path
+import shutil
+import sys
 import tarfile
 import tempfile
 import unittest
 from unittest.mock import patch
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 spec = importlib.util.spec_from_file_location('spark_backup', Path(__file__).resolve().parents[1] / 'scripts/spark_backup.py')
 backup = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(backup)
@@ -54,6 +58,154 @@ class BackupPreflight(unittest.TestCase):
                 backup.restore(args)
             command.assert_not_called()
         self.assertFalse((self.root/'target').exists())
+
+    def add_cann(self):
+        self.generation = '20261101T000000Z-123456789abc'
+        self.doc_id, self.chunk_id = 'doc_' + 'a' * 24, 'chk_' + 'b' * 24
+        source = self.root / 'knowledge'
+        docs = source / 'data/generations' / self.generation / 'documents'
+        docs.mkdir(parents=True)
+        (source / 'data/current.json').write_text(json.dumps({'generation': self.generation}))
+        value = {'generation': self.generation, 'document': {'doc_id': self.doc_id, 'content': 'public'},
+                 'chunks': [{'doc_id': self.doc_id, 'chunk_id': self.chunk_id, 'content': 'public chunk'}]}
+        (docs / (self.doc_id + '.json')).write_text(json.dumps(value))
+        self.public = self.root / 'public-data'
+        backup.cann.export_documents(source, self.public)
+        snapshot = backup.cann.exported_snapshot(self.public)
+        record = {'archive': 'binding-logic-0.tar.gz', 'service': 'logic', 'index': 0, 'kind': 'cann_documents'}
+        record['documents'] = backup.copy_cann_binding(self.public, self.bundle / record['archive'], snapshot)
+        self.manifest['bindings']['logic-0'] = record
+        self.config['services']['logic'].update(environment={'SPARK_PUSH_CANN_KNOWLEDGE_ROOT': '/run/spark-cann'},
+            volumes=[{'type': 'bind', 'source': 'logic-0', 'target': '/run/spark-cann/data',
+                      'read_only': True, 'bind': {}}])
+        self.save()
+
+    def test_cann_archive_preserves_source_and_restores_public_permissions(self):
+        self.add_cann()
+        before = backup.cann.exported_snapshot(self.public)
+        _, manifest, config = backup.verify(self.bundle)
+        self.assertEqual(manifest['bindings']['logic-0']['documents'], before[0])
+        self.assertEqual(config, self.config)
+        target = self.root / 'extracted';target.mkdir()
+        with tarfile.open(self.bundle / 'binding-logic-0.tar.gz') as archive:
+            archive.extractall(target, members=backup.safe_members(archive))
+        self.assertEqual(backup.cann.exported_snapshot(target / 'content')[0], before[0])
+        self.assertEqual(backup.cann.exported_snapshot(self.public), before)
+
+    def test_cann_bad_mount_or_tree_is_rejected_before_stop(self):
+        self.add_cann()
+        caddy = self.root / 'Caddyfile';caddy.write_text('fixture')
+        original = copy.deepcopy(self.config)
+        original['services']['gateway']['volumes'][0]['source'] = str(caddy)
+        original['services']['logic']['volumes'][0]['source'] = str(self.public)
+        args = argparse.Namespace(project='source', output=str(self.root/'backup-output'), env_file=None,
+                                  file=None, profile=[], leave_stopped=False)
+        def reject(config):
+            with patch.object(backup, 'run', return_value=json.dumps(config).encode()) as command:
+                with self.assertRaises(ValueError): backup.backup(args)
+                self.assertEqual(command.call_count, 1)
+                self.assertEqual(command.call_args.args[0][-3:], ['config', '--format', 'json'])
+            self.assertFalse((self.root / 'backup-output').exists())
+        for change in ({'target': '/unknown'}, {'read_only': False}, {'bind': {'create_host_path': True}},
+                       {'bind': {'propagation': 'shared'}}, {'target': '/run/spark-cann'}):
+            config = copy.deepcopy(original);config['services']['logic']['volumes'][0].update(change)
+            reject(config)
+        config = copy.deepcopy(original)
+        config['services']['logic']['environment']['SPARK_PUSH_CANN_KNOWLEDGE_ROOT'] = '/private'
+        reject(config)
+        config = copy.deepcopy(original)
+        config['services']['web']['volumes'] = config['services']['logic'].pop('volumes')
+        reject(config)
+        for extra in ('index.sqlite', 'source.py', 'generations/another-generation'):
+            path = self.public / extra;path.write_text('not public export');reject(original);path.unlink()
+        pointer = self.public / 'current.json';pointer.chmod(0o600)
+        reject(original);pointer.chmod(0o644)
+        link = self.root / 'linked-pointer';os.link(pointer, link)
+        reject(original);link.unlink()
+        alias = self.root / 'alias';alias.symlink_to(self.public, target_is_directory=True)
+        config = copy.deepcopy(original);config['services']['logic']['volumes'][0]['source'] = str(alias)
+        reject(config)
+
+    def test_rehashed_cann_archive_still_requires_structure_and_document_identity(self):
+        self.add_cann()
+        archive_path = self.bundle / 'binding-logic-0.tar.gz'
+        with tarfile.open(archive_path) as archive:
+            original = [(copy.copy(member), archive.extractfile(member).read() if member.isfile() else b'')
+                        for member in archive.getmembers()]
+        doc_path = 'content/generations/' + self.generation + '/documents/' + self.doc_id + '.json'
+        cases = ('extra-index', 'extra-generation', 'missing-directory', 'generation', 'doc-id', 'chunk-id',
+                 'chunk-owner', 'oversized', 'symlink', 'hardlink', 'unreadable', 'directory-mode', 'nested-file')
+        for case in cases:
+            with self.subTest(case=case):
+                items = copy.deepcopy(original)
+                if case.startswith('extra') or case == 'nested-file':
+                    name = {'extra-index': 'content/index.sqlite', 'extra-generation': 'content/generations/extra',
+                            'nested-file': doc_path + '/nested'}[case]
+                    info = tarfile.TarInfo(name);info.mode = 0o644
+                    items.append((info, b'x'))
+                elif case == 'missing-directory':
+                    items = [(info, raw) for info, raw in items if info.name != 'content/generations']
+                else:
+                    for index, (info, raw) in enumerate(items):
+                        if case == 'directory-mode' and info.name == 'content': info.mode = 0o700
+                        if info.name != doc_path: continue
+                        value = json.loads(raw)
+                        if case == 'generation': value['generation'] = '20261101T000001Z-123456789abc'
+                        elif case == 'doc-id': value['document']['doc_id'] = 'doc_' + 'c' * 24
+                        elif case == 'chunk-id': value['chunks'][0]['chunk_id'] = '../wrong'
+                        elif case == 'chunk-owner': value['chunks'][0]['doc_id'] = 'doc_' + 'c' * 24
+                        elif case in ('symlink', 'hardlink'):
+                            info.type = tarfile.SYMTYPE if case == 'symlink' else tarfile.LNKTYPE
+                            info.linkname = 'content/current.json'
+                        elif case == 'unreadable': info.mode = 0o600
+                        raw = b' ' * (backup.cann.DOCUMENT_LIMIT + 1) if case == 'oversized' else json.dumps(value).encode()
+                        items[index] = (info, raw)
+                with tarfile.open(archive_path, 'w:gz') as archive:
+                    for info, raw in items:
+                        info.size = len(raw) if info.isfile() else 0
+                        archive.addfile(info, io.BytesIO(raw) if info.isfile() else None)
+                self.save()  # Recomputed SHA does not bypass semantic preflight.
+                self.rejected_without_docker()
+
+    def test_cann_mapping_and_descriptor_must_agree(self):
+        self.add_cann()
+        original = copy.deepcopy(self.manifest['bindings']['logic-0'])
+        for field, value in (('kind', 'configuration'), ('kind', 'unknown'), ('documents', {})):
+            self.manifest['bindings']['logic-0'] = {**original, field: value}
+            self.save();self.rejected_without_docker()
+        self.manifest['bindings']['logic-0'] = {k: v for k, v in original.items() if k != 'kind'}
+        self.save();self.rejected_without_docker()
+
+    def test_cann_mutation_during_copy_is_not_a_complete_snapshot(self):
+        self.add_cann()
+        before = backup.cann.exported_snapshot(self.public)
+        original = backup.copy_binding
+        def mutate(source, destination):
+            original(source, destination)
+            path = self.public / 'current.json'
+            path.write_bytes(path.read_bytes() + b' ')
+        with patch.object(backup, 'copy_binding', side_effect=mutate):
+            with self.assertRaisesRegex(ValueError, 'changed'):
+                backup.copy_cann_binding(self.public, self.root / 'changed.tar.gz', before)
+
+    def test_team_enabled_plan_uses_archived_cann_path(self):
+        self.add_cann()
+        import spark_team_backup as team
+        batch = self.root / 'batch';batch.mkdir();shutil.copytree(self.bundle, batch / 'im')
+        target = self.root / 'restored';target.mkdir()
+        disabled = copy.deepcopy(self.config);disabled['networks'] = {'default': {'name': 'restored_default'}}
+        disabled['services']['gateway']['ports'] = [{'target': 9010, 'published': '9012'}]
+        (target / 'compose.json').write_text(json.dumps(disabled))
+        self.public.rename(self.root / 'moved-public')
+        with patch.object(team.im, 'run') as command:
+            team.enabled_compose(batch, target, 'restored')
+            command.assert_called_once()
+        enabled = json.loads((target / 'compose.agents.json').read_text())
+        mount = enabled['services']['logic']['volumes'][0]
+        self.assertEqual(mount['source'], str(target / 'bindings/logic-0/content'))
+        self.assertTrue(mount['read_only'])
+        self.assertEqual(backup.cann.exported_snapshot(Path(mount['source']))[0],
+                         self.manifest['bindings']['logic-0']['documents'])
 
     def test_complete_bundle(self):
         directory,manifest,config=backup.verify(self.bundle)

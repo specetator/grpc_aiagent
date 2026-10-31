@@ -1,0 +1,318 @@
+{
+  "schema": "sparkpush.validation.v1",
+  "date": "2026-11-01",
+  "stage": "public CANN document cold backup and restore",
+  "stage_accepted": true,
+  "release_accepted": false,
+  "base_revision": "bdd4df9e3e3b456a2bd712402689b7f1aeeab849",
+  "scope": "Host Python backup tools; real Compose IM stores and public document fixture. No model, RAG index or Agent Runtime execution in this stage.",
+  "source_sha256": {
+    "scripts/spark_backup.py": "7cc724bcb069250053aaa8e89a778a3d2ad90da58862653a2ae75b32ac5daa60",
+    "scripts/spark_team_backup.py": "68aae789d6dacd788daf132d9682d63e71fa6d254c40c978a0d81ab183677559",
+    "scripts/export_cann_documents.py": "e89f977c1dde8f0ef52151e3756f38bb59bac135d62aab4630e06c84e43dbff0",
+    "tests/backup_restore_e2e.py": "8faac3cda31e48fa22b9e2af7612fbc25bab46e201e649e59cfe2be1c4b5c585",
+    "docker-compose.cann.yml": "6dc85997d3133b787c99b79ff0aacdeddfb3276c6e8d7a7411d8a2f5470aa68f"
+  },
+  "application_image": {
+    "tag": "spark-push:legacy-gc",
+    "id": "sha256:f71a46e28f5358601f2ca05eabf45c7344274343b07be834a137eaf0032820a5",
+    "registry_digest_published": false,
+    "note": "Unchanged C++ image from the accepted legacy CANN/private stage; modified backup scripts run on the host."
+  },
+  "changes": [
+    "Reuse the exporter generation/document/chunk validation for strict exported-tree and tar checks.",
+    "Classify all bind mounts before stopping services; only Logic readonly /run/spark-cann/data with fixed root is accepted as cann_documents.",
+    "Archive one public generation; record pointer and document content hashes; compare source identities after copy.",
+    "Validate structure, permissions and document identity before restore writes; preserve the existing disabled/enabled bind remapping.",
+    "Retain old no-kind configuration archives; no schema migration or user state rewrite."
+  ],
+  "contracts": [
+    {
+      "command": "python3 tests/backup_contract_test.py",
+      "exit_code": 0,
+      "tests_passed": 24,
+      "scope": "Filesystem/archive contracts, with mocked Docker only where declared; includes enabled-plan remapping contract."
+    },
+    {
+      "command": "python3 tests/cann_document_export_test.py",
+      "exit_code": 0,
+      "tests_passed": 7,
+      "scope": "Filesystem contracts; no model or Runtime doubles."
+    },
+    {
+      "command": "cmake --build build-wsl -j2",
+      "exit_code": 0,
+      "log": "/tmp/spark-v010-cann-backup-build.log",
+      "note": "Incremental build; C++ sources unchanged."
+    },
+    {
+      "command": "SPARK_PLAYWRIGHT_MODULE=/tmp/spark-spaces-browser/node_modules/playwright FONTCONFIG_FILE=/tmp/spark-web-fonts.conf ctest --test-dir build-wsl --output-on-failure",
+      "exit_code": 0,
+      "registered": 64,
+      "passed": 60,
+      "skipped": 4,
+      "seconds": 114.2,
+      "log": "/tmp/spark-v010-cann-backup-ctest.log",
+      "skipped_tests": [
+        "route_generation_integration_test",
+        "message_reservation_integration_test",
+        "redis_sequence_integration_test",
+        "space_mysql_integration_test"
+      ],
+      "note": "These four DB contracts passed in the preceding CANN/private stage, not rerun here. Browser contract uses a Mock backend, not product browser acceptance."
+    }
+  ],
+  "real_cann_restore": {
+    "command": "/tmp/spark-spaces-py311/bin/python tests/backup_restore_e2e.py --image spark-push:legacy-gc --cann-documents --out /tmp/spark-v010-cann-backup3.json",
+    "exit_code": 0,
+    "ok": true,
+    "checks": [
+      "real UID 10001 serves exact exported document/chunk; invalid source tree is rejected before stopping containers or creating a backup",
+      "real users, invited membership, direct/room history and authorized attachment exist before backup",
+      "stopped real Job leaves a broker-recorded, uncommitted Kafka-accepted message absent from SQL",
+      "an actual unsafe archive failure resumes previously running services while leaving Job stopped and the manifest incomplete",
+      "cold backup includes all six stopped volumes, checksums, binding config and actual immutable image identities",
+      "document archive records its generation and content hashes; original bytes/modes stay intact and source export is moved away before restore",
+      "missing/corrupt archive sets are rejected before target files or volumes are created",
+      "recomputed archive checksum cannot hide an extra index; real restore rejects it before target files or volumes exist",
+      "existing late target volume and a stopped target container are each refused without modifying existing state or creating volumes",
+      "restoration uses exact original image IDs with no Agent bridge/authority and all Logic Agent gates disabled; source remains stopped",
+      "literal dollar credentials survive Compose re-parsing and restored stores use only target-project service DNS names",
+      "new project serves identical public document/chunk at UID 10001 from its restored readonly binding while the original export path is absent",
+      "fresh project restores accounts, exact history, membership, attachment bytes and secret hashes; queued Kafka message persists once without DLQ",
+      "restored deployment continues its sequence and a normal backup resumes the previous running services"
+    ],
+    "documents": {
+      "generation": "20261101T000000Z-f9df64c151b0",
+      "documents": 1,
+      "current_sha256": "dc9ff230bc2222203c1ae6b1d970245d80e3a0b47bc068df58a9473e48aad42c",
+      "documents_sha256": "0c767eabaa5e89d1d234f63de6a09817d068ff9079c9c81974c6b58547b57464",
+      "logic_uid": 10001,
+      "original_export_absent": true,
+      "response_sha256": "ac41b8b4d3f5694cee68a978f367ad7f4b2f50c5efe8db973c6a8aba25e2478c",
+      "original_source_bytes_and_modes_unchanged": true,
+      "runtime_and_rag_index_included": false,
+      "restored_project": "spark-backup-e2eaf837c8-restored",
+      "logic_container_id": "e448b304db74fd7f525bac01e09418c4f394292bacc1307302d2b2b5bd4ed93b",
+      "running_mount": {
+        "Type": "bind",
+        "Source": "/tmp/spark-backup-e2e-qqxcrume/restored/bindings/logic-2/content",
+        "Destination": "/run/spark-cann/data",
+        "RW": false
+      },
+      "source_project_stopped": true,
+      "fresh_logins": 3,
+      "enabled_plan_real_compose_validated": true,
+      "enabled_plan_agents_started": false
+    },
+    "kafka_backlog": {
+      "records": [
+        {
+          "partition": 1,
+          "offset": 1,
+          "value_sha256": "bff23f187a5da509ba87dc095cbb241c7a3f990132147adfc9498379935563ea"
+        }
+      ],
+      "consumer_offsets_before": {
+        "0": 1,
+        "1": 1
+      },
+      "consumer_offsets_after": {
+        "0": 1,
+        "1": 2
+      }
+    },
+    "restored_store_endpoints": {
+      "kafka_brokers": "kafka:29092",
+      "redis_host": "redis",
+      "mysql_host": "mysql"
+    },
+    "raw_receipt": "/tmp/spark-v010-cann-backup3.json",
+    "raw_receipt_sha256": "ef8855542c5a2bc2bdaefe7b3e509cf4988850c0e17afc71881927d0c48b4b9e",
+    "cleanup_errors": []
+  },
+  "real_no_cann_regression": {
+    "command": "/tmp/spark-spaces-py311/bin/python tests/backup_restore_e2e.py --image spark-push:legacy-gc --out /tmp/spark-v010-im-backup-regression2.json",
+    "exit_code": 0,
+    "ok": true,
+    "checks": [
+      "real users, invited membership, direct/room history and authorized attachment exist before backup",
+      "stopped real Job leaves a broker-recorded, uncommitted Kafka-accepted message absent from SQL",
+      "an actual unsafe archive failure resumes previously running services while leaving Job stopped and the manifest incomplete",
+      "cold backup includes all six stopped volumes, checksums, binding config and actual immutable image identities",
+      "missing/corrupt archive sets are rejected before target files or volumes are created",
+      "existing late target volume and a stopped target container are each refused without modifying existing state or creating volumes",
+      "restoration uses exact original image IDs with no Agent bridge/authority and all Logic Agent gates disabled; source remains stopped",
+      "literal dollar credentials survive Compose re-parsing and restored stores use only target-project service DNS names",
+      "fresh project restores accounts, exact history, membership, attachment bytes and secret hashes; queued Kafka message persists once without DLQ",
+      "restored deployment continues its sequence and a normal backup resumes the previous running services"
+    ],
+    "kafka_backlog": {
+      "records": [
+        {
+          "partition": 1,
+          "offset": 1,
+          "value_sha256": "ce87eb8eb4ab5dd47270c6209ee384195cd21a81dc7b1d47d62c8e833968ebea"
+        },
+        {
+          "partition": 1,
+          "offset": 2,
+          "value_sha256": "ce87eb8eb4ab5dd47270c6209ee384195cd21a81dc7b1d47d62c8e833968ebea"
+        }
+      ],
+      "consumer_offsets_before": {
+        "0": 1,
+        "1": 1
+      },
+      "consumer_offsets_after": {
+        "0": 1,
+        "1": 3
+      }
+    },
+    "raw_receipt": "/tmp/spark-v010-im-backup-regression2.json",
+    "raw_receipt_sha256": "a23049c3444f4a949d4d9962225ae303bee433b0cf0b0bd08dfcc14f41eb7ad0",
+    "cleanup_errors": []
+  },
+  "attempts": [
+    {
+      "run": "cann-backup1",
+      "exit_code": 0,
+      "checks": 14,
+      "final_evidence": false,
+      "note": "Initial pass before strengthening actual container Mounts and real enabled Compose validation."
+    },
+    {
+      "run": "cann-backup2",
+      "exit_code": 1,
+      "checks": 3,
+      "final_evidence": false,
+      "note": "Parallel maintenance: global Docker inspect encountered an already removed transient container before creating backup manifest."
+    },
+    {
+      "run": "im-backup-regression",
+      "exit_code": 1,
+      "checks": 2,
+      "final_evidence": false,
+      "note": "Parallel maintenance: the other test cleanup removed a listed source gateway during global Docker inspect; backup manifest was not created."
+    },
+    {
+      "run": "cann-backup3",
+      "exit_code": 0,
+      "checks": 14,
+      "final_evidence": true,
+      "note": "Serial run with frozen script, running Mounts proof and real enabled Compose parser."
+    },
+    {
+      "run": "im-backup-regression2",
+      "exit_code": 0,
+      "checks": 10,
+      "final_evidence": true,
+      "note": "Serial no-CANN regression with the same frozen script and application image."
+    }
+  ],
+  "parallel_failure_diagnostic": {
+    "scenario": "two acceptance processes overlapped on one Docker daemon",
+    "failures": [
+      {
+        "run": "cann-backup2",
+        "errors": [
+          "Backup operation failed: command failed: docker inspect e92690c72f1a"
+        ],
+        "container_events": [
+          {
+            "time": 1793483223,
+            "action": "create",
+            "id": "e92690c72f1ad7867ff2e20047156ba7e5965a20fc67cf265c526b5dc6595753",
+            "name": "jolly_burnell",
+            "project": null
+          },
+          {
+            "time": 1793483223,
+            "action": "attach",
+            "id": "e92690c72f1ad7867ff2e20047156ba7e5965a20fc67cf265c526b5dc6595753",
+            "name": "jolly_burnell",
+            "project": null
+          },
+          {
+            "time": 1793483223,
+            "action": "start",
+            "id": "e92690c72f1ad7867ff2e20047156ba7e5965a20fc67cf265c526b5dc6595753",
+            "name": "jolly_burnell",
+            "project": null
+          },
+          {
+            "time": 1793483223,
+            "action": "die",
+            "id": "e92690c72f1ad7867ff2e20047156ba7e5965a20fc67cf265c526b5dc6595753",
+            "name": "jolly_burnell",
+            "project": null
+          },
+          {
+            "time": 1793483223,
+            "action": "destroy",
+            "id": "e92690c72f1ad7867ff2e20047156ba7e5965a20fc67cf265c526b5dc6595753",
+            "name": "jolly_burnell",
+            "project": null
+          }
+        ]
+      },
+      {
+        "run": "im-backup-regression",
+        "errors": [
+          "Backup operation failed: command failed: docker inspect 29528307b6f5"
+        ],
+        "container_events": [
+          {
+            "time": 1793483226,
+            "action": "kill",
+            "id": "29528307b6f5315ad681f5da034ff7376eb117d09de724f04ea6e74ba659343e",
+            "name": "spark-backup-7b8d9336c7-gateway-1",
+            "project": "spark-backup-7b8d9336c7"
+          },
+          {
+            "time": 1793483226,
+            "action": "stop",
+            "id": "29528307b6f5315ad681f5da034ff7376eb117d09de724f04ea6e74ba659343e",
+            "name": "spark-backup-7b8d9336c7-gateway-1",
+            "project": "spark-backup-7b8d9336c7"
+          },
+          {
+            "time": 1793483226,
+            "action": "die",
+            "id": "29528307b6f5315ad681f5da034ff7376eb117d09de724f04ea6e74ba659343e",
+            "name": "spark-backup-7b8d9336c7-gateway-1",
+            "project": "spark-backup-7b8d9336c7"
+          },
+          {
+            "time": 1793483226,
+            "action": "destroy",
+            "id": "29528307b6f5315ad681f5da034ff7376eb117d09de724f04ea6e74ba659343e",
+            "name": "spark-backup-7b8d9336c7-gateway-1",
+            "project": "spark-backup-7b8d9336c7"
+          }
+        ]
+      }
+    ]
+  },
+  "review": {
+    "architect": "approved bounded document archive design",
+    "reviewer": "PASS round 1; no blocking code issues",
+    "tester": "PASS: final CANN 14 checks and serial no-CANN 10 checks, matching source hashes, clean teardown; release acceptance remains incomplete."
+  },
+  "limitations": [
+    "Only a one-document/one-chunk public fixture was used for this backup E2E. The separate legacy stage used the real 9451-document corpus and real RAG/models.",
+    "No CANN index, knowledge program, legacy/private Runtime or private profile is archived by this document binding.",
+    "The team enabled-plan generator and Docker Compose parser were run against the real IM+CANN backup; Agents were not started and no mixed Runtime+CANN restoration is claimed.",
+    "Backup requires an exclusive maintenance window on the Docker daemon. Concurrent container deletion may fail the global ownership inspection. Serial passing tests do not implement daemon-wide exclusion or repair that race.",
+    "Only restore trusted, immutable backups. Hashes detect damage, not origin; do not edit an archive between verification and extraction.",
+    "No GHCR digest, clean Linux installation or final release artifact/browser acceptance in this stage. v0.1.0 remains incomplete."
+  ],
+  "knowledge_checks": {
+    "strict_sources": 121,
+    "strict_exit_code": 0,
+    "citations_exit_code": 0,
+    "personal_skill_sync_check_exit_code": 1,
+    "personal_configuration_modified": false,
+    "note": "Existing installed skill/source drift preserved; no install/replace was run."
+  }
+}

@@ -18,6 +18,43 @@ import tempfile
 GENERATION = re.compile(r'[A-Za-z0-9-]{16,80}\Z')
 DOC = re.compile(r'doc_[0-9a-f]{24}\Z')
 CHUNK = re.compile(r'chk_[0-9a-f]{24}\Z')
+DOCUMENT_LIMIT = 8 * 1024 * 1024
+
+
+def generation_from_pointer(raw):
+    value = json.loads(raw)
+    generation = value.get('generation') if isinstance(value, dict) else None
+    if not isinstance(generation, str) or not GENERATION.fullmatch(generation):
+        raise ValueError('invalid knowledge generation')
+    return generation
+
+
+def validate_document(raw, generation, filename):
+    path = Path(filename)
+    doc_id = path.stem
+    if path.name != filename or path.suffix != '.json' or not DOC.fullmatch(doc_id):
+        raise ValueError('unexpected file in published documents')
+    if len(raw) > DOCUMENT_LIMIT:
+        raise ValueError('document exceeds size limit')
+    value = json.loads(raw)
+    if not isinstance(value, dict):
+        raise ValueError('document must be an object')
+    document, chunks = value.get('document'), value.get('chunks')
+    if (value.get('generation') != generation or not isinstance(document, dict) or
+            document.get('doc_id') != doc_id or not isinstance(chunks, list)):
+        raise ValueError('document does not match its generation or ID')
+    if any(not isinstance(chunk, dict) or chunk.get('doc_id') != doc_id or
+           not isinstance(chunk.get('chunk_id'), str) or not CHUNK.fullmatch(chunk['chunk_id']) for chunk in chunks):
+        raise ValueError('chunk does not match its document')
+    return hashlib.sha256(raw).hexdigest()
+
+
+def descriptor(pointer, generation, hashes):
+    if not hashes:
+        raise ValueError('generation has no documents')
+    return {'generation': generation, 'documents': len(hashes),
+            'current_sha256': hashlib.sha256(pointer).hexdigest(),
+            'documents_sha256': hashlib.sha256(json.dumps(hashes, sort_keys=True).encode()).hexdigest()}
 
 
 def directory(path):
@@ -43,6 +80,79 @@ def read_stable(path, limit):
     return content, identity(before)
 
 
+def exported_snapshot(source):
+    """Strict public export only, plus identities for detecting changes during backup."""
+    source = Path(source).absolute()
+    if '..' in source.parts:
+        raise ValueError('parent path aliases are not supported')
+    directory(source)
+    states = {}
+
+    def folder(path, expected=None):
+        directory(path)
+        info = path.lstat()
+        if stat.S_IMODE(info.st_mode) != 0o755:
+            raise ValueError('public document directories must have mode 0755')
+        states[path] = identity(info)
+        paths = sorted(path.iterdir())
+        if expected is not None and {p.name for p in paths} != expected:
+            raise ValueError('unexpected public document directory contents')
+        return paths
+
+    def read(path, limit):
+        raw, states[path] = read_stable(path, limit)
+        if stat.S_IMODE(states[path][2]) != 0o644:
+            raise ValueError('public documents must have mode 0644')
+        return raw
+
+    folder(source, {'current.json', 'generations'})
+    pointer = read(source / 'current.json', 4096)
+    generation = generation_from_pointer(pointer)
+    folder(source / 'generations', {generation})
+    base = source / 'generations' / generation
+    folder(base, {'documents'})
+    paths = folder(base / 'documents')
+    hashes = {path.name: validate_document(read(path, DOCUMENT_LIMIT), generation, path.name) for path in paths}
+    if any(identity(path.lstat()) != state for path, state in states.items()):
+        raise ValueError('public documents changed during scan')
+    return descriptor(pointer, generation, hashes), states
+
+
+def exported_archive(archive, members):
+    """Validate an already link/path-checked tar using the same document rules."""
+    by_name = {member.name: member for member in members}
+
+    def read(name, limit):
+        member = by_name.get(name)
+        if not member or not member.isfile() or member.mode != 0o644 or not 0 <= member.size <= limit:
+            raise ValueError('invalid public document archive file')
+        with archive.extractfile(member) as stream:
+            raw = stream.read(limit + 1)
+        if len(raw) != member.size:
+            raise ValueError('truncated public document archive')
+        return raw
+
+    pointer = read('content/current.json', 4096)
+    generation = generation_from_pointer(pointer)
+    base = 'content/generations/' + generation
+    directories = {'content', 'content/generations', base, base + '/documents'}
+    files = {'content/current.json'}
+    hashes = {}
+    for name, member in by_name.items():
+        if name in directories:
+            if not member.isdir() or member.mode != 0o755:
+                raise ValueError('invalid public document archive directory')
+        elif name != 'content/current.json':
+            if not name.startswith(base + '/documents/'):
+                raise ValueError('unexpected public document archive member')
+            filename = name[len(base + '/documents/'):]
+            hashes[filename] = validate_document(read(name, DOCUMENT_LIMIT), generation, filename)
+            files.add(name)
+    if set(by_name) != directories | files:
+        raise ValueError('incomplete public document archive')
+    return descriptor(pointer, generation, hashes)
+
+
 def export_documents(knowledge_root, output):
     source = Path(knowledge_root).expanduser().absolute() / 'data'
     output = Path(output).expanduser().absolute()
@@ -55,9 +165,7 @@ def export_documents(knowledge_root, output):
     if output == source or source in output.parents:
         raise ValueError('output must be outside the source data')
     pointer, pointer_state = read_stable(source / 'current.json', 4096)
-    generation = json.loads(pointer).get('generation', '')
-    if not isinstance(generation, str) or not GENERATION.fullmatch(generation):
-        raise ValueError('invalid knowledge generation')
+    generation = generation_from_pointer(pointer)
     documents = source / 'generations' / generation / 'documents'
     directory(documents)
     paths = sorted(documents.iterdir())
@@ -70,22 +178,10 @@ def export_documents(knowledge_root, output):
         target.mkdir(parents=True)
         states, hashes = {}, {}
         for path in paths:
-            doc_id = path.stem
-            if path.suffix != '.json' or not DOC.fullmatch(doc_id):
-                raise ValueError('unexpected file in published documents')
-            raw, states[path] = read_stable(path, 8 * 1024 * 1024)
-            value = json.loads(raw)
-            document = value.get('document', {})
-            chunks = value.get('chunks')
-            if (value.get('generation') != generation or not isinstance(document, dict) or
-                    document.get('doc_id') != doc_id or not isinstance(chunks, list)):
-                raise ValueError('document does not match its generation or ID')
-            if any(not isinstance(chunk, dict) or chunk.get('doc_id') != doc_id or
-                   not isinstance(chunk.get('chunk_id'), str) or not CHUNK.fullmatch(chunk['chunk_id']) for chunk in chunks):
-                raise ValueError('chunk does not match its document')
+            raw, states[path] = read_stable(path, DOCUMENT_LIMIT)
+            hashes[path.name] = validate_document(raw, generation, path.name)
             (target / path.name).write_bytes(raw)
             (target / path.name).chmod(0o644)
-            hashes[path.name] = hashlib.sha256(raw).hexdigest()
         # Check the same generation and complete source set after the copy.
         if (read_stable(source / 'current.json', 4096) != (pointer, pointer_state) or
                 sorted(documents.iterdir()) != paths or

@@ -19,6 +19,8 @@ import tarfile
 import time
 import uuid
 
+import export_cann_documents as cann
+
 ROOT = Path(__file__).resolve().parents[1]
 VOLUMES = {'spark_admin', 'spark_security', 'spark_mysql_data', 'spark_redis_data',
            'spark_kafka_data', 'spark_attachments'}
@@ -161,6 +163,37 @@ def supported_config(config):
             raise ValueError('only the standard gateway port is supported')
         if any('$' in mount.get('source', '') for mount in service.get('volumes', []) if mount['type'] == 'bind'):
             raise ValueError('bind paths containing dollar signs are not supported')
+        for mount in service.get('volumes', []):
+            if mount['type'] == 'bind':
+                binding_kind(name, service, mount)
+
+
+def binding_kind(name, service, mount):
+    if mount['target'] in {'/etc/caddy/Caddyfile', '/run/spark-agent-config'}:
+        return 'configuration'
+    if (mount['target'] == '/run/spark-cann/data' and name == 'logic' and
+            mount.get('read_only') is True and
+            set(mount) <= {'type', 'source', 'target', 'read_only', 'bind'} and
+            set(mount.get('bind', {})) <= {'create_host_path'} and
+            mount.get('bind', {}).get('create_host_path', False) is False and
+            service.get('environment', {}).get('SPARK_PUSH_CANN_KNOWLEDGE_ROOT') == '/run/spark-cann'):
+        # Compose canonical JSON omits false create_host_path; short syntax
+        # instead expands it to true and is rejected here.
+        return 'cann_documents'
+    raise ValueError('unsupported bind mount in production deployment')
+
+
+def binding_preflight(config):
+    result = {}
+    for name, service in config['services'].items():
+        for index, mount in enumerate(service.get('volumes', [])):
+            if mount['type'] == 'bind':
+                kind = binding_kind(name, service, mount)
+                source = Path(mount['source'])
+                if not source.exists() or source.is_symlink():
+                    raise ValueError('bind source must exist and cannot be a symlink')
+                result[(name, index)] = (kind, cann.exported_snapshot(source) if kind == 'cann_documents' else None)
+    return result
 
 
 def outside_sources(destination, config):
@@ -208,6 +241,15 @@ def copy_binding(source, destination):
     validate_tar(destination)
 
 
+def copy_cann_binding(source, destination, snapshot):
+    copy_binding(source, destination)
+    with tarfile.open(destination) as archive:
+        archived = cann.exported_archive(archive, safe_members(archive))
+    if archived != snapshot[0] or cann.exported_snapshot(source) != snapshot:
+        raise ValueError('public documents changed during backup')
+    return archived
+
+
 def volume_archive(image, volume, path, extract=False, mysql=False):
     arguments = ['docker', 'run', '--rm', '--network', 'none', '--read-only',
                  '--user', '0', '--security-opt', 'no-new-privileges',
@@ -247,6 +289,8 @@ def backup(args):
     command = compose_command(args)
     config = json.loads(run(command + ['config', '--format', 'json']))
     supported_config(config)
+    # Reject unsupported mounts/trees before stopping even the first writer.
+    binding_plan = binding_preflight(config)
     containers = source_containers(command)
     exclusive_volumes(config, args.project, containers)
     hashes = dict(line.split() for line in run(command + ['config','--hash','*'],text=True).splitlines() if line.strip())
@@ -296,12 +340,15 @@ def backup(args):
             service.pop('pull_policy', None)
             for index, mount in enumerate(service.get('volumes', [])):
                 if mount['type'] == 'bind':
-                    if mount['target'] not in {'/etc/caddy/Caddyfile', '/run/spark-agent-config'}:
-                        raise ValueError('unsupported bind mount in production deployment')
+                    kind, snapshot = binding_plan[(name, index)]
                     key = name + '-' + str(index)
                     filename = 'binding-' + key + '.tar.gz'
-                    copy_binding(mount['source'], destination / filename)
-                    manifest['bindings'][key] = {'archive': filename, 'service': name, 'index': index}
+                    record = {'archive': filename, 'service': name, 'index': index, 'kind': kind}
+                    if kind == 'cann_documents':
+                        record['documents'] = copy_cann_binding(mount['source'], destination / filename, snapshot)
+                    else:
+                        copy_binding(mount['source'], destination / filename)
+                    manifest['bindings'][key] = record
                     mount['source'] = key
         helper = manifest['images']['logic']['id']
         for logical, definition in config['volumes'].items():
@@ -386,9 +433,16 @@ def verify(directory):
                     raise ValueError('unknown data volume')
             elif mount.get('type') == 'bind':
                 position = (name, index)
-                if (bindings.get(position) != mount.get('source') or
-                        mount.get('target') not in {'/etc/caddy/Caddyfile','/run/spark-agent-config'}):
+                if bindings.get(position) != mount.get('source'):
                     raise ValueError('unpackaged or unsafe bind mount')
+                kind = binding_kind(name, service, mount)
+                record = manifest['bindings'][bindings[position]]
+                if record.get('kind', 'configuration') != kind:
+                    raise ValueError('bind archive kind does not match its deployment')
+                if kind == 'cann_documents':
+                    with tarfile.open(directory / record['archive']) as archive:
+                        if cann.exported_archive(archive, safe_members(archive)) != record.get('documents'):
+                            raise ValueError('public document archive identity differs from manifest')
                 observed.add(position)
             else:
                 raise ValueError('unsupported mount type')

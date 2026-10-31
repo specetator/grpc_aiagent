@@ -2,6 +2,8 @@
   "schema_version": 1,
   "description": "Curated truth sources packaged for the Kernel Agent knowledge skill.",
   "sources": [
+    {"id":"cann-document-backup-validation","path":"docs/benchmarks/2026-11-01-cann-document-backup.json","authority":"snapshot","topics":["cann","backup","restore","documents","validation","limitations"]},
+    {"id":"backup-restore-e2e","path":"tests/backup_restore_e2e.py","authority":"code","topics":["backup","restore","cann","kafka","validation"]},
     {"id":"legacy-cann-private-validation","path":"docs/benchmarks/2026-11-01-legacy-cann-private.json","authority":"snapshot","topics":["cann","private","replay","publication","validation","limitations"]},
     {"id":"cann-publication-migration","path":"sql/migrations/20261101_cann_publications.sql","authority":"code","topics":["cann","migration","publication","replay"]},
     {"id":"cann-docker-documents","path":"docs/cann-docker.md","authority":"canonical","topics":["cann","docker","permissions","documents","limitations"]},
