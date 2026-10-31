@@ -3,7 +3,7 @@ name: spark-push-agent
 description: Kernel Agent 的 Spark Push 子 Agent 研发编排。用于非简单的架构设计、跨组件实现、代码审查、可靠性影响分析和测试验收；普通知识问答只需 spark-push-knowledge。
 version: 0.3.0
 author: Spark Push project
-license: UNLICENSED
+license: MIT
 platforms: [linux, windows]
 metadata:
   tags: [Spark-Push, Agent, Orchestration, C++, Review, Testing]

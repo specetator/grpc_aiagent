@@ -9,6 +9,10 @@ of any project-level license. Source headers are retained.
 | Muduo, with local modifications | `muduo/base/`, `muduo/net/` | [BSD-style license](licenses/MUDUO-BSD.txt) | [chenshuo/muduo](https://github.com/chenshuo/muduo) |
 | JSON for Modern C++ 3.11.3 | `third_party/json.hpp` | [MIT](licenses/NLOHMANN-JSON-MIT.txt) | [nlohmann/json](https://github.com/nlohmann/json/tree/v3.11.3) |
 | Gradle wrapper | `android-app/gradlew`, `android-app/gradlew.bat`, `android-app/gradle/wrapper/` | [Apache-2.0](licenses/GRADLE-APACHE-2.0.txt) | [gradle/gradle](https://github.com/gradle/gradle) |
+| Pi agent control helpers, with local adaptations | `cannbot/pi/extensions/lib/kernel-agent-control.ts` | [MIT](third_party/pi/LICENSE) | [badlogic/pi-mono](https://github.com/badlogic/pi-mono) |
+
+Project-owned code is distributed under the root [MIT License](LICENSE).
+The entries above retain their original notices and terms.
 
 System packages, container images, Android dependencies, optional model weights,
 and external Agent runtimes are installed separately and retain their own terms.

@@ -69,3 +69,5 @@
 - `docs/generic-room-agents.md`：Catalog、多绑定、原生 Session 隔离、任务及恢复 API。
 - `docs/mvp-v1-acceptance.md`：M1–M6 / T01–T14 的证据类型与未覆盖边界。
 - `docs/benchmarks/2026-10-31-generic-room-agents.md`：本轮真实/受控验收回执、变更清单与源文件指纹。
+- `docs/v0.1.0-delivery.md`：v0.1.0 产品交付要求、部署/工作区/Web/发行的验收进度；未完成项不代表已交付。
+- `docs/install.md`：完整 Docker 同源入口、凭据/数据卷、增量迁移和旧 WSL 开发模式。

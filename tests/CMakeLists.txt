@@ -132,6 +132,8 @@ add_test(NAME room_agent_test
 set_tests_properties(room_agent_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 45)
 find_program(SPARK_NODE_EXECUTABLE node)
 if(SPARK_NODE_EXECUTABLE)
+  add_test(NAME deployment_endpoints_test
+    COMMAND ${SPARK_NODE_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/deployment_endpoints_test.cjs)
   add_test(NAME kernel_subagents_test
     COMMAND ${SPARK_NODE_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/kernel_subagents_test.cjs)
   add_test(NAME kernel_subagents_integration_test

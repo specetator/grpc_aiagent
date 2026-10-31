@@ -3,7 +3,7 @@ name: spark-push-knowledge
 description: Spark Push 项目知识查询与变更影响分析。适用于 Comet/Logic/Job 架构、Kafka 消息链路、ACK/游标/幂等、用户中心、Kernel Agent 接入，以及项目参考文档维护；不用于 CANN 算子开发。
 version: 0.3.0
 author: Spark Push project
-license: UNLICENSED
+license: MIT
 platforms: [linux, windows]
 metadata:
   tags: [Spark-Push, C++, IM, Kafka, Reliability, Pi, Knowledge]

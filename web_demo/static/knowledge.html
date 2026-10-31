@@ -78,6 +78,8 @@
       font-size: 13px;
     }
   </style>
+  <script src="runtime-config.js"></script>
+  <script src="endpoints.js"></script>
   <script src="auth.js"></script>
   <script src="theme.js"></script>
   <link rel="stylesheet" href="themes.css">
@@ -133,7 +135,7 @@
     } else if (!DOC.test(docId) || (chunkId && !CHUNK.test(chunkId))) {
       fail('引用 ID 格式无效。');
     } else {
-      const logicBase = location.protocol + '//' + location.hostname + ':9101';
+      const logicBase = window.SparkEndpoints?.apiBase ?? (location.protocol + '//' + location.hostname + ':9101');
       fetch(logicBase + '/api/knowledge/document', {
         method: 'POST',
         headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer ' + auth.token},

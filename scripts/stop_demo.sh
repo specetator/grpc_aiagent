@@ -129,7 +129,7 @@ if (( WITH_DEPS )); then
     echo "缺少 docker，无法停止依赖" >&2
     exit 1
   fi
-  compose=(docker compose)
+  compose=(docker compose -f "$ROOT/docker-compose.dev.yml")
   if [[ -f "$ENV_FILE" ]]; then
     compose+=(--env-file "$ENV_FILE")
   fi

@@ -16,7 +16,7 @@ catch { console.log('SKIP: set SPARK_PLAYWRIGHT_MODULE to an installed Playwrigh
     await page.route('**/*', async route => {
       const url = new URL(route.request().url());
       const name = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
-      if (url.origin === 'http://kernel.test' && /^[a-z_]+\.(html|js|css)$/.test(name)) {
+      if (url.origin === 'http://kernel.test' && /^[a-z_-]+\.(html|js|css)$/.test(name)) {
         try {
           await route.fulfill({body: await fs.readFile(path.join(assets, name)),
             contentType: name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html'});

@@ -129,7 +129,7 @@ prepare_dependencies() {
     exit 1
   fi
 
-  local compose=(docker compose)
+  local compose=(docker compose -f "$ROOT/docker-compose.dev.yml")
   if [[ -f "$ENV_FILE" ]]; then
     compose+=(--env-file "$ENV_FILE")
   fi

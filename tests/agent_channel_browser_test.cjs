@@ -15,7 +15,7 @@ const {chromium} = require(process.env.SPARK_PLAYWRIGHT_MODULE || 'playwright');
     await page.route('**/*', async route => {
       const url = new URL(route.request().url());
       const name = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
-      if (url.origin === 'http://spark.test' && ['index.html', 'auth.js', 'theme.js', 'auth_style.css', 'safe_markdown.js', 'agent_channel.js', 'agent_channel.css', 'agent_connections.js', 'agent_connections.css'].includes(name)) {
+      if (url.origin === 'http://spark.test' && ['index.html', 'runtime-config.js', 'endpoints.js', 'auth.js', 'theme.js', 'auth_style.css', 'safe_markdown.js', 'agent_channel.js', 'agent_channel.css', 'agent_connections.js', 'agent_connections.css'].includes(name)) {
         await route.fulfill({body: await fs.readFile(path.join(assets, name)),
           contentType: name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html'});
       } else if (url.pathname === '/api/session/history') {

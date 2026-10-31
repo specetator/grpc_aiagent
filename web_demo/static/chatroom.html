@@ -235,6 +235,8 @@
       height: 42px;
     }
   </style>
+  <script src="runtime-config.js"></script>
+  <script src="endpoints.js"></script>
   <script src="auth.js"></script>
   <script src="theme.js"></script>
   <link rel="stylesheet" href="themes.css">
@@ -342,9 +344,9 @@
   <script src="room_agents.js"></script>
   <script src="spaces.js"></script>
   <script>
-    const logicBase = window.location.protocol + '//' + window.location.hostname + ':9101';
+    const logicBase = window.SparkEndpoints?.apiBase ?? (location.protocol + '//' + location.hostname + ':9101');
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const cometWsUrl = wsProtocol + '//' + window.location.hostname + ':9000/ws';
+    const cometWsUrl = window.SparkEndpoints?.websocket ?? (wsProtocol + '//' + location.hostname + ':9000/ws');
 
     let ws=null, uid=null, token=null, myName=null, currentRoom=null, currentRoomName='';
     const roomAgent = new RoomAgentChannel(document.getElementById('room-agent-panel'), async (path, body) => {

@@ -4,59 +4,33 @@ C++17 分布式实时消息 / IM 项目，提供 WebSocket 接入、gRPC 双向�
 
 ## 快速开始
 
-基础 IM 可独立运行，不需要模型 API、Kernel Agent、CANN 知识库或 GPU。
-
-Kernel Agent 是本项目基于 Pi coding agent 定制的算子研发助手，整合 CANN 检索、代码工具、
-子 Agent 编排和多人任务协作。Pi 是底层运行时依赖；旧 `pi` / `pi_rpc` 标识、机器人 ID、
-会话目录和 `pi_gateway.py` 路径保留兼容，不新建或迁移已有聊天历史。
-目前构建与 CI 验证环境为 Ubuntu 22.04 / Linux；Windows 用户可在 WSL2 中运行服务。
-
-### 1. 准备依赖
-
-先安装并启动 Docker Engine 和 Docker Compose v2。Ubuntu 22.04 构建依赖：
-
-```bash
-sudo apt-get update
-sudo apt-get install -y git build-essential cmake pkg-config curl python3 \
-  libssl-dev libcurl4-openssl-dev default-libmysqlclient-dev libhiredis-dev \
-  librdkafka-dev libprotobuf-dev protobuf-compiler protobuf-compiler-grpc \
-  libgrpc++-dev nlohmann-json3-dev bubblewrap util-linux
-
-docker info
-docker compose version
-```
-
-Muduo 和 JSON 头文件已包含在源码中，不使用仓库预编译库。Android、模型 runtime 和 Agent 依赖不属于基础 IM 启动条件。
-
-### 2. 克隆、配置与启动
+基础 IM 可独立运行，不需要模型、Agent、GPU 或主机 C++ 开发依赖。
+安装 Docker Engine / Docker Desktop 与 Compose v2 后：
 
 ```bash
 git clone --depth 1 https://github.com/specetator/grpc_aiagent.git
 cd grpc_aiagent
-cp .env.example .env.local
-${EDITOR:-vi} .env.local
-# 将 SPARK_PUSH_MYSQL_PASSWORD 改为本机密码；首次测试保持 Agent 开关为 false。
-
-./scripts/sparkctl.sh doctor
-SPARK_PUSH_BUILD_JOBS=2 ./scripts/sparkctl.sh up
-./scripts/sparkctl.sh health
+cp .env.example .env
+docker compose up -d
 ```
 
-首次启动会创建 Docker Redis/MySQL/Kafka、初始化 SQL 和 topics、从源码编译服务、生成本机 RPC 密钥并检查双向流就绪。
-打开 `http://127.0.0.1:9010/index.html`，注册两个账号，用两个浏览器窗口登录后互发消息。
-远程设备使用服务主机的可达 IP；外网部署需自行配置 HTTPS/WSS、访问控制与数据备份。
+打开 **http://localhost:9010**，注册并创建私有协作空间。队友使用同一主机地址，
+注册账号后接受邀请即可参与讨论。Web、API、WebSocket 使用同一入口。
 
-`.env.local` 和自动生成的 `.env.rpc` 均不提交。管理员功能由 `SPARK_PUSH_ADMIN_ACCOUNT` / `SPARK_PUSH_ADMIN_PASSWORD` 显式启用。
-已初始化的 MySQL 卷必须继续使用原密码。已有旧版部署须先排空消息并执行 [升级说明](docs/review-remediation.md)，首次空库使用 `sql/schema.sql`，不执行开发清库脚本。
+首次启动自动生成持久数据库口令和内部 RPC TLS，初始化数据库与 Kafka topics。
+仅发布 9010；数据库、消息队列和内部 RPC 不暴露到主机。源代码构建可执行
+`docker compose up -d --build`，所有 C++ 依赖安装在构建容器内。
 
 ```bash
-./scripts/sparkctl.sh status
-./scripts/sparkctl.sh logs all -f
-./scripts/sparkctl.sh down               # 停业务，保留 Docker 依赖
-./scripts/sparkctl.sh down --with-deps   # 停业务和依赖，保留数据卷
+docker compose ps
+docker compose logs --tail=100 -f logic comet job gateway
+docker compose down      # 停止服务，保留数据卷
+docker compose up -d     # 恢复
 ```
 
-详细参数和排障见 [运行说明](scripts/00_prepare_and_run.md)。
+详细安装、升级边界与旧 WSL 开发方式见 [安装指南](docs/install.md)。
+Agent 是可选模块；当前能力和验收边界见 [Room Agent](docs/generic-room-agents.md)。
+**v0.1.0 正在交付，尚未发布完整验收版本**，进度见 [交付跟踪](docs/v0.1.0-delivery.md)。
 
 ## 架构与目录
 
@@ -96,7 +70,7 @@ Client ──WebSocket──► Comet ──MessageStream──► Logic
 
 可选 [Hermes Native Runs API](docs/hermes-native-runtime-integration.md) 提供独立 API Session、
 执行账本、原生事件、停止与一次性审批，复用现有 AgentRouter/Bridge/IM 历史。
-默认关闭，Pi 与 `hermes_http` Legacy 保留；自动化合同测试已覆盖，真实 Hermes 与完整 IM E2E 仍待验收。
+默认关闭，Pi 与 `hermes_http` Legacy 保留。真实隔离 Hermes 与三用户 IM 已有 [阶段回执](docs/benchmarks/2026-10-31-generic-room-agents.md)；v0.1.0 授权仓库读取与发行栈场景仍待验收。
 配置和回滚步骤见该文档，勿直接替换正在使用的联系人或 Profile。
 
 - `accepted_ack`：持久化事件已获 Kafka broker 确认；不等于历史已入 SQL或接收者已收到。
@@ -124,7 +98,7 @@ python3 tests/run_redis_review_tests.py build
 python3 tests/run_kafka_volume_test.py build
 ```
 
-本次环境 CTest 注册 54 项，其中 4 项 SQL/Redis 集成测试按环境跳过；可用上面的独立容器脚本补跑。
+2026-10-31 部署阶段 CTest 注册 56 项，52 项通过，4 项 SQL/Redis 集成测试按环境跳过；可用上面的独立容器脚本补跑。Docker 核心测试与源文件指纹见 [部署回执](docs/benchmarks/2026-10-31-docker-deployment.json)。
 2026-10-28 本地回归 44 项通过，3 项数据库测试在隔离容器补跑通过；详见 [Native 测试回执](docs/benchmarks/2026-10-28-hermes-native.json)。
 可用标准库 harness 启动隔离三服务并做实际 ACK/接收/SQL 校验，不使用个人 `.env.local`：
 

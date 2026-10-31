@@ -6,6 +6,8 @@
   <title>Spark Push · 管理员控制台</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛡️</text></svg>">
   <link rel="stylesheet" href="admin_style.css">
+  <script src="runtime-config.js"></script>
+  <script src="endpoints.js"></script>
   <script src="auth.js"></script>
   <script src="theme.js"></script>
   <link rel="stylesheet" href="themes.css">
@@ -189,7 +191,7 @@
   <div id="toast-container" class="toast-container"></div>
 
   <script>
-    const logicBase = window.location.protocol + '//' + window.location.hostname + ':9101';
+    const logicBase = window.SparkEndpoints?.apiBase ?? (location.protocol + '//' + location.hostname + ':9101');
     let uid = 0;
     let usersCache = [];
 

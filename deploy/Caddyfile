@@ -1,0 +1,28 @@
+{
+    admin off
+    auto_https off
+}
+:9010 {
+    encode gzip
+    header X-Content-Type-Options nosniff
+    header Referrer-Policy same-origin
+    @home path /
+    redir @home /chatroom.html 302
+    handle /health {
+        respond "ready" 200
+    }
+    handle /runtime-config.js {
+        header Content-Type application/javascript
+        header Cache-Control "no-store"
+        respond "window.SparkEndpointConfig = {sameOrigin: true};" 200
+    }
+    handle /api/* {
+        reverse_proxy logic:9101
+    }
+    handle /ws {
+        reverse_proxy comet:9000
+    }
+    handle {
+        reverse_proxy web:9010
+    }
+}

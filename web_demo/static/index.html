@@ -764,6 +764,8 @@
       #input-area { padding: 12px 16px; }
     }
   </style>
+  <script src="runtime-config.js"></script>
+  <script src="endpoints.js"></script>
   <script src="auth.js"></script>
   <script src="theme.js"></script>
   <link rel="stylesheet" href="themes.css">
@@ -955,9 +957,9 @@
     let currentAuthMode = 'login';
 
     // 配置
-    const logicBase = window.location.protocol + '//' + window.location.hostname + ':9101';
+    const logicBase = window.SparkEndpoints?.apiBase ?? (location.protocol + '//' + location.hostname + ':9101');
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const cometWsUrl = wsProtocol + '//' + window.location.hostname + ':9000/ws';
+    const cometWsUrl = window.SparkEndpoints?.websocket ?? (wsProtocol + '//' + location.hostname + ':9000/ws');
 
     // --- 界面切换逻辑 ---
     function updateUIState() {

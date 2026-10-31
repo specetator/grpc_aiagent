@@ -186,7 +186,7 @@ def main():
                                              text=True, capture_output=True, timeout=10)
                     if inspect.returncode == 0 and inspect.stdout.strip() != project:
                         raise RuntimeError("container ownership changed")
-                result = subprocess.run(["docker", "compose", "--env-file", str(clone / ".env.local"),
+                result = subprocess.run(["docker", "compose", "-f", str(clone / "docker-compose.dev.yml"), "--env-file", str(clone / ".env.local"),
                                          "down", "--volumes"], cwd=clone, env=env,
                                         capture_output=True, text=True, timeout=120)
                 cleanup = cleanup and result.returncode == 0

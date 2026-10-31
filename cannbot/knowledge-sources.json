@@ -442,6 +442,18 @@
       "topics": ["room-agent", "testing", "e2e", "hermes", "permissions", "recovery"]
     },
     {
+      "id": "docker-installation",
+      "path": "docs/install.md",
+      "authority": "canonical",
+      "topics": ["docker", "installation", "migration", "development"]
+    },
+    {
+      "id": "v010-delivery",
+      "path": "docs/v0.1.0-delivery.md",
+      "authority": "canonical",
+      "topics": ["release", "docker", "installation", "room-agent", "testing"]
+    },
+    {
       "id": "third-party-notices",
       "path": "THIRD_PARTY_NOTICES.md",
       "authority": "canonical",
