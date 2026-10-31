@@ -520,6 +520,70 @@
         "recovery",
         "permissions"
       ]
+    },
+    {
+      "id": "release-process",
+      "path": "docs/releasing.md",
+      "authority": "canonical",
+      "topics": [
+        "release",
+        "docker",
+        "distribution",
+        "testing"
+      ]
+    },
+    {
+      "id": "release-package",
+      "path": "scripts/package_release.py",
+      "authority": "code",
+      "topics": [
+        "release",
+        "docker",
+        "distribution",
+        "testing"
+      ]
+    },
+    {
+      "id": "release-verification",
+      "path": "scripts/verify_release.py",
+      "authority": "code",
+      "topics": [
+        "release",
+        "docker",
+        "distribution",
+        "testing"
+      ]
+    },
+    {
+      "id": "clean-linux-release",
+      "path": "tests/clean_linux_release_e2e.py",
+      "authority": "code",
+      "topics": [
+        "release",
+        "docker",
+        "distribution",
+        "testing"
+      ]
+    },
+    {
+      "id": "release-tooling-2026-11-01",
+      "path": "docs/benchmarks/2026-11-01-release-tooling.json",
+      "authority": "snapshot",
+      "topics": [
+        "release",
+        "docker",
+        "testing"
+      ]
+    },
+    {
+      "id": "release-image-store-test",
+      "path": "tests/release_image_store_e2e.py",
+      "authority": "code",
+      "topics": [
+        "release",
+        "docker",
+        "testing"
+      ]
     }
   ]
 }

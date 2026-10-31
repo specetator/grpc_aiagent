@@ -19,6 +19,7 @@ import tempfile
 import time
 
 from connector_deployment_e2e import ROOT, free_port, http
+from release_identity import source_commit, running_images
 
 
 def main():
@@ -31,7 +32,7 @@ def main():
     # when the external browser dependency has not been installed/configured.
     subprocess.run(['node','-e',"require(process.env.SPARK_PLAYWRIGHT_MODULE || 'playwright')"],cwd=ROOT,check=True)
     receipt={'ok':False,'mode':'real Compose, three independent Chromium processes; '+('actual public Pi/Hermes' if args.agents else 'Agents disabled'),
-             'source_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'checks':[]}
+             'source_commit':source_commit(ROOT),'scenario':'web_agents' if args.agents else 'web_im','checks':[]}
     receipt['image_id']=subprocess.check_output(['docker','image','inspect',args.image,'--format','{{.Id}}'],text=True).strip()
     receipt['sources']={str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for directory in ('web_demo/static','logic/services','logic/repositories')
                         for p in (ROOT/directory).iterdir() if p.is_file() and p.suffix in {'.html','.js','.css','.cpp','.h'}}
@@ -72,6 +73,7 @@ def main():
                 catalog['agents'][1]=native.start();registry.write_text(json.dumps(catalog))
                 gateway=PublicAgentGateway(root/'gateway',registry,projects,keyfile,authority,root/'snapshots',gatewayport);gateway.start()
             started=True;compose('up','-d','--wait','--wait-timeout','180','--pull','never')
+            receipt['release_services']=running_images(ROOT,args.image,options[options.index('-p')+1])
             receipt['served_assets']={}
             for name in ('index.html','collaboration_ui.js','collaboration_ui.css','spaces.js','room_agents.js','room_agent_channel.js'):
                 status,body=http(f'http://127.0.0.1:{port}','/'+name)

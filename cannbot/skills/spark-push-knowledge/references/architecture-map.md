@@ -9,6 +9,7 @@
 | 总体架构、组件边界、启动入口 | `README.md`、`docs/spark-push-architecture.md`、`scripts/00_prepare_and_run.md` | `CMakeLists.txt`、各组件 `main.cpp` |
 | 完整项目复习、简历表述、GitHub 发布与验证口径 | `docs/project-guide-and-resume.md` | 对应章节列出的当前源码和带日期测试报告 |
 | 源码分发、全新克隆、独立 IM 启动与验收 | `README.md`、`docs/benchmarks/2026-10-12-release-smoke.json` | `scripts/ops/doctor.sh`、`tests/run_release_smoke.py` |
+| 固定提交的 GHCR 候选、安装包、真实验收与同镜像推广 | `docs/releasing.md`、`docs/benchmarks/2026-11-01-release-tooling.json` | `.github/workflows/release.yml`、`scripts/package_release.py`、`scripts/verify_release.py`、`tests/clean_linux_release_e2e.py` |
 | 单机 IM 冷备、全新项目恢复及 Runtime 范围 | `docs/backup-restore.md` | `scripts/spark_backup.py`、`tests/backup_restore_e2e.py` |
 | 公共 Runtime 与 IM 的整批冷备、原路径恢复 | `docs/backup-restore.md`、`docs/benchmarks/2026-11-01-team-backup-restore.json` | `scripts/spark_team_backup.py`、`cannbot/scripts/public_runtime_archive.py`、`tests/team_backup_scenario.py`、`tests/runtime_archive_native_e2e.py` |
 | 公共与 legacy CANN 部署边界、恢复后的双次准入检查 | `docs/optional-agent-connector.md`、`docs/benchmarks/2026-11-01-agent-deployment-modes.json` | `docker-compose.legacy-cann.yml`、`logic/services/room_agent_service.cpp`、`scripts/verify_public_agent_mode.py` |

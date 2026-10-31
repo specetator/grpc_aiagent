@@ -19,6 +19,7 @@ import time
 import urllib.error
 import urllib.request
 import websockets
+from release_identity import source_commit, running_images
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -143,7 +144,8 @@ def main():
     project='spark-release-'+secrets.token_hex(6)
     with socket.socket() as listener:
         listener.bind(('127.0.0.1',args.port));port=listener.getsockname()[1]
-    receipt={'ok':False,'mode':'real Docker Compose, Agents disabled','source_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'checks':[]}
+    receipt={'ok':False,'mode':'real Docker Compose, Agents disabled','source_commit':source_commit(ROOT),'scenario':'compose_im','checks':[]}
+    receipt['image_id']=subprocess.check_output(['docker','image','inspect',args.image,'--format','{{.Id}}'],text=True).strip()
     with tempfile.TemporaryDirectory(prefix='spark-compose-') as temporary:
         envfile=Path(temporary)/'.env';envfile.write_bytes((ROOT/'.env.example').read_bytes())
         envfile.chmod(0o600)
@@ -151,6 +153,7 @@ def main():
         environment.update(SPARK_PUSH_IMAGE=args.image,SPARK_PUSH_PORT=str(port),SPARK_PUSH_BIND='127.0.0.1')
         base=['docker','compose','--env-file',str(envfile),'-p',project,'-f',str(ROOT/'docker-compose.yml')]
         def compose(*arguments):
+            if arguments[0]=='up' and (ROOT/'release.json').exists():arguments=(*arguments,'--no-build')
             result=subprocess.run(base+list(arguments),cwd=ROOT,env=environment,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=300)
             with output.with_suffix('.private.log').open('a') as log:
                 if arguments[0]!='config':log.write(result.stdout)
@@ -161,6 +164,7 @@ def main():
             receipt['checks'].append(description);print(description,flush=True)
         try:
             compose('up','-d','--wait','--wait-timeout','180','--pull','never')
+            receipt['release_services']=running_images(ROOT,args.image,project)
             public='http://127.0.0.1:'+str(port)
             assert b'sameOrigin: true' in http(public,'/runtime-config.js')
             assert b'Spark' in http(public,'/chatroom.html')

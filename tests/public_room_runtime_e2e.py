@@ -23,6 +23,7 @@ import time
 import websockets
 
 from connector_deployment_e2e import free_port,http,ROOT
+from release_identity import source_commit, running_images
 from public_runtime_fixture import PublicAgentGateway,PublicHermesRuntime
 sys.path.insert(0,str(ROOT/'cannbot/scripts'))
 from agent_router import AgentStore
@@ -84,7 +85,7 @@ def main():
     parser.add_argument('--cross-room',action='store_true',help='also verify real public sessions and code tools in two private rooms')
     args=parser.parse_args();output=args.out.resolve()
     report={'ok':False,'mode':'real Compose + public launchers + actual Pi/Hermes models; three HTTP/WS clients, not browsers',
-        'source_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'checks':[]}
+        'source_commit':source_commit(ROOT),'scenario':'team_backup' if args.team_backup else 'cross_room' if args.cross_room else 'public_runtime','checks':[]}
     report['image_id']=subprocess.check_output(['docker','image','inspect',args.image,'--format','{{.Id}}'],text=True).strip()
     report['source_sha256']={name:hashlib.sha256((ROOT/name).read_bytes()).hexdigest() for name in (
         'Dockerfile','tools/dlq_replay.cpp','cannbot/scripts/public_runtime.py','cannbot/scripts/public_runtime_archive.py',
@@ -186,6 +187,7 @@ print(json.dumps(codes))
             assert codes==[row[3] for row in probes],codes
             check('formal Native capabilities and HTTP whitelist deny chat/profile/tool/session bypasses')
             started=True;compose('up','-d','--wait','--wait-timeout','180','--pull','never')
+            report['release_services']=running_images(ROOT,args.image,options[options.index('-p')+1])
             store=AgentStore(root/'gateway/service/router')
             def rid(source,agent):return 'ra_'+hashlib.sha256(json.dumps(['room-agent-v1',source,agent],separators=(',',':')).encode()).hexdigest()
             def history(user,room):return call('/api/session/history',{'session_id':f'r_{room}','limit':100},user)['messages']

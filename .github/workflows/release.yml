@@ -1,0 +1,175 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Build a candidate or promote the already tested candidate
+        type: choice
+        options: [candidate, promote]
+        default: candidate
+        required: true
+      candidate:
+        description: Immutable candidate tag (use a new number for a new revision)
+        default: v0.1.0-rc.1
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spark-push-release
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/specetator/spark-push
+  VERSION: v0.1.0
+  CANDIDATE: ${{ inputs.candidate }}
+
+jobs:
+  ci:
+    if: inputs.operation == 'candidate' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/ci.yml
+
+  candidate:
+    if: inputs.operation == 'candidate' && github.ref == 'refs/heads/main'
+    needs: ci
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write # publish the explicitly unaccepted prerelease and bundle
+      packages: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Validate candidate and authenticate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 -c 'import os,re; assert re.fullmatch(r"v0\.1\.0-rc\.[1-9][0-9]*",os.environ["CANDIDATE"])'
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          python3 - <<'PY'
+          import os,subprocess
+          git_tag=subprocess.run(['git','ls-remote','--exit-code','--tags','origin','refs/tags/'+os.environ['CANDIDATE']],capture_output=True,text=True)
+          if git_tag.returncode != 2:
+              raise SystemExit('Candidate Git tag exists or its absence cannot be verified')
+          for tag in (os.environ['CANDIDATE'], 'sha-'+os.environ['GITHUB_SHA']):
+              result=subprocess.run(['docker','buildx','imagetools','inspect',os.environ['IMAGE']+':'+tag],capture_output=True,text=True)
+              if result.returncode == 0:
+                  raise SystemExit('Refusing to overwrite an existing image tag: '+tag)
+              if not any(word in result.stderr.lower() for word in ('not found','manifest unknown')):
+                  raise SystemExit('Cannot establish that the image tag is absent; no image will be overwritten')
+          PY
+      - name: Build and push the one candidate image
+        run: |
+          docker buildx build --platform linux/amd64 --push \
+            --tag "$IMAGE:$CANDIDATE" --tag "$IMAGE:sha-$GITHUB_SHA" \
+            --label "org.opencontainers.image.source=https://github.com/$GITHUB_REPOSITORY" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --label "org.opencontainers.image.version=$VERSION" \
+            --label "org.opencontainers.image.licenses=MIT" \
+            --metadata-file "$RUNNER_TEMP/image-metadata.json" .
+          digest=$(jq -er '."containerimage.digest"' "$RUNNER_TEMP/image-metadata.json")
+          echo "APPLICATION=$IMAGE@$digest" >> "$GITHUB_ENV"
+      - name: Pull exact images and package the committed source
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-yaml
+          docker pull --platform linux/amd64 "$APPLICATION"
+          for image in mysql:8.0 redis:7.2-alpine apache/kafka:3.7.0 caddy:2.10-alpine; do
+            docker pull --platform linux/amd64 "$image"
+          done
+          /usr/bin/python3 scripts/package_release.py --revision "$GITHUB_SHA" \
+            --version "$VERSION" --image "$APPLICATION" --output "$RUNNER_TEMP/release"
+          mkdir "$RUNNER_TEMP/unpacked"
+          tar -xzf "$RUNNER_TEMP/release/spark-push-$VERSION-linux-amd64.tar.gz" -C "$RUNNER_TEMP/unpacked"
+          python3 scripts/verify_release.py files --directory "$RUNNER_TEMP/unpacked/spark-push-$VERSION"
+          python3 scripts/verify_release.py images --directory "$RUNNER_TEMP/unpacked/spark-push-$VERSION"
+          docker compose --env-file /dev/null -f "$RUNNER_TEMP/unpacked/spark-push-$VERSION/docker-compose.yml" config --quiet
+      - name: Publish candidate bundle with acceptance explicitly pending
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import os,pathlib
+          pathlib.Path(os.environ['RUNNER_TEMP'],'candidate-notes.md').write_text(
+              'Candidate for real acceptance; this is not the accepted v0.1.0 release.\n\n'
+              +'Source: `'+os.environ['GITHUB_SHA']+'`\n\nImage: `'+os.environ['APPLICATION']+'`\n\n'
+              +'CI passed. Real model, browser, cold restore and anonymous clean Linux acceptance remain pending. '
+              +'See docs/releasing.md. GHCR visibility must permit anonymous pulls before final acceptance.\n')
+          PY
+          gh release create "$CANDIDATE" --target "$GITHUB_SHA" --prerelease \
+            --title "Spark Push $CANDIDATE" --notes-file "$RUNNER_TEMP/candidate-notes.md" \
+            "$RUNNER_TEMP/release/spark-push-$VERSION-linux-amd64.tar.gz" \
+            "$RUNNER_TEMP/release/release.json" "$RUNNER_TEMP/release/SHA256SUMS"
+
+  promote:
+    if: inputs.operation == 'promote' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      packages: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+      - name: Verify candidate and real acceptance receipts
+        run: |
+          python3 -c 'import os,re; assert re.fullmatch(r"v0\.1\.0-rc\.[1-9][0-9]*",os.environ["CANDIDATE"])'
+          mkdir "$RUNNER_TEMP/release"
+          gh release download "$CANDIDATE" --dir "$RUNNER_TEMP/release"
+          cd "$RUNNER_TEMP/release"
+          sha256sum --check --strict SHA256SUMS
+          test "$(jq -r .revision release.json)" = "$GITHUB_SHA"
+          python3 - <<'PY'
+          import os,subprocess
+          ref='refs/tags/'+os.environ['VERSION']
+          result=subprocess.run(['git','ls-remote','--tags','origin',ref,ref+'^{}'],cwd=os.environ['GITHUB_WORKSPACE'],capture_output=True,text=True,check=True)
+          refs={line.split()[1]:line.split()[0] for line in result.stdout.splitlines()}
+          existing=refs.get(ref+'^{}',refs.get(ref))
+          if existing and existing != os.environ['GITHUB_SHA']:
+              raise SystemExit('Stable Git tag identifies another source; refusing overwrite')
+          PY
+          python3 "$GITHUB_WORKSPACE/scripts/verify_release.py" evidence \
+            --directory . --evidence acceptance.json
+          echo "APPLICATION=$(jq -er .application.reference release.json)" >> "$GITHUB_ENV"
+          test ! -z "$(gh release view "$CANDIDATE" --json tagName --jq .tagName)"
+      - name: Promote the manifest without rebuilding
+        run: |
+          # Verify anonymous registry access before creating the stable tag.
+          mkdir "$RUNNER_TEMP/anonymous-docker"
+          DOCKER_CONFIG="$RUNNER_TEMP/anonymous-docker" docker pull --platform linux/amd64 "$APPLICATION"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          python3 - <<'PY'
+          import json,os,subprocess
+          target=os.environ['IMAGE']+':'+os.environ['VERSION']
+          result=subprocess.run(['docker','buildx','imagetools','inspect',target,'--format','{{json .Manifest}}'],capture_output=True,text=True)
+          if result.returncode == 0:
+              if os.environ['IMAGE']+'@'+json.loads(result.stdout)['digest'] != os.environ['APPLICATION']:
+                  raise SystemExit('Stable tag already identifies another image; refusing overwrite')
+          elif any(word in result.stderr.lower() for word in ('not found','manifest unknown')):
+              subprocess.run(['docker','buildx','imagetools','create','--prefer-index=false','--tag',target,os.environ['APPLICATION']],check=True)
+          else:
+              raise SystemExit('Cannot establish the stable tag state; refusing overwrite')
+          PY
+          actual=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{.Manifest.Digest}}')
+          test "$IMAGE@$actual" = "$APPLICATION"
+      - name: Publish the already tested bundle and receipts
+        run: |
+          python3 - <<'PY'
+          import os,pathlib
+          pathlib.Path(os.environ['RUNNER_TEMP'],'release-notes.md').write_text(
+              'Spark Push for a small team: private spaces, reliable IM, durable tasks and optional public Pi/Hermes.\n\n'
+              +'Source: `'+os.environ['GITHUB_SHA']+'`\n\nImage: `'+os.environ['APPLICATION']+'`\n\n'
+              +'The image manifest and install bundle are unchanged from the tested candidate. '
+              +'See acceptance.json and individual receipts for executed scenarios and remaining limits.\n\n'
+              +'Linux/amd64; base IM needs no model or GPU. Extract the bundle, copy .env.example to .env, '
+              +'then run docker compose pull and docker compose up -d --no-build. Open http://localhost:9010.\n')
+          PY
+          assets=("$RUNNER_TEMP/release/spark-push-$VERSION-linux-amd64.tar.gz" \
+                  "$RUNNER_TEMP/release/release.json" "$RUNNER_TEMP/release/SHA256SUMS" "$RUNNER_TEMP/release/acceptance.json")
+          for scenario in web_im web_agents cross_room team_backup legacy_private im_backup cann_documents clean_linux; do
+            assets+=("$RUNNER_TEMP/release/$scenario.json")
+          done
+          gh release create "$VERSION" --target "$GITHUB_SHA" --title "Spark Push $VERSION" \
+            --notes-file "$RUNNER_TEMP/release-notes.md" "${assets[@]}"

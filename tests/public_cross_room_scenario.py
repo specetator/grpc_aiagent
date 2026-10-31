@@ -156,7 +156,8 @@ async def exercise(*, root, call, sql, store, native, users, clients, room,
         discussion = 'Kafka accepted_ack confirms broker persistence, not SQL or reading.' if target == room else marker
         assert discussion in json.dumps(payload['messages']), 'own-room discussion missing from actual request context'
         assert forbidden not in json.dumps(payload['messages'])
-        if target == room: assert marker not in json.dumps(payload['messages'])
+        other_discussion = marker if target == room else 'Kafka accepted_ack confirms broker persistence, not SQL or reading.'
+        assert other_discussion not in json.dumps(payload['messages'])
         transcript = native_transcript(root, native, store, record)
         if agent == 'public-pi':
             tools = [row['message'] for row in transcript if row.get('message', {}).get('role') == 'toolResult']
@@ -165,9 +166,10 @@ async def exercise(*, root, call, sql, store, native, users, clients, room,
         assert tools and expected in json.dumps(tools)
         assert discussion in json.dumps(transcript), 'own-room discussion missing from native transcript'
         assert forbidden not in json.dumps(transcript)
-        if target == room: assert marker not in json.dumps(transcript)
+        assert other_discussion not in json.dumps(transcript)
         evidence.append({'request_id': request, 'room_id': target, 'agent_id': agent,
                          'actor_user_id': record['actor_user_id'], 'own_discussion_in_prompt_and_transcript': True,
+                         'other_room_discussion_absent_from_prompt_and_transcript': True,
                          'backend_session_ref': route['backend_session_ref'], 'tool_results': len(tools),
                          'turn_sha256': fingerprint(turn),
                          'transcript_sha256': fingerprint(transcript), 'prompt_sha256': fingerprint(payload['messages'])})

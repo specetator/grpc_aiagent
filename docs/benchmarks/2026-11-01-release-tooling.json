@@ -1,0 +1,143 @@
+{
+  "schema": "sparkpush.validation.v1",
+  "date": "2026-11-01",
+  "stage": "fixed-source release packaging and acceptance gates",
+  "stage_accepted": true,
+  "release_accepted": false,
+  "base_revision": "edd2f960405c931d497693af7ca27ac6b62fb915",
+  "source_sha256": {
+    ".github/workflows/ci.yml": "095f492b9bfc6d58ba534533ce60af2b849834365362212b0d5f5f2e2a947198",
+    ".github/workflows/release.yml": "d0feb777b36c622e1be9a6d9f0d6f5bc121f99610ccd3615c916b210a63b5f76",
+    "scripts/package_release.py": "3ab82842163824e36bca74e9a8c085526495a7a24693ec32eac2251fc3988c24",
+    "scripts/verify_release.py": "77526b3ab36c6d8e11891a7d2b2f842a7911996be9b5b8ecff80e658287867ef",
+    "tests/release_identity.py": "bddd8350c2cab99d81303832fe1d49fe284dab5416481f97120c12b620dc444b",
+    "tests/release_contract_test.py": "8b0230e0054a236b0a79146540f9a471f02e36ab2cddbf94cc24ca62818199be",
+    "tests/clean_linux_release_e2e.py": "a566dc587902588484992fa6f13b84b2e515b9ab3746247670300b7002e188b8",
+    "tests/release_image_store_e2e.py": "a64ad4de3eb7ee172a5bf978d9725ae329ceb95ae5c024633c5790aff4a0e7b1",
+    "tests/collaboration_web_e2e.py": "257b9ae2798f86d4580ca8f6e2f79327989d2c83aa4c0b4057ded17ecf2d3a26",
+    "tests/public_room_runtime_e2e.py": "cf5e68522d426f3f8cd458d10395e17efe628e545be6ad0496d638a81bcdc9c7",
+    "tests/public_cross_room_scenario.py": "649867a6aacb6eabd6733dd7db1a16b4195551700ce05eb5bea9c41ddf113443",
+    "tests/backup_restore_e2e.py": "954034579738f849d442945ead31d081c8067baeab3f6bb606d27e808bac012d",
+    "tests/legacy_private_runtime_e2e.py": "3c4eb42741f6f62d9e630d877a2682ec1012cf1ed7741cec04e79389ae766c27",
+    "tests/compose_e2e.py": "cb7341c8f8fb30d5d0099ee98a5e33403f180a51dc2ddefeec8c97e4d874dad0"
+  },
+  "scope": "Release tooling and test entrypoints only. No new C++/SQL/Agent runtime behavior. GHCR publication and candidate acceptance have not run.",
+  "contracts": [
+    {
+      "command": "python3 tests/release_contract_test.py",
+      "exit_code": 0,
+      "passed": 10,
+      "scope": "Temporary Git/archive and mocked Docker/HTTP identity records. Not final release E2E."
+    },
+    {
+      "command": "actionlint -shellcheck= -pyflakes= .github/workflows/ci.yml .github/workflows/release.yml",
+      "version": "1.7.12",
+      "exit_code": 0,
+      "scope": "Workflow syntax/context validation; no GitHub publication executed."
+    },
+    {
+      "command": "cmake -S . -B build-wsl -DPython3_EXECUTABLE=/usr/bin/python3; SPARK_PLAYWRIGHT_MODULE=/tmp/spark-spaces-browser/node_modules/playwright FONTCONFIG_FILE=/tmp/spark-web-fonts.conf ctest --test-dir build-wsl --output-on-failure",
+      "exit_code": 0,
+      "registered": 66,
+      "passed": 62,
+      "skipped": 4,
+      "seconds": 110.47,
+      "log": "/tmp/spark-v010-release-final-ctest.log",
+      "skipped_tests": [
+        "route_generation_integration_test",
+        "message_reservation_integration_test",
+        "redis_sequence_integration_test",
+        "space_mysql_integration_test"
+      ],
+      "scope": "Full local suite with CI system interpreter and PyYAML. Browser contracts use Mock backends; no candidate model/browser E2E."
+    }
+  ],
+  "actual_store_identity": {
+    "command": "python3 tests/release_image_store_e2e.py --out /tmp/spark-v010-release-stores.json",
+    "exit_code": 0,
+    "result": {
+      "ok": true,
+      "scope": "actual public-image store identities; no Spark application or model acceptance",
+      "stores": {
+        "classic": {
+          "engine_image_id": "sha256:aac61abc4024c323602ccb9ee38bd68b147601f518626b2a055e06944e01c510",
+          "container_image_id": "sha256:aac61abc4024c323602ccb9ee38bd68b147601f518626b2a055e06944e01c510",
+          "reference": "caddy@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d",
+          "driver": "overlay2"
+        },
+        "containerd": {
+          "engine_image_id": "sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d",
+          "container_image_id": "sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d",
+          "reference": "caddy@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d",
+          "driver": "overlayfs"
+        }
+      },
+      "registry_image": {
+        "reference": "caddy@sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d",
+        "builder_image_id": "sha256:4c6e91c6ed0e2fa03efd5b44747b625fec79bc9cd06ac5235a779726618e530d",
+        "platform": "linux/amd64",
+        "platform_manifest": "sha256:d8c17a862962def15cde69863a3a463f25a2664942eafd7bdbf050e9c3116b83",
+        "config_digest": "sha256:aac61abc4024c323602ccb9ee38bd68b147601f518626b2a055e06944e01c510"
+      }
+    },
+    "note": "Two real independent daemon stores and actual container Image fields; Caddy is a public test image, not the Spark release. Cleanup queries the unique labels."
+  },
+  "dind_feasibility": {
+    "ok": true,
+    "scope": "nested-daemon feasibility only; no application installation or acceptance",
+    "name": "spark-dind-preflight-781cdc81990f",
+    "daemon": {
+      "ID": "a2f3877d-d615-4b7d-a9fb-ab32f7f8190a",
+      "ServerVersion": "29.1.3",
+      "Images": 0,
+      "Containers": 0,
+      "DockerRootDir": "/var/lib/docker",
+      "Driver": "overlayfs"
+    },
+    "cleanup": true
+  },
+  "failed_attempts": [
+    {
+      "scope": "new cleanup unit test insertion",
+      "exit_code": 1,
+      "reason": "Test method scope error caused NameError. Corrected; final 10 contracts pass."
+    },
+    {
+      "command": "ctest --test-dir build-wsl --output-on-failure",
+      "exit_code": 8,
+      "registered": 66,
+      "passed": 61,
+      "skipped": 4,
+      "failed": 1,
+      "seconds": 111.25,
+      "log": "/tmp/spark-v010-release-ctest.log",
+      "reason": "Cached personal Python 3.11 lacked PyYAML. No personal interpreter changed. CI now explicitly selects /usr/bin/python3 with apt python3-yaml; final matching-interpreter run is recorded separately.",
+      "repeated_in_targeted_retry": true
+    }
+  ],
+  "review": {
+    "round1": "FAIL: cross-store IDs and partial-create cleanup needed correction.",
+    "round2": "PASS: registry graph plus same-daemon container identity; ownership-label cleanup; source/tag binding and explicit artifact list.",
+    "tester": "PASS: final 66 CTest / 62 pass / 4 skipped, 10 contracts, actual two-store identities/cleanup, canonical eight real acceptance entrypoints. Release not yet accepted."
+  },
+  "limitations": [
+    "No authenticated GHCR first publication or anonymous Spark image pull has run in this tooling stage.",
+    "No fixed candidate bundle has run the eight real acceptance scenarios yet. Earlier model/browser stages are separate evidence.",
+    "DinD feasibility and public Caddy store checks do not constitute Spark clean Linux installation.",
+    "First anonymous GHCR query returned an authorization denial, not tag-not-found; publication preflight must not treat it as absence.",
+    "New clean Linux harness shares the host kernel and requires an owned privileged test container; it is not independent VM verification."
+  ],
+  "knowledge": {
+    "strict_validation": {
+      "exit_code": 0,
+      "sources": 129
+    },
+    "citations": {
+      "exit_code": 0
+    },
+    "personal_sync_check": {
+      "exit_code": 1,
+      "scope": "Existing personal installation drift; check-only, no install or replacement."
+    }
+  }
+}

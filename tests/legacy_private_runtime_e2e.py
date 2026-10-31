@@ -22,6 +22,7 @@ import tempfile
 import time
 
 from legacy_private_runtime_fixture import LegacyStack, ROOT, PI_BOT, HERMES_BOT
+from release_identity import source_commit, running_images
 from public_room_runtime_e2e import Client, until
 sys.path.insert(0, str(ROOT / 'cannbot/scripts'))
 from agent_router import AgentStore
@@ -404,7 +405,7 @@ def main():
     parser.add_argument('--out', required=True, type=Path)
     args = parser.parse_args()
     report = {'ok': False, 'mode': 'real Compose + actual Pi/RAG/bubblewrap/g++ + isolated Hermes Native; HTTP/WS clients',
-        'source_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(), 'checks': [],
+        'source_commit': source_commit(ROOT), 'scenario': 'legacy_private', 'checks': [],
         'image_id': subprocess.check_output(['docker', 'image', 'inspect', args.image, '--format', '{{.Id}}'], text=True).strip()}
     report['source_sha256'] = {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in (
         'tests/legacy_private_runtime_fixture.py', 'tests/legacy_private_runtime_e2e.py', 'tests/hermes_room_runtime_fixture.py',
@@ -425,6 +426,7 @@ def main():
         stack.preflight_knowledge()
         check('CANN overlay is optional, read-only and requires an existing explicitly selected data directory')
         stack.start_im()
+        report['release_services'] = running_images(ROOT, args.image, stack.project)
         asyncio.run(exercise(stack, report, check))
         report['ok'] = True
     finally:

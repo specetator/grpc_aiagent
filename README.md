@@ -1,6 +1,8 @@
 # Spark Push
 
-C++17 分布式实时消息 / IM 项目，提供 WebSocket 接入、gRPC 双向流、Kafka 投递、MySQL 历史与 SQL 幂等/outbox、Redis 路由缓存，以及 Web 和原生 Android 客户端。Kernel Agent 和 GPU 推理为可选扩展。
+面向 3–10 人团队的 AI 协作即时通讯软件。成员在私有空间中聊天、共享文件和任务，
+通过 `@Pi`、`@Hermes` 调用可选 Agent，读取授权项目代码并在同一时间线协作。
+基于 C++17、gRPC、WebSocket、Kafka、MySQL 和 Redis；保留 Web 与原生 Android 客户端。
 
 ## 快速开始
 
@@ -31,7 +33,9 @@ docker compose up -d     # 恢复
 详细安装、升级边界与旧 WSL 开发方式见 [安装指南](docs/install.md)，数据维护见
 [备份与恢复](docs/backup-restore.md)。
 Agent 是可选模块；当前能力和验收边界见 [Room Agent](docs/generic-room-agents.md)。
-**v0.1.0 正在交付，尚未发布完整验收版本**，进度见 [交付跟踪](docs/v0.1.0-delivery.md)。
+安装包和最终验收状态以 [GitHub Releases](https://github.com/specetator/grpc_aiagent/releases)
+中的实际回执为准；`rc` 候选仍需完成验收。阶段进度见 [交付跟踪](docs/v0.1.0-delivery.md)。
+候选镜像、固定安装包及实际验收流程见 [发行指南](docs/releasing.md)。
 
 真实三人协作验收截图：Hermes 读取授权 C++ 文件，Carol 接手 Pi 整理的任务。
 
@@ -96,6 +100,9 @@ Agent 需保留卷并冷启动整栈；本流程不覆盖任意热替换，也�
 最新 [负载结果](docs/benchmarks/2026-10-11-current/README.md)：三轮各 160 条消息 ACK/接收/SQL 完整，E2E 吞吐中位数 33.52 msg/s；800 条同会话突发失败，存在 ACK 超时边界。其他历史报告不能替代当前链路容量。
 
 ## 构建与测试
+
+测试解释器需安装 PyYAML。多 Python 环境可用 CMake 的 `-DPython3_EXECUTABLE=...`
+选择已有测试虚拟环境；不需要改动个人 Agent 的 Python 或模型配置。
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
@@ -162,3 +169,6 @@ python3 tests/run_release_smoke.py --out /tmp/spark-release-smoke.json --jobs 2
 
 项目代码采用 [MIT 许可证](LICENSE)。第三方源码保留各自版权与许可，见
 [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES.md)。
+
+问题与建议请提交 [GitHub Issues](https://github.com/specetator/grpc_aiagent/issues)，
+附版本、复现步骤和脱敏日志。

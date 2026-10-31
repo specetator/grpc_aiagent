@@ -24,6 +24,7 @@ import time
 
 import websockets
 from connector_deployment_e2e import ROOT, free_port
+from release_identity import source_commit, running_images
 from compose_e2e import http
 sys.path.insert(0, str(ROOT / 'scripts'))
 import export_cann_documents as cann
@@ -36,10 +37,11 @@ def main():
     parser.add_argument('--cann-documents',action='store_true',help='also archive and restore an owned public document fixture')
     args=parser.parse_args();output=args.out.resolve();output.parent.mkdir(parents=True,exist_ok=True)
     receipt={'ok':False,'mode':'real Docker Compose cold IM backup/restore; no model or mocked service','checks':[],
-             'source_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),
+             'source_commit':source_commit(ROOT),'scenario':'cann_documents' if args.cann_documents else 'im_backup',
              'sources':{name:hashlib.sha256((ROOT/name).read_bytes()).hexdigest() for name in (
                  'scripts/spark_backup.py','scripts/spark_team_backup.py','scripts/export_cann_documents.py',
                  'tests/backup_restore_e2e.py','docker-compose.cann.yml')}}
+    receipt['image_id']=subprocess.check_output(['docker','image','inspect',args.image,'--format','{{.Id}}'],text=True).strip()
     project='spark-backup-'+secrets.token_hex(5);restored=project+'-restored'
     environment={k:v for k,v in os.environ.items() if not k.startswith(('SPARK_','COMPOSE_','HERMES_','PI_','KERNEL_'))}
     port,target_port=free_port(),free_port()
@@ -131,6 +133,7 @@ def main():
         cleanup_errors=[]
         try:
             run(source+['up','-d','--wait','--wait-timeout','180','--pull','never'])
+            receipt['release_services']=running_images(ROOT,args.image,project)
             source_init=json.loads(run(['docker','inspect',run(source+['ps','-aq','kafka-init']).strip()]))[0]['Config']['Cmd']
             credentials=[{'account':'backup_'+secrets.token_hex(8),'password':secrets.token_hex(16),'name':name} for name in ('Alice','Bob','Outsider')]
             a,b,outsider=[api('/api/register',value) for value in credentials]
