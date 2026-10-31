@@ -1,5 +1,6 @@
 #include "services/room_agent_service.h"
 #include "agent_event.h"
+#include "hermes_reply.h"
 #include "security.h"
 #include <algorithm>
 #include <set>
@@ -7,7 +8,35 @@
 #include <openssl/sha.h>
 
 namespace sparkpush {
-namespace { using Json=nlohmann::json; }
+namespace {
+using Json=nlohmann::json;
+std::string PublicationDigest(const std::string& content,Json result,bool stable) {
+    result.erase("completed_at_ms");
+    auto message=content;
+    if(stable) {
+        auto parsed=Json::parse(content,nullptr,false);
+        const Json::json_pointer path("/content/agent_event/envelope");
+        if(parsed.is_object() && parsed.contains(path)) {
+            auto& envelope=parsed[path];
+            // Only Bridge-derived transport fields may vary. Validate the ID
+            // before omitting it; route, run, actor and every other field stay.
+            if(!AgentEnvelopeValid(envelope) || envelope.at("event_id")!=ProjectedEventId(
+                envelope.at("request_id"),envelope.at("sequence").get<int64_t>()))
+                throw std::invalid_argument("invalid projected final event");
+            for(const auto* key:{"event_id","sequence","replayed","created_at_ms"})envelope.erase(key);
+            message=parsed.dump();
+        }
+    }
+    Json input={{"message",message},{"result",result}};
+    if(stable)input["schema"]="sparkpush.room_publication_digest.v2";
+    const auto material=input.dump();
+    unsigned char bytes[SHA256_DIGEST_LENGTH];
+    SHA256(reinterpret_cast<const unsigned char*>(material.data()),material.size(),bytes);
+    std::string digest;const char* hex="0123456789abcdef";
+    for(auto b:bytes){digest+=hex[b>>4];digest+=hex[b&15];}
+    return digest;
+}
+}
 std::vector<ProjectDefinition> ParseRoomProjectCatalog(const Json& catalog) {
     if(!catalog.is_object() || catalog.value("schema",0)!=1 ||
        !catalog.at("projects").is_array() || catalog.at("projects").size()>32)
@@ -74,13 +103,25 @@ bool RoomAgentService::PublishReply(const Json& request,const Json& reply,const 
     // Existing CANN and pre-workspace requests keep their original reservations.
     if(scope.value("kind","")!="room_agent_v1" || !scope.contains("workspace_generation")) {*output=reply;return true;}
     if(configuration_error_) {if(error)*error="room Agent configuration unavailable";return false;}
-    auto result=ResultFromReply(request,reply);result.erase("completed_at_ms");
-    const auto material=Json{{"message",content},{"result",result}}.dump();
-    unsigned char bytes[SHA256_DIGEST_LENGTH];
-    SHA256(reinterpret_cast<const unsigned char*>(material.data()),material.size(),bytes);
-    std::string digest;const char* hex="0123456789abcdef";
-    for(auto b:bytes){digest+=hex[b>>4];digest+=hex[b&15];}
-    return repo_->Publication(request,digest,[&](const Json& state){
+    for(const auto* key:{"request_id","session_id","user_id","bot_user_id","collaboration"})
+        if(!reply.contains(key) || reply.at(key)!=request.at(key))return false;
+    const auto result=ResultFromReply(request,reply);
+    std::string digest;
+    try {digest=PublicationDigest(content,result,true);}
+    catch(const std::exception& e){if(error)*error=e.what();return false;}
+    const auto legacy=PublicationDigest(content,result,false);
+    return repo_->Publication(request,digest,[&](const std::string& saved_digest,const Json& saved){
+        if(saved_digest==legacy)return true;
+        PreparedHermesReply prepared;std::string prepare_error;
+        if(!PrepareHermesReply(saved.dump(),request.at("bot_user_id"),request.at("agent_name"),
+                              &prepared,&prepare_error,&request))return false;
+        const auto saved_result=ResultFromReply(request,saved);
+        // A cancelled decision has already discarded its private input. Never
+        // infer that input from the cancellation text or overwrite old hashes.
+        if(PublicationDigest(prepared.message.content_json,saved_result,false)!=saved_digest)return false;
+        try {return PublicationDigest(prepared.message.content_json,saved_result,true)==digest;}
+        catch(const std::exception&){return false;}
+    },[&](const Json& state){
         if(CheckAuthorization(scope,state).ok())return reply;
         // No original text, tool output or metadata survives a denied decision.
         Json denied;

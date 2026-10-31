@@ -16,7 +16,8 @@ struct ProjectDefinition { std::string project_id, display_name; };
 std::vector<ProjectDefinition> ParseRoomProjectCatalog(const nlohmann::json&);
 // Only administrator-owned registry files feed this catalog. No HTTP write API.
 std::vector<AgentDefinition> ParseRoomAgentCatalog(const nlohmann::json& registry,
-                                                 bool hermes_test = false);
+                                                 bool hermes_test = false,
+                                                 bool hermes_public = false);
 // A repository owns persistence, not permissions or use-case rules.
 //
 // 译：repository 只负责持久化，不负责权限与用例规则。
@@ -65,8 +66,9 @@ class RoomAgentRepository {
     // Persist the first publication decision while holding the room, actor and
     // request locks. The callback owns policy and must not perform database I/O.
     using PublicationDecision=std::function<nlohmann::json(const nlohmann::json&)>;
+    using PublicationMatch=std::function<bool(const std::string&,const nlohmann::json&)>;
     virtual bool Publication(const nlohmann::json&,const std::string&,
-                             const PublicationDecision&,nlohmann::json*,std::string*) { return false; }
+                             const PublicationMatch&,const PublicationDecision&,nlohmann::json*,std::string*) { return false; }
     virtual bool Pending(nlohmann::json*, std::string*) { return false; }
     virtual bool Dispatched(const std::string&, std::string*) { return false; }
     virtual bool MarkAttempt(const std::string&, std::string*) { return false; }

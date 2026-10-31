@@ -78,9 +78,8 @@ class HermesRoomRuntime:
         self.workspace=workspace
     @staticmethod
     def win(path):return subprocess.check_output(['wslpath','-w',str(path)],text=True).strip()
-    def start(self):
-        self.root.mkdir(mode=0o700)
-        for name in ('home','workspace'): (self.root/name).mkdir()
+    def model_credentials(self):
+        """Explicit user-authorized test access only; never copy refresh state."""
         original=yaml.safe_load((self.profile/'config.yaml').read_text())
         model=original.get('model',{})
         if model.get('provider')!='openai-codex':raise ValueError('fixture currently supports the authorized default Codex model profile only')
@@ -91,6 +90,11 @@ class HermesRoomRuntime:
         if expiry<time.time()+900:raise ValueError('model access token expires too soon; fixture never refreshes the original account')
         state['tokens'].pop('refresh_token',None)
         isolated={'version':auth.get('version',1),'active_provider':'openai-codex','providers':{'openai-codex':state}}
+        return {'default':model['default'],'provider':'openai-codex'},isolated
+    def start(self):
+        self.root.mkdir(mode=0o700)
+        for name in ('home','workspace'): (self.root/name).mkdir()
+        model,isolated=self.model_credentials()
         (self.root/'auth.json').write_text(json.dumps(isolated));(self.root/'auth.json').chmod(0o600)
         config={'model':{'default':model['default'],'provider':'openai-codex'},
             'agent':{'max_turns':6},'platform_toolsets':{'api_server':['todo']},

@@ -1,9 +1,24 @@
 #pragma once
 #include <nlohmann/json.hpp>
 #include <algorithm>
+#include <cstdio>
 #include <string>
 
 namespace sparkpush {
+
+// Bridge projection identity. Keep the historical hash unchanged.
+inline std::string ProjectedEventId(const std::string& request_id, int64_t sequence) {
+    const auto material=request_id+std::string(1,'\0')+std::to_string(sequence);
+    auto hash=[&](uint64_t seed) {
+        for(const unsigned char byte:material){seed^=byte;seed*=1099511628211ULL;}
+        return seed;
+    };
+    char value[37]{};
+    std::snprintf(value,sizeof(value),"evt_%016llx%016llx",
+        static_cast<unsigned long long>(hash(1469598103934665603ULL)),
+        static_cast<unsigned long long>(hash(1099511628211ULL)));
+    return value;
+}
 
 // =====================================================================
 // Agent 事件的**校验 + 投影**层。

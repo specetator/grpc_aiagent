@@ -263,7 +263,9 @@ int RunLogic(Config cfg) {
         std::vector<AgentDefinition> catalog;
         if(const char* path=std::getenv("SPARK_PUSH_ROOM_AGENT_CATALOG");path && *path) {
             const char* test=std::getenv("SPARK_PUSH_ROOM_HERMES_TEST");
-            catalog=ParseRoomAgentCatalog(ReadOperatorCatalog(path),test && std::string(test)=="true");
+            const char* shared=std::getenv("SPARK_PUSH_ROOM_HERMES_PUBLIC");
+            catalog=ParseRoomAgentCatalog(ReadOperatorCatalog(path),test && std::string(test)=="true",
+                                          shared && std::string(shared)=="true");
             for(const auto& agent:catalog)
                 if(agent.bot_user_id==cfg.hermes_bot_user_id || cfg.agent_bot_users.count(agent.bot_user_id))
                     throw std::runtime_error("public Agent requires a separate bot identity");

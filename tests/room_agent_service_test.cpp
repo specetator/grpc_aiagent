@@ -1,5 +1,7 @@
 #include "services/room_agent_service.h"
 #include "hermes_reply.h"
+#include "agent_event.h"
+#include <openssl/sha.h>
 #include <iostream>
 #include <stdexcept>
 using namespace sparkpush;
@@ -7,6 +9,13 @@ using Json = nlohmann::json;
 namespace {
 int checks = 0;
 void Check(bool value, const char* why) { ++checks; if (!value) throw std::runtime_error(why); }
+// Produce the pre-v2 persisted fixture without calling the new digest code.
+std::string LegacyPublicationDigest(const Json& reply,const std::string& content) {
+    const auto input=Json{{"message",content},{"result",{{"ok",reply.at("ok")},{"text",reply.at("text")}}}}.dump();
+    unsigned char bytes[SHA256_DIGEST_LENGTH];SHA256(reinterpret_cast<const unsigned char*>(input.data()),input.size(),bytes);
+    std::string value;const char* hex="0123456789abcdef";
+    for(auto byte:bytes){value+=hex[byte>>4];value+=hex[byte&15];}return value;
+}
 class MemoryRepository : public RoomAgentRepository {
  public:
     Json task;
@@ -20,11 +29,11 @@ class MemoryRepository : public RoomAgentRepository {
         return true;
     }
     std::map<std::string,Json> publications;
-    bool Publication(const Json& request,const std::string& digest,const PublicationDecision& decide,Json* out,std::string*)override {
+    bool Publication(const Json& request,const std::string& digest,const PublicationMatch& matches,const PublicationDecision& decide,Json* out,std::string*)override {
         if(fail)return false;
         const std::string id=request.at("request_id");
         if(publications.count(id)) {
-            if(publications[id]["digest"]!=digest)return false;
+            if(publications[id]["digest"]!=digest && !matches(publications[id]["digest"],publications[id]["reply"]))return false;
             *out=publications[id]["reply"];return true;
         }
         *out=decide({{"member",!removed},{"bindings",bindings},{"workspace",workspace}});
@@ -126,6 +135,20 @@ int main() {
         {{"id","second-pi"},{"name","Pi"},{"runtime","pi_rpc"},{"owner_user_ids",Json::array()},{"bot_user_id",102},{"room_enabled",true},{"room_policy","read_only"}}
     })}};
     auto catalog=ParseRoomAgentCatalog(registry);
+    auto publicHermes=registry["agents"][0];
+    publicHermes["id"]="public-hermes";publicHermes["runtime"]="hermes_native";
+    publicHermes["profile"]="spark-public-hermes";publicHermes["room_public_profile"]=true;
+    publicHermes["room_workspace_contract"]=1;publicHermes["native_interactive_approvals"]=false;
+    Json nativeRegistry={{"schema",1},{"agents",Json::array({publicHermes})}};
+    Check(!ParseRoomAgentCatalog(nativeRegistry)[0].enabled,"public Native requires separate operator opt in");
+    Check(!ParseRoomAgentCatalog(nativeRegistry,true)[0].enabled,"test switch cannot enable public Native");
+    Check(ParseRoomAgentCatalog(nativeRegistry,false,true)[0].enabled,"public Native explicit isolated contract accepted");
+    for(const auto& change:std::vector<Json>{{{"profile","technical"}},{{"room_workspace_contract",0}},
+                {{"room_public_profile",false}},{{"native_interactive_approvals",true}}}) {
+        auto bad=nativeRegistry;bad["agents"][0].update(change);bool refused=false;
+        try {ParseRoomAgentCatalog(bad,false,true);}catch(const std::exception&){refused=true;}
+        Check(refused,"public Native incomplete isolation contract refused");
+    }
     RoomAgentService generic(&repo,99,true,catalog);
     Check(generic.Install(8,1,{{"agent_id","public-pi"}},true).code==403,"member cannot install");
     Check(generic.Install(7,1,{{"agent_id","public-pi"},{"runtime_url","bad"}},true).code==400,"cannot inject runtime");
@@ -201,6 +224,62 @@ int main() {
     Check(!generic.PublishReply(scoped[0],provenanceReply,"canonical original",&published,&error),"durable provenance changes conflict even with same supplied message content");
     provenanceReply["response_metadata"]["project_snapshot"]["revision"]="invalid";
     Check(generic.Complete(provenanceReply,&error) && !repo.results[scopedId].contains("project_snapshot"),"invalid provenance rejected");
+    {
+        auto request=scoped[0];request["request_id"]="publication-transport-test";
+        auto first=workspaceReply;first["request_id"]=request["request_id"];first["delta_count"]=2;
+        first["response_metadata"]["agent_event"]={{"schema","sparkpush.agent_event.v1"},{"type","assistant_final"},
+            {"data",{{"text",first["text"]}}},{"envelope",{{"schema","sparkpush.agent_envelope.v1"},
+            {"request_id",request["request_id"]},{"event_id",ProjectedEventId(request["request_id"],2)},
+            {"route_key","rt_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},{"session_key","room-public-pi"},
+            {"tenant_id","local"},{"channel_id","spark_pc"},{"conversation_id",request["session_id"]},
+            {"thread_id","_"},{"agent_id",request["agent_id"]},{"run_id","native-run-1"},
+            {"sequence",2},{"created_at_ms",100},{"replayable",true},{"terminal",true},{"replayed",false},
+            {"receipt",{{"sequence",4},{"created_at_ms",123}}}}}};
+        auto prepare=[&](const Json& reply){PreparedHermesReply prepared;
+            Check(PrepareHermesReply(reply.dump(),request["bot_user_id"],request["agent_name"],&prepared,&error,&request),"prepare transport fixture");
+            return prepared.message.content_json;};
+        const auto firstContent=prepare(first);
+        Check(generic.PublishReply(request,first,firstContent,&published,&error) && published==first,"v2 first projection admitted");
+        auto replay=first;replay["completed_at_ms"]=999;replay["delta_count"]=9;
+        auto& envelope=replay["response_metadata"]["agent_event"]["envelope"];
+        envelope["sequence"]=9;envelope["event_id"]=ProjectedEventId(request["request_id"],9);
+        envelope["replayed"]=true;envelope["created_at_ms"]=999;
+        const auto replayContent=prepare(replay);
+        Check(firstContent!=replayContent,"fixture really varies transport bytes");
+        Check(generic.PublishReply(request,replay,replayContent,&published,&error) && published==first && prepare(published)==firstContent,"v2 returns original bytes and timestamp across projection changes");
+        const std::string id=request["request_id"];
+        repo.publications[id]["digest"]=LegacyPublicationDigest(first,firstContent);
+        const auto legacyRow=repo.publications[id];
+        Check(generic.PublishReply(request,replay,replayContent,&published,&error) && published==first && repo.publications[id]==legacyRow,"old digest is verified before compatible replay; row unchanged");
+        for(const auto* field:{"run_id","session_key","agent_id","route_key"}) {
+            auto changed=replay;changed["response_metadata"]["agent_event"]["envelope"][field]=
+                std::string(field)=="route_key"?"rt_bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb":"changed-identity";
+            Check(!generic.PublishReply(request,changed,prepare(changed),&published,&error),"runtime identity cannot change on replay");
+        }
+        auto changed=replay;changed["text"]="different result";changed["response_metadata"]["agent_event"]["data"]["text"]=changed["text"];
+        Check(!generic.PublishReply(request,changed,prepare(changed),&published,&error),"text mutation conflicts across transport changes");
+        changed=replay;changed["response_metadata"]["agent_event"]["envelope"]["receipt"]["sequence"]=5;
+        Check(!generic.PublishReply(request,changed,prepare(changed),&published,&error),"same field name at a different path remains immutable");
+        changed=replay;changed["response_metadata"]["project_snapshot"]={{"project_id","spark-push"},{"revision",std::string(64,'a')},{"file_count",2}};
+        Check(!generic.PublishReply(request,changed,prepare(changed),&published,&error),"provenance mutation conflicts across transport changes");
+        changed=replay;changed["ok"]=false;
+        Check(!generic.PublishReply(request,changed,prepare(changed),&published,&error),"status mutation conflicts");
+        changed=replay;changed["user_id"]=999;
+        Check(!generic.PublishReply(request,changed,replayContent,&published,&error),"actor mismatch rejected before digest");
+        changed=replay;changed["collaboration"]["generation"]=999;
+        Check(!generic.PublishReply(request,changed,replayContent,&published,&error),"scope mismatch rejected before digest");
+        changed=replay;changed["response_metadata"]["agent_event"]["envelope"]["event_id"]="evt_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        Check(!generic.PublishReply(request,changed,prepare(changed),&published,&error),"arbitrary event ID cannot be erased for comparison");
+        repo.publications[id]["digest"]=std::string(64,'0');
+        Check(!generic.PublishReply(request,replay,replayContent,&published,&error),"legacy reconstruction requires saved hash verification");
+        repo.publications.erase(id);repo.removed=true;
+        Check(generic.PublishReply(request,first,firstContent,&published,&error) && published["terminal_status"]=="cancelled","v2 denied decision");
+        const auto denied=published;repo.removed=false;
+        Check(generic.PublishReply(request,replay,replayContent,&published,&error) && published==denied,"v2 cancellation survives transport changes and regrant");
+        repo.publications[id]["digest"]=LegacyPublicationDigest(first,firstContent);
+        Check(generic.PublishReply(request,first,firstContent,&published,&error) && published==denied,"legacy cancellation exact replay retained");
+        Check(!generic.PublishReply(request,replay,replayContent,&published,&error),"unverifiable legacy cancellation variant fails closed");
+    }
     repo.removed=true;
     Check(generic.PublishReply(scoped[0],workspaceReply,"canonical original",&published,&error) && published==workspaceReply,"revocation cannot change an already committed final");
     Check(!generic.PublishReply(scoped[0],workspaceReply,"conflicting original",&published,&error),"conflicting replay cannot replace publication");

@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "id": "team-public-agents",
+  "home": "/srv/spark-public/gateway",
+  "host": "0.0.0.0",
+  "port": 8643,
+  "registry": "/srv/spark-public/agents.json",
+  "projects": "/srv/spark-public/projects.json",
+  "snapshots": "/srv/spark-public/snapshots",
+  "keys_file": "/srv/spark-public/connector-keys.json",
+  "authority_origin": "http://127.0.0.1:9011",
+  "pi": {
+    "command": "/opt/pi/bin/pi",
+    "provider": "your-approved-provider",
+    "model": "your-approved-model",
+    "models_file": "/srv/spark-public/models.json",
+    "model_env_file": "/srv/spark-public/model.env"
+  }
+}

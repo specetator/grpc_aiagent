@@ -244,3 +244,5 @@ set_tests_properties(generic_room_agent_test PROPERTIES ENVIRONMENT "PYTHONDONTW
 add_test(NAME room_project_snapshot_test COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/cannbot/scripts/test_room_workspace.py)
 add_test(NAME hermes_public_workspace_contract_test COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/cannbot/scripts/test_hermes_public_workspace.py)
 set_tests_properties(room_project_snapshot_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 30)
+add_test(NAME public_runtime_startup_test COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/cannbot/scripts/test_public_runtime.py)
+set_tests_properties(public_runtime_startup_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 30)

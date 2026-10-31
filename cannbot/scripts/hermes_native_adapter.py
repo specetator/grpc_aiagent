@@ -44,6 +44,19 @@ def _digest(value):
                                      separators=(",", ":")).encode()).hexdigest()
 
 
+def confirm_reply_receipt(store, namespace, profile, endpoint, session, request_id, run_id):
+    """Record Kafka acceptance locally; never query or start the Native runtime."""
+    def confirm(record):
+        if (not record or record.get('session_id')!=session or record.get('profile')!=profile or
+            record.get('endpoint_hash')!=_digest(endpoint) or record.get('status')!='completed' or
+            not run_id or record.get('run_id')!=run_id):
+            raise ValueError('Native reply receipt does not match a completed run')
+        if record.get('delivery_state')=='broker_confirmed':return record
+        return {**record,'delivery_state':'broker_confirmed','updated_at_ms':int(time.time()*1000)}
+    store.update(namespace+':run',request_id,confirm,durable=True)
+    return agent_event('assistant_final',{'text':'Native reply broker receipt recorded'})
+
+
 class HermesNativeAdapter(HermesHttpAdapter):
     accepts_runtime_events = True
     supports_native_runtime = True
@@ -100,6 +113,10 @@ class HermesNativeAdapter(HermesHttpAdapter):
                     'run_submission', 'run_status', 'run_events_sse', 'run_stop',
                     'run_approval_response')) or value.get('model') != self.config['expected_model']):
             raise ValueError('Hermes 未确认所需 Runs API、持久幂等和 technical 身份；Native 未启用')
+        if self.config.get('room_public_profile') is True:
+            expected={'agent_id':self.config['id'],'profile':self.config['profile'],'policy':'read_only'}
+            if features.get('spark_public_profile_v1')!=expected:
+                raise ValueError('Hermes 未确认独立公共 Profile 合同')
         if self.config.get('room_policy')=='read_only':
             catalog=self._json('/toolsets',timeout=min(timeout,3))
             rows=catalog.get('data') if isinstance(catalog,dict) else None
@@ -603,13 +620,8 @@ class HermesNativeAdapter(HermesHttpAdapter):
         if operation in {'stop', 'approve', 'deny'}:
             return self.interrupt(request, timeout_s)
         if operation == 'confirm_reply':
-            request_id = request.get('request_id')
-            record = self._bound_record(session, request_id)
-            if (not record or record.get('status') != 'completed' or
-                    record.get('run_id') != request.get('run_id')):
-                raise ValueError('Native reply receipt does not match a completed run')
-            self._update_record(request_id, delivery_state='broker_confirmed')
-            return agent_event('assistant_final', {'text': 'Native reply broker receipt recorded'})
+            return confirm_reply_receipt(self.store,self.namespace,self.config.get('profile'),self.base_url,
+                                         session,request.get('request_id'),request.get('run_id'))
         if operation == 'compact':
             return agent_event('assistant_final', {'text': '当前安装的 Runs API 没有 /compact 端点，未执行压缩。'})
         if operation in {'restart', 'restart_agent'}:

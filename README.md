@@ -70,7 +70,10 @@ Client ──WebSocket──► Comet ──MessageStream──► Logic
 
 可选 [Hermes Native Runs API](docs/hermes-native-runtime-integration.md) 提供独立 API Session、
 执行账本、原生事件、停止与一次性审批，复用现有 AgentRouter/Bridge/IM 历史。
-默认关闭，Pi 与 `hermes_http` Legacy 保留。真实隔离 Hermes 与三用户 IM 已有 [阶段回执](docs/benchmarks/2026-10-31-generic-room-agents.md)；v0.1.0 授权仓库读取与发行栈场景仍待验收。
+默认关闭，Pi 与 `hermes_http` Legacy 保留。正式公共启动器已通过真实 Compose、
+Pi/Hermes 授权代码读取、三 HTTP/WS 用户、Kafka 重投与整栈重启验收，见
+[公共 Runtime 回执](docs/benchmarks/2026-10-31-public-runtime.json)。
+三独立浏览器、统一 Web 与整版 v0.1.0 发行验收仍在进行。
 配置和回滚步骤见该文档，勿直接替换正在使用的联系人或 Profile。
 
 - `accepted_ack`：持久化事件已获 Kafka broker 确认；不等于历史已入 SQL或接收者已收到。
@@ -98,7 +101,7 @@ python3 tests/run_redis_review_tests.py build
 python3 tests/run_kafka_volume_test.py build
 ```
 
-2026-10-31 部署阶段 CTest 注册 56 项，52 项通过，4 项 SQL/Redis 集成测试按环境跳过；可用上面的独立容器脚本补跑。Docker 核心测试与源文件指纹见 [部署回执](docs/benchmarks/2026-10-31-docker-deployment.json)。
+2026-10-31 公共 Runtime 阶段 CTest 注册 59 项：55 项通过，4 项 SQL/Redis 集成测试默认跳过，并已在独立真实数据库容器补跑通过。命令、边界与源文件指纹见 [公共 Runtime 回执](docs/benchmarks/2026-10-31-public-runtime.json)。
 2026-10-28 本地回归 44 项通过，3 项数据库测试在隔离容器补跑通过；详见 [Native 测试回执](docs/benchmarks/2026-10-28-hermes-native.json)。
 可用标准库 harness 启动隔离三服务并做实际 ACK/接收/SQL 校验，不使用个人 `.env.local`：
 

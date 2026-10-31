@@ -75,6 +75,101 @@ class GenericRoomTest(unittest.TestCase):
     def test_replay_restart_no_execution(self):
         sc=scope();self.call(sc);self.router=self.make_router()
         _,meta=self.call(sc);self.assertTrue(meta['turn_replayed']);self.assertEqual(len(self.factory.calls),1)
+    def test_completed_replay_after_revoke_and_catalog_disable_keeps_original(self):
+        sc={**scope(), 'project_id':'sample', 'workspace_generation':1}
+        text,meta=self.call(sc,'accepted code review')
+        self.entries[0]['room_enabled']=False
+        self.router=self.make_router()
+        class Revoked:
+            def authorize(self,*args):raise PermissionError('revoked')
+        self.router.workspace_authority=Revoked()
+        replay, replay_meta=self.call(sc,'accepted code review')
+        self.assertEqual(replay,text)
+        self.assertEqual({k:v for k,v in replay_meta.items() if k!='turn_replayed'},meta)
+        self.assertEqual(len(self.factory.calls),1)
+        with self.assertRaises(ValueError):self.call(sc,'different input')
+        with self.assertRaises(ValueError):self.call({**sc,'actor_user_id':8},'accepted code review')
+        with self.assertRaises(ValueError):self.call({**sc,'generation':2},'accepted code review')
+        with self.assertRaises(ValueError):self.call({**sc,**scope(seq=2)},'new execution')
+        self.entries[0]['room_enabled']=True
+        self.router=self.make_router();self.router.workspace_authority=Revoked()
+        with self.assertRaises(PermissionError):self.call({**sc,**scope(seq=2)},'new execution')
+        self.assertEqual(len(self.factory.calls),1)
+
+    def test_native_disabled_adapter_keeps_completed_input_identity(self):
+        entry=self.entries[1]
+        entry.update(runtime='hermes_native',profile='spark-public-example',base_url='http://127.0.0.1:18644/v1',
+                     room_public_profile=True,room_workspace_contract=1,native_interactive_approvals=False)
+        self.router=self.make_router()
+        before=self.router._native_input_scope('second-pi','r_1')
+        self.router.adapters['second-pi']=object()
+        self.router.entries['second-pi']['room_enabled']=False
+        self.assertEqual(before,self.router._native_input_scope('second-pi','r_1'))
+        self.assertEqual(before['profile'],'spark-public-example')
+
+    def native_turn(self):
+        entry=self.entries[1]
+        entry.update(runtime='hermes_native',profile='spark-public-example',base_url='http://127.0.0.1:18644/v1',
+                     room_public_profile=True,room_workspace_contract=1,native_interactive_approvals=False)
+        class Native:
+            supports_native_runtime=True
+            def chat(self,*args,**kwargs):return 'native answer',{'runtime':'hermes_native','run_id':'run-fixture'}
+        self.router=self.make_router();self.router.adapters['second-pi']=Native()
+        sc={**scope(agent='second-pi'),'runtime':'hermes_native','project_id':'','workspace_generation':0}
+        with patch.dict(os.environ,{'SPARK_PUSH_ROOM_HERMES_PUBLIC':'true'}):self.call(sc)
+        return sc
+
+    def test_native_completed_input_conflicts_and_disabled_replay(self):
+        sc=self.native_turn();entry=self.router.entries['second-pi']
+        for field,value in [('profile','spark-public-another'),('base_url','http://127.0.0.1:18645/v1')]:
+            before=entry[field];entry[field]=value
+            with self.assertRaises(ValueError):self.call(sc)
+            entry[field]=before
+        original=self.router.store.get_turn(sc['request_id'])
+        entry['room_enabled']=False;self.router.adapters['second-pi']=object()
+        text,meta=self.call(sc)
+        self.assertEqual(text,original['text']);self.assertTrue(meta.pop('turn_replayed'))
+        self.assertEqual(meta,original['metadata'])
+
+    def test_room_broker_receipt_validates_completed_ledgers_without_runtime(self):
+        from hermes_native_adapter import _digest
+        sc=self.native_turn();rid=sc['request_id'];turn=self.router.store.get_turn(rid)
+        entry=self.router.entries['second-pi'];entry['room_enabled']=False
+        self.router.adapters['second-pi']=object() # no credentials, HTTP or model methods
+        namespace='hermes-native:second-pi:run'
+        record={'session_id':turn['metadata']['agent_route']['backend_session_ref'],
+            'profile':entry['profile'],'endpoint_hash':_digest(entry['base_url']),'status':'completed',
+            'run_id':'run-fixture','text':'native answer'}
+        self.router.store.put(namespace,rid,record)
+        receipt={'operation':'confirm_reply','session_id':'r_1','request_id':rid,'run_id':'run-fixture','collaboration':sc}
+        self.router.confirm_room_reply(receipt)
+        saved=self.router.store.get(namespace,rid)
+        self.assertEqual(saved['delivery_state'],'broker_confirmed')
+        self.router.confirm_room_reply(receipt)
+        self.assertEqual(saved,self.router.store.get(namespace,rid))
+        self.assertEqual(turn,self.router.store.get_turn(rid))
+        for bad in [{**receipt,'run_id':'wrong'}, {**receipt,'collaboration':{**sc,'actor_user_id':8}},
+                    {**receipt,'collaboration':{**sc,'generation':2}}, {**receipt,'operation':'stop'}]:
+            with self.assertRaises(ValueError):self.router.confirm_room_reply(bad)
+        for field,value in [('profile','spark-public-another'),('endpoint_hash','wrong'),('status','running'),('session_id','another')]:
+            self.router.store.put(namespace,rid,{**record,field:value})
+            with self.assertRaises(ValueError):self.router.confirm_room_reply(receipt)
+            self.assertEqual(self.router.store.get(namespace,rid),{**record,field:value})
+
+    def test_no_project_scope_still_checks_current_membership(self):
+        sc={**scope(),'project_id':'','workspace_generation':0}
+        class Revoked:
+            def authorize(self,*args):raise PermissionError('member removed')
+        self.router.workspace_authority=Revoked()
+        with self.assertRaises(PermissionError):self.call(sc)
+        with self.assertRaises(PermissionError):self.call(scope(seq=2))
+        self.assertEqual(self.factory.calls,[])
+
+    def test_public_images_rejected_before_completed_replay(self):
+        sc=scope();self.call(sc)
+        with self.assertRaises(ValueError):
+            self.router.chat('hello',None,1,session_id='r_1',request_id=sc['request_id'],images=[{'data':'different'}])
+        self.assertEqual(len(self.factory.calls),1)
     def test_unknown_after_restart_is_not_reexecuted(self):
         sc=scope();self.router.authorize_room('r_1',sc,sc['request_id'])
         route=self.router.describe_route('r_1')
@@ -120,6 +215,9 @@ class GenericRoomTest(unittest.TestCase):
         prototype=Pi(['/fixed/pi','--provider','test','--model','test-model'],private,
                      {'PATH':'/usr/bin','PI_CODING_AGENT_DIR':str(private),'PRIVATE_TOKEN':'secret','NODE_OPTIONS':'malicious'},private/'sessions')
         with patch.dict(os.environ,{},clear=True):factory=PublicRoomPiFactory(prototype,self.root/'public')
+        class Authority:
+            def authorize(self,request_id,expected):return expected
+        factory.authority=Authority() # routing/process contract double, not E2E
         sc=scope();factory.for_scope(sc).chat('hello',None,1,session_id='roomagent_1_public-pi',request_id=sc['request_id'])
         worker=made[-1]
         self.assertNotIn('PRIVATE_TOKEN',worker.env);self.assertNotIn('NODE_OPTIONS',worker.env)

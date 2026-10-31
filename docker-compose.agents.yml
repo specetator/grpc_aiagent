@@ -4,6 +4,7 @@ services:
     environment:
       SPARK_PUSH_HERMES_ENABLED: "true"
       SPARK_PUSH_ROOM_AGENT_ENABLED: "true"
+      SPARK_PUSH_ROOM_HERMES_PUBLIC: "true"
       SPARK_PUSH_ROOM_AGENT_CATALOG: /run/spark-agent-config/agents.json
       SPARK_PUSH_ROOM_PROJECT_CATALOG: /run/spark-agent-config/projects.json
       SPARK_PUSH_HERMES_API_KEY: ${SPARK_PUSH_HERMES_API_KEY:-}

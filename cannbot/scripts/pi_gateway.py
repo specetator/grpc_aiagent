@@ -1055,11 +1055,13 @@ def make_handler(state: GatewayState):
                     self._json(200, {"code":503, "message":"连接服务暂不可用，请稍后重试"})
                 return
             if path == "/v1/agent/control":
-                if str(request.get("session_id", "")).startswith("r_"):
+                room = str(request.get("session_id", "")).startswith("r_")
+                if room and request.get('operation')!='confirm_reply':
                     self._json(403, {"error": {"message": "shared room controls are disabled"}})
                     return
                 try:
-                    self._json(200, state.rpc.control(request, timeout_s=120 if request.get("operation")=="restart_agent" else 30))
+                    self._json(200, state.rpc.confirm_room_reply(request) if room else
+                        state.rpc.control(request, timeout_s=120 if request.get("operation")=="restart_agent" else 30))
                 except ValueError as exc:
                     self._json(422, {"error": {"message": str(exc)}})
                 except TimeoutError:

@@ -219,6 +219,8 @@ class PublicRoomPiFactory:
                 namespace=execution_namespace(scope)
                 if session_id!=namespace or request_id!=scope["request_id"] or retry:
                     raise ValueError("public Pi session/request mismatch")
+                if factory.authority is None:raise PermissionError('public Pi authority unavailable')
+                factory.authority.authorize(request_id,scope)
                 paths=[factory.root/namespace/name for name in ("workspace","sessions","home","agent-home")]
                 for path in paths:
                     if path.is_symlink() or path.parent.is_symlink(): raise ValueError("public Pi storage symlink")
@@ -264,6 +266,7 @@ class PublicRoomPiFactory:
                     worker.start()
                     answer,metadata=worker.chat(message,on_delta,timeout_s,None,None,session_id,0,
                                        retry=False,on_progress=on_progress,request_id=request_id,images=images)
+                    factory.authority.authorize(request_id,scope)
                     if snapshot:
                         factory.authority.authorize(request_id,scope)
                         metadata={**metadata,"project_snapshot":{"project_id":scope['project_id'],

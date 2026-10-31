@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "agent_id": "public-hermes",
+  "profile": "spark-public-hermes",
+  "source": "/opt/hermes-agent",
+  "home": "/srv/spark-public/hermes",
+  "host": "127.0.0.1",
+  "port": 18644,
+  "keys_file": "/srv/spark-public/connector-keys.json",
+  "api_key_file": "/srv/spark-public/hermes-api-key",
+  "authority_origin": "http://127.0.0.1:9011",
+  "snapshots": "/srv/spark-public/snapshots",
+  "model_env_file": "/srv/spark-public/model.env",
+  "model": {
+    "provider": "your-approved-provider",
+    "default": "your-approved-model"
+  }
+}

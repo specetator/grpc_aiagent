@@ -27,7 +27,7 @@ std::string RequestId(const std::string& source,const std::string& agent) {
     return id;
 }
 }
-std::vector<AgentDefinition> ParseRoomAgentCatalog(const Json& registry,bool hermes_test) {
+std::vector<AgentDefinition> ParseRoomAgentCatalog(const Json& registry,bool hermes_test,bool hermes_public) {
     if(!registry.is_object() || registry.value("schema",0)!=1 || !registry.at("agents").is_array())
         throw std::invalid_argument("invalid room Agent registry");
     std::vector<AgentDefinition> result; std::set<std::string> ids;std::set<int64_t> bots;
@@ -44,10 +44,13 @@ std::vector<AgentDefinition> ParseRoomAgentCatalog(const Json& registry,bool her
         if(d.runtime!="pi_rpc" && d.runtime!="hermes_native") throw std::invalid_argument("unsupported room runtime");
         if(d.runtime=="hermes_native") {
             const auto profile=entry.value("profile","");
-            if(entry.value("room_test_only",false)!=true || profile.rfind("spark-room-test-",0)!=0 ||
-               entry.value("native_interactive_approvals",false))
-                throw std::invalid_argument("Hermes room Agent requires an isolated test Profile");
-            d.enabled=d.enabled && hermes_test;
+            const bool test=entry.value("room_test_only",false) && profile.rfind("spark-room-test-",0)==0;
+            const bool shared=entry.value("room_public_profile",false) && !entry.value("room_test_only",false) &&
+                profile.rfind("spark-public-",0)==0 && entry.value("room_workspace_contract",0)==1 &&
+                !entry.value("native_interactive_approvals",true);
+            if((!test && !shared) || entry.value("native_interactive_approvals",false))
+                throw std::invalid_argument("Hermes requires an isolated public or test Profile");
+            d.enabled=d.enabled && (shared?hermes_public:hermes_test);
         }
         result.push_back(d);
     }

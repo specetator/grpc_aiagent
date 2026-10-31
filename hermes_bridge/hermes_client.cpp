@@ -455,6 +455,7 @@ bool HermesClient::Chat(const nlohmann::json& messages,
         request_body = options.control;
         request_body["session_id"] = options.session_id;
         request_body["context_start_seq"] = options.context_start_seq;
+        if (options.collaboration.is_object()) request_body["collaboration"] = options.collaboration;
     }
     const std::string body = request_body.dump();
     const std::string request =

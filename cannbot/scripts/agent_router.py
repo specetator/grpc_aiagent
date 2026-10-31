@@ -526,7 +526,7 @@ class AgentRouter:
         self.store.bind_route(route, "sticky", session, saved["revision"])
         return key, saved
 
-    def _describe_route(self, session, message=None):
+    def _describe_route(self, session, message=None, *, persist=True):
         key, saved = (self._select_for_first_message(session, message)
                       if message is not None else self._selected(session))
         user_id, _ = self._identity(session)
@@ -545,7 +545,8 @@ class AgentRouter:
         if session.startswith("r_"):
             backend = (self._execution_key(session) if generic else
                        "room_" + str(scope["room_id"]) + "_" + scope["task_id"])
-        persisted = self.store.bind_route(route, mode, backend, revision)
+        persisted = (self.store.bind_route(route, mode, backend, revision) if persist else
+                     {'revision':revision,'backend_session_ref':backend})
         native = ({"runtime": "hermes_native"} if
                   getattr(self.adapters[key], "supports_native_runtime", False) else {})
         return {**route, **native, "mode": mode,
@@ -582,8 +583,14 @@ class AgentRouter:
                     raise ValueError("invalid public room identity")
             key=scope.get("agent_id")
             entry=self.entries.get(key,{})
+            # A trusted Bridge may replay a completed publication after the
+            # catalog was disabled. chat() still validates its entire input
+            # hash; Logic's durable publication fence owns final visibility.
+            terminal_replay = (isinstance(request_id, str) and
+                               self.store.get_turn(request_id).get('status') == 'completed')
             if (session!=f"r_{scope['room_id']}" or self.bot_agents.get(scope["bot_user_id"])!=key or
-                entry.get("owner_user_ids")!=[] or (entry.get("room_enabled") is not True and not control) or
+                entry.get("owner_user_ids")!=[] or
+                (entry.get("room_enabled") is not True and not control and not terminal_replay) or
                 entry.get("room_policy")!="read_only" or scope.get("policy")!="read_only" or
                 scope.get("runtime")!=entry.get("runtime") or
                 not isinstance(scope.get("source_msg_id"),str) or
@@ -602,11 +609,14 @@ class AgentRouter:
             if entry["runtime"]=="pi_rpc":
                 if self.public_room_adapter is None: raise ValueError("public Pi workspace unavailable")
             elif entry["runtime"]=="hermes_native":
-                if (os.environ.get("SPARK_PUSH_ROOM_HERMES_TEST")!="true" or
-                    entry.get("room_test_only") is not True or
-                    not str(entry.get("profile","")).startswith("spark-room-test-") or
-                    entry.get("native_interactive_approvals") is True):
-                    raise ValueError("Hermes requires an isolated test Profile")
+                test=((os.environ.get('SPARK_PUSH_ROOM_HERMES_TEST')=='true' or terminal_replay) and
+                      entry.get('room_test_only') is True and str(entry.get('profile','')).startswith('spark-room-test-'))
+                shared=((os.environ.get('SPARK_PUSH_ROOM_HERMES_PUBLIC')=='true' or terminal_replay) and
+                        entry.get('room_public_profile') is True and entry.get('room_test_only') is not True and
+                        str(entry.get('profile','')).startswith('spark-public-') and
+                        entry.get('room_workspace_contract')==1 and entry.get('native_interactive_approvals') is False)
+                if not (test or shared) or entry.get('native_interactive_approvals') is True:
+                    raise ValueError("Hermes requires an isolated public or test Profile")
             else: raise ValueError("unsupported public room runtime")
             self.room_scope.set(dict(scope))
             return
@@ -653,6 +663,26 @@ class AgentRouter:
             return {"code":0,"data":{**data,**native}}
         if operation!="status":return {"code":501,"message":"此 Runtime 尚未提供可验证的停止或审批接口"}
         return {"code":0,"data":data}
+
+    def confirm_room_reply(self, request):
+        """Bridge-only broker receipt. It is not a member-facing room control."""
+        scope=request.get('collaboration');request_id=request.get('request_id')
+        session=request.get('session_id')
+        if (request.get('operation')!='confirm_reply' or not isinstance(scope,dict) or
+            scope.get('kind')!='room_agent_v1' or scope.get('runtime')!='hermes_native'):
+            raise ValueError('invalid room Native receipt')
+        self.authorize_room(session,scope,request_id,control=True)
+        turn=self.store.get_turn(request_id);metadata=turn.get('metadata',{})
+        route=self._describe_route(session,persist=False)
+        if (turn.get('status')!='completed' or turn.get('route_key')!=route['route_key'] or
+            metadata.get('runtime')!='hermes_native' or metadata.get('actor_user_id')!=scope['actor_user_id'] or
+            metadata.get('run_id')!=request.get('run_id')):
+            raise ValueError('room receipt does not match the completed turn')
+        from hermes_native_adapter import confirm_reply_receipt
+        from hermes_adapter import hermes_endpoint
+        entry=self.entries[scope['agent_id']]
+        return confirm_reply_receipt(self.store,'hermes-native:'+scope['agent_id'],entry.get('profile'),
+            hermes_endpoint(entry['base_url']),route['backend_session_ref'],request_id,request.get('run_id'))
 
     def record_event(self, event):
         return self.store.append_event(event)
@@ -765,10 +795,8 @@ class AgentRouter:
         execution_key=self._execution_key(session_id)
         if room_scope and room_scope.get("kind")=="room_agent_v1" and request_id!=room_scope["request_id"]:
             raise ValueError("room request identity mismatch")
-        if room_scope and room_scope.get('project_id'):
-            if self.workspace_authority is None:
-                raise PermissionError('workspace authority is not configured')
-            self.workspace_authority.authorize(request_id,room_scope)
+        if room_scope and room_scope.get('kind')=='room_agent_v1' and images:
+            raise ValueError('public room Agents currently accept trusted text context only')
         started=time.monotonic()
         try:
             agent_hint,_ = self._selected(session_id)
@@ -789,9 +817,9 @@ class AgentRouter:
                 if existing.get("input_hash") != input_hash:
                     raise ValueError("request_id was reused with different Agent input")
                 metadata = dict(existing.get("metadata") or {})
-                metadata.update({"turn_replayed": True, "request_id": request_id,
-                                 "agent_route": route})
+                metadata.update({"turn_replayed": True, "request_id": request_id})
                 return existing.get("text", ""), metadata
+            self._authorize_public_scope(request_id,room_scope)
             if existing.get("status") == "unknown":
                 with self.locks.hold(execution_key, max(.001, timeout_s)):
                     recovered = self._recover_unknown(
@@ -825,8 +853,7 @@ class AgentRouter:
                         if request_id else {"status": "new"})
                 if turn["status"] == "completed":
                     metadata = dict(turn.get("metadata") or {})
-                    metadata.update({"turn_replayed": True, "request_id": request_id,
-                                     "agent_route": route})
+                    metadata.update({"turn_replayed": True, "request_id": request_id})
                     return turn.get("text", ""), metadata
                 if turn["status"] == "running":
                     raise RuntimeError("Agent 请求仍在执行或上次结果未确认，未重复调用工具")
@@ -837,8 +864,8 @@ class AgentRouter:
                     raise RuntimeError("Agent 请求先前已失败，未使用相同 request_id 重复执行")
                 self.store.append_context(execution_key, "user", message)
                 try:
+                    self._authorize_public_scope(request_id,room_scope)
                     if room_scope and room_scope.get('project_id'):
-                        self.workspace_authority.authorize(request_id,room_scope)
                         if self.entries[key]['runtime']=='hermes_native':
                             if self.project_snapshots is None:
                                 raise PermissionError('project snapshots are not configured')
@@ -859,8 +886,8 @@ class AgentRouter:
                         None, None, route["backend_session_ref"], 0, retry=retry,
                         on_progress=on_progress, request_id=request_id,
                         images=images, **native_events)
+                    self._authorize_public_scope(request_id,room_scope)
                     if room_scope and room_scope.get('project_id'):
-                        self.workspace_authority.authorize(request_id,room_scope)
                         if self.entries[key]['runtime']=='hermes_native':
                             snapshot=self.project_snapshots.load(room_scope)
                             metadata['project_snapshot']={'project_id':room_scope['project_id'],
@@ -893,10 +920,24 @@ class AgentRouter:
 
         return self.scheduler.run(execution_key, agent_hint, timeout_s, on_progress, run_turn)
 
+    def _authorize_public_scope(self, request_id, scope):
+        # Even old scopes without workspace fields need current membership
+        # before execution. Completed records return before reaching this gate.
+        if scope and (scope.get('kind')=='room_agent_v1' or scope.get('project_id')):
+            if self.workspace_authority is None:
+                raise PermissionError('workspace authority is not configured')
+            self.workspace_authority.authorize(request_id,scope)
+
     def _native_input_scope(self, key, session_id=None):
         adapter = self.adapters[key]
         if hasattr(adapter, "connection_scope"):
             return adapter.connection_scope(session_id)
+        # Disabling a catalog entry must not change an already-completed
+        # public Native request's immutable input hash on process restart.
+        entry = self.entries[key]
+        if entry.get('runtime') == 'hermes_native' and 'room_enabled' in entry:
+            return {"runtime": "hermes_native", "profile": entry.get("profile"),
+                    "endpoint_hash": hashlib.sha256(str(entry.get("base_url", "")).encode()).hexdigest()}
         if not getattr(adapter, "supports_native_runtime", False):
             return {}
         config = getattr(adapter, "config", {})
@@ -924,8 +965,7 @@ class AgentRouter:
         outcome = recover(route["backend_session_ref"], request_id, existing)
         if outcome is None:
             return None
-        if room_scope and room_scope.get('project_id'):
-            self.workspace_authority.authorize(request_id,room_scope)
+        self._authorize_public_scope(request_id,room_scope)
         text, metadata = outcome
         if room_scope and room_scope.get('project_id'):
             snapshot=self.project_snapshots.load(room_scope)

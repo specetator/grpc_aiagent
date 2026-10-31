@@ -34,30 +34,6 @@ int64_t NowMs() {
         .count();
 }
 
-uint64_t Fnv1a64(const std::string& value, uint64_t seed) {
-    uint64_t hash = seed;
-    for (const unsigned char byte : value) {
-        hash ^= byte;
-        hash *= 1099511628211ULL;
-    }
-    return hash;
-}
-
-// 事件 id 由 request_id 和序号确定性地算出来，不读随机源。
-// Kafka 重放同一条请求时，下游看到的 event_id 必须相同，
-// 否则客户端会把同一段增量当成两条。
-std::string ProjectedEventId(const std::string& request_id, int sequence) {
-    const std::string material = request_id + std::string(1, '\0') +
-                                 std::to_string(sequence);
-    const auto left = Fnv1a64(material, 1469598103934665603ULL);
-    const auto right = Fnv1a64(material, 1099511628211ULL);
-    char value[37]{};
-    std::snprintf(value, sizeof(value), "evt_%016llx%016llx",
-                  static_cast<unsigned long long>(left),
-                  static_cast<unsigned long long>(right));
-    return value;
-}
-
 void HandleSignal(int) { g_running = false; }
 
 enum class ArgResult { kOk, kHelp, kError };
@@ -611,6 +587,7 @@ class HermesBridgeRunner {
             metadata.value("runtime", "") == "hermes_native") {
             HermesChatOptions receipt;
             receipt.session_id = reply.value("session_id", "");
+            receipt.collaboration = reply.value("collaboration", nlohmann::json());
             receipt.control = {{"operation", "confirm_reply"}, {"request_id", request_id},
                                {"run_id", metadata.value("run_id", "")}};
             auto receipt_config = config_;

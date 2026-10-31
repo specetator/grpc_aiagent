@@ -149,7 +149,7 @@ bool MySqlRoomAgentRepository::SetWorkspace(int64_t room,int64_t owner,int64_t g
     });
 }
 bool MySqlRoomAgentRepository::Publication(const Json& request,const std::string& digest,
-    const PublicationDecision& decide,Json* output,std::string* error) {
+    const PublicationMatch& matches,const PublicationDecision& decide,Json* output,std::string* error) {
     return Run(pool_,error,[&](MYSQL* conn){
         room_sql::Transaction transaction(conn);
         const auto id=request.at("request_id").get<std::string>();
@@ -162,8 +162,11 @@ bool MySqlRoomAgentRepository::Publication(const Json& request,const std::string
         if(One(conn,"SELECT payload FROM room_agent_request WHERE request_id=? FOR UPDATE",{id})!=request)return false;
         const auto saved=Query(conn,"SELECT input_digest,reply FROM room_agent_publication WHERE request_id=? FOR UPDATE",{id});
         if(!saved.empty()) {
-            if(saved[0][0]!=digest){if(error)*error="conflicting Agent final payload";return false;}
-            *output=Json::parse(saved[0][1]);transaction.Commit();return true;
+            const auto original=Json::parse(saved[0][1]);
+            if(saved[0][0]!=digest && !matches(saved[0][0],original)) {
+                if(error)*error="conflicting Agent final payload";return false;
+            }
+            *output=original;transaction.Commit();return true;
         }
         const auto member=Query(conn,"SELECT role FROM group_member WHERE group_id=? AND user_id=? FOR UPDATE",{room,actor});
         const auto workspace=Query(conn,"SELECT project_id,generation FROM room_workspace WHERE room_id=? FOR UPDATE",{room});

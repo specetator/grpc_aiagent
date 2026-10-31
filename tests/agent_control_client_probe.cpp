@@ -94,6 +94,13 @@ int main(int argc, char** argv) {
         Require(client.ChatStream(image_messages, options, [&](const std::string& s) { preview += s; }, &result, &error),
                 "image streaming transport failed");
         Require(preview == "1 images: describe" && result.text == preview, "streaming image payload lost");
+        options.images=nlohmann::json::array();
+        options.session_id="r_1";
+        options.collaboration={{"kind","room_agent_v1"},{"room_id",1},{"agent_id","public-hermes"}};
+        options.control={{"operation","confirm_reply"},{"request_id","receipt-fixture"},{"run_id","run-fixture"}};
+        Require(client.Chat(nlohmann::json::array(),options,&result,&error),"room receipt lost collaboration in control body");
+        options.control["operation"]="stop";
+        Require(!client.Chat(nlohmann::json::array(),options,&result,&error),"internal receipt path allowed arbitrary room control");
         std::cout << "C++ bridge/gateway control and AgentEvent integration passed\n";
         return 0;
     } catch (const std::exception& e) {

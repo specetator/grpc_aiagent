@@ -2,6 +2,10 @@
   "schema_version": 1,
   "description": "Curated truth sources packaged for the Kernel Agent knowledge skill.",
   "sources": [
+    {"id":"public-runtime-validation","path":"docs/benchmarks/2026-10-31-public-runtime.json","authority":"snapshot","topics":["public-runtime","hermes","pi","validation","replay","publication"]},
+    {"id":"public-agent-launcher","path":"cannbot/scripts/public_agent_gateway.py","authority":"code","topics":["connector","public-runtime","isolation","startup"]},
+    {"id":"public-hermes-launcher","path":"cannbot/scripts/hermes_public_gateway.py","authority":"code","topics":["hermes","public-runtime","isolation","startup"]},
+    {"id":"public-runtime-policy","path":"cannbot/scripts/public_runtime.py","authority":"code","topics":["public-runtime","environment","credentials","locking"]},
     {"id":"optional-connector-validation","path":"docs/benchmarks/2026-10-31-optional-connector.json","authority":"snapshot","topics":["docker","connector","validation","authorization","failure-isolation"]},
     {"id":"optional-agent-connector-deployment","path":"docs/optional-agent-connector.md","authority":"canonical","topics":["docker","connector","authorization","credentials","failure-isolation"]},
     {"id":"room-project-workspace-validation","path":"docs/benchmarks/2026-10-31-room-workspaces.json","authority":"snapshot","topics":["workspace","native-tools","validation","source-revision"]},

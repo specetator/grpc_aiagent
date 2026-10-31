@@ -1,0 +1,279 @@
+{
+  "date": "2026-10-31",
+  "stage": "v0.1.0 phase 2C: public runtime launchers and real IM code collaboration",
+  "stage_accepted": true,
+  "release_accepted": false,
+  "source_base_commit": "2aa9987b6b7589aef988c8047d85525df8bbbb5d",
+  "working_tree": true,
+  "source_files_sha256": {
+    "README.md": "970e461a7e450396e62d1b0b0a5528da1a39c4e938cb09927693a88ab107072d",
+    "cannbot/knowledge-sources.json": "aef72c79a04f41c140e69e24a5eb53d5d77da39a3f308513a4a941808dda962d",
+    "cannbot/scripts/agent_router.py": "49e53c07fb1cc8c12cd54a7bb1b74fd44c1f54aadddebbf42ac4e9491b10fb75",
+    "cannbot/scripts/hermes_adapter.py": "8f59ff8e9d546694023b1320b1a6c4772f0727fa9f803876d07b2c84abbcd04a",
+    "cannbot/scripts/hermes_native_adapter.py": "3ca1b6255082e4b77fc0654af1b764940aa698552fc0b70374dd7aa2c470dd37",
+    "cannbot/scripts/hermes_public_gateway.py": "f23f31cc94c176298bb4b0bc26738f2edbc6cb4a072ae16bb7dd67622ffbcb44",
+    "cannbot/scripts/hermes_public_workspace.py": "9ef789fc17739ae57c04f989efc84b6188b268f47e5bc3238170194236dc9c1e",
+    "cannbot/scripts/pi_gateway.py": "95eb6989a0006e19d31d9afc907e6175b6807d87bc1fe2a213f9202680eea91f",
+    "cannbot/scripts/public_agent_gateway.py": "e5ec987fd98a627de973d6011f223e48f13a0db0519fc2a00cefd3808493f5cb",
+    "cannbot/scripts/public_runtime.py": "cff844b2d58da47dafbbdabf368d8cc75802c021c9471144cc4aed938de6e9f9",
+    "cannbot/scripts/room_agent.py": "74c3acafef023e29cdb63cbaf552886a0c2ade4b207b75d5de38fb919c6c0d6c",
+    "cannbot/scripts/test_generic_room_agent.py": "d595f5ea12dfcee7c0793feced95544b8c747e3059e877c9c3d584a736f0ea4f",
+    "cannbot/scripts/test_public_runtime.py": "27e0323ca15553cc895b473ca8d2a7af6df91581aac67e155a5db1b58a248cbb",
+    "common/agent_event.h": "984b1193e49164d4ea70b00e240f3f27b82ce869cfd4dd3b559e15d691df247d",
+    "deploy/agents/agents.json.example": "4993e7acf04e16ccb8ede7419730da69a963cb1d17128b2d0953ec3aa99b2346",
+    "deploy/agents/public-gateway.json.example": "a17be1c8190eb9305e502edbe7ec29fc77c96520d08eee66acfd04cedae3f855",
+    "deploy/agents/public-hermes.json.example": "4d11125c5683af2f2c463b2d24a8b48e10439ea7386fc9bbb742e7521a6f6c0f",
+    "docker-compose.agents.yml": "b2ec4dc732a402f35edd599b3b8aec89898dc37879af63a950c265f913e47cd2",
+    "docs/optional-agent-connector.md": "a0c18f3eec63bb808e529288ac1358d8634490789787837de63ac996a6addfa5",
+    "docs/room-workspaces.md": "0cba04c4aaf71f3eeda689900031e5f4349349d856ba19bec0c1b9cca34d69fa",
+    "docs/v0.1.0-delivery.md": "4d4f2e20853c632a32429e80ac2ab841e69bd80c1a29857fab19b0eb4e9a97ff",
+    "hermes_bridge/hermes_client.cpp": "13c986f0039fa6e20b40c623a9347cf891079e3f4d691c49bba677eeb529cc55",
+    "hermes_bridge/main.cpp": "728360fd184f16ecbc9c5da9976059dcae61b6f98290e8d00cb00975a3384f48",
+    "logic/main.cpp": "f98632b521eed1f8f821850d76de46a4aa903d10a323f62a7617320cdaa65688",
+    "logic/repositories/room_agent_repository.cpp": "cc5e8749e64cec17981f9a3ff955f427fa151b57334199fb286737514201ec1f",
+    "logic/repositories/room_agent_repository.h": "0a28a8ced801f3dc525e964778b2e88836c7a81f8a761480405d5303e2649fae",
+    "logic/services/room_agent_catalog.cpp": "136913701e260acc99956d4df3d933d29af0603d40e0f64c340816a547fedef2",
+    "logic/services/room_agent_service.h": "224110e044cf71004a486d2f9e277ae33ccf29156df094127de9bef49c65a328",
+    "logic/services/room_workspace_service.cpp": "2fcae161711c6851e525ff845f59efeabc2c0fbcb8a1a1a1a71dd6169eebf965",
+    "tests/CMakeLists.txt": "37ec288e2f9244d88602e961a259fce0aa0b4a7a52b4146b862df47d514c2341",
+    "tests/agent_control_client_probe.cpp": "087843d2b341087685f43e056769d3943215341bf2ca0e3ec202e8fd63c28850",
+    "tests/agent_control_integration_test.py": "44a129f75ed8f9929f92f04cec5757badead3e6ebcc9f7d16ebf1def5c08e2e0",
+    "tests/hermes_room_runtime_fixture.py": "f3b28c46786c76bec0eb2dd7874f21ea8692864e7cef0f743e36a3487fdd2f41",
+    "tests/public_room_runtime_e2e.py": "f6a607543f3e9f37371f6478b79d1ef09808da331668903a298cba0cc9d9cf64",
+    "tests/public_runtime_fixture.py": "26ef893764bd3a0022487d2a4487b3df77805eecb02b453c60e241d31948c116",
+    "tests/room_agent_service_test.cpp": "0f1e1f114f91400e53669113e392abae9920316ace6dcea430ee477ae9089e9d",
+    "tests/space_mysql_integration_test.cpp": "9172682506b5f8e546017d69329c19b02f5f93fd558288dc00d217ad5cc47757",
+    "tests/spaces_e2e.py": "2760f1e27a9801750cf1a158861e2f09608e75b4f26f4bae564d77cc4c7ac8a7"
+  },
+  "image_id": "sha256:a32d76bca6186fd1428fb82e42551a0b41d80dcd20d229e5eba7569b36ae8994",
+  "runtimes": {
+    "pi_version": "0.84.4",
+    "pi_model": "deepseek/deepseek-flash",
+    "hermes_source_commit": "67764dc0863349a384c16425e73ee8571f3a94b7",
+    "hermes_environment": "Windows Python, independent spark-public-hermes home and native Runs API; explicitly authorized model access token only",
+    "private_profile_preservation": "config.yaml, .env and auth.json hashes unchanged; private workspace/memory not imported"
+  },
+  "implementation": [
+    "operator-only public Gateway and Hermes Native launchers reuse Router, Store, Scheduler, Pi RPC and Native API",
+    "owned service directories and lifetime locks; explicit model provisioning; clean environment; disable private home/dotenv discovery",
+    "public Native HTTP whitelist, exact capability contract and read-only tool guard",
+    "current Logic membership/workspace checks before new execution and after results, including scopes with no project",
+    "completed replay validates original inputs and retains saved business metadata after catalog disable",
+    "room Native Kafka broker receipt preserves trusted scope, verifies completed turn and journal identity, requires no Native HTTP",
+    "publication v2 digest accepts only validated transport changes and returns the immutable original decision; verified old digest compatibility"
+  ],
+  "validation": {
+    "build": {
+      "command": "cmake --build build-wsl -j2",
+      "exit_code": 0,
+      "log_sha256": "b9ff1e31621a00efe0ab734cd71326c454c225ef36a20a37389cf810390ced9d"
+    },
+    "docker_build": {
+      "command": "docker build -t spark-push:public-runtime -f Dockerfile .",
+      "exit_code": 0,
+      "log_sha256": "05e98e37545d46175c7dce478c4a4dea2effe07a562f2b302cbf1d4926231962"
+    },
+    "ctest": {
+      "command": "ctest --test-dir build-wsl --output-on-failure",
+      "exit_code": 0,
+      "log_sha256": "dc073435dce9ce115509310840694329e661f1f590af02dc1a71884e4d242a35",
+      "registered": 59,
+      "passed": 55,
+      "skipped": 4,
+      "failed": 0,
+      "seconds": 92.49
+    },
+    "mysql": {
+      "command": "python3 tests/run_mysql_review_tests.py build-wsl",
+      "exit_code": 0,
+      "log_sha256": "94f42a41c1adc65d2e8088603b043a99a4f312007a9e346a10c74d8ab4b99890",
+      "passed": 2,
+      "mode": "real disposable MySQL; includes concurrent publication and old digest replay"
+    },
+    "redis": {
+      "command": "python3 tests/run_redis_review_tests.py build-wsl",
+      "exit_code": 0,
+      "log_sha256": "8197164e11f27da15e92853df761c59161c935fdc0f978de8f24b7ae0fea0ea0",
+      "passed": 2,
+      "mode": "real disposable Redis; covered production code unchanged by later publication fix"
+    },
+    "real_runtime": {
+      "command": "python3.11 tests/public_room_runtime_e2e.py --image spark-push:public-runtime --out /tmp/public-runtime.json",
+      "exit_code": 0,
+      "log_sha256": "e938f8c5b6d0cadd48f77f9b64d7cb10e189aaf99715b735789517edb37c9819",
+      "passed": 10,
+      "result": {
+        "ok": true,
+        "mode": "real Compose + public launchers + actual Pi/Hermes models; three HTTP/WS clients, not browsers",
+        "source_commit": "2aa9987b6b7589aef988c8047d85525df8bbbb5d",
+        "checks": [
+          "formal Native capabilities and HTTP whitelist deny chat/profile/tool/session bypasses",
+          "three independent users exchange real messages; normal chat does not invoke models",
+          "public-pi reads the real nonce and C++ file; all three clients see its attributed durable final",
+          "public-hermes reads the real nonce and C++ file; all three clients see its attributed durable final",
+          "original Native room broker receipt succeeds and both consumers commit without dead letters",
+          "real native tool transcripts confirm file contents; Agents use separate sessions and share one IM timeline",
+          "Native process restart reuses the owned Profile without rewriting config, model auth or identity",
+          "tasks and handoff are persisted; duplicate client messages preserve completed execution records",
+          "Kafka redelivery after revoke, catalog disable and Connector/Bridge restart preserves one original result",
+          "full Compose restart and fresh login retain final messages, claimed task and membership revocation"
+        ],
+        "tool_receipts": {
+          "pi_results": 3,
+          "hermes_results": 3,
+          "source_sha256": "491468a6c3124fcfecc84e090f0ac2ccff6af5587fbdab7242d0f15589c08c53"
+        },
+        "native_offline_before_replay": true,
+        "kafka_replay": {
+          "request_before": {
+            "0": 1,
+            "1": 0,
+            "2": 1
+          },
+          "request_after": {
+            "0": 1,
+            "1": 0,
+            "2": 3
+          },
+          "committed": {
+            "0": 1,
+            "1": -1,
+            "2": 3
+          },
+          "reply_before": {
+            "0": 0,
+            "1": 0,
+            "2": 2
+          },
+          "reply_after": {
+            "0": 0,
+            "1": 0,
+            "2": 4
+          },
+          "exact_results_replayed": 2,
+          "reply_committed": {
+            "0": -1,
+            "1": -1,
+            "2": 4
+          },
+          "independent_reply_redelivery": {
+            "0": 1,
+            "1": 0,
+            "2": 5
+          },
+          "redelivery_committed": {
+            "0": 1,
+            "1": -1,
+            "2": 5
+          }
+        },
+        "transcripts_unchanged": {
+          "pi_sessions": 1,
+          "hermes_messages": 7,
+          "hermes_sessions": 1
+        },
+        "limitations": [
+          "not browser acceptance",
+          "Windows shared storage does not prove OS read-only mounts",
+          "CANN/private Agent regression and unknown-run failure injection are separate tests"
+        ]
+      }
+    },
+    "controlled_regression": {
+      "command": "python3.11 tests/spaces_e2e.py --generic-agents --out /tmp/space-regression",
+      "exit_code": 0,
+      "log_sha256": "d75f47e4997177cca06e68679274ac280ec4bc67212463a341b56b0ae808cf31",
+      "passed": 304,
+      "mode": "real MySQL/Redis/Kafka/Logic/two Comets/Job; deterministic model adapters, not real LLM acceptance",
+      "legacy_business_checks": 93,
+      "cann": {
+        "model_adapter": "deterministic, not a real LLM",
+        "actual_test_runner": "bubblewrap + g++ precision executable",
+        "agent_executions": 7,
+        "room_members_tested": 3,
+        "peak_workspace_executions": 1
+      },
+      "generic": {
+        "agents": [
+          "public-pi",
+          "second-pi"
+        ],
+        "users": 3,
+        "runtime_mode": "controlled",
+        "requests": 4,
+        "task_revisions": 3
+      }
+    },
+    "connector_regression": {
+      "command": "python3 tests/connector_deployment_e2e.py --image spark-push:public-runtime --out /tmp/connector.json",
+      "exit_code": 0,
+      "log_sha256": "fdddaa27c28db86b9544f3b4e4efb0efdfb1f222a95cdb149b1d746c4f2913e5",
+      "passed": 16,
+      "mode": "real services without models; run before final publication-only fix",
+      "image_id": "sha256:9d21c39dc3b9c6e065ab4e0f5337b03e9f998cf648e84c6392d4d93baa800988"
+    },
+    "citations": {
+      "command": "python3 cannbot/scripts/test_pi_citations.py",
+      "exit_code": 0,
+      "log_sha256": "01a43506d267a7a8c1fa33c62440e0f358f234ab91c15370875742cf02a9f8d4"
+    },
+    "private_skill_sync": {
+      "command": "python3 cannbot/scripts/sync_pi_agent.py --check",
+      "exit_code": 1,
+      "reason": "existing private installed skills/settings differ; preserved and not overwritten"
+    },
+    "knowledge": {
+      "command": "python3 cannbot/scripts/validate_knowledge.py --strict",
+      "exit_code": 0,
+      "sources": 96,
+      "log_sha256": "98d3d3c7ec51d43ce632cd8b94abf3c286767825ea9399a7a2e745d2fa4c8951"
+    }
+  },
+  "replay_evidence_notes": [
+    "exact_results_replayed in the raw receipt means equal business results, not equal wire bytes. Entire response_metadata is compared except the four validated AgentEvent envelope transport fields.",
+    "sequence/event_id/replayed differ in real request replay. created_at_ms is Gateway event generation time; missing-terminal reconstruction changes it and is covered by C++ regression.",
+    "original request and reply consumers settle before injection; both injected requests produce replies; Logic commits those and two independently redelivered originals; both DLQs stay empty.",
+    "saved SQL publication reply/input_digest/result and complete message history remain equal. Full Pi session files and Native message/session rows are hashed before/after, not merely tool counts.",
+    "Native process is stopped and its Windows TCP port is unreachable during replay. Initial live receipt and repeated offline receipt are exercised; first pending receipt offline is a contract test."
+  ],
+  "failed_attempts_before_success": [
+    {
+      "runs": [
+        1,
+        2,
+        3,
+        4,
+        6
+      ],
+      "result": "failed",
+      "reason": "harness issues: relay rejection instead of direct Native HTTP probe, missing legacy join user_id, expected wire event type, MySQL UTF-8 client mode, and unused Kafka partition offsets"
+    },
+    {
+      "runs": [
+        5
+      ],
+      "result": "failed",
+      "reason": "real room Native broker receipt omitted trusted scope and retried successful replies; fixed and retested"
+    },
+    {
+      "runs": [
+        7,
+        8
+      ],
+      "result": "failed",
+      "reason": "real replay changed stream projection metadata; old publication digest conflicted. Fixed with v2 and verified legacy matching. Run 8 cleanup occurred before full DLQ evidence; no DLQ claim for it."
+    }
+  ],
+  "reviews": {
+    "architecture": "public launcher plan and receipt/publication fixes independently reviewed",
+    "code": "launcher boundaries, receipt and v2 digest passed independent review",
+    "test": "real run9 replay/offset/transcript evidence independently reviewed"
+  },
+  "remaining": [
+    "three independent browsers and unified Web workspace/Agent/task interaction",
+    "public Runtime cross-room concurrent/unknown-run failure injection and real CANN/private Agent model regression on release stack",
+    "Windows shared storage tests do not establish OS read-only mounts or fresh Linux installation",
+    "unverifiable transport variants of legacy cancelled publication rows remain rejected; preserve original ai_reply for investigation and never re-execute tools blindly",
+    "backup/restore, final release CI/GHCR/tag/Release and final full-product acceptance"
+  ]
+}

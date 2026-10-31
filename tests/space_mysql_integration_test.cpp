@@ -7,6 +7,8 @@
 #include "repositories/room_sql.h"
 #include "services/room_service.h"
 #include "hermes_reply.h"
+#include "agent_event.h"
+#include <openssl/sha.h>
 using namespace sparkpush;
 void Require(bool ok,const std::string& why) { if(!ok) throw std::runtime_error(why); }
 int main() {
@@ -107,6 +109,14 @@ int main() {
         Json reply;
         for(const auto* key:{"request_id","session_id","user_id","bot_user_id","collaboration"})reply[key]=request.at(key);
         reply["ok"]=true;reply["text"]="private code ' result";reply["completed_at_ms"]=123456;
+        reply["delta_count"]=2;
+        reply["response_metadata"]["agent_event"]={{"schema","sparkpush.agent_event.v1"},{"type","assistant_final"},
+            {"data",{{"text",reply["text"]}}},{"envelope",{{"schema","sparkpush.agent_envelope.v1"},
+            {"request_id",request["request_id"]},{"event_id",ProjectedEventId(request["request_id"],2)},
+            {"route_key","rt_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},{"session_key","room-public"},
+            {"tenant_id","local"},{"channel_id","spark_pc"},{"conversation_id",request["session_id"]},
+            {"thread_id","_"},{"agent_id",request["agent_id"]},{"sequence",2},{"created_at_ms",100},
+            {"replayable",true},{"terminal",true},{"replayed",false}}}};
         return reply;
     };
     auto final=finalReply(batch[0]);PreparedHermesReply original;
@@ -121,7 +131,22 @@ int main() {
     MySqlRoomAgentRepository restarted_repo(&pool,&groups,&members);
     RoomAgentService restarted(&restarted_repo,900000000001LL,true,{});
     final["completed_at_ms"]=999999;
-    Require(restarted.PublishReply(batch[0],final,original.message.content_json,&concurrent,&error) && concurrent==canonical,"restart after decision before outbox retains admitted bytes despite revocation");
+    final["delta_count"]=7;
+    auto& envelope=final["response_metadata"]["agent_event"]["envelope"];
+    envelope["sequence"]=7;envelope["event_id"]=ProjectedEventId(final["request_id"],7);envelope["replayed"]=true;
+    PreparedHermesReply replayPrepared;
+    Require(PrepareHermesReply(final.dump(),900000000401LL,"Pi",&replayPrepared,&error,&batch[0]),"prepare retransmitted final");
+    Require(restarted.PublishReply(batch[0],final,replayPrepared.message.content_json,&concurrent,&error) && concurrent==canonical,"restart and transport changes retain admitted bytes despite revocation");
+    // Emulate an existing pre-v2 row in this disposable database only.
+    const Json oldResult={{"ok",canonical.at("ok")},{"text",canonical.at("text")}};
+    const auto oldInput=Json{{"message",original.message.content_json},{"result",oldResult}}.dump();
+    unsigned char hash[SHA256_DIGEST_LENGTH];SHA256(reinterpret_cast<const unsigned char*>(oldInput.data()),oldInput.size(),hash);
+    std::string oldDigest;const char* hex="0123456789abcdef";
+    for(auto byte:hash){oldDigest+=hex[byte>>4];oldDigest+=hex[byte&15];}
+    {auto guard=pool.Acquire();room_sql::Query(guard.get(),"UPDATE room_agent_publication SET input_digest=? WHERE request_id=?",{oldDigest,batch[0]["request_id"]});}
+    Require(restarted.PublishReply(batch[0],final,replayPrepared.message.content_json,&concurrent,&error) && concurrent==canonical,"real legacy row returns immutable original on transport replay");
+    {auto guard=pool.Acquire();const auto rows=room_sql::Query(guard.get(),"SELECT input_digest FROM room_agent_publication WHERE request_id=?",{batch[0]["request_id"]});
+     Require(rows.at(0).at(0)==oldDigest,"legacy digest is never rewritten");}
     Require(!restarted.PublishReply(batch[0],final,"different canonical content",&concurrent,&error),"semantic replay conflict rejected");
     auto revokedFinal=finalReply(batch[1]);Json denied;
     Require(multi.PublishReply(batch[1],revokedFinal,"original rejected body",&denied,&error) && denied["terminal_status"]=="cancelled" && denied["ok"]==false && denied.dump().find("private code")==std::string::npos,"revoked unpublished final never retains private result");

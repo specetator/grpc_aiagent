@@ -3,6 +3,7 @@
   "default_agent": "public-pi",
   "bot_user_id": 900000000401,
   "agents": [
-    {"id":"public-pi","name":"Pi","runtime":"pi_rpc","owner_user_ids":[],"bot_user_id":900000000401,"room_enabled":true,"room_policy":"read_only"}
+    {"id":"public-pi","name":"Pi","runtime":"pi_rpc","owner_user_ids":[],"bot_user_id":900000000401,"room_enabled":true,"room_policy":"read_only"},
+    {"id":"public-hermes","name":"Hermes","runtime":"hermes_native","owner_user_ids":[],"bot_user_id":900000000402,"room_enabled":false,"room_policy":"read_only","room_public_profile":true,"profile":"spark-public-hermes","room_workspace_contract":1,"native_interactive_approvals":false,"base_url":"http://127.0.0.1:18644/v1","expected_model":"spark-public-hermes","credential_env_file":"/srv/spark-public/hermes-api.env","credential_env_key":"API_SERVER_KEY"}
   ]
 }

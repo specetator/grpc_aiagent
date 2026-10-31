@@ -224,6 +224,11 @@ def main():
             adapters={'pi':factory};public_factory=None;generic_ids=[]
             if args.generic_agents:
                 from test_generic_room_agent import Factory
+                from room_workspace import WorkspaceAuthority
+                projects=private/'projects.json';projects.write_text('{"schema":1,"projects":[]}')
+                env['SPARK_PUSH_ROOM_PROJECT_CATALOG']=str(projects)
+                env['SPARK_PUSH_WORKSPACE_AUTH_KEY']=secrets.token_hex(32)
+                room_authority=WorkspaceAuthority(base,env['SPARK_PUSH_WORKSPACE_AUTH_KEY'])
                 public_factory=Factory()
                 entries.append({'id':'public-pi','name':'Pi','runtime':'pi_rpc','owner_user_ids':[],'bot_user_id':900000000401,'room_enabled':True,'room_policy':'read_only'})
                 adapters['public-pi']=public_factory;generic_ids=['public-pi']
@@ -240,6 +245,7 @@ def main():
                     prototype=PiRpcClient([str(Path.home()/'.local/node/bin/pi'),'--provider',os.environ.get('SPARK_TEST_PI_PROVIDER','deepseek'),'--model',os.environ.get('SPARK_TEST_PI_MODEL','deepseek-flash')],ROOT,
                         {'PATH':str(Path.home()/'.local/node/bin')+os.pathsep+os.environ.get('PATH',''),'PI_CODING_AGENT_DIR':str(Path.home()/'.pi-spark-agent')},Path.home()/'.pi-spark-agent/sessions')
                     public_factory=PublicRoomPiFactory(prototype,private/'public-pi')
+                    public_factory.authority=room_authority
                 else:
                     entries.append({'id':'second-pi','name':'Pi test 2','runtime':'pi_rpc','owner_user_ids':[],'bot_user_id':900000000403,'room_enabled':True,'room_policy':'read_only'})
                     adapters['second-pi']=public_factory;generic_ids.append('second-pi')
@@ -261,6 +267,7 @@ def main():
                         def tracked_admit(*a,**kw):execution_calls.append(('hermes-native-post',a[0]));return admit(*a,**kw)
                         native._admit=tracked_admit
             router=AgentRouter(entries,adapters,AgentStore(private/'agent-state'));router.room_adapter=factory;router.public_room_adapter=public_factory
+            if args.generic_agents:router.workspace_authority=room_authority
             server=ThreadingHTTPServer(('127.0.0.1',0),make_handler(GatewayState(router,env['SPARK_PUSH_HERMES_API_KEY'],'pi-agent')));threading.Thread(target=server.serve_forever,daemon=True).start()
             env['SPARK_PUSH_AGENT_GATEWAY_PORT']=str(server.server_port)
             async def retry_authorization_outage():

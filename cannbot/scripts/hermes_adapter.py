@@ -53,6 +53,15 @@ def windows_host():
     raise RuntimeError('Windows host route unavailable')
 
 
+def hermes_endpoint(value):
+    parsed=urlparse(value)
+    if (parsed.scheme not in {'http','https'} or not parsed.hostname or parsed.username or
+        parsed.password or parsed.query or parsed.fragment):
+        raise ValueError('invalid Hermes Agent URL')
+    endpoint=value.rstrip('/')
+    return endpoint.replace('windows-host',windows_host(),1) if parsed.hostname=='windows-host' else endpoint
+
+
 class HermesHttpAdapter:
     def __init__(self, config, store):
         self.config, self.store = dict(config), store
@@ -63,13 +72,7 @@ class HermesHttpAdapter:
         self.provider_first = (config.get('provider_first') is True or
                                config.get('id') == 'hermes-android')
         parsed=urlparse(config['base_url'])
-        if (parsed.scheme not in {'http','https'} or not parsed.hostname or parsed.username or
-            parsed.password or parsed.query or parsed.fragment):
-            raise ValueError('invalid Hermes Agent URL')
-        self.base_url=config['base_url'].rstrip('/')
-        # Resolve the WSL NAT host on every service start, not a hardcoded IP.
-        if parsed.hostname=='windows-host':
-            self.base_url=self.base_url.replace('windows-host',windows_host(),1)
+        self.base_url=hermes_endpoint(config['base_url'])
         values={}
         credential=Path(config['credential_env_file'])
         for line in credential.read_text(encoding='utf-8').splitlines():
@@ -87,7 +90,9 @@ class HermesHttpAdapter:
         if config.get('transport')=='windows_stdio':
             from windows_agent_transport import WindowsRelayPool
             port=8644
-            if config.get('room_test_only') is True and str(config.get('profile','')).startswith('spark-room-test-'):
+            if ((config.get('room_test_only') is True and str(config.get('profile','')).startswith('spark-room-test-')) or
+                (config.get('room_public_profile') is True and str(config.get('profile','')).startswith('spark-public-') and
+                 config.get('room_workspace_contract')==1)):
                 if parsed.hostname!='127.0.0.1' or parsed.scheme!='http':raise ValueError('test Hermes must use Windows loopback')
                 port=parsed.port or 80
             self.relay_pool=WindowsRelayPool(config['windows_python'],port=port)
