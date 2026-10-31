@@ -262,6 +262,8 @@ class PublicRoomPiFactory:
                         SPARK_WORKSPACE_AUTH_ORIGIN=factory.authority.url.removesuffix('/internal/room-agent/authorize'),
                         SPARK_PUSH_WORKSPACE_AUTH_KEY=factory.authority.key)
                 worker=type(prototype)(argv,workspace,env,sessions)
+                worker.on_reap_failure=getattr(prototype,'on_reap_failure',None)
+                worker.verify_reaped=getattr(prototype,'verify_reaped',None)
                 try:
                     worker.start()
                     answer,metadata=worker.chat(message,on_delta,timeout_s,None,None,session_id,0,

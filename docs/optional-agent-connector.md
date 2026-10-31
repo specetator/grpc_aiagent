@@ -57,6 +57,7 @@ JSON 使用现有 Pi 格式；启动器只复制选中的 provider/model，拒�
 python3 cannbot/scripts/public_agent_gateway.py --config /srv/spark-public/public-gateway.json
 ```
 
+公共 Pi Gateway 当前仅支持 Linux；停机依赖原生进程组及 `/proc` 检查。
 此入口清理环境、固定单 worker，创建无工具的独立 Pi prototype，再调用已有
 `load_router` / `make_handler`。每个房间/Agent/授权代次使用独立原生 session。
 公共请求目前只接受 Logic 构造的文本上下文；图片没有进入公共 Agent 协议。
@@ -97,6 +98,47 @@ Linux Connector 负责创建快照。Native 仅接收 snapshot root；部署时�
 `true` 并重启公共 Gateway、重新创建 Logic。正式公共合同要求 PUBLIC 开关、
 `room_public_profile=true`、`spark-public-*`、workspace contract 1 和禁止交互式
 工具扩权；原有 `spark-room-test-*` 仍使用独立 TEST 门禁。
+
+## 停机与维护锁
+
+Linux 公共 Gateway 收到 SIGTERM/SIGINT 后停止接收请求，等待正在处理的 HTTP
+请求完成，再回收 Router 和 Pi 进程组。公共 worker 回收失败或无法检查进程状态时，
+服务目录会保留未确认标记，不能把释放锁当作数据已静止。私有 Pi/CANN 不启用此公共维护检查。
+
+两个启动器也支持 `--control-stdin`：由进程管理器保持 stdin 管道，写入一行
+`shutdown`，或关闭该管道，即开始受控停机。Windows Native 应使用这个入口，
+不要用强制终止冒充正常停机；Native 退出前会完成其原生 adapter 清理。
+停机可能等待当前请求结束，进程管理器须留出相应时间。
+
+由同一服务账号、同一原生操作系统和进程命名空间检查已停止的公共服务：
+
+```bash
+python3 cannbot/scripts/public_runtime_maintenance.py check \
+  --runtime public_gateway --config /srv/spark-public/public-gateway.json
+# Native 必须使用实际运行它的 Python；Windows 路径也由 Windows Python 解释。
+/opt/hermes-agent/venv/bin/python cannbot/scripts/public_runtime_maintenance.py check \
+  --runtime hermes_native --config /srv/spark-public/public-hermes.json
+```
+
+`check` 仅证明检查时刻已停止。自动维护协调器使用 `freeze --batch-id <32位小写十六进制>`，
+读到 `state=frozen` 后必须保持进程和 stdin；原生排他锁阻止 Runtime 重启。
+只有向 stdin 写入匹配的 `{"operation":"release","batch_id":"..."}` 后才释放。
+EOF、错误批次或 helper 退出都是失败，不能继续声称持有维护锁。
+此命令还不归档文件，也不替代 IM 与 Runtime 的整批备份恢复。
+
+强制退出、清理失败或旧 home 缺少生命周期记录时，下一次普通启动不会抹掉未确认状态。
+现有业务会话仍可继续使用，但冷备检查会拒绝。当前恢复维护资格的方法是：先安排真正的
+原生 OS 重启，待新进程停止后显式执行同一命令的 `audit-after-reboot` 操作。
+它核对原机器、boot 和进程身份，仅更新维护记录，不修改任务、账本、Session 或 unknown 状态。
+本工具不会重启主机；Windows 必须有 Windows 重启证据，重启 WSL 不等价。
+跨机器搬迁和不同 PID namespace 的同 boot 操作不支持，不能删除状态文件绕过检查。
+
+`tests/public_runtime_lifecycle_e2e.py --out /tmp/public-runtime-lifecycle.json` 使用真实
+Linux 进程验证锁、停机、强杀残留和冻结，不调用模型。可选 `--windows-python`
+验证 Windows 原生锁；再加 `--native-live` 验证本地隔离 Native API 启动和停机。
+OS 重启成功路径目前只有契约测试，没有实际重启主机的验收。
+2026-11-01 原生生命周期 9 项及真实模型链路回归 10 项通过，详见
+[停机与冻结验收回执](benchmarks/2026-11-01-runtime-shutdown.json)。
 
 ## 专用凭据
 

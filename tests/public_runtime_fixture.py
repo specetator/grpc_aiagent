@@ -31,7 +31,7 @@ class PublicHermesRuntime(HermesRoomRuntime):
             'authority_origin':self.workspace['authority'],'snapshots':self.win(Path(self.workspace['snapshots'])),
             'git_bash':self.win(Path('/mnt/f/Git/bin/bash.exe')),'port':port}
         path=self.root/'public-config.json';path.write_text(json.dumps(config));path.chmod(0o600)
-        self.command=[self.python,self.win(ROOT/'cannbot/scripts/hermes_public_gateway.py'),'--config',self.win(path)]
+        self.command=[self.python,self.win(ROOT/'cannbot/scripts/hermes_public_gateway.py'),'--config',self.win(path),'--control-stdin']
         self.launch()
         self.entry={'id':'public-hermes','name':'Hermes','runtime':'hermes_native','owner_user_ids':[],
             'bot_user_id':900000000402,'room_enabled':True,'room_policy':'read_only','room_public_profile':True,
@@ -42,7 +42,7 @@ class PublicHermesRuntime(HermesRoomRuntime):
 
     def launch(self):
         self.log=open(self.root/'runtime.log','w')
-        self.proc=subprocess.Popen(self.command,stdout=self.log,stderr=subprocess.STDOUT)
+        self.proc=subprocess.Popen(self.command,stdin=subprocess.PIPE,stdout=self.log,stderr=subprocess.STDOUT)
         for _ in range(600):
             if 'Public Hermes Native ready' in (self.root/'runtime.log').read_text(errors='replace'):return
             if self.proc.poll() is not None:raise RuntimeError('public Native startup failed; inspect owned runtime.log')
@@ -50,15 +50,20 @@ class PublicHermesRuntime(HermesRoomRuntime):
         raise TimeoutError('public Native startup timeout')
 
     def stop_process(self):
+        forced=False
         if self.proc and self.proc.poll() is None:
-            self.proc.terminate()
-            try:self.proc.wait(timeout=15)
-            except subprocess.TimeoutExpired:self.proc.kill();self.proc.wait(timeout=10)
+            try:self.proc.stdin.write(b'shutdown\n');self.proc.stdin.flush()
+            except (BrokenPipeError,OSError):pass
+            try:self.proc.wait(timeout=120)
+            except subprocess.TimeoutExpired:
+                forced=True;self.proc.kill();self.proc.wait(timeout=10)
+        if self.proc and self.proc.stdin:self.proc.stdin.close()
         if self.log:self.log.close();self.log=None
+        if forced:raise TimeoutError('public Native did not finish controlled shutdown')
 
     def close(self):
-        self.stop_process()
-        super().close()
+        try:self.stop_process()
+        finally:super().close()
 
 
 class PublicAgentGateway:

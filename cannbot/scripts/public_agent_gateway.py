@@ -4,12 +4,24 @@ import argparse
 import json
 import os
 from pathlib import Path
-import signal
+import sys
 import threading
 from http.server import ThreadingHTTPServer
 
-from public_runtime import PublicHome, clean_environment, key, model_environment, read_json
+from public_runtime import PublicHome, clean_environment, key, model_environment, read_json, install_shutdown, wait_process_group
 from room_workspace import SLUG, WorkspaceAuthority
+
+
+class PublicGatewayServer(ThreadingHTTPServer):
+    # A handler can still settle a turn in AgentStore after HTTP shutdown.
+    # server_close must join it before the launcher releases PublicHome.
+    daemon_threads = False
+    block_on_close = True
+
+    def get_request(self):
+        connection, address = super().get_request()
+        connection.settimeout(30)
+        return connection, address
 
 
 def validate_registry(registry):
@@ -44,7 +56,9 @@ def provision_models(home, pi):
     return path
 
 
-def serve(config):
+def serve(config, *, control_stdin=False):
+    if sys.platform != 'linux':
+        raise ValueError('public Pi Gateway requires Linux process-group isolation')
     if config.get('schema') != 1 or not SLUG.fullmatch(config.get('id', '')):
         raise ValueError('invalid public Gateway configuration identity')
     registry = read_json(config['registry'])
@@ -91,30 +105,35 @@ def serve(config):
                 '--model', pi['model'], '--no-tools', '--no-extensions', '--no-skills',
                 '--no-prompt-templates', '--no-themes', '--system-prompt', 'Public runtime prototype. No tools.']
         prototype = PiRpcClient(argv, prototype_root, env, sessions)
+        prototype.on_reap_failure = home.mark_unclean
+        prototype.verify_reaped = wait_process_group
         router = server = None
         try:
             prototype.start()
             router = load_router(Path(config['registry']), prototype, home.directory('router'))
-            server = ThreadingHTTPServer((config.get('host', '127.0.0.1'), config.get('port', 8643)),
+            server = PublicGatewayServer((config.get('host', '127.0.0.1'), config.get('port', 8643)),
                                         make_handler(GatewayState(router, gateway_key, 'public-room')))
             def stop(*_):
                 threading.Thread(target=server.shutdown, daemon=True).start()
-            for sig in (signal.SIGINT, signal.SIGTERM):
-                signal.signal(sig, stop)
+            install_shutdown(stop, control_stdin=control_stdin)
             print('Public Agent Gateway ready', flush=True)
             server.serve_forever()
         finally:
-            if server: server.server_close()
-            if router: router.stop()
-            prototype.stop()
+            errors = []
+            for resource, method in ((server, 'server_close'), (router, 'stop'), (prototype, 'stop')):
+                if resource:
+                    try:getattr(resource, method)()
+                    except BaseException as error:errors.append(error)
+            if errors:raise errors[0]
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', required=True)
+    parser.add_argument('--control-stdin', action='store_true')
     args = parser.parse_args()
     try:
-        serve(read_json(args.config))
+        serve(read_json(args.config), control_stdin=args.control_stdin)
     except Exception as error:
         # No parser values, paths, provider responses or credentials in logs.
         print('Public Gateway unavailable: ' + type(error).__name__ + '; check operator configuration', flush=True)

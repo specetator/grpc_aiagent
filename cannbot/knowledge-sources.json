@@ -2,6 +2,9 @@
   "schema_version": 1,
   "description": "Curated truth sources packaged for the Kernel Agent knowledge skill.",
   "sources": [
+    {"id":"public-runtime-shutdown-validation","path":"docs/benchmarks/2026-11-01-runtime-shutdown.json","authority":"snapshot","topics":["public-runtime","shutdown","locking","validation","limitations"]},
+    {"id":"public-runtime-maintenance","path":"cannbot/scripts/public_runtime_maintenance.py","authority":"code","topics":["public-runtime","shutdown","backup","locking","native-os"]},
+    {"id":"public-runtime-lifecycle-tests","path":"tests/public_runtime_lifecycle_e2e.py","authority":"code","topics":["public-runtime","shutdown","validation","native-os"]},
     {"id":"im-backup-validation","path":"docs/benchmarks/2026-11-01-im-backup-restore.json","authority":"snapshot","topics":["backup","restore","kafka","validation","limitations"]},
     {"id":"backup-restore","path":"docs/backup-restore.md","authority":"canonical","topics":["backup","restore","docker","recovery","limitations"]},
     {"id":"backup-restore-code","path":"scripts/spark_backup.py","authority":"code","topics":["backup","restore","docker","integrity"]},

@@ -5,13 +5,12 @@ import asyncio
 import json
 import os
 from pathlib import Path
-import signal
 import sys
 
-from public_runtime import PublicHome, clean_environment, key, model_environment, read_json, validate_native_policy, restrict_native_dotenv
+from public_runtime import PublicHome, clean_environment, key, model_environment, read_json, validate_native_policy, restrict_native_dotenv, install_shutdown
 
 
-async def run(config, home):
+async def run(config, home, *, control_stdin=False):
     from gateway.config import PlatformConfig
     from gateway.platforms.api_server import APIServerAdapter
     from hermes_public_workspace import public_api_adapter
@@ -46,17 +45,16 @@ async def run(config, home):
                 catalog = await response.json()
                 if {r['name'] for r in catalog['data'] if r['enabled']} != {'todo', 'spark_workspace'}:
                     raise RuntimeError('unexpected public Native tool surface')
-        print('Public Hermes Native ready', flush=True)
         stopped = asyncio.Event()
         loop = asyncio.get_running_loop()
-        for sig in (signal.SIGINT, signal.SIGTERM):
-            signal.signal(sig, lambda *_: loop.call_soon_threadsafe(stopped.set))
+        install_shutdown(lambda: loop.call_soon_threadsafe(stopped.set), control_stdin=control_stdin)
+        print('Public Hermes Native ready', flush=True)
         await stopped.wait()
     finally:
         await adapter.disconnect()
 
 
-def serve(config):
+def serve(config, *, control_stdin=False):
     import re
     if (config.get('schema') != 1 or not re.fullmatch(r'spark-public-[a-z0-9_-]{1,34}', config.get('profile', '')) or
         not re.fullmatch(r'[a-z][a-z0-9_-]{0,47}', config.get('agent_id', ''))):
@@ -116,15 +114,16 @@ def serve(config):
                 raise ValueError('use explicit public model_env_file instead of implicit profile environment files')
         from hermes_cli import env_loader
         restrict_native_dotenv(env_loader, home.root)
-        asyncio.run(run(config, home))
+        asyncio.run(run(config, home, control_stdin=control_stdin))
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config', required=True)
+    parser.add_argument('--control-stdin', action='store_true')
     args = parser.parse_args()
     try:
-        serve(read_json(args.config))
+        serve(read_json(args.config), control_stdin=args.control_stdin)
     except Exception as error:
         print('Public Hermes unavailable: ' + type(error).__name__ + '; check operator configuration', flush=True)
         return 1

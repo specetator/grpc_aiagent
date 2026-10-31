@@ -134,6 +134,29 @@ class GatewayTests(unittest.TestCase):
         else:
             self.fail("tool child survived worker cancellation")
 
+    def test_public_worker_verifies_its_real_child_group_after_timeout(self):
+        from public_runtime import wait_process_group
+        failures=[]
+        self.client.verify_reaped=wait_process_group
+        self.client.on_reap_failure=lambda:failures.append('unsafe')
+        pid_file=self.root/'public-child.pid'
+        with self.assertRaises(TimeoutError):self.chat('child:'+str(pid_file),timeout_s=.5)
+        self.assertTrue(pid_file.exists())
+        self.assertEqual(failures,[])
+        self.assertIsNone(self.client.proc)
+
+    def test_failed_public_group_verification_latches_the_home(self):
+        from public_runtime import PublicHome
+        path=self.root/'public-home'
+        identity={'runtime':'public_gateway','id':'stop-test'}
+        with PublicHome(path,identity) as home:
+            self.client.start()
+            self.client.verify_reaped=Mock(side_effect=PermissionError('unreadable process group'))
+            self.client.on_reap_failure=home.mark_unclean
+            with self.assertRaises(PermissionError):self.client.stop()
+        with PublicHome(path,identity,create=False) as home:
+            with self.assertRaises(ValueError):home.require_clean()
+
     def test_wait_timeout_does_not_stop_another_request(self):
         self.client.start()
         proc = self.client.proc

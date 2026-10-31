@@ -1,0 +1,231 @@
+{
+  "schema": 1,
+  "date": "2026-11-01",
+  "stage": "public Runtime shutdown and maintenance freeze",
+  "stage_accepted": true,
+  "release_accepted": false,
+  "source": {
+    "parent_commit": "1cc486c4adaa7a7f9d745fc9f55c9356c3e94523",
+    "tested_worktree": "candidate changes over parent; source hashes identify host Runtime code",
+    "sha256": {
+      "cannbot/scripts/public_runtime.py": "fa609938b83963c608d1e1f846e01770baeb75835b9d600c3323965c53ca78de",
+      "cannbot/scripts/public_runtime_maintenance.py": "50c7e13306235d08d992e123080c92f0bce0aa9d6097073558ef6af1b71ee275",
+      "cannbot/scripts/public_agent_gateway.py": "c7cc89fa7db3f6a5dabfa7a70ab0849f84077df47f3ca097852a27c05708b2b6",
+      "cannbot/scripts/hermes_public_gateway.py": "013e459fd353dff1570e7e1c8362c7cccb43723bcc9780023b62e695fa6aaeb9",
+      "cannbot/scripts/pi_gateway.py": "ee0a8cb68d321abee0b83344c47b9c904c1a1eb7f31cd6d8f5656b1e1f5d0e36",
+      "cannbot/scripts/room_agent.py": "43b5efc27f2b2805424c6e06535f369fd52f67cfa010eeee1cf5519fd07b5911",
+      "cannbot/scripts/agent_router.py": "775e92f3884cf4e911bb13347fbf2387de91de2852612e1b49826cf3e9792d5a",
+      "tests/public_runtime_fixture.py": "507ef74b56e5a0217f5d717621f1ad39ee5c28baeb49a0da737fa07e137e0199",
+      "tests/public_runtime_lifecycle_e2e.py": "ed7ca701e47c67111329b83ba74229c4a39a71bbf5dab7ea021c5d964b24be5b",
+      "cannbot/scripts/test_public_runtime.py": "cc8fdb26303bf709f75295a1307583c09f058a3686a072ac3af35e26c1756dd6",
+      "cannbot/scripts/test_pi_gateway.py": "41f315b2024a7a8b27ccfa00187b839165881c5c1305cee719105511e8f78e44",
+      "tests/public_room_runtime_e2e.py": "f6a607543f3e9f37371f6478b79d1ef09808da331668903a298cba0cc9d9cf64",
+      "tests/hermes_room_runtime_fixture.py": "f3b28c46786c76bec0eb2dd7874f21ea8692864e7cef0f743e36a3487fdd2f41",
+      "tests/CMakeLists.txt": "77816c39a4901f6154f5515e433b1aa25e9c7f60a1802f72d12fee0e61190a92"
+    }
+  },
+  "implementation": [
+    "HTTP handlers finish before PublicHome unlock; public Pi worker groups are verified exited",
+    "Native operator stdin shutdown uses existing adapter disconnect and process exit",
+    "lifecycle unsafe state survives failed writes and normal restart; machine, boot, process creation and namespace checked",
+    "maintenance refuses live, uncertain or unknown homes; freeze holds original native lock until matching batch release",
+    "reboot audit is explicit and only changes maintenance lifecycle, never task or session data"
+  ],
+  "review": {
+    "architect": "independent bounded design accepted",
+    "reviewer": "round 2 accepted after memory-latch, machine/namespace and process-group fixes",
+    "tester": "limited stage accepted after real EOF/malformed/wrong-batch negatives on both native OSes; no archive/restore or real reboot claim"
+  },
+  "verification": {
+    "unit": {
+      "public_runtime": 19,
+      "pi_gateway": 43,
+      "passed": true,
+      "type": "unit/contract with real local processes; fake RPC and injected faults are not model E2E"
+    },
+    "build": {
+      "command": "cmake --build build-wsl -j2",
+      "exit_code": 0
+    },
+    "ctest": {
+      "command": "ctest --test-dir build-wsl --output-on-failure",
+      "total": 62,
+      "passed": 57,
+      "skipped": 5,
+      "failed": 0,
+      "seconds": 93.3,
+      "supplements": [
+        {
+          "tests": [
+            "message_reservation_integration_test",
+            "space_mysql_integration_test"
+          ],
+          "passed": 2,
+          "environment": "fresh owned real MySQL 8.0 Docker"
+        },
+        {
+          "tests": [
+            "route_generation_integration_test",
+            "redis_sequence_integration_test"
+          ],
+          "passed": 2,
+          "environment": "fresh owned real Redis 7.2-alpine Docker"
+        },
+        {
+          "tests": [
+            "collaboration_browser_test"
+          ],
+          "passed": 1,
+          "environment": "Playwright; mocked backend UI contract, not real IM browser acceptance"
+        }
+      ],
+      "after_test_extension": "public_runtime_lifecycle_test passed again with EOF/malformed/wrong-batch coverage"
+    },
+    "native_os_lifecycle": {
+      "ok": true,
+      "mode": "real OS process/lock integration; no model invocation",
+      "checks": [
+        "posix: missing home refused; active/closed-but-alive owner refused; exited owner freezes and blocks restart without changing files",
+        "posix: EOF, malformed JSON and wrong batch fail without release success; lock is held until failure and files stay unchanged",
+        "posix: forced owner termination remains ineligible after restart; same-boot audit refused and fixture journal unchanged",
+        "posix: an actual independently grouped writer survives parent kill; maintenance refuses throughout and the owned writer is reaped",
+        "nt: missing home refused; active/closed-but-alive owner refused; exited owner freezes and blocks restart without changing files",
+        "nt: EOF, malformed JSON and wrong batch fail without release success; lock is held until failure and files stay unchanged",
+        "nt: forced owner termination remains ineligible after restart; same-boot audit refused and fixture journal unchanged",
+        "actual isolated Windows Native API starts, refuses live freeze, and reaches provably stopped state through operator stdin shutdown",
+        "original Windows model profile hashes preserved; only owned Native fixture removed"
+      ],
+      "sources": {
+        "cannbot/scripts/public_runtime.py": "fa609938b83963c608d1e1f846e01770baeb75835b9d600c3323965c53ca78de",
+        "cannbot/scripts/public_runtime_maintenance.py": "50c7e13306235d08d992e123080c92f0bce0aa9d6097073558ef6af1b71ee275",
+        "cannbot/scripts/public_agent_gateway.py": "c7cc89fa7db3f6a5dabfa7a70ab0849f84077df47f3ca097852a27c05708b2b6",
+        "cannbot/scripts/hermes_public_gateway.py": "013e459fd353dff1570e7e1c8362c7cccb43723bcc9780023b62e695fa6aaeb9",
+        "cannbot/scripts/pi_gateway.py": "ee0a8cb68d321abee0b83344c47b9c904c1a1eb7f31cd6d8f5656b1e1f5d0e36",
+        "cannbot/scripts/room_agent.py": "43b5efc27f2b2805424c6e06535f369fd52f67cfa010eeee1cf5519fd07b5911",
+        "cannbot/scripts/agent_router.py": "775e92f3884cf4e911bb13347fbf2387de91de2852612e1b49826cf3e9792d5a",
+        "tests/public_runtime_fixture.py": "507ef74b56e5a0217f5d717621f1ad39ee5c28baeb49a0da737fa07e137e0199",
+        "tests/public_runtime_lifecycle_e2e.py": "ed7ca701e47c67111329b83ba74229c4a39a71bbf5dab7ea021c5d964b24be5b"
+      }
+    },
+    "model_e2e": {
+      "command": "/tmp/spark-spaces-py311/bin/python tests/public_room_runtime_e2e.py --image spark-push:web-collaboration --out /tmp/spark-v010-runtime-shutdown-model.json",
+      "exit_code": 0,
+      "image_id": "sha256:006d0f756fe323e6558f658198c999076f32bbd380aab8697d87455b5ff3e007",
+      "image_source": "previously verified f3140bd9b21d1e529089e5c844083e316d5f85ec Web candidate; external host Runtime uses hashes above",
+      "evidence": {
+        "ok": true,
+        "mode": "real Compose + public launchers + actual Pi/Hermes models; three HTTP/WS clients, not browsers",
+        "source_commit": "1cc486c4adaa7a7f9d745fc9f55c9356c3e94523",
+        "checks": [
+          "formal Native capabilities and HTTP whitelist deny chat/profile/tool/session bypasses",
+          "three independent users exchange real messages; normal chat does not invoke models",
+          "public-pi reads the real nonce and C++ file; all three clients see its attributed durable final",
+          "public-hermes reads the real nonce and C++ file; all three clients see its attributed durable final",
+          "original Native room broker receipt succeeds and both consumers commit without dead letters",
+          "real native tool transcripts confirm file contents; Agents use separate sessions and share one IM timeline",
+          "Native process restart reuses the owned Profile without rewriting config, model auth or identity",
+          "tasks and handoff are persisted; duplicate client messages preserve completed execution records",
+          "Kafka redelivery after revoke, catalog disable and Connector/Bridge restart preserves one original result",
+          "full Compose restart and fresh login retain final messages, claimed task and membership revocation"
+        ],
+        "tool_receipts": {
+          "pi_results": 9,
+          "hermes_results": 5,
+          "source_sha256": "491468a6c3124fcfecc84e090f0ac2ccff6af5587fbdab7242d0f15589c08c53"
+        },
+        "native_offline_before_replay": true,
+        "kafka_replay": {
+          "request_before": {
+            "0": 1,
+            "1": 0,
+            "2": 1
+          },
+          "request_after": {
+            "0": 1,
+            "1": 0,
+            "2": 3
+          },
+          "committed": {
+            "0": 1,
+            "1": -1,
+            "2": 3
+          },
+          "reply_before": {
+            "0": 0,
+            "1": 0,
+            "2": 2
+          },
+          "reply_after": {
+            "0": 0,
+            "1": 0,
+            "2": 4
+          },
+          "exact_results_replayed": 2,
+          "reply_committed": {
+            "0": -1,
+            "1": -1,
+            "2": 4
+          },
+          "independent_reply_redelivery": {
+            "0": 1,
+            "1": 0,
+            "2": 5
+          },
+          "redelivery_committed": {
+            "0": 1,
+            "1": -1,
+            "2": 5
+          }
+        },
+        "transcripts_unchanged": {
+          "pi_sessions": 1,
+          "hermes_messages": 10,
+          "hermes_sessions": 1
+        },
+        "limitations": [
+          "not browser acceptance",
+          "Windows shared storage does not prove OS read-only mounts",
+          "CANN/private Agent regression and unknown-run failure injection are separate tests"
+        ]
+      }
+    },
+    "knowledge": {
+      "strict_sources": 104,
+      "citations": "passed"
+    },
+    "private_install_sync": {
+      "exit_code": 1,
+      "reason": "existing installed skills/settings drift; preserved personal installation instead of overwriting"
+    },
+    "cleanup": "owned Compose, MySQL and Redis containers removed; isolated Native profile hashes checked and owned fixture removed"
+  },
+  "attempts": [
+    {
+      "check": "Redis supplements on host",
+      "result": "not executed: redis-server executable absent",
+      "resolution": "same two tests passed against fresh owned Docker Redis; original failure log retained"
+    }
+  ],
+  "limitations": [
+    "No Runtime archive/restore or coordinated IM+Runtime backup is implemented by this stage",
+    "No actual native OS reboot performed; reboot-audit successful transition only unit contract",
+    "Public Pi Gateway now explicitly Linux-only; Windows Native uses Windows Python and native lock",
+    "Same machine/native namespace only; no cross-host restore or Windows junction/OS read-only sandbox claim",
+    "Real CANN/private Agent fault regression, unknown-run restore and release/fresh-Linux artifacts remain separate work",
+    "The 10 model checks use three HTTP/WS clients; browser supplement uses a mocked backend, neither substitutes for release browser acceptance"
+  ],
+  "local_logs": {
+    "/tmp/spark-v010-runtime-lifecycle-contract2.log": "263db96c8be1b0c47ed38b66684ca259daf783ac654e19e7724bc05c7ac3be3f",
+    "/tmp/spark-v010-runtime-lifecycle-pi2.log": "a196c27caba26eee0d68f3fa377abadeaf6fd81de2048abb83564a9a645dab6e",
+    "/tmp/spark-v010-runtime-shutdown-build.log": "83e0ea46af7bc8d5060fd9ce4c49e7cf2b9d4d5df5dc918690c83280f2e51df8",
+    "/tmp/spark-v010-runtime-shutdown-ctest.log": "0e673b144a184be7545a8c57b5fad674e3b8105e3d0cfaddeb7c7bee8219fa69",
+    "/tmp/spark-v010-runtime-shutdown-browser.log": "96f29e863c1b65e29c0200a1d1de1d9e252b9b5c13d1b2070f6bf1e84a8bddf1",
+    "/tmp/spark-v010-runtime-shutdown-mysql.log": "73dd3dd4a335f2ac568755eda6ea453f5df4b97d160092051028506531161987",
+    "/tmp/spark-v010-runtime-shutdown-redis.log": "a221076175114361caf44e6d1695695e7a30e1bd26eb2c475d5c7bc9febc44e3",
+    "/tmp/spark-v010-runtime-shutdown-redis2.log": "b4509df31be71f32ef1ac11fd6f4e46c6d5c5087b1946d94c70136ff572c7da5",
+    "/tmp/spark-v010-runtime-shutdown-sync.log": "6bce1a61aea5c376aa689eb08e2cd56882849e14966824610c6a729a63dcc11c",
+    "/tmp/spark-v010-runtime-shutdown-model.log": "e938f8c5b6d0cadd48f77f9b64d7cb10e189aaf99715b735789517edb37c9819",
+    "/tmp/spark-v010-runtime-lifecycle6.log": "35d14a626264a75d51b3cc8b13233366c5f6737bddeec4e46c7d1402f24d03a7",
+    "/tmp/spark-v010-runtime-shutdown-lifecycle-ctest2.log": "af2116d577b80b8c77b871fca6367c60e97ca4cce02df5206400cd83fe6554f0"
+  }
+}

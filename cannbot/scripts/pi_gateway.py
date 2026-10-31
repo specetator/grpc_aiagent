@@ -916,6 +916,17 @@ class PiRpcClient:
             self.pending.clear()
         if proc is None:
             return
+        try:
+            self._reap_process(proc)
+            verifier = getattr(self, 'verify_reaped', None)
+            if verifier:verifier(proc.pid)
+        except BaseException:
+            callback = getattr(self, 'on_reap_failure', None)
+            if callback:callback()
+            raise
+
+    @staticmethod
+    def _reap_process(proc):
         # start_new_session gives each worker its own process group, including
         # tools. Reap the main process and do not leave child commands running.
         try:

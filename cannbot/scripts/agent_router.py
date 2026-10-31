@@ -984,10 +984,13 @@ class AgentRouter:
         return data["text"], metadata
 
     def stop(self):
+        errors=[]
         for adapter in self.adapters.values():
             stop=getattr(adapter,"stop",None)
             if stop:
-                stop()
+                try:stop()
+                except BaseException as error:errors.append(error)
+        if errors:raise errors[0]
 
 
 def load_router(path: Path, pi, state_root: Path):
