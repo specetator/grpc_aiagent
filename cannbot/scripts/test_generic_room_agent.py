@@ -156,6 +156,53 @@ class GenericRoomTest(unittest.TestCase):
             with self.assertRaises(ValueError):self.router.confirm_room_reply(receipt)
             self.assertEqual(self.router.store.get(namespace,rid),{**record,field:value})
 
+    def test_recovered_native_room_preserves_actor_for_broker_receipt(self):
+        from hermes_native_adapter import NativeUnknown, _digest
+        entry=self.entries[1]
+        entry.update(runtime='hermes_native',profile='spark-public-example',base_url='http://127.0.0.1:18644/v1',
+                     room_public_profile=True,room_workspace_contract=1,native_interactive_approvals=False)
+        class Native:
+            supports_native_runtime=True
+            calls=0;recoveries=0
+            def chat(self,*args,**kwargs):
+                self.calls+=1
+                raise NativeUnknown('original Run admitted; response lost')
+            def recover_turn(self,*args):
+                self.recoveries+=1
+                return 'recovered answer',{'runtime':'hermes_native','run_id':'run-original','actor_user_id':999}
+        self.router=self.make_router();native=Native();self.router.adapters['second-pi']=native
+        sc={**scope(agent='second-pi'),'runtime':'hermes_native','project_id':'','workspace_generation':0}
+        with patch.dict(os.environ,{'SPARK_PUSH_ROOM_HERMES_PUBLIC':'true'}):
+            with self.assertRaises(NativeUnknown):self.call(sc)
+            self.assertEqual(self.router.store.get_turn(sc['request_id'])['status'],'unknown')
+            with self.assertRaises(ValueError):self.call({**sc,'actor_user_id':8})
+            authority=self.router.workspace_authority
+            class Revoked:
+                def authorize(self,*args):raise PermissionError('member removed')
+            self.router.workspace_authority=Revoked()
+            with self.assertRaises(PermissionError):self.call(sc)
+            self.assertEqual(native.recoveries,0)
+            self.router.workspace_authority=authority
+            _,metadata=self.call(sc)
+            self.assertEqual(metadata['actor_user_id'],sc['actor_user_id'])
+            self.assertEqual(self.router.store.get_turn(sc['request_id'])['metadata']['actor_user_id'],sc['actor_user_id'])
+            namespace='hermes-native:second-pi:run'
+            self.router.store.put(namespace,sc['request_id'],{
+                'session_id':metadata['agent_route']['backend_session_ref'],'profile':entry['profile'],
+                'endpoint_hash':_digest(entry['base_url']),'status':'completed','run_id':'run-original'})
+            receipt={'operation':'confirm_reply','session_id':'r_1','request_id':sc['request_id'],
+                     'run_id':'run-original','collaboration':sc}
+            self.router.confirm_room_reply(receipt)
+            self.assertEqual(self.router.store.get(namespace,sc['request_id'])['delivery_state'],'broker_confirmed')
+            confirmed=self.router.store.get(namespace,sc['request_id'])
+            self.router.confirm_room_reply(receipt)
+            self.assertEqual(self.router.store.get(namespace,sc['request_id']),confirmed)
+            for bad in [{**receipt,'session_id':'r_2'}, {**receipt,'run_id':'another'},
+                        {**receipt,'collaboration':{**sc,'actor_user_id':8}}]:
+                with self.assertRaises(ValueError):self.router.confirm_room_reply(bad)
+            self.call(sc)
+            self.assertEqual((native.calls,native.recoveries),(1,1))
+
     def test_no_project_scope_still_checks_current_membership(self):
         sc={**scope(),'project_id':'','workspace_generation':0}
         class Revoked:

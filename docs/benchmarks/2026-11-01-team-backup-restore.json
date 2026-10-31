@@ -1,0 +1,347 @@
+{
+  "schema": 1,
+  "date": "2026-11-01",
+  "stage": "IM and public Runtime same-machine cold backup and restore",
+  "stage_accepted": true,
+  "release_accepted": false,
+  "source": {
+    "parent_commit": "fb119187d2ca93b163ce10fb904228fc82460eee",
+    "tested_worktree": "candidate over parent; per-file hashes identify actual code",
+    "sha256": {
+      "Dockerfile": "fdf93ceb6d3751d1a665f1f283a27d6aafc33cd171741a465cf548bf7f65440a",
+      "cannbot/scripts/public_runtime.py": "aae022ecd81f055d9d39763e4eabb7a913cc6d5b0a7d5b706b17d411c1403f52",
+      "cannbot/scripts/public_runtime_archive.py": "f5a3ed240e45973b6db3a59df96631b5f1ee07a9b122823d5525c9261774a045",
+      "scripts/spark_backup.py": "92d5218565886968592b7ed4f54e55fc40b63bf8d2cc6ee15285d740a9c5910d",
+      "scripts/spark_team_backup.py": "68aae789d6dacd788daf132d9682d63e71fa6d254c40c978a0d81ab183677559",
+      "tests/public_runtime_fixture.py": "23ef72b1ca1cc5c36eaa2acc3a0a136f431045ec371d4594031597960867a09c",
+      "tests/public_room_runtime_e2e.py": "5b5210e4af84f6ce88abcdd1cd7e64eb912a9efe0313dbe3a5808dba97a763e4",
+      "tests/runtime_archive_test.py": "e25fc6f024e1a0d874aa4fd1dcac085f58e641f0786fff60057f40de1a6cbe8f",
+      "tests/runtime_archive_native_e2e.py": "ec35b0731c2c50aee837ac1efccbd04815eecfbd8a8a9b94f2d024b54ad7514a",
+      "tests/team_backup_scenario.py": "f64d3513b67577a2802b7932f8aef07d8e1ec777c5986bf4ff22132d04b364bb",
+      "tests/CMakeLists.txt": "cdc4e2629214255ba74a7ef395ad7025a659d0015b22cdd4ea1198eca834adfb",
+      "cannbot/scripts/agent_router.py": "5df425d0e0db6090c1e6b18603b698a4def31aa7acd4e29f0be84d1a2d079380",
+      "cannbot/scripts/test_generic_room_agent.py": "b3068896f935b611e4cb06c6e96ecd99c1a87e2134a80f5532b99da5f80800e5"
+    }
+  },
+  "implementation": [
+    "One batch references existing IM cold backup, public Gateway/Native ledgers and original native sessions, shared authorized snapshots and explicitly owned configuration files.",
+    "All native helpers remain locked during backup and restore. Incomplete or mismatched batches fail; targets must be absent, existing identical public configuration is reused unchanged.",
+    "Default restoration keeps Agents disabled. Native unknown and completed records are preserved; recovery uses existing Router and original run_id, with explicit DLQ operator replay when required.",
+    "Existing dlq_replay is packaged into the image; no new Agent loop or replay algorithm. Private profiles and source/venv are not archived.",
+    "Unknown room recovery restores the actor from the already validated and authorized Logic scope before persisting metadata; Runtime metadata cannot choose the actor. Broker receipt validation is unchanged."
+  ],
+  "review": {
+    "architect": "approved bounded same-machine/original-path design",
+    "reviewer": "Original three-round backup review passed; packaging/cold-activation review passed; recovered-room actor fix independently passed.",
+    "tester": "Round 2: limited 4B cold-maintenance stage accepted from actual run10/native OS evidence and matching source hashes; not full release acceptance."
+  },
+  "verification": {
+    "build": {
+      "command": "cmake --build build-wsl -j2",
+      "exit_code": 0
+    },
+    "image": {
+      "command": "docker build -t spark-push:team-backup --build-arg BUILD_JOBS=2 .",
+      "exit_code": 0,
+      "image_id": "sha256:4547d462c392bd81103a17cfbd9e61db4ee908f61c53ec7c0c0af14a795b1c38",
+      "packaged_dlq_dry_run_exit_code": 0,
+      "noexec_tmp_preserved": true
+    },
+    "contracts": {
+      "runtime_archive": 12,
+      "public_runtime": 19,
+      "im_backup": 18,
+      "passed": true,
+      "type": "synthetic state, real local processes/locks, mocked boundaries; no model acceptance",
+      "after_activation_handoff_change": "backup_contract_test and runtime_archive_test passed again",
+      "generic_room_agent": 18,
+      "actor_regression": "New regression failed with 999 != 7 before the fix; all 18 generic room contracts passed after it. Wrong actor/session/run and revoked authority remain rejected; one execution and one recovery only."
+    },
+    "ctest": {
+      "command": "SPARK_PLAYWRIGHT_MODULE=/tmp/spark-spaces-browser/node_modules/playwright ctest --test-dir build-wsl --output-on-failure",
+      "exit_code": 0,
+      "total": 63,
+      "passed": 59,
+      "skipped": 4,
+      "failed": 0,
+      "seconds": 107.48,
+      "browser": "real Playwright with mocked backend; UI contract only",
+      "supplements": [
+        {
+          "tests": [
+            "message_reservation_integration_test",
+            "space_mysql_integration_test"
+          ],
+          "passed": 2,
+          "exit_code": 0,
+          "environment": "fresh owned MySQL 8.0 container",
+          "seconds": 0.36
+        },
+        {
+          "tests": [
+            "route_generation_integration_test",
+            "redis_sequence_integration_test"
+          ],
+          "passed": 2,
+          "exit_code": 0,
+          "environment": "fresh owned Redis 7.2-alpine container",
+          "seconds": 0.15
+        }
+      ],
+      "scope": "Full rerun after the recovered-room actor metadata fix; real database supplements exercise unchanged C++ store code."
+    },
+    "native_os_archive": {
+      "ok": true,
+      "mode": "real native OS processes/archives; IM boundary stubbed only for helper-death test; no models",
+      "checks": [
+        "two actual native freeze helpers held state; killing Windows helper makes the batch unverifiable and starts no service (IM boundary stub)",
+        "actual Linux and Windows archive helpers agree on the mixed-case shared snapshot store",
+        "Windows restore holds the real byte lock through commit; a native launcher and raw lock contender are refused until release",
+        "actual restored Native API restarts from its original Profile without a model request",
+        "private Pi model files and original Windows profile hashes are unchanged; owned fixtures removed"
+      ],
+      "sources": {
+        "scripts/spark_team_backup.py": "68aae789d6dacd788daf132d9682d63e71fa6d254c40c978a0d81ab183677559",
+        "cannbot/scripts/public_runtime_archive.py": "f5a3ed240e45973b6db3a59df96631b5f1ee07a9b122823d5525c9261774a045",
+        "cannbot/scripts/public_runtime.py": "aae022ecd81f055d9d39763e4eabb7a913cc6d5b0a7d5b706b17d411c1403f52",
+        "tests/public_runtime_fixture.py": "23ef72b1ca1cc5c36eaa2acc3a0a136f431045ec371d4594031597960867a09c",
+        "tests/runtime_archive_native_e2e.py": "ec35b0731c2c50aee837ac1efccbd04815eecfbd8a8a9b94f2d024b54ad7514a"
+      }
+    },
+    "knowledge": {
+      "strict_sources": 109,
+      "citations_passed": true,
+      "installed_sync_check_exit_code": 1,
+      "sync_note": "Existing private skill/settings drift retained, not overwritten."
+    },
+    "model_e2e": {
+      "command": "python3.11 tests/public_room_runtime_e2e.py --team-backup --image spark-push:team-backup --out /tmp/spark-v010-team-backup10.json",
+      "exit_code": 0,
+      "receipt_sha256": "f3a469cfe142233f424a72e74e05ce79b0a1d45600ccc8aa4e81cfc61fb39086",
+      "ok": true,
+      "mode": "real Compose + public launchers + actual Pi/Hermes models; three HTTP/WS clients, not browsers",
+      "source_commit": "fb119187d2ca93b163ce10fb904228fc82460eee",
+      "checks": [
+        "formal Native capabilities and HTTP whitelist deny chat/profile/tool/session bypasses",
+        "three independent users exchange real messages; normal chat does not invoke models",
+        "public-pi reads the real nonce and C++ file; all three clients see its attributed durable final",
+        "public-hermes reads the real nonce and C++ file; all three clients see its attributed durable final",
+        "original Native room broker receipt succeeds and both consumers commit without dead letters",
+        "real native tool transcripts confirm file contents; Agents use separate sessions and share one IM timeline",
+        "actual Native Run completes while injected event/status loss leaves the Gateway request unknown; Bridge is stopped before backup",
+        "real IM volumes and WSL Gateway/Windows Native archives form one batch; original services remain stopped",
+        "existing Runtime targets and a corrupt Native archive are refused before creating restore targets",
+        "fresh IM and original Runtime paths restored with Agents disabled; sessions/snapshots verified and existing public configs unchanged",
+        "operator cold-starts the enabled restored stack and original public Runtimes; actual readiness and all six volume identities are verified",
+        "explicit original DLQ replay recovers the same Native Run and leaves all tool transcripts unchanged",
+        "three users relogin after cold restore; first WS handshakes and message succeed without retries, with original turns and native transcripts unchanged",
+        "Native process restart reuses the owned Profile without rewriting config, model auth or identity",
+        "tasks and handoff are persisted; duplicate client messages preserve completed execution records",
+        "Kafka redelivery after revoke, catalog disable and Connector/Bridge restart preserves one original result",
+        "full Compose restart and fresh login retain final messages, claimed task and membership revocation"
+      ],
+      "image_id": "sha256:4547d462c392bd81103a17cfbd9e61db4ee908f61c53ec7c0c0af14a795b1c38",
+      "source_sha256": {
+        "Dockerfile": "fdf93ceb6d3751d1a665f1f283a27d6aafc33cd171741a465cf548bf7f65440a",
+        "tools/dlq_replay.cpp": "23770989c65a2efe74517d0c8f1ae6ed5080a6464b455fa02824e45d544106f1",
+        "cannbot/scripts/public_runtime.py": "aae022ecd81f055d9d39763e4eabb7a913cc6d5b0a7d5b706b17d411c1403f52",
+        "cannbot/scripts/public_runtime_archive.py": "f5a3ed240e45973b6db3a59df96631b5f1ee07a9b122823d5525c9261774a045",
+        "cannbot/scripts/public_runtime_maintenance.py": "50c7e13306235d08d992e123080c92f0bce0aa9d6097073558ef6af1b71ee275",
+        "cannbot/scripts/public_agent_gateway.py": "c7cc89fa7db3f6a5dabfa7a70ab0849f84077df47f3ca097852a27c05708b2b6",
+        "cannbot/scripts/hermes_public_gateway.py": "013e459fd353dff1570e7e1c8362c7cccb43723bcc9780023b62e695fa6aaeb9",
+        "cannbot/scripts/agent_router.py": "5df425d0e0db6090c1e6b18603b698a4def31aa7acd4e29f0be84d1a2d079380",
+        "cannbot/scripts/hermes_native_adapter.py": "3ca1b6255082e4b77fc0654af1b764940aa698552fc0b70374dd7aa2c470dd37",
+        "scripts/spark_backup.py": "92d5218565886968592b7ed4f54e55fc40b63bf8d2cc6ee15285d740a9c5910d",
+        "scripts/spark_team_backup.py": "68aae789d6dacd788daf132d9682d63e71fa6d254c40c978a0d81ab183677559",
+        "tests/public_runtime_fixture.py": "23ef72b1ca1cc5c36eaa2acc3a0a136f431045ec371d4594031597960867a09c",
+        "tests/hermes_room_runtime_fixture.py": "f3b28c46786c76bec0eb2dd7874f21ea8692864e7cef0f743e36a3487fdd2f41",
+        "tests/team_backup_scenario.py": "f64d3513b67577a2802b7932f8aef07d8e1ec777c5986bf4ff22132d04b364bb",
+        "tests/public_room_runtime_e2e.py": "5b5210e4af84f6ce88abcdd1cd7e64eb912a9efe0313dbe3a5808dba97a763e4"
+      },
+      "tool_receipts": {
+        "pi_results": 3,
+        "hermes_results": 5,
+        "source_sha256": "491468a6c3124fcfecc84e090f0ac2ccff6af5587fbdab7242d0f15589c08c53"
+      },
+      "unknown_before_backup": {
+        "request_id": "ra_ab2679885e9c3bd5c4dad2ce3ff7711a408eb7177c8ad65f4174209eb13116ea",
+        "run_id": "run_c4b3ba69d436422d889f1e297a89bba6",
+        "router_status": "unknown",
+        "actual_native_status": "completed",
+        "fault": "event/status receipt loss in owned Gateway only",
+        "native_tool_count": 6,
+        "dead_letter_attempts": 3,
+        "dead_letter_payload_sha256": "5a19b24f787666ca7f6083b559080313024a402ae64de794e04ec7809182fd86"
+      },
+      "team_backup": {
+        "batch_id": "df74745da593431abfe7c0c7225227a7",
+        "source_project": "spark-public-076307b3b37d",
+        "target_project": "spark-public-076307b3b37d-restored",
+        "default_agents_enabled": false,
+        "runtime_archives": {
+          "gateway": "c44e764dc6b989fb0244394d38ceef13393b77823e557a15d8b69df517385834",
+          "hermes": "02dd11c732ab2f5545ae2bfcfc34c997ff87ef1538319c2791098c5abae13631"
+        }
+      },
+      "unknown_after_restore": {
+        "run_id": "run_c4b3ba69d436422d889f1e297a89bba6",
+        "router_status": "completed",
+        "native_transcript_unchanged": true,
+        "delivery_state": "broker_confirmed",
+        "consumer_offsets_settled": true,
+        "recovery": "operator dry-run/apply using existing dlq_replay; original DLQ retained",
+        "one_durable_final_per_user": true
+      },
+      "native_offline_before_replay": true,
+      "kafka_replay": {
+        "request_before": {
+          "0": 1,
+          "1": 0,
+          "2": 3
+        },
+        "request_after": {
+          "0": 1,
+          "1": 0,
+          "2": 5
+        },
+        "committed": {
+          "0": 1,
+          "1": -1,
+          "2": 5
+        },
+        "reply_before": {
+          "0": 1,
+          "1": 0,
+          "2": 2
+        },
+        "reply_after": {
+          "0": 1,
+          "1": 0,
+          "2": 4
+        },
+        "exact_results_replayed": 2,
+        "reply_committed": {
+          "0": 1,
+          "1": -1,
+          "2": 4
+        },
+        "independent_reply_redelivery": {
+          "0": 2,
+          "1": 0,
+          "2": 5
+        },
+        "redelivery_committed": {
+          "0": 2,
+          "1": -1,
+          "2": 5
+        }
+      },
+      "transcripts_unchanged": {
+        "pi_sessions": 1,
+        "hermes_messages": 14,
+        "hermes_sessions": 1
+      },
+      "cleanup": {
+        "owned_compose_resources_removed": true,
+        "private_pi_model_files_unchanged": true,
+        "original_windows_profile_unchanged": true,
+        "owned_native_profile_removed": true
+      },
+      "limitations": [
+        "not browser acceptance",
+        "Windows shared storage does not prove OS read-only mounts",
+        "CANN/private Agent regression is separate; no arbitrary side-effecting tool execution",
+        "unknown recovery uses controlled event/status receipt loss, not a natural outage"
+      ]
+    }
+  },
+  "earlier_attempts": [
+    {
+      "attempt": 1,
+      "exit_code": 1,
+      "result": "Stopped before IM backup: Windows Path ordering produced a different snapshot hash. Fixed ordering to exact filename strings.",
+      "receipt_sha256": "f36e5994a21696a853b9b5aa5b2ca96655d7ce5a2df60584402d1ca86a90b4fe",
+      "checks_completed": 6,
+      "image_id": null
+    },
+    {
+      "attempt": 2,
+      "exit_code": 1,
+      "result": "Complete backup and verification succeeded; WSL rename of an owned Native home failed.",
+      "receipt_sha256": "227df4f62420fe7b18d862f8c6a0c0f5ff105429feabc7156a677a908a9523a5",
+      "checks_completed": 7,
+      "image_id": null
+    },
+    {
+      "attempt": 3,
+      "exit_code": 130,
+      "result": "Primary interrupted the owned test after noticing a wrong AgentStore output-field assertion; corrected to text. Not acceptance.",
+      "receipt_sha256": "54bc7d08da2281efc5b4cd2cccc62e9ddd849248679f0446d9b389c7370cd79e",
+      "checks_completed": 1,
+      "image_id": null
+    },
+    {
+      "attempt": 4,
+      "exit_code": 1,
+      "result": "Complete backup and unknown state preserved; Windows native rename still failed. Reproduced retained SQLite probe handles and fixed all probes to close explicitly.",
+      "receipt_sha256": "e84a83b294484b47fdb1128c388bde6d076ca542c6f600c4b7c3df5343cdcdd2",
+      "checks_completed": 8,
+      "image_id": null
+    },
+    {
+      "attempt": 5,
+      "exit_code": 1,
+      "result": "Complete cold restore succeeded, including public config bytes/modes. Test wrongly expected automatic DLQ replay; original Bridge retry/DLQ contract was retained.",
+      "receipt_sha256": "668db4639fc78ea221c937155ca1bcec15f058c6e027e12ca662d7a2efaf884a",
+      "checks_completed": 11,
+      "image_id": "sha256:006d0f756fe323e6558f658198c999076f32bbd380aab8697d87455b5ff3e007"
+    },
+    {
+      "attempt": 6,
+      "exit_code": 1,
+      "result": "Complete cold restore succeeded. Temporary copied recovery binary was denied by the container noexec mount. Existing dlq_replay is now built and installed into the image; noexec remains.",
+      "receipt_sha256": "93103e2113320b337ac8026faa545c0d8330c55f14f2b4db102cc8629edcb535",
+      "checks_completed": 11,
+      "image_id": "sha256:006d0f756fe323e6558f658198c999076f32bbd380aab8697d87455b5ff3e007"
+    },
+    {
+      "attempt": 7,
+      "exit_code": 1,
+      "result": "Complete cold restore and original Native Run recovery assertions passed; immediate WS connection after hot config switch returned HTTP 502. Stage not accepted.",
+      "receipt_sha256": "e79497001734312151a47f1d2e5fb39a635a38263cc68911191e191f305324ad",
+      "checks_completed": 11,
+      "image_id": "sha256:4547d462c392bd81103a17cfbd9e61db4ee908f61c53ec7c0c0af14a795b1c38"
+    },
+    {
+      "attempt": 8,
+      "exit_code": 1,
+      "result": "Reproduced WS 502 after hot replacement of Logic while Comet/Job kept running. Recorded original run_id recovery and unchanged tool transcripts. Comet readiness was 0; during replacement Docker DNS briefly returned upstream synthetic addresses for missing logic, then the correct container IP. The cold-maintenance activation procedure is being corrected; no auth or retry bypass.",
+      "receipt_sha256": "ec0a429a3d4180151ad72a5e641986ffceb0eec128670047a56438d35a5f8abe",
+      "checks_completed": 12,
+      "image_id": "sha256:4547d462c392bd81103a17cfbd9e61db4ee908f61c53ec7c0c0af14a795b1c38"
+    },
+    {
+      "attempt": 9,
+      "exit_code": 1,
+      "result": "Cold activation, original Run recovery, first WS handshakes and message, all six volume identities, Native restart and duplicate tasks passed. Later DLQ check exposed missing actor_user_id in recovered Router metadata: the existing strict room broker receipt rejected it. Fixed only the authorized metadata assignment, leaving receipt validation intact.",
+      "receipt_sha256": "8ebf65201294089b65098d30fb810b48e07ca1dbfe25548d335c1209ab711ddf",
+      "checks_completed": 15,
+      "image_id": "sha256:4547d462c392bd81103a17cfbd9e61db4ee908f61c53ec7c0c0af14a795b1c38"
+    }
+  ],
+  "limitations": [
+    "Same machine, native platform, original Runtime paths/profile/endpoints and dependency fingerprints only; no cross-machine migration or actual OS reboot.",
+    "Native helper death uses actual Windows process termination with the IM boundary stubbed; it is a contract supplement, not full Docker failure E2E.",
+    "Model scenario uses three HTTP/WebSocket clients, not browser acceptance; browser evidence remains a separate stage.",
+    "Controlled event/status receipt loss, read-only native tools; not proof for arbitrary side-effecting tool execution or a natural network outage.",
+    "Windows shared storage does not establish OS read-only mounts or ACL migration.",
+    "CANN/private Agent/cross-room extra regressions, clean Linux install, GHCR publication and Release acceptance remain separate.",
+    "Agent activation after a cold batch must cold-restart the restored IM stack without deleting volumes; arbitrary hot replacement availability is not covered.",
+    "Already-completed historical bad records missing actor are not rewritten; preserve their publication and audit separately. No ledger reset or relaxed receipt validation."
+  ],
+  "activation_diagnostic": {
+    "actual_dns_probe": "During Logic removal, socket.getaddrinfo(logic,9100) returned 198.18.1.223 and 2001:2::1c1; two seconds later it returned the actual 172.23.0.10. Comet stream readiness remained 0 during the observation.",
+    "gateway_error": "EOF / HTTP 502 during the same maintenance window",
+    "scope": "The probe observes a real DNS/reconnect outage. It does not prove a permanent gRPC cache failure or fix arbitrary hot container replacement."
+  }
+}

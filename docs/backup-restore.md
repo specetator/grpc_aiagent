@@ -63,7 +63,113 @@ docker compose -p sparkpush-restored -f "$HOME/spark-restored/compose.json" ps
 恢复配置移除 Bridge 和授权回连服务，并关闭 Logic 的 Agent 总开关。
 旧 Kafka Agent 请求保留在队列中；在完整核实外部 Runtime 状态和幂等记录之前，
 不要手动重新启用 Agent。未知执行不得当作新任务再次运行。
-完整公共 Runtime 的成套备份恢复属于下一项交付，不以这轮 IM 结果代替。
+公共 Runtime 的成套工具见下文，不能用本轮 IM-only 测试代替它的完整验收。
+
+## 包含公共 Runtime 的整批备份
+
+`scripts/spark_team_backup.py` 复用上面的六卷冷备，以及公共 Runtime 的原生进程锁。
+真实整批恢复的 17 项检查已通过，见 [阶段回执](benchmarks/2026-11-01-team-backup-restore.json)。
+此流程只支持同一机器、原生平台、
+原 home / snapshot / Profile / endpoint 路径，不提供跨主机或个人 Agent 搬迁。
+Windows Hermes 必须由 Windows Python 归档、恢复和持锁，WSL 文件锁不能代替它。
+
+先复制 `deploy/agents/backup-plan.json.example` 到自己的私有配置目录，按实际部署
+填写一个 Gateway 和 Catalog 中的全部 Native。已停用 Native 也可能有历史执行账本，
+不能因此遗漏。纯 Pi 部署使用仅含 Pi 的 Catalog 和一个 Gateway 条目。
+
+每个条目的 `config_root` 是管理员明确指定的公共配置目录。工具只收集正式 launcher
+配置及其已知文件引用，不递归复制整个目录；所有这些文件必须位于对应 root 内。
+Native 的 `credential_file` 是 Gateway Catalog 引用的专用 `API_SERVER_KEY=...` 文件，
+必须与该 Native 的 `api_key_file` 一致。共享配置只能引用相同内容，已有文件不会改写。
+Pi 模型文件须仅包含该公共服务选中的 provider/model，环境文件只含受支持的模型变量；
+请先自行准备专用文件，备份器不会复制或整理私人模型目录。
+
+WSL 计划中的 Windows 条目使用 `platform: "nt"`，`python` 填 WSL 可执行路径，
+如 `/mnt/f/hermes/hermes-agent/venv/Scripts/python.exe`；该条目的 `config`、`config_root`
+和 `credential_file` 使用 Windows 原生绝对路径。工具会通过 `wslpath` 核对共享快照的
+物理路径。外部 Python、Pi、Hermes 源码和依赖需要保持原版本，指纹不符时拒绝恢复。
+
+安排独占维护窗口，正常停止所有公共 Gateway/Native（见
+[受控停机](optional-agent-connector.md#停机与维护锁)）。随后执行：
+
+```bash
+python3 scripts/spark_team_backup.py backup \
+  --runtime-plan /srv/spark-public/backup-plan.json --project sparkpush \
+  --env-file .env -f docker-compose.yml -f docker-compose.agents.yml \
+  --profile agents --output "$HOME/spark-backups/team-before-upgrade"
+python3 scripts/spark_team_backup.py verify "$HOME/spark-backups/team-before-upgrade"
+```
+
+工具先核对身份、实际端口、共享快照及原生停机状态，同时持有全部 Runtime 锁后，
+归档完整公共 home（包括 SQLite/WAL、请求账本和原生 Session）、Gateway 创建的
+快照及专用配置，再冷备 IM。原生锁文件不属于恢复数据。外层 `batch.json` 只有在
+所有组件完整并校验成功后才标记 complete；缺包、损坏、helper 退出或配置不一致均失败。
+**源 IM 与 Runtime 保持停机，不自动恢复运行。** 失败包不能用于完整恢复。
+目录和文件权限仅按原生文件模式保存；不迁移 Windows ACL，也不宣称已验证 Windows OS 沙箱。
+
+源项目源码、Runtime 程序/虚拟环境、私人 Profile 不在包中；项目 Catalog 和用于既有
+请求的授权快照会保留。后续新任务仍依赖管理员恢复原项目源码路径。
+备份含公共模型凭据与用户数据，须按私有密钥材料保管，不提交 Git。
+
+## 恢复完整公共批次
+
+确保源服务停止、原 Runtime home 和快照路径为空缺。需要保留旧目录时，先在相应
+原生 OS 下把它们移到另外的隔离路径；工具不会帮你覆盖或删除旧状态。专用配置文件
+可以保留，但必须与备份 SHA 相同；缺失文件会从包中恢复。不得修改 Profile、Agent ID、
+原 endpoint 或 Session 路径来绕过检查。恢复输出必须与全部 Runtime 路径分开。
+
+```bash
+python3 scripts/spark_team_backup.py restore \
+  --backup "$HOME/spark-backups/team-before-upgrade" \
+  --project sparkpush-restored --output "$HOME/spark-restored" \
+  --bind 127.0.0.1 --port 9010
+```
+
+全套预检通过后，工具在新建的原 home 中立即持有原生锁，再填充和校验；未完成目录
+保留标志并拒绝 launcher 启动。全部锁持续到 IM 恢复完成。默认 `compose.json` 仍关闭
+Agent，只提供恢复后的普通 IM。核对 `team-restore.json` 的 complete、登录、历史和任务后，
+在维护窗口停止该恢复项目，**不删除数据卷**：
+
+```bash
+docker compose -p sparkpush-restored -f "$HOME/spark-restored/compose.json" down --remove-orphans
+```
+
+再用原配置启动公共 Gateway/Native，并冷启动完整配置：
+
+```bash
+docker compose -p sparkpush-restored -f "$HOME/spark-restored/compose.agents.json" \
+  --profile agents up -d --wait
+docker compose -p sparkpush-restored -f "$HOME/spark-restored/compose.agents.json" \
+  exec -T comet python3 /app/deploy/health.py comet
+```
+
+`compose.agents.json` 是完整配置，不需要与 `compose.json` 合并。它和备份一样可能含
+已解析的私有环境值，文件权限为 0600。恢复后的 Logic 使用恢复目录里的 Catalog 副本；
+日后改 Catalog 时仍须同步 Gateway 使用的对应配置。不要同时启动源项目和恢复项目，
+它们可能使用相同的外部 Runtime 和端口。
+不要对仍运行的 disabled 栈直接执行 enabled `up`。实际测试中，热替换 Logic 的
+DNS 空窗曾让旧 Comet 流未就绪并使 WS 返回 502；本流程通过整栈冷启动避开该切换方式，
+不宣称解决了任意热替换后的连接恢复。
+
+恢复器不改写 completed/unknown、不生成新 request_id、不启动模型。重新开启原链路后，
+仍由已有 Router/Native 的恢复协议决定重放或查询；unknown 不能通过清空账本解决。
+如果 Bridge 已经耗尽重试并将原事件送入 `ai_request.dlq`，恢复不会自动重放死信。
+管理员须核对原始单条 `sparkpush.dead_letter.v1` 记录与请求，再使用镜像内已有工具：
+
+```bash
+# 将已核对的单条记录放在 Bridge 容器 /tmp/record.json，权限 0600。
+docker compose -p sparkpush-restored -f "$HOME/spark-restored/compose.agents.json" \
+  exec -T agent-bridge dlq_replay --file /tmp/record.json --topic ai_request
+# 仅在 dry-run 校验通过、原 Runtime 恢复可用后显式提交：
+docker compose -p sparkpush-restored -f "$HOME/spark-restored/compose.agents.json" \
+  exec -T agent-bridge dlq_replay --file /tmp/record.json --topic ai_request \
+  --apply --brokers kafka:29092
+```
+
+此操作保留原 request_id 和 DLQ 记录；Native unknown 通过已有 run_id 查询结果，
+不会因为恢复而创建替代 Run。不要编辑事件身份或用新请求掩盖未知状态。
+中途失败时保留本批创建的目录和未完成标志，默认不会启用 Agent；按失败原因检查后，
+仅清理本批未完成目标，再从完整包恢复，不能把部分组件当作完成。
 
 ## 验证
 
@@ -72,6 +178,13 @@ python3 tests/backup_contract_test.py
 # 使用已构建的候选镜像；测试环境 Python 3.11，实测 websockets 17.4。
 python3.11 tests/backup_restore_e2e.py --image spark-push:web-collaboration \
   --out /tmp/spark-backup-result.json
+# 合成状态的文件/锁契约，不调用模型：
+python3 tests/runtime_archive_test.py
+# 真实 Windows 原生锁/启动器；helper 死亡用例仅替换 IM 边界，不调用模型：
+python3.11 tests/runtime_archive_native_e2e.py --out /tmp/spark-native-archive-result.json
+# 真实 Compose + Pi/Hermes；需要本机已配置的隔离 Runtime 环境：
+python3.11 tests/public_room_runtime_e2e.py --team-backup \
+  --image spark-push:team-backup --out /tmp/spark-team-backup-result.json
 ```
 
 第一条是预检契约测试；第二条创建独立真实 MySQL/Redis/Kafka/IM 栈并在结束后
@@ -80,3 +193,9 @@ python3.11 tests/backup_restore_e2e.py --image spark-push:web-collaboration \
 执行结果以版本化验收回执为准；没有真实 Runtime 或跨主机测试的结果不能算作相应验收通过。
 2026-11-01 同机真实恢复 10 项、预检契约 18 项已通过，完整构建和相关 CTest
 通过；此前失败尝试及修复见 [阶段回执](benchmarks/2026-11-01-im-backup-restore.json)。
+
+公共 Runtime 整批测试使用实际 Pi/Hermes 和三个独立 HTTP/WS 客户端，17 项通过；
+Windows 原生归档/恢复锁专项 5 项通过，其中 helper 死亡用例明确替换 IM 边界。
+归档文件与锁契约 12 项通过。完整 CTest 59 项通过，4 项默认跳过的数据库测试
+已在独立真实 MySQL/Redis 补跑通过。成功与失败尝试、当前源码指纹和未覆盖项见
+[整批恢复回执](benchmarks/2026-11-01-team-backup-restore.json)，不代表完整 v0.1.0 发行验收。

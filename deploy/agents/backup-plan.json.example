@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "runtimes": [
+    {
+      "id": "gateway",
+      "runtime": "public_gateway",
+      "platform": "posix",
+      "python": "/usr/bin/python3",
+      "config": "/srv/spark-public/public-gateway.json",
+      "config_root": "/srv/spark-public"
+    },
+    {
+      "id": "hermes",
+      "runtime": "hermes_native",
+      "platform": "posix",
+      "python": "/opt/hermes-agent/venv/bin/python",
+      "config": "/srv/spark-public/public-hermes.json",
+      "config_root": "/srv/spark-public",
+      "credential_file": "/srv/spark-public/hermes-api.env"
+    }
+  ]
+}

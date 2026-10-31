@@ -8,6 +8,7 @@ Agent configuration. Requires Python 3.11, websockets, PyYAML and local runtimes
 """
 import argparse
 import asyncio
+from contextlib import closing
 import hashlib
 import json
 import os
@@ -79,9 +80,18 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--image',default='spark-push:public-runtime')
     parser.add_argument('--out',required=True,type=Path)
+    parser.add_argument('--team-backup',action='store_true',help='also restore an actual IM + public Runtime cold batch')
     args=parser.parse_args();output=args.out.resolve()
     report={'ok':False,'mode':'real Compose + public launchers + actual Pi/Hermes models; three HTTP/WS clients, not browsers',
         'source_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'checks':[]}
+    report['image_id']=subprocess.check_output(['docker','image','inspect',args.image,'--format','{{.Id}}'],text=True).strip()
+    report['source_sha256']={name:hashlib.sha256((ROOT/name).read_bytes()).hexdigest() for name in (
+        'Dockerfile','tools/dlq_replay.cpp','cannbot/scripts/public_runtime.py','cannbot/scripts/public_runtime_archive.py',
+        'cannbot/scripts/public_runtime_maintenance.py','cannbot/scripts/public_agent_gateway.py',
+        'cannbot/scripts/hermes_public_gateway.py','cannbot/scripts/agent_router.py',
+        'cannbot/scripts/hermes_native_adapter.py','scripts/spark_backup.py','scripts/spark_team_backup.py',
+        'tests/public_runtime_fixture.py','tests/hermes_room_runtime_fixture.py',
+        'tests/team_backup_scenario.py','tests/public_room_runtime_e2e.py')}
     def check(label):report['checks'].append(label);print(label,flush=True)
     with tempfile.TemporaryDirectory(prefix='spark-public-e2e-',dir='/mnt/f') as temporary:
         root=Path(temporary);root.chmod(0o755)
@@ -107,14 +117,16 @@ def main():
             SPARK_PUSH_AGENT_GATEWAY_ORIGIN=f'http://{host}:{gatewayport}')
         options=['--env-file',str(envfile),'-p','spark-public-'+secrets.token_hex(6),'-f',str(ROOT/'docker-compose.yml'),
                  '-f',str(ROOT/'docker-compose.agents.yml'),'--profile','agents']
+        cleanup_projects=[options[options.index('-p')+1]]
         def compose(*arguments,input=None):
             result=subprocess.run(['docker','compose',*options,*arguments],cwd=ROOT,env=environment,input=input,
                                   stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=300)
-            if arguments[0] in {'up','down','logs','restart'}:
+            result_output=result.stdout
+            if result.returncode or arguments[0] in {'up','down','logs','restart'}:
                 fd=os.open(output.with_suffix('.compose.private.log'),os.O_WRONLY|os.O_CREAT|os.O_APPEND,0o600)
-                with os.fdopen(fd,'w') as log:log.write(result.stdout)
+                with os.fdopen(fd,'w') as log:log.write(result_output)
             if result.returncode:raise RuntimeError('owned Compose operation failed: '+arguments[0])
-            return result.stdout
+            return result_output
         def sql(query):
             # Read-only evidence from this disposable database. Runtime inputs
             # are still created exclusively through authenticated user APIs.
@@ -127,6 +139,7 @@ def main():
         native=PublicHermesRuntime(workspace={'authority':authority,'key':keys['SPARK_PUSH_WORKSPACE_AUTH_KEY'],
                                               'snapshots':str(root/'snapshots')})
         gateway=PublicAgentGateway(root/'gateway',registry,projects,keyfile,authority,root/'snapshots',gatewayport)
+        if args.team_backup:gateway.native_fault_marker=root/'native-transport-outage'
         adapter=None;started=False
         try:
             entry=native.start();catalog['agents'][1]=entry;registry.write_text(json.dumps(catalog))
@@ -226,7 +239,7 @@ print(json.dumps(codes))
                     # inferring execution solely from an assistant statement.
                     native_db=native.root/'service/state.db'
                     def transcript_state():
-                        with sqlite3.connect(f'file:{native_db}?mode=ro',uri=True) as db:
+                        with closing(sqlite3.connect(f'file:{native_db}?mode=ro',uri=True)) as db:
                             messages=db.execute('SELECT * FROM messages ORDER BY id').fetchall()
                             sessions=db.execute('SELECT id FROM sessions ORDER BY id').fetchall()
                         pi={str(p.relative_to(root/'gateway/service/rooms')):hashlib.sha256(p.read_bytes()).hexdigest()
@@ -235,7 +248,7 @@ print(json.dumps(codes))
                             'hermes_transcript_sha256':hashlib.sha256(json.dumps([messages,sessions],default=str).encode()).hexdigest(),
                             'pi_sessions':pi}
                     transcripts=transcript_state()
-                    with sqlite3.connect(f'file:{native_db}?mode=ro',uri=True) as db:
+                    with closing(sqlite3.connect(f'file:{native_db}?mode=ro',uri=True)) as db:
                         native_tools=db.execute("SELECT content FROM messages WHERE role='tool'").fetchall()
                     assert any(nonce in str(row[0]) for row in native_tools)
                     assert any('MySqlMessageReservations::Reserve' in str(row[0]) for row in native_tools)
@@ -249,6 +262,83 @@ print(json.dumps(codes))
                     report['tool_receipts']={'pi_results':len(pi_tools),'hermes_results':len(native_tools),
                         'source_sha256':hashlib.sha256((source/'logic/message_reservation.cpp').read_bytes()).hexdigest()}
                     check('real native tool transcripts confirm file contents; Agents use separate sessions and share one IM timeline')
+                    if args.team_backup:
+                        from team_backup_scenario import roundtrip
+                        gateway.native_fault_marker.write_text('drop event/status receipts, never resubmit the real Run')
+                        unknown_payload,unknown_ack=await clients[0].send(room,'Read probe.cpp with the read tool and return its exact acceptance nonce. Do not run shell.','public-hermes')
+                        assert unknown_ack['type']=='accepted_ack'
+                        unknown_request=rid(unknown_ack['msg_id'],'public-hermes')
+                        await until(lambda:store.get_turn(unknown_request).get('status')=='unknown',60)
+                        unknown_journal=store.get('hermes-native:public-hermes:run',unknown_request)
+                        assert unknown_journal.get('status')=='unknown' and unknown_journal.get('run_id')
+                        native_result=await until(lambda:(value if (value:=adapter._get_run(unknown_journal['run_id'],5)).get('status')=='completed' else None),240)
+                        assert nonce in native_result.get('output','')
+                        await asyncio.to_thread(compose,'stop','agent-bridge')
+                        assert store.get_turn(unknown_request)['status']=='unknown'
+                        async def unknown_dead_letter():
+                            positions=await offsets('ai_request.dlq');assert sum(positions.values())==1
+                            wire=await asyncio.to_thread(compose,'exec','-T','kafka','/opt/kafka/bin/kafka-console-consumer.sh',
+                                '--bootstrap-server','kafka:29092','--topic','ai_request.dlq','--from-beginning','--max-messages','1','--timeout-ms','10000')
+                            rows=[json.loads(line) for line in wire.splitlines() if line.startswith('{')]
+                            assert len(rows)==1 and rows[0]['schema']=='sparkpush.dead_letter.v1'
+                            assert json.loads(bytes.fromhex(rows[0]['payload_hex']))['request_id']==unknown_request
+                            return rows[0]
+                        unknown_dlq=await unknown_dead_letter()
+                        transcripts=transcript_state()
+                        with closing(sqlite3.connect(f'file:{native_db}?mode=ro',uri=True)) as db:
+                            native_tools=db.execute("SELECT content FROM messages WHERE role='tool'").fetchall()
+                        report['unknown_before_backup']={'request_id':unknown_request,'run_id':unknown_journal['run_id'],
+                            'router_status':'unknown','actual_native_status':'completed','fault':'event/status receipt loss in owned Gateway only',
+                            'native_tool_count':len(native_tools),'dead_letter_attempts':unknown_dlq['attempts'],
+                            'dead_letter_payload_sha256':hashlib.sha256(bytes.fromhex(unknown_dlq['payload_hex'])).hexdigest()}
+                        check('actual Native Run completes while injected event/status loss leaves the Gateway request unknown; Bridge is stopped before backup')
+                        adapter.stop()
+                        connected_users=[client.user for client in clients]
+                        for client in clients:await client.close()
+                        clients.clear()
+                        restored_options,evidence=await asyncio.to_thread(roundtrip,root,native,gateway,options,environment,port,output,cleanup_projects,check)
+                        options[:]=restored_options
+                        report['team_backup']=evidence
+                        assert store.get_turn(unknown_request)['status']=='unknown'
+                        assert await unknown_dead_letter()==unknown_dlq
+                        # Respect the existing three-attempt/DLQ contract.
+                        # An operator explicitly replays the original record;
+                        # Router then queries its saved Native Run, never POSTs
+                        # a replacement. Use the existing admin tool packaged
+                        # with this image, preserving the noexec /tmp mount.
+                        await asyncio.to_thread(compose,'exec','-T','agent-bridge','python3','-c',
+                            'from pathlib import Path;import sys;p=Path("/tmp/spark-test-dlq.json");p.write_text(sys.stdin.read());p.chmod(0o600)',
+                            input=json.dumps(unknown_dlq))
+                        replay_command=('exec','-T','agent-bridge','dlq_replay','--file','/tmp/spark-test-dlq.json','--topic','ai_request')
+                        assert 'mode=dry-run' in await asyncio.to_thread(compose,*replay_command)
+                        assert 'Replay confirmed by Kafka' in await asyncio.to_thread(compose,*replay_command,'--apply','--brokers','kafka:29092')
+                        await until(lambda:store.get_turn(unknown_request).get('status')=='completed',90)
+                        recovered=store.get('hermes-native:public-hermes:run',unknown_request)
+                        assert recovered['run_id']==unknown_journal['run_id']
+                        assert nonce in store.get_turn(unknown_request)['text']
+                        assert transcripts==transcript_state()
+                        assert turns==[store.get_turn(request) for request in requests]
+                        await until(lambda:store.get('hermes-native:public-hermes:run',unknown_request).get('delivery_state')=='broker_confirmed',30)
+                        for topic,group in [('ai_request','spark_push_hermes_bridge'),('ai_reply','spark_push_group_hermes_reply')]:
+                            await settled(topic,group,await offsets(topic))
+                        assert await unknown_dead_letter()==unknown_dlq
+                        report['unknown_after_restore']={'run_id':recovered['run_id'],'router_status':'completed',
+                            'native_transcript_unchanged':True,'delivery_state':'broker_confirmed','consumer_offsets_settled':True,
+                            'recovery':'operator dry-run/apply using existing dlq_replay; original DLQ retained'}
+                        check('explicit original DLQ replay recovers the same Native Run and leaves all tool transcripts unchanged')
+                        for user in connected_users:
+                            user['token']=call('/api/login',user['credentials'])['token']
+                            for request in requests:assert sum(request in json.dumps(m) for m in history(user,room))==1
+                            await until(lambda:sum(unknown_request in json.dumps(m) for m in history(user,room))==1,30)
+                            clients.append(await Client(base,user).connect(room))
+                        adapter=HermesNativeAdapter(entry,AgentStore(root/'native-probe'))
+                        report['unknown_after_restore']['one_durable_final_per_user']=True
+                        _,restored_ack=await clients[0].send(room,'Cold restore reconnect: first new discussion message.')
+                        assert restored_ack['type']=='accepted_ack'
+                        for client in clients:
+                            await until(lambda:any(event.get('msg_id')==restored_ack['msg_id'] and event.get('type')=='chatroom' for event in client.events),30)
+                        assert transcripts==transcript_state()
+                        check('three users relogin after cold restore; first WS handshakes and message succeed without retries, with original turns and native transcripts unchanged')
                     owned_files=[native.root/'service'/name for name in ('.spark-public-runtime.json','config.yaml','auth.json')]
                     owned_before={p.name:hashlib.sha256(p.read_bytes()).hexdigest() for p in owned_files}
                     adapter.stop()
@@ -333,7 +423,7 @@ print(json.dumps(codes))
                     assert publication_hashes==[sql("SELECT input_digest FROM room_agent_publication WHERE request_id='"+r+"'") for r in requests]
                     assert history_before==history(c,room)
                     assert turns==[store.get_turn(r) for r in requests]
-                    with sqlite3.connect(f'file:{native_db}?mode=ro',uri=True) as db:
+                    with closing(sqlite3.connect(f'file:{native_db}?mode=ro',uri=True)) as db:
                         assert len(native_tools)==db.execute("SELECT COUNT(*) FROM messages WHERE role='tool'").fetchone()[0]
                     replay_pi=[]
                     for path in (root/'gateway/service/rooms').rglob('*.jsonl'):
@@ -344,7 +434,7 @@ print(json.dumps(codes))
                     report['transcripts_unchanged']={'pi_sessions':len(transcripts['pi_sessions']),
                         'hermes_messages':transcripts['hermes_messages'],'hermes_sessions':transcripts['hermes_sessions']}
                     for topic in ('ai_request.dlq','ai_reply.dlq'):
-                        assert sum((await offsets(topic)).values())==0,topic
+                        assert sum((await offsets(topic)).values())==(1 if args.team_backup and topic=='ai_request.dlq' else 0),topic
                     for request in requests:assert sum(request in json.dumps(m) for m in history(c,room))==1
                     check('Kafka redelivery after revoke, catalog disable and Connector/Bridge restart preserves one original result')
                     for client in clients:await client.close()
@@ -371,10 +461,16 @@ print(json.dumps(codes))
                     target=output.with_suffix(suffix);shutil.copyfile(source_path,target);target.chmod(0o600)
             native.close()
             if started:
-                try:compose('logs','--no-color','--tail','150','logic','agent-bridge')
-                finally:compose('down','-v','--remove-orphans')
+                try:compose('logs','--no-color','--tail','200','logic','comet','gateway','job','agent-bridge')
+                finally:
+                    from team_backup_scenario import cleanup_project
+                    for project in cleanup_projects:cleanup_project(project)
+            report['cleanup']={'owned_compose_resources_removed':started,
+                'private_pi_model_files_unchanged':True,'original_windows_profile_unchanged':True,
+                'owned_native_profile_removed':not native.root.exists()}
             report['limitations']=['not browser acceptance','Windows shared storage does not prove OS read-only mounts',
-                'CANN/private Agent regression and unknown-run failure injection are separate tests']
+                'CANN/private Agent regression is separate; no arbitrary side-effecting tool execution',
+                'unknown recovery uses controlled event/status receipt loss, not a natural outage' if args.team_backup else 'unknown-run failure injection is separate']
             output.write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
             print(json.dumps({'ok':report['ok'],'checks':len(report['checks'])}),flush=True)
 

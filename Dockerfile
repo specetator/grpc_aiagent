@@ -24,7 +24,7 @@ COPY web_demo/CMakeLists.txt web_demo/web_server.cpp web_demo/
 ARG BUILD_JOBS=2
 RUN cmake -S . -B /build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
     && cmake --build /build --parallel ${BUILD_JOBS} --target \
-       logic_server comet_server job_server web_demo_server hermes_bridge
+       logic_server comet_server job_server web_demo_server hermes_bridge dlq_replay
 
 FROM ubuntu:22.04 AS runtime
 ENV DEBIAN_FRONTEND=noninteractive SPARK_LOG_CONSOLE=1 PYTHONDONTWRITEBYTECODE=1
@@ -34,7 +34,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -g 10001 spark && useradd -u 10001 -g spark -m spark
 WORKDIR /app
-COPY --from=build /build/logic/logic_server /build/comet/comet_server /build/job/job_server /build/web_demo/web_demo_server /build/hermes_bridge/hermes_bridge /usr/local/bin/
+COPY --from=build /build/logic/logic_server /build/comet/comet_server /build/job/job_server /build/web_demo/web_demo_server /build/hermes_bridge/hermes_bridge /build/tools/dlq_replay /usr/local/bin/
 COPY deploy /app/deploy
 COPY conf /app/conf
 COPY sql /app/sql

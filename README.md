@@ -80,6 +80,9 @@ Pi/Hermes 授权代码读取、三 HTTP/WS 用户、Kafka 重投与整栈重启�
 [公共 Runtime 回执](docs/benchmarks/2026-10-31-public-runtime.json)。
 统一 Web 已通过真实三独立浏览器、Pi/Hermes、任务交接、Job 延迟落库、断网和整栈重启验收，见
 [Web 阶段回执](docs/benchmarks/2026-11-01-web-collaboration.json)。整版 v0.1.0 发行验收仍在进行。
+同机 IM 与公共 Pi/Hermes 的成套冷备、原路径恢复及原 Run 查询恢复已通过真实链路
+17 项检查，见 [恢复回执](docs/benchmarks/2026-11-01-team-backup-restore.json)。启用恢复后的
+Agent 需保留卷并冷启动整栈；本流程不覆盖任意热替换，也不复制私人 Profile。
 配置和回滚步骤见该文档，勿直接替换正在使用的联系人或 Profile。
 
 - `accepted_ack`：持久化事件已获 Kafka broker 确认；不等于历史已入 SQL或接收者已收到。

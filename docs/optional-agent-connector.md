@@ -21,10 +21,13 @@ Connector 创建快照。配置目录只读挂载，可用 `.env` 的
 `SPARK_PUSH_AGENT_CONFIG_DIR` 指向其他目录。普通房间成员不能编辑此目录。
 Catalog 的 bot ID 必须独立且未被真人账号占用；冲突会关闭本次公共 Agent 配置，
 不会覆盖真人账号。正式部署应预先配置计划使用的 Agent 身份，后续不复用已有 ID。
+首次启用或修改会替换 Logic 的配置，需要维护窗口。已有 IM 先用正在运行的配置
+执行 `docker compose down --remove-orphans`，不使用 `-v`；再用完整配置冷启动。
+热替换 Logic 曾出现 DNS 空窗和 Comet 重连未就绪，当前不承诺无中断配置切换。
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.agents.yml \
-  --profile agents up -d
+  --profile agents up -d --wait
 ```
 
 - 用户仍通过 9010 使用 Web、API 和 WebSocket。
@@ -95,7 +98,7 @@ Linux Connector 负责创建快照。Native 仅接收 snapshot root；部署时�
 防护**。不要据此开放不受控工具执行。公共工具边界和 OS 沙箱是两种不同证据。
 
 确认隔离 Native 可用后，再将 Catalog 中 `public-hermes.room_enabled` 改为
-`true` 并重启公共 Gateway、重新创建 Logic。正式公共合同要求 PUBLIC 开关、
+`true` 并在维护窗口内重启公共 Gateway、冷启动 IM 栈。正式公共合同要求 PUBLIC 开关、
 `room_public_profile=true`、`spark-public-*`、workspace contract 1 和禁止交互式
 工具扩权；原有 `spark-room-test-*` 仍使用独立 TEST 门禁。
 
@@ -168,14 +171,17 @@ Catalog、项目、授权 key、Gateway origin 或公共 schema 校验失败时�
 Kafka ACK、历史或补推。
 
 配置错误不删除旧任务、绑定、请求或发布决定；排队请求保留，未发布结果不会
-仅因配置错误被持久标记为取消。只修正 Catalog 或项目列表时重新创建 Logic：
+仅因配置错误被持久标记为取消。修正 Catalog、项目列表或升级时，安排维护窗口，
+保留卷并冷启动整栈，避免只替换 Logic 后旧 gRPC 客户端仍未就绪：
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.agents.yml \
-  --profile agents up -d --no-deps --force-recreate logic
+  --profile agents down --remove-orphans
+docker compose -f docker-compose.yml -f docker-compose.agents.yml \
+  --profile agents up -d --wait
 ```
 
-更改 Gateway origin/key 时，同时重新创建 `logic agent-bridge`，并同步更新、
+更改 Gateway origin/key 时，按上述维护步骤重新启动整栈，并同步更新、
 重启独立 Connector；更改 workspace authorization key 时也须更新使用它的
 Connector/Native 服务。导出新凭据到新的私有文件后再交给运行时，不能认为重建
 Logic 会自动更新宿主进程。当前密钥覆盖回归验证 Logic 与导出值一致，未将其

@@ -253,3 +253,5 @@ add_test(NAME public_runtime_lifecycle_test COMMAND ${Python3_EXECUTABLE} ${PROJ
 set_tests_properties(public_runtime_lifecycle_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 60)
 add_test(NAME backup_contract_test COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/backup_contract_test.py)
 set_tests_properties(backup_contract_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 30)
+add_test(NAME runtime_archive_test COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/runtime_archive_test.py)
+set_tests_properties(runtime_archive_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 60)

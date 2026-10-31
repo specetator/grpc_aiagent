@@ -170,6 +170,12 @@ Bridge 只有 `ai_reply` 的 SendAndWait 成功后才通过内部 `confirm_reply
 回执失败会重试同一缓存结果及回执；IM 继续按 request_id 幂等。它不是 delivered_ack 或已读状态。
 崩溃可能令本地回执暂时落后于 Kafka 事实，不能把 `result_ready` 解读成“Kafka 一定未收到”。
 
+房间 unknown 恢复也从 Logic 的已校验、已授权 scope 写入 `actor_user_id`，并在
+Runtime metadata 合并后覆盖同名字段，同时保存到 turn。否则答案虽已发布，
+房间 broker receipt 仍会因缺少权威发起者而失败。本修复不放宽 receipt 的
+actor/session/run 校验，不改写已经 completed 且缺 actor 的旧坏记录，也不重新执行它们；
+旧记录须保留原 publication，另行审计处理，不能通过清空账本恢复。
+
 Spark 仍是至少一次消息处理加幂等结果账本，**没有端到端 exactly-once**。
 
 ### 故障窗口

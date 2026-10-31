@@ -55,6 +55,29 @@ def clean_environment(home):
     return values
 
 
+def runtime_lock(path, *, create=False, exclusive=False):
+    """Use the same native lock for a launcher, freeze or fresh restore."""
+    path = Path(path)
+    if path.is_symlink() or (path.exists() and (not path.is_file() or path.stat().st_nlink != 1)):
+        raise ValueError('invalid public runtime lock')
+    stream = path.open('x+b' if exclusive else 'a+b' if create else 'r+b')
+    try:
+        stream.seek(0)
+        if os.name == 'nt':
+            import msvcrt
+            if not path.stat().st_size:
+                if not (create or exclusive):raise ValueError('maintenance cannot initialize a Windows runtime lock')
+                stream.write(b'0');stream.flush();stream.seek(0)
+            msvcrt.locking(stream.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(stream, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return stream
+    except BaseException:
+        stream.close()
+        raise
+
+
 class PublicHome:
     """Refuse unknown directories; hold a process lock for the service lifetime."""
     def __init__(self, path, identity, *, create=True):
@@ -135,6 +158,8 @@ class PublicHome:
         self.write_state(value)
 
     def __enter__(self):
+        if (self.root / '.spark-restore-incomplete').exists():
+            raise ValueError('public Runtime restore is incomplete')
         if self.create:
             self.root.mkdir(parents=True, exist_ok=True, mode=0o700)
         elif not self.root.is_dir():
@@ -152,19 +177,8 @@ class PublicHome:
             raise ValueError('public runtime lock cannot be a symlink')
         if not self.create and (not lock_path.is_file() or lock_path.stat().st_nlink != 1):
             raise ValueError('maintenance requires the existing public runtime lock')
-        self.lock = lock_path.open('a+b' if self.create else 'r+b')
-        self.lock.seek(0)
+        self.lock = runtime_lock(lock_path, create=self.create)
         try:
-            if os.name == 'nt':
-                import msvcrt
-                if not lock_path.stat().st_size:
-                    if not self.create:
-                        raise ValueError('maintenance cannot initialize a Windows runtime lock')
-                    self.lock.write(b'0'); self.lock.flush(); self.lock.seek(0)
-                msvcrt.locking(self.lock.fileno(), msvcrt.LK_NBLCK, 1)
-            else:
-                import fcntl
-                fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
             if marker.exists():
                 if read_json(marker) != self.identity:
                     raise ValueError('public home identity changed')

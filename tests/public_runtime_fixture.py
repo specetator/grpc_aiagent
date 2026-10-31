@@ -1,5 +1,6 @@
 """Opt-in real public launchers; no fake runtime or permission authority."""
 import json
+import hashlib
 import os
 from pathlib import Path
 import secrets
@@ -77,9 +78,45 @@ class PublicAgentGateway:
 
     def start(self):
         self.root.mkdir(mode=0o700,exist_ok=True)
+        # Explicit test provisioning into owned public files. The backup
+        # utility must never copy an entire private provider catalog or .env.
+        if not (self.root/'public-models.json').exists():
+            sys.path.insert(0,str(ROOT/'cannbot/scripts'))
+            from public_runtime import model_environment
+            pi=self.config['pi'];source=Path(pi['models_file']);environment=Path(pi['model_env_file'])
+            self.private_hashes={path:hashlib.sha256(path.read_bytes()).hexdigest() for path in (source,environment)}
+            provider=json.loads(source.read_text())['providers'][pi['provider']]
+            selected={**provider,'models':[m for m in provider['models'] if m['id']==pi['model']]}
+            (self.root/'public-models.json').write_text(json.dumps({'providers':{pi['provider']:selected}}))
+            (self.root/'public-model.env').write_text(''.join(k+'='+v+'\n' for k,v in model_environment(environment).items()))
+            for name in ('public-models.json','public-model.env'):(self.root/name).chmod(0o600)
+        self.config['pi'].update(models_file=str(self.root/'public-models.json'),model_env_file=str(self.root/'public-model.env'))
         path=self.root/'config.json';path.write_text(json.dumps(self.config));path.chmod(0o600)
         self.log=open(self.root/'gateway.log','w')
-        self.proc=subprocess.Popen([sys.executable,str(ROOT/'cannbot/scripts/public_agent_gateway.py'),'--config',str(path)],
+        command=[sys.executable,str(ROOT/'cannbot/scripts/public_agent_gateway.py'),'--config',str(path)]
+        if getattr(self,'native_fault_marker',None):
+            # Fault injection loses real Native event/status responses in this
+            # owned Gateway process. Admission and model/tool execution remain
+            # real; no response, authorization or successful result is mocked.
+            bootstrap=self.root/'fault-gateway.py'
+            bootstrap.write_text('''import sys
+from pathlib import Path
+sys.path.insert(0,sys.argv[1])
+from hermes_native_adapter import HermesNativeAdapter,NativeUnknown
+from public_agent_gateway import main
+marker=Path(sys.argv[2]);original_read=HermesNativeAdapter._read_events;original_recover=HermesNativeAdapter.recover_turn
+def read(self,*args,**kwargs):
+ if marker.exists():raise NativeUnknown('Injected loss after actual Native admission')
+ return original_read(self,*args,**kwargs)
+def recover(self,*args,**kwargs):
+ if marker.exists():raise NativeUnknown('Injected Native status transport outage')
+ return original_recover(self,*args,**kwargs)
+HermesNativeAdapter._read_events=read;HermesNativeAdapter.recover_turn=recover
+sys.argv=[sys.argv[0],*sys.argv[3:]]
+raise SystemExit(main())
+''')
+            command=[sys.executable,str(bootstrap),str(ROOT/'cannbot/scripts'),str(self.native_fault_marker),'--config',str(path)]
+        self.proc=subprocess.Popen(command,
                                    stdout=self.log,stderr=subprocess.STDOUT,start_new_session=True)
         for _ in range(300):
             if 'Public Agent Gateway ready' in (self.root/'gateway.log').read_text(errors='replace'):return
@@ -93,3 +130,5 @@ class PublicAgentGateway:
             try:self.proc.wait(timeout=15)
             except subprocess.TimeoutExpired:os.killpg(self.proc.pid,signal.SIGKILL);self.proc.wait(timeout=10)
         if self.log:self.log.close();self.log=None
+        if hasattr(self,'private_hashes') and any(hashlib.sha256(p.read_bytes()).hexdigest()!=h for p,h in self.private_hashes.items()):
+            raise RuntimeError('private Pi model configuration changed during fixture')

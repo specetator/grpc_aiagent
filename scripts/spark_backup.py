@@ -397,7 +397,7 @@ def verify(directory):
     return directory, manifest, config
 
 
-def restore(args):
+def restore_preflight(args):
     directory, manifest, config = verify(args.backup)
     if not PROJECT.fullmatch(args.project):
         raise ValueError('invalid target Compose project name')
@@ -425,6 +425,11 @@ def restore(args):
             image = inspect('image', record['id'])
         if not image or image['Os'] != record['os'] or image['Architecture'] != record['architecture']:
             raise ValueError('restoration requires the original image and platform')
+    return directory, manifest, config, target, names
+
+
+def restore(args):
+    directory, manifest, config, target, names = restore_preflight(args)
     config = copy.deepcopy(config)
     config['name'] = args.project
     for network in config.get('networks', {}).values():

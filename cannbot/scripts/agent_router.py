@@ -974,6 +974,8 @@ class AgentRouter:
         data = self._decorate(key, {"text": text})
         metadata = {**metadata, "agent_state": data["agent_state"], "request_id": request_id,
                     "agent_route": route, "turn_recovered": True, "turn_replayed": True}
+        if room_scope:
+            metadata["actor_user_id"] = room_scope["actor_user_id"]
         try:
             self.store.settle_unconfirmed(request_id, data["text"], metadata)
         except RuntimeError:

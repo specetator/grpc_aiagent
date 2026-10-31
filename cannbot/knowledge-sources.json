@@ -2,6 +2,11 @@
   "schema_version": 1,
   "description": "Curated truth sources packaged for the Kernel Agent knowledge skill.",
   "sources": [
+    {"id":"team-backup-validation","path":"docs/benchmarks/2026-11-01-team-backup-restore.json","authority":"snapshot","topics":["backup","restore","public-runtime","validation","limitations"]},
+    {"id":"team-backup-code","path":"scripts/spark_team_backup.py","authority":"code","topics":["backup","restore","public-runtime","locking","recovery"]},
+    {"id":"runtime-archive-code","path":"cannbot/scripts/public_runtime_archive.py","authority":"code","topics":["backup","restore","public-runtime","native-os","identity"]},
+    {"id":"team-backup-scenario","path":"tests/team_backup_scenario.py","authority":"code","topics":["backup","restore","validation","limitations"]},
+    {"id":"runtime-archive-native-validation","path":"tests/runtime_archive_native_e2e.py","authority":"code","topics":["backup","restore","validation","native-os","locking","limitations"]},
     {"id":"public-runtime-shutdown-validation","path":"docs/benchmarks/2026-11-01-runtime-shutdown.json","authority":"snapshot","topics":["public-runtime","shutdown","locking","validation","limitations"]},
     {"id":"public-runtime-maintenance","path":"cannbot/scripts/public_runtime_maintenance.py","authority":"code","topics":["public-runtime","shutdown","backup","locking","native-os"]},
     {"id":"public-runtime-lifecycle-tests","path":"tests/public_runtime_lifecycle_e2e.py","authority":"code","topics":["public-runtime","shutdown","validation","native-os"]},
