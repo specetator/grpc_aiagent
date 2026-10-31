@@ -11,7 +11,7 @@ on:
         required: true
       candidate:
         description: Immutable candidate tag (use a new number for a new revision)
-        default: v0.1.0-rc.1
+        default: v0.1.0-rc.2
         required: true
 
 permissions:

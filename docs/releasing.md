@@ -9,7 +9,7 @@
 先提交并推送全部待发行改动，保持 `main` 在该提交直到验收结束。运行：
 
 ```bash
-gh workflow run release.yml -f operation=candidate -f candidate=v0.1.0-rc.1
+gh workflow run release.yml -f operation=candidate -f candidate=v0.1.0-rc.2
 ```
 
 工作流复用 CI 的构建、CTest、MySQL/Redis/Kafka 与知识校验。成功后构建一个镜像，
@@ -30,7 +30,7 @@ Profile、凭据或其他包的可见性。仓库公开不等于包已允许匿�
 ## 验证固定安装包
 
 ```bash
-gh release download v0.1.0-rc.1 --dir /absolute/new/candidate-assets
+gh release download v0.1.0-rc.2 --dir /absolute/new/candidate-assets
 cd /absolute/new/candidate-assets
 sha256sum --check SHA256SUMS
 tar -xzf spark-push-v0.1.0-linux-amd64.tar.gz
@@ -105,7 +105,7 @@ Mock/契约测试不能放入此集合；它们由 CI 和单独阶段报告记�
 再运行：
 
 ```bash
-gh workflow run release.yml -f operation=promote -f candidate=v0.1.0-rc.1
+gh workflow run release.yml -f operation=promote -f candidate=v0.1.0-rc.2
 ```
 
 工作流要求候选 revision 等于当前提交，校验包及全部回执，先验证匿名拉取，再把

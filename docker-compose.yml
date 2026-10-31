@@ -83,6 +83,10 @@ services:
       KAFKA_HEAP_OPTS: -Xmx512m -Xms256m
     volumes:
       - spark_kafka_data:/var/lib/kafka/data
+    # These empty image-declared inputs need no persistent anonymous volumes.
+    tmpfs:
+      - /etc/kafka/secrets:uid=1000,gid=1000,mode=0755,size=1m
+      - /mnt/shared/config:uid=1000,gid=1000,mode=0755,size=1m
     healthcheck:
       test: [CMD-SHELL, '/opt/kafka/bin/kafka-topics.sh --bootstrap-server 127.0.0.1:29092 --list >/dev/null 2>&1']
       interval: 10s
@@ -92,6 +96,11 @@ services:
 
   kafka-init:
     image: apache/kafka:3.7.0
+    # This container runs topic-management clients, never a broker.
+    tmpfs:
+      - /etc/kafka/secrets:uid=1000,gid=1000,mode=0755,size=1m
+      - /mnt/shared/config:uid=1000,gid=1000,mode=0755,size=1m
+      - /var/lib/kafka/data:uid=1000,gid=1000,mode=0755,size=1m
     depends_on:
       kafka: {condition: service_healthy}
     restart: "no"

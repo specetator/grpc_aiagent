@@ -59,6 +59,44 @@ class BackupPreflight(unittest.TestCase):
             command.assert_not_called()
         self.assertFalse((self.root/'target').exists())
 
+    def test_release_platform_is_optional_and_preserved(self):
+        self.assertNotIn('platform', backup.verify(self.bundle)[2]['services']['logic'])
+        for service in self.config['services'].values(): service['platform'] = 'linux/amd64'
+        self.save()
+        restored = backup.verify(self.bundle)[2]
+        self.assertTrue(all(service['platform'] == 'linux/amd64' for service in restored['services'].values()))
+
+    def test_unsupported_declared_platform_fails_before_docker(self):
+        for value in (None, '', True, [], {}, 'linux/arm64', 'windows/amd64', 'linux/amd64/v3'):
+            with self.subTest(value=value):
+                self.config['services']['logic']['platform'] = value
+                self.save();self.rejected_without_docker()
+
+    def test_rehashed_archive_platform_mismatch_fails_before_docker(self):
+        self.config['services']['logic']['platform'] = 'linux/amd64'
+        self.manifest['images']['logic']['architecture'] = 'arm64'
+        self.save();self.rejected_without_docker()
+
+    def test_source_platform_matches_actual_image_before_writes(self):
+        self.config['services']['logic']['platform'] = 'linux/amd64'
+        target = self.root / 'new-backup'
+        args = argparse.Namespace(project='source', output=str(target))
+        containers = {'logic': {'Image': self.config['services']['logic']['image'],
+            'Config': {'Labels': {'com.docker.compose.config-hash': 'matching'}}, 'State': {'Running': True}}}
+        with patch.object(backup, 'compose_command', return_value=['docker', 'compose']), \
+                patch.object(backup, 'binding_preflight', return_value={}), \
+                patch.object(backup, 'source_containers', return_value=containers), \
+                patch.object(backup, 'exclusive_volumes'), \
+                patch.object(backup, 'inspect', return_value={'Os': 'linux', 'Architecture': 'arm64'}), \
+                patch.object(backup, 'run', side_effect=[json.dumps(self.config), 'logic matching\n']) as command:
+            with self.assertRaisesRegex(ValueError, 'deployed image'):
+                backup.backup(args)
+            self.assertEqual([call.args[0][2:] for call in command.call_args_list],
+                             [['config', '--format', 'json'], ['config', '--hash', '*']])
+            self.assertFalse(target.exists())
+        with patch.object(backup, 'inspect', return_value={'Os': 'linux', 'Architecture': 'amd64'}):
+            self.assertEqual(set(backup.source_images(self.config, {})), set(self.config['services']))
+
     def add_cann(self):
         self.generation = '20261101T000000Z-123456789abc'
         self.doc_id, self.chunk_id = 'doc_' + 'a' * 24, 'chk_' + 'b' * 24

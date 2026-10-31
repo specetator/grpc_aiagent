@@ -584,6 +584,18 @@
         "docker",
         "testing"
       ]
+    },
+    {
+      "id": "kafka-compose-volume-test",
+      "path": "tests/kafka_compose_volume_e2e.py",
+      "authority": "code",
+      "topics": ["release", "docker", "kafka", "persistence", "testing"]
+    },
+    {
+      "id": "release-candidate-fixes-2026-11-01",
+      "path": "docs/benchmarks/2026-11-01-release-candidate-fixes.json",
+      "authority": "snapshot",
+      "topics": ["release", "docker", "backup", "testing"]
     }
   ]
 }

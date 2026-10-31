@@ -147,10 +147,12 @@ def supported_config(config):
     fields = {'image', 'build', 'pull_policy', 'command', 'entrypoint', 'environment',
               'depends_on', 'healthcheck', 'init', 'logging', 'networks', 'read_only',
               'restart', 'security_opt', 'stop_grace_period', 'tmpfs', 'user', 'volumes',
-              'ports', 'profiles', 'extra_hosts'}
+              'ports', 'profiles', 'extra_hosts', 'platform'}
     for name, service in config['services'].items():
         if set(service) - fields:
             raise ValueError('unsupported service override')
+        if 'platform' in service and service['platform'] != 'linux/amd64':
+            raise ValueError('unsupported declared service platform')
         if set(service.get('networks', {})) - {'default'} or any(service.get('networks', {}).values()):
             raise ValueError('custom service network settings are not supported')
         if service.get('extra_hosts') and (name not in {'logic', 'agent-bridge', 'agent-authority'} or
@@ -282,6 +284,18 @@ def volume_archive(image, volume, path, extract=False, mysql=False):
         return excluded
 
 
+def source_images(config, containers):
+    images = {}
+    for name, service in config['services'].items():
+        image = inspect('image', containers[name]['Image'] if name in containers else service['image'])
+        if not image:
+            raise ValueError('every configured image must be present locally')
+        if 'platform' in service and service['platform'] != image['Os'] + '/' + image['Architecture']:
+            raise ValueError('declared platform differs from the deployed image')
+        images[name] = image
+    return images
+
+
 def backup(args):
     if not PROJECT.fullmatch(args.project):
         raise ValueError('invalid Compose project name')
@@ -302,6 +316,7 @@ def backup(args):
     running = [name for name, value in containers.items() if value['State']['Running']]
     if set(running).intersection({'bootstrap','migrate','kafka-init'}):
         raise ValueError('wait for initialization/migration to finish before backup')
+    images = source_images(config, containers)
     outside_sources(destination, config)
     destination.mkdir(mode=0o700, parents=True, exist_ok=False)
     manifest = {'schema': 'sparkpush.cold-backup.v1', 'complete': False, 'scope': 'im-only',
@@ -328,9 +343,7 @@ def backup(args):
             raise RuntimeError('all deployment containers must be stopped before archiving')
         exclusive_volumes(config, args.project, frozen)
         for name, service in config['services'].items():
-            image = inspect('image', containers[name]['Image'] if name in containers else service['image'])
-            if not image:
-                raise ValueError('every configured image must be present locally')
+            image = images[name]
             if name == 'logic':
                 manifest['application_revision'] = (image['Config'].get('Labels') or {}).get('org.opencontainers.image.revision')
             manifest['images'][name] = {'id': image['Id'], 'digests': image.get('RepoDigests', []),
@@ -425,6 +438,8 @@ def verify(directory):
             raise ValueError('deployment image is not pinned')
         if not image.get('architecture') or image.get('os') != 'linux':
             raise ValueError('image platform is missing or unsupported')
+        if 'platform' in service and service['platform'] != image['os'] + '/' + image['architecture']:
+            raise ValueError('declared platform differs from the archived image')
         if any(service.get(field) for field in ('privileged','cap_add','devices','volumes_from','pid','ipc','network_mode')):
             raise ValueError('host access overrides are not supported in restore bundles')
         for index, mount in enumerate(service.get('volumes', [])):

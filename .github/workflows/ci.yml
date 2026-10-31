@@ -46,6 +46,7 @@ jobs:
         run: |
           docker pull apache/kafka:3.7.0
           python3 tests/run_kafka_volume_test.py build
+          python3 tests/kafka_compose_volume_e2e.py --out "$RUNNER_TEMP/kafka-compose-volumes.json"
 
       - name: Knowledge source and citation validation
         run: |

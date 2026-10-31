@@ -1,0 +1,366 @@
+{
+  "date": "2026-11-01",
+  "stage": "release candidate artifact compatibility fixes",
+  "stage_accepted": true,
+  "release_accepted": false,
+  "source_revision_base": "48ffd6eb14050b855231c78d89c64ab1015eb8d9",
+  "scope": "uncommitted fixes identified by source_sha256; local application binary is the unchanged rc.1 image, not a new accepted release",
+  "rc1": {
+    "release": "https://github.com/specetator/grpc_aiagent/releases/tag/v0.1.0-rc.1",
+    "image": "ghcr.io/specetator/spark-push@sha256:883b056db28f7a78cffd95aec3971bf56ea5ba1bf81c684474200c6093d678c9",
+    "archive_sha256": "1af81144d285a113ec58cdbadcd8aa97162d6fbde402c271acf4faabaab9f1c4",
+    "release_workflow": {
+      "url": "https://github.com/specetator/grpc_aiagent/actions/runs/41251139414",
+      "result": "success",
+      "ctest_passed": 59,
+      "ctest_skipped": 7,
+      "supplemental_mysql_redis_passed": 4,
+      "real_kafka": "passed"
+    },
+    "acceptance": {
+      "web_im": {
+        "receipt": "/tmp/spark-v010-rc1-x9gjn5gh/results/web_im.json",
+        "sha256": "8e0e161add628f118f62ffc2e38d14b54eb856f8deee1d4cceec02b136d392d5",
+        "exit_code": 0,
+        "ok": true,
+        "checks": [
+          "fresh owned full Compose started with healthy services",
+          "full Compose down/up preserves owned volumes"
+        ],
+        "browser_checks": [
+          "three independent browser processes register and log in through the UI",
+          "Alice creates a private space, invites Bob and Carol by account, both accept without numeric IDs",
+          "public discovery and join work through the UI, public and private timelines remain isolated",
+          "three users send concurrently and see the same ordered, deduplicated message timeline",
+          "account lookup opens real direct messages; switching preserves the room timeline",
+          "paused real Job proves room empty reconnect sync and absent first-DM directory; later SQL tails recover automatically with one ordered copy",
+          "closing Alice and taking Bob offline does not block Carol; Bob recovers the persisted message",
+          "full Compose restart and fresh browser logins preserve timeline, membership and task handoff",
+          "direct and public conversations recover from server history in fresh browser profiles",
+          "revocation clears Bob cache, denies real history/member APIs, blocks live delivery and survives reload",
+          "desktop and mobile layouts are usable without uncaught JavaScript errors"
+        ],
+        "cleanup": null
+      },
+      "web_agents": {
+        "receipt": "/tmp/spark-v010-rc1-x9gjn5gh/results/web_agents.json",
+        "sha256": "1dcfd514ef573fa4967d022138587e1a7ad81e1567a7011e68be6463fc64b056",
+        "exit_code": 0,
+        "ok": true,
+        "checks": [
+          "fresh owned full Compose started with healthy services",
+          "full Compose down/up preserves owned volumes",
+          "actual completed Router turns use distinct Runtime sessions; Native tool outputs contain the source nonce and C++ function"
+        ],
+        "browser_checks": [
+          "three independent browser processes register and log in through the UI",
+          "Alice creates a private space, invites Bob and Carol by account, both accept without numeric IDs",
+          "public discovery and join work through the UI, public and private timelines remain isolated",
+          "three users send concurrently and see the same ordered, deduplicated message timeline",
+          "account lookup opens real direct messages; switching preserves the room timeline",
+          "actual Pi creates a structured task; isolated Hermes reads authorized C++ files; Carol claims and persists handoff",
+          "paused real Job proves room empty reconnect sync and absent first-DM directory; later SQL tails recover automatically with one ordered copy",
+          "closing Alice and taking Bob offline does not block Carol; Bob recovers the persisted message",
+          "full Compose restart and fresh browser logins preserve timeline, membership and task handoff",
+          "direct and public conversations recover from server history in fresh browser profiles",
+          "revocation clears Bob cache, denies real history/member APIs, blocks live delivery and survives reload",
+          "desktop and mobile layouts are usable without uncaught JavaScript errors"
+        ],
+        "cleanup": null
+      },
+      "cross_room": {
+        "receipt": "/tmp/spark-v010-rc1-x9gjn5gh/results/cross_room.json",
+        "sha256": "016f99f7e621cd3186fafe0f9e0083fd16f9a0f4fd4a147a305529e1b6174929",
+        "exit_code": 0,
+        "ok": true,
+        "checks": [
+          "formal Native capabilities and HTTP whitelist deny chat/profile/tool/session bypasses",
+          "three independent users exchange real messages; normal chat does not invoke models",
+          "public-pi reads the real nonce and C++ file; all three clients see its attributed durable final",
+          "public-hermes reads the real nonce and C++ file; all three clients see its attributed durable final",
+          "original Native room broker receipt succeeds and both consumers commit without dead letters",
+          "second private room admits accepted invitees; nonmembers cannot join WS, call Agents or read history/tasks",
+          "two same-room Pi requests are accepted while the first runs; all three users receive ordinary chat before its final",
+          "both formal public Agents read the second project with correct actor attribution and no first-room nonce",
+          "four distinct room/Agent native sessions and actual tool transcripts exclude the other project and private discussion",
+          "second-room duplicate client messages retain original turns and exactly one persisted result per authorized user",
+          "real native tool transcripts confirm file contents; Agents use separate sessions and share one IM timeline",
+          "Native process restart reuses the owned Profile without rewriting config, model auth or identity",
+          "tasks and handoff are persisted; duplicate client messages preserve completed execution records",
+          "Kafka redelivery after revoke, catalog disable and Connector/Bridge restart preserves one original result",
+          "full Compose restart and fresh login retain final messages, claimed task and membership revocation",
+          "second-room history, membership boundary and all native route identities survive the same full cold restart"
+        ],
+        "browser_checks": [],
+        "cleanup": {
+          "owned_compose_resources_removed": true,
+          "private_pi_model_files_unchanged": true,
+          "original_windows_profile_unchanged": true,
+          "owned_native_profile_removed": true
+        }
+      },
+      "team_backup": {
+        "receipt": "/tmp/spark-v010-rc1-x9gjn5gh/results/team_backup.json",
+        "sha256": "1f80a13515214dd807597e93717345bda9e3de5f94639898f6a738a449db929d",
+        "exit_code": 1,
+        "ok": false,
+        "checks": [
+          "formal Native capabilities and HTTP whitelist deny chat/profile/tool/session bypasses",
+          "three independent users exchange real messages; normal chat does not invoke models",
+          "public-pi reads the real nonce and C++ file; all three clients see its attributed durable final",
+          "public-hermes reads the real nonce and C++ file; all three clients see its attributed durable final",
+          "original Native room broker receipt succeeds and both consumers commit without dead letters",
+          "real native tool transcripts confirm file contents; Agents use separate sessions and share one IM timeline",
+          "actual Native Run completes while injected event/status loss leaves the Gateway request unknown; Bridge is stopped before backup"
+        ],
+        "browser_checks": [],
+        "cleanup": {
+          "owned_compose_resources_removed": true,
+          "private_pi_model_files_unchanged": true,
+          "original_windows_profile_unchanged": true,
+          "owned_native_profile_removed": true
+        }
+      },
+      "clean_linux": {
+        "receipt": "/tmp/spark-v010-rc1-x9gjn5gh/results/clean_linux.json",
+        "sha256": "48f806a8d38196fa2dc0976a079d1f1031e855dc3fac4220e02a7e9ffafbf4f6",
+        "exit_code": 1,
+        "ok": false,
+        "checks": [
+          "independent Linux daemon begins with zero images, containers and application volumes",
+          "all pinned application/dependency digests pull anonymously into the empty daemon; OCI revision and bundle checksums match",
+          "copied example environment and prebuilt images pass existing ten-user IM, attachment ACL, reconnect and normal-restart scenarios"
+        ],
+        "browser_checks": [],
+        "cleanup": true
+      }
+    },
+    "unexecuted": [
+      "legacy_private",
+      "im_backup",
+      "cann_documents"
+    ]
+  },
+  "fixes": [
+    "Keep the original Kafka named data volume; explicitly mount five empty non-persistent image directories as tmpfs.",
+    "Accept only absent platform or literal linux/amd64; compare against immutable actual images before stopping services and against archived images before restore mutations.",
+    "Add production Compose Kafka lifecycle regression to CI and require explicit release platform in real backup fixtures."
+  ],
+  "targeted_kafka": {
+    "receipt": "/tmp/spark-v010-kafka-tmpfs4.json",
+    "sha256": "636d676e25f1b18162fb01508e25e1aa31fd64645278231c768a2d62badeb124",
+    "exit_code": 0,
+    "ok": true,
+    "checks": [
+      "production broker and topic initializer start with five tmpfs mounts and one named data volume",
+      "ordinary down/up preserves cluster identity, exact record and committed consumer offset without anonymous volumes"
+    ],
+    "browser_checks": [],
+    "cleanup": true
+  },
+  "targeted_kafka_evidence": {
+    "ok": true,
+    "mode": "real production Compose Kafka; no model or mock",
+    "sources": {
+      "docker-compose.yml": "89aec5cb8825877a0adb84a752a7f85fa608e07e8de3021765d85b61d428b6e2",
+      "tests/kafka_compose_volume_e2e.py": "2b70577c0706e32b3ac8a604e5db1492d7011590c649f09f8ed51417e601c439"
+    },
+    "checks": [
+      "production broker and topic initializer start with five tmpfs mounts and one named data volume",
+      "ordinary down/up preserves cluster identity, exact record and committed consumer offset without anonymous volumes"
+    ],
+    "before": {
+      "kafka-init": {
+        "image_id": "sha256:41c20d65b0a2180b9deca056d47540771752e69fe9225d5748dd65a25a9675d7",
+        "mount_types": {},
+        "tmpfs_paths": [
+          "/etc/kafka/secrets",
+          "/mnt/shared/config",
+          "/var/lib/kafka/data"
+        ],
+        "live_tmpfs_types": {},
+        "volumes": []
+      },
+      "kafka": {
+        "image_id": "sha256:41c20d65b0a2180b9deca056d47540771752e69fe9225d5748dd65a25a9675d7",
+        "mount_types": {
+          "/var/lib/kafka/data": "volume"
+        },
+        "tmpfs_paths": [
+          "/etc/kafka/secrets",
+          "/mnt/shared/config"
+        ],
+        "live_tmpfs_types": {
+          "/etc/kafka/secrets": "tmpfs",
+          "/mnt/shared/config": "tmpfs"
+        },
+        "volumes": [
+          "spark-kafka-mounts-4142433683ff_spark_kafka_data"
+        ]
+      }
+    },
+    "init_live_mount_types": {
+      "/etc/kafka/secrets": "tmpfs",
+      "/mnt/shared/config": "tmpfs",
+      "/var/lib/kafka/data": "tmpfs"
+    },
+    "after": {
+      "kafka-init": {
+        "image_id": "sha256:41c20d65b0a2180b9deca056d47540771752e69fe9225d5748dd65a25a9675d7",
+        "mount_types": {},
+        "tmpfs_paths": [
+          "/etc/kafka/secrets",
+          "/mnt/shared/config",
+          "/var/lib/kafka/data"
+        ],
+        "live_tmpfs_types": {},
+        "volumes": []
+      },
+      "kafka": {
+        "image_id": "sha256:41c20d65b0a2180b9deca056d47540771752e69fe9225d5748dd65a25a9675d7",
+        "mount_types": {
+          "/var/lib/kafka/data": "volume"
+        },
+        "tmpfs_paths": [
+          "/etc/kafka/secrets",
+          "/mnt/shared/config"
+        ],
+        "live_tmpfs_types": {
+          "/etc/kafka/secrets": "tmpfs",
+          "/mnt/shared/config": "tmpfs"
+        },
+        "volumes": [
+          "spark-kafka-mounts-4142433683ff_spark_kafka_data"
+        ]
+      }
+    },
+    "cluster_id": "Some(5L6g3nShT-eMCtK--X86sw)",
+    "cleanup_complete": true
+  },
+  "platform_backup": {
+    "receipt": "/tmp/spark-v010-release-platform-backup1.json",
+    "sha256": "7c12181fd8ebc5f222aa604cf55c21042df6ba08a931b7f88efac5e620870836",
+    "exit_code": 0,
+    "ok": true,
+    "checks": [
+      "real users, invited membership, direct/room history and authorized attachment exist before backup",
+      "stopped real Job leaves a broker-recorded, uncommitted Kafka-accepted message absent from SQL",
+      "an actual unsafe archive failure resumes previously running services while leaving Job stopped and the manifest incomplete",
+      "cold backup includes all six stopped volumes, checksums, binding config and actual immutable image identities",
+      "missing/corrupt archive sets are rejected before target files or volumes are created",
+      "existing late target volume and a stopped target container are each refused without modifying existing state or creating volumes",
+      "restoration uses exact original image IDs with no Agent bridge/authority and all Logic Agent gates disabled; source remains stopped",
+      "literal dollar credentials survive Compose re-parsing and restored stores use only target-project service DNS names",
+      "fresh project restores accounts, exact history, membership, attachment bytes and secret hashes; queued Kafka message persists once without DLQ",
+      "restored deployment continues its sequence and a normal backup resumes the previous running services"
+    ],
+    "browser_checks": [],
+    "cleanup": null
+  },
+  "platform_backup_evidence": {
+    "source_commit": "48ffd6eb14050b855231c78d89c64ab1015eb8d9",
+    "sources": {
+      "scripts/spark_backup.py": "2ff538952ff7aa518562316938c9da1324ced340c18f63718b0bbe1a54039b04",
+      "scripts/spark_team_backup.py": "391a9ac97d62c0d779767f21b738bc22fe67a89b12a5462756ccec699d2d9fcc",
+      "scripts/export_cann_documents.py": "e89f977c1dde8f0ef52151e3756f38bb59bac135d62aab4630e06c84e43dbff0",
+      "tests/backup_restore_e2e.py": "0518b9131254468e873acc322631c721db2cf1d44ef677d4d597069ec04cbef7",
+      "docker-compose.yml": "89aec5cb8825877a0adb84a752a7f85fa608e07e8de3021765d85b61d428b6e2",
+      "docker-compose.cann.yml": "6dc85997d3133b787c99b79ff0aacdeddfb3276c6e8d7a7411d8a2f5470aa68f"
+    },
+    "image_id": "sha256:883b056db28f7a78cffd95aec3971bf56ea5ba1bf81c684474200c6093d678c9",
+    "preserved_service_platform": "linux/amd64",
+    "restored_store_endpoints": {
+      "kafka_brokers": "kafka:29092",
+      "redis_host": "redis",
+      "mysql_host": "mysql"
+    }
+  },
+  "backup_contracts": {
+    "passed": 28,
+    "exit_code": 0,
+    "kind": "contracts, not real E2E",
+    "final_test_only_strengthening": "After full CTest, strengthened mismatched actual image test to call backup.backup and assert only config reads occur and output directory remains absent; all 28 contracts rerun, exit 0."
+  },
+  "failed_attempts": [
+    {
+      "kafka_probe": 1,
+      "exit_code": 1,
+      "reason": "test incorrectly expected tmpfs in Docker Mounts",
+      "receipt_sha256": "0a5664697b4fc12e97e8b5a34f45b088e37720528dfe7254fb939e144fd66132"
+    },
+    {
+      "kafka_probe": 2,
+      "exit_code": 1,
+      "reason": "test did not wait for one-shot initializer exit",
+      "receipt_sha256": "aa301559633b3cb1f19cd2e9a59eb0178b6af3f22a030aa1d983f85d1f4b9d31"
+    },
+    {
+      "kafka_probe": 3,
+      "exit_code": 1,
+      "reason": "test still assumed broker tmpfs appears in Docker Mounts",
+      "receipt_sha256": "3e8c3a1ab99592274ed0515b42406a349accc2e3a933a678e165fe0476fb9dcc"
+    }
+  ],
+  "ctest_attempts": [
+    {
+      "log": "/tmp/spark-v010-kafka-tmpfs-ctest.log",
+      "exit_code": 0,
+      "passed": 61,
+      "skipped": 5,
+      "note": "browser dependency was not supplied; four database gates skipped"
+    },
+    {
+      "log": "/tmp/spark-v010-release-fixes-ctest.log",
+      "exit_code": 8,
+      "passed": 61,
+      "failed": 1,
+      "skipped": 4,
+      "failure": "inference_vllm_adapter_contract_test metrics port 35717 bind failed; final isolated full rerun passed"
+    }
+  ],
+  "reviews": {
+    "kafka": "round 2 PASS code review; actual fourth probe subsequently exited 0",
+    "platform": "round 1 PASS code review; actual backup subsequently exited 0",
+    "tester": "PASS fix stage only; rc.2 still requires all eight real artifact scenarios"
+  },
+  "remaining": [
+    "Build immutable rc.2 and rerun all eight acceptance scenarios from its bundle; no rc.1 pass is transferred.",
+    "Only Linux/amd64 declaration is accepted; legacy absent declarations retain existing semantics.",
+    "No previous user volumes or personal Agent state are removed.",
+    "Final real clean Linux test and real public Runtime team restore on rc.2 remain required."
+  ],
+  "source_sha256": {
+    "docker-compose.yml": "89aec5cb8825877a0adb84a752a7f85fa608e07e8de3021765d85b61d428b6e2",
+    "scripts/spark_backup.py": "2ff538952ff7aa518562316938c9da1324ced340c18f63718b0bbe1a54039b04",
+    "tests/backup_contract_test.py": "6304ceb4e7218a2a831240c462535359629bfbc10dce1ea7724bc0f07cc63c61",
+    "tests/backup_restore_e2e.py": "0518b9131254468e873acc322631c721db2cf1d44ef677d4d597069ec04cbef7",
+    "tests/kafka_compose_volume_e2e.py": "2b70577c0706e32b3ac8a604e5db1492d7011590c649f09f8ed51417e601c439",
+    ".github/workflows/ci.yml": "05ae19478504ca99dc286d2a46a85d0bc170193670afe33b4e984c1a165c9675",
+    ".github/workflows/release.yml": "6cdb5bb24a8b8769d2fabc8a32b7896ebae78f9e68252d4f4183345b41dc5566",
+    "docs/releasing.md": "9ce912094f56da7f64075bba7bf03fca3f27ce274f8f32e88e5e024e5984130d"
+  },
+  "final_ctest": {
+    "command": "SPARK_PLAYWRIGHT_MODULE=/tmp/spark-spaces-browser/node_modules/playwright FONTCONFIG_FILE=/tmp/spark-web-fonts.conf ctest --test-dir build-wsl --output-on-failure",
+    "log": "/tmp/spark-v010-release-fixes-final-ctest.log",
+    "log_sha256": "8477f72dec09985997cfbc5838fa5133442e354f3a868c8682dd92a40420ba12",
+    "exit_code": 0,
+    "registered": 66,
+    "passed": 62,
+    "skipped": 4,
+    "seconds": 109.67,
+    "skips": [
+      "route_generation_integration_test",
+      "message_reservation_integration_test",
+      "redis_sequence_integration_test",
+      "space_mysql_integration_test"
+    ]
+  },
+  "validation": {
+    "knowledge_sources": 131,
+    "knowledge_exit": 0,
+    "citation_exit": 0,
+    "actionlint_exit": 0,
+    "personal_skill_check_exit": 1,
+    "personal_skill_action": "existing drift preserved; no installation or personal configuration overwritten"
+  }
+}

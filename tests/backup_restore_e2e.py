@@ -40,7 +40,7 @@ def main():
              'source_commit':source_commit(ROOT),'scenario':'cann_documents' if args.cann_documents else 'im_backup',
              'sources':{name:hashlib.sha256((ROOT/name).read_bytes()).hexdigest() for name in (
                  'scripts/spark_backup.py','scripts/spark_team_backup.py','scripts/export_cann_documents.py',
-                 'tests/backup_restore_e2e.py','docker-compose.cann.yml')}}
+                 'tests/backup_restore_e2e.py','docker-compose.yml','docker-compose.cann.yml')}}
     receipt['image_id']=subprocess.check_output(['docker','image','inspect',args.image,'--format','{{.Id}}'],text=True).strip()
     project='spark-backup-'+secrets.token_hex(5);restored=project+'-restored'
     environment={k:v for k,v in os.environ.items() if not k.startswith(('SPARK_','COMPOSE_','HERMES_','PI_','KERNEL_'))}
@@ -81,6 +81,12 @@ def main():
             environment['SPARK_PUSH_CANN_DATA_DIR'] = str(public)
             source += ['-f', str(ROOT / 'docker-compose.cann.yml')]
             create += ['-f', str(ROOT / 'docker-compose.cann.yml')]
+        # Exercise the release's explicit platform even when run from a checkout.
+        configured = json.loads(run(source + ['config', '--format', 'json']))
+        platform_file = root / 'release-platform.json'
+        platform_file.write_text(json.dumps({'services': {name: {'platform': 'linux/amd64'} for name in configured['services']}}))
+        source += ['-f', str(platform_file)]
+        create += ['-f', str(platform_file)]
         def api(path,body,user=None,expected=0,origin=None):
             value=json.loads(http(origin or base,path,body,user['token'] if user else None))
             assert value.get('code')==expected,(path,value.get('code'))
@@ -196,6 +202,8 @@ def main():
             manifest=json.loads((bundle/'manifest.json').read_text())
             receipt['backup_manifest']={key:manifest[key] for key in ('schema','scope','backup_id','application_revision','tool_checkout_revision','volumes','bindings','images','files')}
             assert len(manifest['volumes'])==6 and manifest['complete']
+            archived_config = json.loads((bundle/'compose.json').read_text())
+            assert all(service['platform']=='linux/amd64' for service in archived_config['services'].values())
             assert not run(source+['ps','-q']).strip()
             assert bundle.stat().st_mode & 0o777==0o700
             assert all(path.stat().st_mode & 0o777==0o600 for path in bundle.iterdir())
@@ -252,6 +260,8 @@ def main():
             check('existing late target volume and a stopped target container are each refused without modifying existing state or creating volumes')
             restored_result=json.loads(run(recover));assert restored_result['ok'] and not restored_result['agents_enabled']
             restored_config=json.loads((deployment/'compose.json').read_text())
+            assert all(service['platform']=='linux/amd64' for service in restored_config['services'].values())
+            receipt['preserved_service_platform'] = 'linux/amd64'
             assert not {'agent-bridge','agent-authority'} & set(restored_config['services'])
             for flag in ('SPARK_PUSH_HERMES_ENABLED','SPARK_PUSH_ROOM_AGENT_ENABLED','SPARK_PUSH_ROOM_HERMES_PUBLIC'):
                 assert restored_config['services']['logic']['environment'][flag]=='false'
