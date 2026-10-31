@@ -21,6 +21,9 @@ class MessageReservationRepository {
     // canonical 返回权威结果（msg_seq/msg_id 由服务端填），
     // fresh=true 表示新占的号，false 表示命中同 client_msg_id 的旧预约（幂等重放）。
     virtual bool Reserve(const Message& proposed, Message* canonical, bool* fresh, std::string* error) = 0;
+    // Internal final-reply path only, after the publication service validated
+    // the result. Comparison remains byte-exact; history survives outbox GC.
+    virtual bool ReservePublished(const Message&, Message*, bool*, std::string*,bool require_existing) { return false; }
     // 把待发的 Kafka payload 写进预约记录（stage 0 -> 1）。
     virtual bool PrepareOutbox(const Message&, const std::string& payload, std::string* error) = 0;
     // Kafka delivery report 回来后调用（stage -> 2）。
@@ -51,6 +54,7 @@ class MySqlMessageReservations final : public MessageReservationRepository {
     // client_msg_id 为空时会生成一个安全随机串顶上，等价于「每次都是新提交」，
     // 这是为了兼容不带 client_msg_id 的老 HTTP 接口。
     bool Reserve(const Message&, Message*, bool*, std::string*) override;
+    bool ReservePublished(const Message&, Message*, bool*, std::string*,bool require_existing) override;
 
     // 启动时的 fail-fast 探针：三张表的关键列必须都在。
     // 用 SELECT ... LIMIT 0，只校验 schema 不取数据。
@@ -91,6 +95,7 @@ class MySqlMessageReservations final : public MessageReservationRepository {
     static bool SafePrefix(MYSQL*, const std::string& session, int64_t* seq, std::string* error);
 
  private:
+    bool ReserveImpl(const Message&, Message*, bool*, std::string*, bool recover_history,bool require_existing);
     MySqlConnectionPool* pool_;
 };
 }  // namespace sparkpush

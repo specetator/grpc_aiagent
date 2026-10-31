@@ -98,10 +98,13 @@ ServiceStatus RoomAgentService::CheckAuthorization(const Json& scope,const Json&
     if(!id.empty() && std::none_of(projects_.begin(),projects_.end(),[&](const auto& p){return p.project_id==id;}))return {403,"project removed from catalog"};
     return {};
 }
-bool RoomAgentService::PublishReply(const Json& request,const Json& reply,const std::string& content,Json* output,std::string* error) {
+bool RoomAgentService::PublishReply(const Json& request,const Json& reply,const std::string& content,Json* output,std::string* error,bool* require_existing) {
+    if(require_existing)*require_existing=false;
     const auto& scope=request.at("collaboration");
-    // Existing CANN and pre-workspace requests keep their original reservations.
-    if(scope.value("kind","")!="room_agent_v1" || !scope.contains("workspace_generation")) {*output=reply;return true;}
+    const bool cann=!request.contains("agent_id");
+    // Pre-workspace generic requests retain their original contract. CANN now
+    // shares the publication fence, including replies to old persisted inputs.
+    if(!cann && (scope.value("kind","")!="room_agent_v1" || !scope.contains("workspace_generation"))) {*output=reply;return true;}
     if(configuration_error_) {if(error)*error="room Agent configuration unavailable";return false;}
     for(const auto* key:{"request_id","session_id","user_id","bot_user_id","collaboration"})
         if(!reply.contains(key) || reply.at(key)!=request.at(key))return false;
@@ -113,7 +116,8 @@ bool RoomAgentService::PublishReply(const Json& request,const Json& reply,const 
     return repo_->Publication(request,digest,[&](const std::string& saved_digest,const Json& saved){
         if(saved_digest==legacy)return true;
         PreparedHermesReply prepared;std::string prepare_error;
-        if(!PrepareHermesReply(saved.dump(),request.at("bot_user_id"),request.at("agent_name"),
+        const auto name=cann?Json::parse(content).at("sender").at("name"):request.at("agent_name");
+        if(!PrepareHermesReply(saved.dump(),request.at("bot_user_id"),name,
                               &prepared,&prepare_error,&request))return false;
         const auto saved_result=ResultFromReply(request,saved);
         // A cancelled decision has already discarded its private input. Never
@@ -122,14 +126,43 @@ bool RoomAgentService::PublishReply(const Json& request,const Json& reply,const 
         try {return PublicationDigest(prepared.message.content_json,saved_result,true)==digest;}
         catch(const std::exception&){return false;}
     },[&](const Json& state){
-        if(CheckAuthorization(scope,state).ok())return reply;
+        if(cann && state.at("original_message").is_object()) {
+            // Older CANN finals predate this ledger. Adopt only a fully
+            // verifiable durable result, never today's projection as a new
+            // first answer. Partial/ambiguous legacy records fail closed.
+            const auto& original=state.at("original_message");
+            const auto& saved_result=state.at("original_result");
+            if(!saved_result.is_object() || saved_result.value("completed_at_ms",0LL)!=original.at("time"))return Json();
+            auto stable_result=saved_result, incoming_result=result;
+            stable_result.erase("completed_at_ms");incoming_result.erase("completed_at_ms");
+            if(stable_result!=incoming_result)return Json();
+            const auto original_content=original.at("content").get<std::string>();
+            try {if(PublicationDigest(original_content,saved_result,true)!=digest)return Json();}
+            catch(const std::exception&){return Json();}
+            const auto stored=Json::parse(original_content);
+            auto recovered=reply;
+            recovered["completed_at_ms"]=original.at("time");
+            const auto& body=stored.at("content");
+            if(body.contains("agent_event")) {
+                recovered["response_metadata"]["agent_event"]=body.at("agent_event");
+                if(body.at("agent_event").contains("envelope"))
+                    recovered["delta_count"]=body.at("agent_event").at("envelope").at("sequence");
+            }
+            PreparedHermesReply prepared;std::string prepare_error;
+            if(!PrepareHermesReply(recovered.dump(),request.at("bot_user_id"),stored.at("sender").at("name"),
+                &prepared,&prepare_error,&request) || prepared.message.content_json!=original_content ||
+                prepared.message.msg_type!=original.at("type") || prepared.message.timestamp_ms!=original.at("time") ||
+                ResultFromReply(request,recovered)!=saved_result)return Json();
+            return recovered;
+        }
+        if(cann?AuthorizeCannPublication(scope,state):CheckAuthorization(scope,state).ok())return reply;
         // No original text, tool output or metadata survives a denied decision.
         Json denied;
         for(const auto* field:{"request_id","session_id","user_id","bot_user_id","collaboration","completed_at_ms"})denied[field]=reply.at(field);
         denied["ok"]=false;denied["terminal_status"]="cancelled";
         denied["text"]="工作区或成员授权已撤销，本次结果未发布。";
         return denied;
-    },output,error);
+    },output,error,require_existing);
 }
 ServiceStatus RoomAgentService::AuthorizeWorkspace(const std::string& key,const Json& input,Json* output) {
     if(workspace_key_.empty() || !ConstantTimeEquals(key,workspace_key_))return {401,"workspace connector authentication required"};

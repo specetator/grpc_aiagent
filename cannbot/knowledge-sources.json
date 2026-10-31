@@ -2,6 +2,13 @@
   "schema_version": 1,
   "description": "Curated truth sources packaged for the Kernel Agent knowledge skill.",
   "sources": [
+    {"id":"legacy-cann-private-validation","path":"docs/benchmarks/2026-11-01-legacy-cann-private.json","authority":"snapshot","topics":["cann","private","replay","publication","validation","limitations"]},
+    {"id":"cann-publication-migration","path":"sql/migrations/20261101_cann_publications.sql","authority":"code","topics":["cann","migration","publication","replay"]},
+    {"id":"cann-docker-documents","path":"docs/cann-docker.md","authority":"canonical","topics":["cann","docker","permissions","documents","limitations"]},
+    {"id":"cann-document-export","path":"scripts/export_cann_documents.py","authority":"code","topics":["cann","docker","documents","export"]},
+    {"id":"cann-document-overlay","path":"docker-compose.cann.yml","authority":"code","topics":["cann","docker","documents","mounts"]},
+    {"id":"legacy-private-runtime-e2e","path":"tests/legacy_private_runtime_e2e.py","authority":"code","topics":["cann","pi","hermes","private","replay","validation"]},
+    {"id":"legacy-private-runtime-fixture","path":"tests/legacy_private_runtime_fixture.py","authority":"code","topics":["cann","pi","hermes","isolation","validation"]},
     {"id":"public-cross-room-validation","path":"docs/benchmarks/2026-11-01-public-cross-room.json","authority":"snapshot","topics":["public-runtime","isolation","sessions","validation","limitations"]},
     {"id":"public-runtime-e2e","path":"tests/public_room_runtime_e2e.py","authority":"code","topics":["public-runtime","validation","replay","recovery","limitations"]},
     {"id":"public-cross-room-scenario","path":"tests/public_cross_room_scenario.py","authority":"code","topics":["public-runtime","isolation","sessions","validation","limitations"]},

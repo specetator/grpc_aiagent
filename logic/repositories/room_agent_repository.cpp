@@ -17,6 +17,35 @@ Json One(MYSQL* conn,const char* sql,const std::vector<std::string>& values) {
     const auto rows=Query(conn,sql,values);
     return rows.empty() || rows[0][0].empty() ? Json(nullptr) : Json::parse(rows[0][0]);
 }
+// Read the old CANN publication evidence without changing history. The message
+// table remains authoritative after the short-lived reservation is collected.
+Json CannOriginal(MYSQL* conn,const Json& request) {
+    const std::string sid=request.at("session_id"), client="hermes:"+request.at("request_id").get<std::string>();
+    const auto bot=Id(request.at("bot_user_id"));
+    const auto reservations=Query(conn,"SELECT original_message,stage FROM message_reservation WHERE session_id=? AND sender_id=? AND client_msg_id=? FOR UPDATE",{sid,bot,client});
+    Json original=nullptr;
+    if(!reservations.empty()) {
+        if(reservations[0][1]=="4")throw std::runtime_error("sealed CANN publication");
+        original=Json::parse(reservations[0][0]);
+    }
+    const auto rows=Query(conn,"SELECT msg_seq,msg_type,content_json,timestamp_ms FROM message WHERE session_id=BINARY ? AND sender_id=? AND client_msg_id=BINARY ? ORDER BY msg_seq LIMIT 2",{sid,bot,client});
+    if(rows.size()>1)throw std::runtime_error("ambiguous CANN history");
+    if(!rows.empty()) {
+        const auto seq=std::stoll(rows[0][0]), stamp=std::stoll(rows[0][3]);
+        auto content=Json::parse(rows[0][2]);
+        if(content.at("msg_id")!=sid+"-"+Id(seq) || content.at("msg_seq")!=seq || content.at("create_time")!=stamp)
+            throw std::runtime_error("inconsistent CANN history");
+        for(const auto* field:{"msg_id","msg_seq","create_time"})content.erase(field);
+        Json persisted={{"session",sid},{"seq",seq},{"sender",request.at("bot_user_id")},
+            {"type",rows[0][1]},{"content",content.dump()},{"time",stamp},{"client",client}};
+        if(original.is_object() && original!=persisted)throw std::runtime_error("CANN history/reservation conflict");
+        original=std::move(persisted);
+    }
+    if(original.is_object() && (original.at("session")!=sid || original.at("sender")!=request.at("bot_user_id") ||
+        original.at("client")!=client || original.at("seq").get<int64_t>()<=0))
+        throw std::runtime_error("invalid CANN reservation identity");
+    return original;
+}
 }
 bool MySqlRoomAgentRepository::EnsureSchema(std::string* error) {
     return Run(pool_,error,[&](MYSQL* conn) {
@@ -111,6 +140,11 @@ bool MySqlRoomAgentRepository::CheckCatalogSchema(std::string* error) {
         Query(conn,"SELECT request_id,source_msg_id,session_id,message_seq,published,attempted,error FROM room_agent_dispatch LIMIT 0");catalog_schema_=true;return true;
     });
 }
+bool MySqlRoomAgentRepository::CheckPublicationSchema(std::string* error) {
+    return Run(pool_,error,[&](MYSQL* conn){
+        Query(conn,"SELECT request_id,input_digest,reply FROM room_agent_publication LIMIT 0");return true;
+    });
+}
 bool MySqlRoomAgentRepository::Bindings(int64_t room,Json* bindings,std::string* error) {
     return Run(pool_,error,[&](MYSQL* conn){
         *bindings=Json::array();
@@ -149,7 +183,8 @@ bool MySqlRoomAgentRepository::SetWorkspace(int64_t room,int64_t owner,int64_t g
     });
 }
 bool MySqlRoomAgentRepository::Publication(const Json& request,const std::string& digest,
-    const PublicationMatch& matches,const PublicationDecision& decide,Json* output,std::string* error) {
+    const PublicationMatch& matches,const PublicationDecision& decide,Json* output,std::string* error,bool* require_existing) {
+    if(require_existing)*require_existing=false;
     return Run(pool_,error,[&](MYSQL* conn){
         room_sql::Transaction transaction(conn);
         const auto id=request.at("request_id").get<std::string>();
@@ -160,23 +195,37 @@ bool MySqlRoomAgentRepository::Publication(const Json& request,const std::string
         const auto group=Query(conn,"SELECT group_type FROM im_group WHERE id=? FOR UPDATE",{room});
         const auto user=Query(conn,"SELECT status,deleted_at IS NULL FROM `user` WHERE id=? FOR UPDATE",{actor});
         if(One(conn,"SELECT payload FROM room_agent_request WHERE request_id=? FOR UPDATE",{id})!=request)return false;
+        const bool cann=!request.contains("agent_id");
+        const Json original=cann?CannOriginal(conn,request):Json(nullptr);
+        if(require_existing)*require_existing=original.is_object();
+        const Json result=cann?One(conn,"SELECT result FROM room_agent_request WHERE request_id=?",{id}):Json(nullptr);
+        if(cann && result.is_object() && original.is_null()) {
+            if(error)*error="completed CANN publication has no original message";return false;
+        }
         const auto saved=Query(conn,"SELECT input_digest,reply FROM room_agent_publication WHERE request_id=? FOR UPDATE",{id});
         if(!saved.empty()) {
-            const auto original=Json::parse(saved[0][1]);
-            if(saved[0][0]!=digest && !matches(saved[0][0],original)) {
+            const auto canonical=Json::parse(saved[0][1]);
+            if(saved[0][0]!=digest && !matches(saved[0][0],canonical)) {
                 if(error)*error="conflicting Agent final payload";return false;
             }
-            *output=original;transaction.Commit();return true;
+            *output=canonical;
+            transaction.Commit();return true;
         }
         const auto member=Query(conn,"SELECT role FROM group_member WHERE group_id=? AND user_id=? FOR UPDATE",{room,actor});
-        const auto workspace=Query(conn,"SELECT project_id,generation FROM room_workspace WHERE room_id=? FOR UPDATE",{room});
+        const auto workspace=cann?std::vector<std::vector<std::string>>{}:Query(conn,"SELECT project_id,generation FROM room_workspace WHERE room_id=? FOR UPDATE",{room});
         Json bindings=Json::array();
-        for(const auto& row:Query(conn,"SELECT agent_id,installed,generation FROM room_agent_binding WHERE room_id=? FOR UPDATE",{room}))
-            bindings.push_back({{"agent_id",row[0]},{"installed",row[1]=="1"},{"generation",std::stoll(row[2])}});
+        if(!cann)for(const auto& row:Query(conn,"SELECT agent_id,installed,generation FROM room_agent_binding WHERE room_id=? FOR UPDATE",{room}))
+                bindings.push_back({{"agent_id",row[0]},{"installed",row[1]=="1"},{"generation",std::stoll(row[2])}});
         const bool active=!group.empty() && group[0][0]=="1" && !user.empty() && user[0][0]=="1" && user[0][1]=="1" &&
             !member.empty() && std::stoi(member[0][0])>=0 && std::stoi(member[0][0])<=2;
-        *output=decide({{"member",active},{"bindings",bindings},{"workspace",workspace.empty()?Json{{"project_id",""},{"generation",0}}:
-            Json{{"project_id",workspace[0][0]},{"generation",std::stoll(workspace[0][1])}}}});
+        Json state={{"member",active},{"bindings",bindings},{"workspace",workspace.empty()?Json{{"project_id",""},{"generation",0}}:
+            Json{{"project_id",workspace[0][0]},{"generation",std::stoll(workspace[0][1])}}}};
+        if(cann) {
+            state["task"]=One(conn,"SELECT payload FROM room_agent_task WHERE room_id=? FOR UPDATE",{room});
+            state["original_message"]=original;state["original_result"]=result;
+        }
+        *output=decide(state);
+        if(!output->is_object()){if(error)*error="unverifiable legacy CANN publication";return false;}
         Query(conn,"INSERT INTO room_agent_publication(request_id,input_digest,reply) VALUES(?,?,?)",{id,digest,output->dump()});
         // This commit is the authorization linearization point. Kafka/outbox
         // confirmation and request completion still occur in their usual order.

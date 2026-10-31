@@ -93,7 +93,7 @@ bool ConversationStore::AppendMessageHotPath(
     const std::string& session_id, int64_t sender_id,
     const std::string& msg_type, const std::string& content_json,
     int64_t timestamp_ms, const std::string& client_msg_id, Message* message,
-    bool* is_new, std::string* err_msg) {
+    bool* is_new, std::string* err_msg, bool recover_published_reply,bool require_existing_reply) {
     if (!reservations_ || !message || !is_new) {
         if (err_msg) *err_msg = "message reservations unavailable";
         return false;
@@ -105,6 +105,7 @@ bool ConversationStore::AppendMessageHotPath(
     proposed.content_json = content_json;
     proposed.timestamp_ms = timestamp_ms;
     proposed.client_msg_id = client_msg_id;
+    if(recover_published_reply)return reservations_->ReservePublished(proposed,message,is_new,err_msg,require_existing_reply);
     return reservations_->Reserve(proposed, message, is_new, err_msg);
 }
 

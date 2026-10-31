@@ -2,12 +2,15 @@
 #include <iostream>
 #include <thread>
 #include <stdexcept>
+#include <fstream>
 #include "repositories/space_repository.h"
 #include "repositories/room_agent_repository.h"
 #include "repositories/room_sql.h"
 #include "services/room_service.h"
 #include "hermes_reply.h"
+#include "message_reservation.h"
 #include "agent_event.h"
+#include "spark_push.pb.h"
 #include <openssl/sha.h>
 using namespace sparkpush;
 void Require(bool ok,const std::string& why) { if(!ok) throw std::runtime_error(why); }
@@ -164,6 +167,152 @@ int main() {
      Require(rows.size()==1 && rows[0][0].find("private code")==std::string::npos,"denied ledger stores safe error only");}
     Require(multi.SetWorkspace(a,room,{{"project_id","spark-push"},{"generation",4}},&loaded).ok(),"regrant after cancellation");
     Require(multi.PublishReply(batch[1],revokedFinal,"original rejected body",&concurrent,&error) && concurrent==denied,"regrant cannot rewrite cancellation");
+
+    // Real SQL compatibility fixtures, not broker or model execution evidence.
+    Require(agent_repo.CheckPublicationSchema(&error),"CANN-only publication schema");
+    source.msg_seq=300;source.msg_id=source.session_id+"-300";source.client_msg_id="legacy-cann-source";
+    source.content_json=Json{{"content",{{"text","@CANN use the completed compiler receipt"}}}}.dump();
+    Json cann;Require(agent.BuildRequest(source,{},&cann,&error),"build legacy CANN request");
+    auto route=cann;route["agent_id"]="pi";
+    auto cannFirst=finalReply(route);
+    cannFirst["response_metadata"]["workspace_checkpoint"]={{"code_revision","original-source"},
+        {"tests",Json::array({{{"run_id","compile-once"},{"passed",true}}})}};
+    auto prepareCann=[&](const Json& value){PreparedHermesReply p;std::string local_error;
+        Require(PrepareHermesReply(value.dump(),900000000001LL,"Kernel Agent",&p,&local_error,&cann),"prepare CANN SQL fixture");return p.message;};
+    const auto firstMessage=prepareCann(cannFirst);
+    Require(agent.PublishReply(cann,cannFirst,firstMessage.content_json,&canonical,&error) && canonical==cannFirst,"CANN-only first final decision");
+    MySqlMessageReservations reservations(&pool);Message stored;bool fresh=false;
+    Require(reservations.Reserve(firstMessage,&stored,&fresh,&error) && fresh,"CANN final sequence allocated once");
+    auto storedContent=Json::parse(stored.content_json);
+    storedContent["msg_id"]=stored.msg_id;storedContent["msg_seq"]=stored.msg_seq;storedContent["create_time"]=stored.timestamp_ms;
+    const auto storedBytes=storedContent.dump();
+    {
+        auto guard=pool.Acquire();
+        room_sql::Query(guard.get(),"INSERT INTO message(session_id,msg_seq,sender_id,msg_type,content_json,timestamp_ms,client_msg_id) VALUES(?,?,?,?,?,?,?)",
+            {stored.session_id,std::to_string(stored.msg_seq),std::to_string(stored.sender_id),stored.msg_type,storedBytes,std::to_string(stored.timestamp_ms),stored.client_msg_id});
+        room_sql::Query(guard.get(),"UPDATE message_reservation SET stage=3,persist_payload=? WHERE session_id=? AND msg_seq=?",{"original-outbox-fixture",stored.session_id,std::to_string(stored.msg_seq)});
+    }
+    Require(agent.Complete(cannFirst,&error),"old CANN original result persisted");
+    auto cannReplay=cannFirst;cannReplay["completed_at_ms"]=999999;cannReplay["delta_count"]=23;
+    auto& cannEvent=cannReplay["response_metadata"]["agent_event"]["envelope"];
+    cannEvent["sequence"]=23;cannEvent["event_id"]=ProjectedEventId(cann["request_id"],23);cannEvent["replayed"]=true;
+    auto replayMessage=prepareCann(cannReplay);
+    Require(restarted.PublishReply(cann,cannReplay,replayMessage.content_json,&canonical,&error) && canonical==cannFirst,"new CANN replay retains original projection after service restart");
+    auto snapshot=[&]{auto guard=pool.Acquire();return room_sql::Query(guard.get(),
+        "SELECT m.msg_seq,m.content_json,m.timestamp_ms,r.result FROM message m JOIN room_agent_request r ON r.request_id=? WHERE m.session_id=? AND m.sender_id=? AND m.client_msg_id=?",
+        {cann.at("request_id"),stored.session_id,std::to_string(stored.sender_id),stored.client_msg_id});};
+    const auto originalRows=snapshot();Require(originalRows.size()==1,"one original CANN history row");
+    for(int gc_case:{0,1,2}) {
+        {
+            auto guard=pool.Acquire();
+            room_sql::Query(guard.get(),"DELETE FROM room_agent_publication WHERE request_id=?",{cann.at("request_id")});
+            if(gc_case==1)room_sql::Query(guard.get(),"DELETE FROM message_reservation WHERE session_id=? AND msg_seq=?",{stored.session_id,std::to_string(stored.msg_seq)});
+            if(gc_case==2)room_sql::Query(guard.get(),"UPDATE message_reservation SET created_at=CURRENT_TIMESTAMP(3)-INTERVAL 2 DAY WHERE session_id=? AND msg_seq=?",{stored.session_id,std::to_string(stored.msg_seq)});
+        }
+        bool require_existing=false;
+        Require(restarted.PublishReply(cann,cannReplay,replayMessage.content_json,&canonical,&error,&require_existing) && require_existing,"old CANN adoption: "+error);
+        if(gc_case==2) {
+            std::vector<std::pair<Message,std::string>> pending_gc;
+            Require(reservations.Pending(&pending_gc,10,&error),"actual reservation GC between publication and allocation");
+            auto guard=pool.Acquire();Require(room_sql::Query(guard.get(),"SELECT msg_seq FROM message_reservation WHERE session_id=? AND msg_seq=?",{stored.session_id,std::to_string(stored.msg_seq)}).empty(),"GC really removed the observed reservation");
+        }
+        auto recovered=prepareCann(canonical);Message same;fresh=true;
+        Require(recovered.content_json==firstMessage.content_json && recovered.timestamp_ms==firstMessage.timestamp_ms,"old CANN exact original durable content");
+        Require(reservations.ReservePublished(recovered,&same,&fresh,&error,require_existing) && !fresh && same.msg_seq==stored.msg_seq,"old CANN keeps sequence after reservation collection");
+        Require(snapshot()==originalRows,"old CANN adoption never rewrites history/result");
+        auto read=pool.Acquire();const auto outbox=room_sql::Query(read.get(),"SELECT stage,persist_payload FROM message_reservation WHERE session_id=? AND msg_seq=?",{stored.session_id,std::to_string(stored.msg_seq)});
+        Require(outbox.size()==1 && outbox[0][0]=="3" && (gc_case?outbox[0][1].empty():outbox[0][1]=="original-outbox-fixture"),"existing outbox unchanged; expired reservation restored without invented payload");
+    }
+    auto corrupt=cannReplay;corrupt["response_metadata"]["workspace_checkpoint"]["tests"][0]["passed"]=false;
+    Require(!restarted.PublishReply(cann,corrupt,prepareCann(corrupt).content_json,&canonical,&error) && snapshot()==originalRows,"CANN conflicting tool receipt cannot overwrite completion");
+    auto erasePublication=[&]{auto guard=pool.Acquire();room_sql::Query(guard.get(),"DELETE FROM room_agent_publication WHERE request_id=?",{cann.at("request_id")});};
+    auto dbState=[&]{auto guard=pool.Acquire();return Json{
+        {"message",snapshot()},
+        {"publication",room_sql::Query(guard.get(),"SELECT input_digest,reply FROM room_agent_publication WHERE request_id=?",{cann.at("request_id")})},
+        {"reservation",room_sql::Query(guard.get(),"SELECT original_message,stage,HEX(persist_payload) FROM message_reservation WHERE session_id=? AND msg_seq=?",{stored.session_id,std::to_string(stored.msg_seq)})},
+        {"sequence",room_sql::Query(guard.get(),"SELECT last_seq FROM message_sequence WHERE session_id=?",{stored.session_id})}};};
+    erasePublication();
+    for(const auto* field:{"user_id","bot_user_id","session_id"}) {
+        auto wrong=cannReplay;wrong[field]=std::string(field)=="session_id"?Json("r_999999"):Json(999999);
+        const auto before=dbState();
+        Require(!restarted.PublishReply(cann,wrong,replayMessage.content_json,&canonical,&error) && dbState()==before,"legacy adoption cannot change room/actor/bot");
+    }
+    {const auto before=dbState();Require(!restarted.PublishReply(cann,corrupt,prepareCann(corrupt).content_json,&canonical,&error)&&dbState()==before,"legacy receipt conflict leaves no partial publication");}
+    {auto guard=pool.Acquire();auto different=storedContent;different["content"]["text"]="inconsistent durable source";
+     room_sql::Query(guard.get(),"UPDATE message SET content_json=? WHERE session_id=? AND msg_seq=?",{different.dump(),stored.session_id,std::to_string(stored.msg_seq)});}
+    {const auto before=dbState();Require(!restarted.PublishReply(cann,cannReplay,replayMessage.content_json,&canonical,&error)&&dbState()==before,"two individually valid but different legacy sources are rejected");}
+    {auto guard=pool.Acquire();room_sql::Query(guard.get(),"UPDATE message SET content_json=? WHERE session_id=? AND msg_seq=?",{storedBytes,stored.session_id,std::to_string(stored.msg_seq)});}
+    {auto guard=pool.Acquire();room_sql::Query(guard.get(),"UPDATE message SET timestamp_ms=timestamp_ms+1 WHERE session_id=? AND msg_seq=?",{stored.session_id,std::to_string(stored.msg_seq)});}
+    {const auto before=dbState();Require(!restarted.PublishReply(cann,cannReplay,replayMessage.content_json,&canonical,&error)&&dbState()==before,"conflicting history/reservation is not repaired by overwriting either source");}
+    {auto guard=pool.Acquire();room_sql::Query(guard.get(),"UPDATE message SET timestamp_ms=? WHERE session_id=? AND msg_seq=?",{std::to_string(stored.timestamp_ms),stored.session_id,std::to_string(stored.msg_seq)});
+     room_sql::Query(guard.get(),"DELETE FROM message WHERE session_id=? AND msg_seq=?",{stored.session_id,std::to_string(stored.msg_seq)});}
+    bool require_existing=false;
+    Require(restarted.PublishReply(cann,cannReplay,replayMessage.content_json,&canonical,&error,&require_existing)&&require_existing,"reservation-only completed legacy receipt can be verified");
+    Message same;fresh=true;
+    Require(reservations.ReservePublished(prepareCann(canonical),&same,&fresh,&error,require_existing)&&!fresh&&same.msg_seq==stored.msg_seq,"reservation-only keeps the reserved identity");
+    erasePublication();
+    {auto guard=pool.Acquire();room_sql::Query(guard.get(),"DELETE FROM message_reservation WHERE session_id=? AND msg_seq=?",{stored.session_id,std::to_string(stored.msg_seq)});}
+    {const auto before=dbState();Require(!restarted.PublishReply(cann,cannReplay,replayMessage.content_json,&canonical,&error)&&dbState()==before,"missing both legacy sources rejects without mutation");
+     Require(!reservations.ReservePublished(firstMessage,&same,&fresh,&error,true)&&dbState()==before,"known old publication never falls back to fresh allocation when history vanishes");}
+    {auto guard=pool.Acquire();room_sql::Query(guard.get(),"INSERT INTO message(session_id,msg_seq,sender_id,msg_type,content_json,timestamp_ms,client_msg_id) VALUES(?,?,?,?,?,?,?)",{stored.session_id,std::to_string(stored.msg_seq),std::to_string(stored.sender_id),stored.msg_type,storedBytes,std::to_string(stored.timestamp_ms),stored.client_msg_id});}
+    bool adopted[2]={false,false};
+    auto adopt=[&](int index){
+        for(int attempt=0;attempt<3&&!adopted[index];++attempt){Json answer;std::string failure;bool old=false,is_new=true;Message message;
+            adopted[index]=restarted.PublishReply(cann,cannReplay,replayMessage.content_json,&answer,&failure,&old)&&old&&
+                reservations.ReservePublished(prepareCann(answer),&message,&is_new,&failure,old)&&!is_new&&message.msg_seq==stored.msg_seq&&message.content_json==firstMessage.content_json;}
+    };
+    std::thread adopt1([&]{adopt(0);}),adopt2([&]{adopt(1);});adopt1.join();adopt2.join();
+    Require(adopted[0]&&adopted[1]&&snapshot()==originalRows,"concurrent old publication/GC recovery converges on one original message");
+    {auto guard=pool.Acquire();room_sql::Query(guard.get(),"DELETE FROM message_reservation WHERE session_id=? AND msg_seq=?",{stored.session_id,std::to_string(stored.msg_seq)});}
+    for(bool change_type:{false,true}) {
+        auto changed=firstMessage;
+        if(change_type)changed.msg_type="system";else changed.content_json="different result";
+        const auto before=dbState();
+        Require(!reservations.ReservePublished(changed,&same,&fresh,&error,true)&&dbState()==before,"strict published-history comparison rejects changed type/content without allocating");
+    }
+
+    if(const char* fixture_path=std::getenv("SPARK_TEST_CANN_LEGACY_FIXTURE")) {
+        // Optional independent oracle captured from an OLD real image. Raw
+        // message/outbox/result bytes come from that image, not this writer.
+        std::ifstream input(fixture_path);Json fixture;input>>fixture;
+        Require(fixture.at("schema")=="sparkpush.cann_legacy_fixture.v1","captured fixture schema");
+        const auto captured=Json::parse(fixture.at("request_json").get<std::string>());
+        const auto prior=Json::parse(fixture.at("original_message_json").get<std::string>());
+        const auto captured_reply=Json::parse(fixture.at("replay_reply_json").get<std::string>());
+        const std::string hex=fixture.at("persist_payload_hex");std::string binary;
+        Require(hex.size()%2==0,"captured binary length");
+        for(size_t i=0;i<hex.size();i+=2)binary.push_back(static_cast<char>(std::stoul(hex.substr(i,2),nullptr,16)));
+        PersistMessageRequest payload;Require(payload.ParseFromString(binary),"parse OLD original outbox protobuf");
+        const auto& message=payload.message();
+        Require(message.session_id()==prior.at("session")&&message.msg_seq()==prior.at("seq")&&message.client_msg_id()==prior.at("client")&&message.sender_id()==prior.at("sender")&&message.timestamp_ms()==prior.at("time"),"captured SQL and outbox identities agree");
+        const auto historic=Json::parse(message.content_json());const std::string bot_name=historic.at("sender").at("name");
+        PreparedHermesReply candidate;
+        Require(PrepareHermesReply(captured_reply.dump(),message.sender_id(),bot_name,&candidate,&error,&captured),"prepare captured replay");
+        {
+            auto guard=pool.Acquire();const auto actor=std::to_string(captured.at("user_id").get<int64_t>());
+            if(room_sql::Query(guard.get(),"SELECT id FROM user WHERE id=?",{actor}).empty())
+                room_sql::Query(guard.get(),"INSERT INTO user(id,account,password_hash) VALUES(?,?,'test')",{actor,"captured-"+actor});
+            room_sql::Query(guard.get(),"INSERT INTO room_agent_request(request_id,room_id,message_seq,payload,result) VALUES(?,?,?,?,?)",{captured.at("request_id"),std::to_string(captured.at("collaboration").at("room_id").get<int64_t>()),std::to_string(captured.at("message_seq").get<int64_t>()),fixture.at("request_json"),fixture.at("result_json")});
+            room_sql::Query(guard.get(),"INSERT INTO message(session_id,msg_seq,sender_id,msg_type,content_json,timestamp_ms,client_msg_id) VALUES(?,?,?,?,?,?,?)",{message.session_id(),std::to_string(message.msg_seq()),std::to_string(message.sender_id()),message.msg_type(),message.content_json(),std::to_string(message.timestamp_ms()),message.client_msg_id()});
+            room_sql::Query(guard.get(),"INSERT INTO message_reservation(session_id,msg_seq,sender_id,client_msg_id,original_message,stage,persist_payload) VALUES(?,?,?,?,?,3,UNHEX(?))",{message.session_id(),std::to_string(message.msg_seq()),std::to_string(message.sender_id()),message.client_msg_id(),fixture.at("original_message_json"),hex});
+        }
+        for(bool gc:{false,true}) {
+            if(gc){auto guard=pool.Acquire();room_sql::Query(guard.get(),"DELETE FROM room_agent_publication WHERE request_id=?",{captured.at("request_id")});room_sql::Query(guard.get(),"DELETE FROM message_reservation WHERE session_id=? AND msg_seq=?",{message.session_id(),std::to_string(message.msg_seq())});}
+            Json recovered;bool known=false;
+            Require(restarted.PublishReply(captured,captured_reply,candidate.message.content_json,&recovered,&error,&known)&&known,"adopt OLD captured completion: "+error);
+            PreparedHermesReply final;
+            Require(PrepareHermesReply(recovered.dump(),message.sender_id(),bot_name,&final,&error,&captured),"prepare recovered OLD final");
+            bool was_new=true;
+            Require(PersistHermesReply(&final.message,&was_new,
+                [&](Message* m,bool* is_new){const auto proposal=*m;return reservations.ReservePublished(proposal,m,is_new,&error,known);},
+                [&](const Message& m){return m.content_json==message.content_json()&&m.msg_seq==message.msg_seq()&&m.timestamp_ms==message.timestamp_ms();})&&!was_new,"OLD exact persisted bytes/time/sequence survive adoption and GC");
+            auto guard=pool.Acquire();
+            const auto rows=room_sql::Query(guard.get(),"SELECT m.content_json,r.result FROM message m JOIN room_agent_request r ON r.request_id=? WHERE m.session_id=? AND m.msg_seq=?",{captured.at("request_id"),message.session_id(),std::to_string(message.msg_seq())});
+            Require(rows.size()==1&&rows[0][0]==message.content_json()&&Json::parse(rows[0][1])==Json::parse(fixture.at("result_json").get<std::string>()),"OLD history and result never rewritten");
+            if(!gc)Require(room_sql::Query(guard.get(),"SELECT HEX(persist_payload) FROM message_reservation WHERE session_id=? AND msg_seq=?",{message.session_id(),std::to_string(message.msg_seq())}).at(0).at(0)==hex,"OLD binary outbox remains byte-identical");
+        }
+        std::cout<<"captured pre-fix CANN message/outbox/result exact recovery passed\n";
+    }
 
     std::cout<<"real MySQL space transactions, concurrency, SQL binding and Agent persistence passed\n";
 }

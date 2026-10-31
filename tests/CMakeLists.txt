@@ -255,3 +255,5 @@ add_test(NAME backup_contract_test COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURC
 set_tests_properties(backup_contract_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 30)
 add_test(NAME runtime_archive_test COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/runtime_archive_test.py)
 set_tests_properties(runtime_archive_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 60)
+add_test(NAME cann_document_export_test COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/cann_document_export_test.py)
+set_tests_properties(cann_document_export_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 30)

@@ -29,14 +29,18 @@ class MemoryRepository : public RoomAgentRepository {
         return true;
     }
     std::map<std::string,Json> publications;
-    bool Publication(const Json& request,const std::string& digest,const PublicationMatch& matches,const PublicationDecision& decide,Json* out,std::string*)override {
+    Json legacy_original=nullptr,legacy_result=nullptr;
+    bool Publication(const Json& request,const std::string& digest,const PublicationMatch& matches,const PublicationDecision& decide,Json* out,std::string*,bool* require_existing=nullptr)override {
+        if(require_existing)*require_existing=legacy_original.is_object();
         if(fail)return false;
         const std::string id=request.at("request_id");
         if(publications.count(id)) {
             if(publications[id]["digest"]!=digest && !matches(publications[id]["digest"],publications[id]["reply"]))return false;
             *out=publications[id]["reply"];return true;
         }
-        *out=decide({{"member",!removed},{"bindings",bindings},{"workspace",workspace}});
+        *out=decide({{"member",!removed},{"bindings",bindings},{"workspace",workspace},
+            {"task",task},{"original_message",legacy_original},{"original_result",legacy_result}});
+        if(!out->is_object())return false;
         publications[id]={{"digest",digest},{"reply",*out}};return true;
     }
     std::map<std::string,Json> tasks;
@@ -130,6 +134,45 @@ int main() {
     Check(service.Complete(reply,&error),"idempotent completion");
     Check(repo.results.size()==1,"one result after replay");
     Check(repo.task["task_id"]==task_id,"handoff keeps task");
+    {
+        auto first=reply;
+        first["delta_count"]=29;
+        first["response_metadata"]["workspace_checkpoint"]={{"code_revision","immutable"},{"tests",Json::array({{{"run_id","compile-once"},{"passed",true}}})}};
+        first["response_metadata"]["agent_event"]={{"schema","sparkpush.agent_event.v1"},{"type","assistant_final"},
+            {"data",{{"text",first["text"]}}},{"envelope",{{"schema","sparkpush.agent_envelope.v1"},
+            {"request_id",request["request_id"]},{"event_id",ProjectedEventId(request["request_id"],29)},
+            {"route_key","rt_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},{"session_key","cann-room"},
+            {"tenant_id","local"},{"channel_id","spark_pc"},{"conversation_id","r_1"},
+            {"thread_id","_"},{"agent_id","pi"},{"sequence",29},{"created_at_ms",100},
+            {"replayable",true},{"terminal",true},{"replayed",false}}}};
+        auto prepare=[&](const Json& value){PreparedHermesReply p;
+            Check(PrepareHermesReply(value.dump(),99,"CANN",&p,&error,&request),"prepare CANN replay fixture");return p;};
+        const auto original=prepare(first);
+        Json published;
+        Check(service.PublishReply(request,first,original.message.content_json,&published,&error) && published==first,"CANN first publication fenced");
+        auto replay=first;replay["completed_at_ms"]=99999;replay["delta_count"]=23;
+        auto& event=replay["response_metadata"]["agent_event"]["envelope"];
+        event["sequence"]=23;event["event_id"]=ProjectedEventId(request["request_id"],23);event["replayed"]=true;
+        Check(prepare(replay).message.content_json!=original.message.content_json,"CANN real-regression projection bytes differ");
+        Check(service.PublishReply(request,replay,prepare(replay).message.content_json,&published,&error) && published==first,"CANN replay returns original timestamp and projection");
+        auto changed=replay;changed["response_metadata"]["workspace_checkpoint"]["tests"][0]["passed"]=false;
+        Check(!service.PublishReply(request,changed,prepare(changed).message.content_json,&published,&error),"CANN tool receipt conflict rejected");
+        changed=replay;changed["text"]="changed";changed["response_metadata"]["agent_event"]["data"]["text"]="changed";
+        Check(!service.PublishReply(request,changed,prepare(changed).message.content_json,&published,&error),"CANN answer conflict rejected");
+        repo.publications.clear();
+        repo.legacy_original={{"content",original.message.content_json},{"time",original.message.timestamp_ms},{"type","text"}};
+        Check(service.Complete(first,&error),"old CANN saved completion");repo.legacy_result=repo.results[current.msg_id];
+        Check(service.PublishReply(request,replay,prepare(replay).message.content_json,&published,&error) &&
+            prepare(published).message.content_json==original.message.content_json && published["completed_at_ms"]==first["completed_at_ms"],"old CANN final reconstructs original persisted bytes");
+        repo.publications.clear();repo.legacy_result=nullptr;
+        Check(!service.PublishReply(request,replay,prepare(replay).message.content_json,&published,&error),"incomplete old CANN evidence fails closed");
+        repo.legacy_original=nullptr;repo.removed=true;
+        Check(service.PublishReply(request,first,original.message.content_json,&published,&error) && published["terminal_status"]=="cancelled","removed CANN actor cannot publish a new final");
+        repo.removed=false;repo.publications.clear();
+        const auto developers=repo.task["developer_user_ids"];repo.task["developer_user_ids"]=Json::array();
+        Check(service.PublishReply(request,first,original.message.content_json,&published,&error) && published["terminal_status"]=="cancelled","revoked CANN developer cannot publish a new tool result");
+        repo.task["developer_user_ids"]=developers;repo.publications.clear();
+    }
     Json registry={{"schema",1},{"agents",Json::array({
         {{"id","public-pi"},{"name","Pi"},{"runtime","pi_rpc"},{"owner_user_ids",Json::array()},{"bot_user_id",101},{"room_enabled",true},{"room_policy","read_only"}},
         {{"id","second-pi"},{"name","Pi"},{"runtime","pi_rpc"},{"owner_user_ids",Json::array()},{"bot_user_id",102},{"room_enabled",true},{"room_policy","read_only"}}

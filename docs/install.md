@@ -77,6 +77,7 @@ Chat Completions 地址，因为那会绕过已有 AgentRouter 和 Runtime。
 
 当前公共房间 Agent 配置参见 [通用 Room Agent](generic-room-agents.md)。
 公共 Connector 的 Docker 连接方式见 [可选 Connector 部署](optional-agent-connector.md)。
+原 `@CANN` 的公开引用原文需要单独的只读数据挂载，见 [CANN 文档部署](cann-docker.md)。
 公共 Runtime 启动器和三浏览器 Pi/Hermes 协作已取得真实验收证据；
 发行制品、完整 Runtime 备份恢复及剩余专项以 [交付跟踪](v0.1.0-delivery.md) 为准。
 

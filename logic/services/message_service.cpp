@@ -1168,9 +1168,13 @@ bool MessageService::HandleHermesReply(const std::string& payload,
         // 永久等一个不会来的答案，因此必须留一份可人工回放的记录。
         return false;
     }
+    bool require_existing_reply=false;
     if(room_reply) {
         nlohmann::json canonical;
-        if(!room_agent_service_->PublishReply(room_request,envelope,reply.message.content_json,&canonical,&err))return false;
+        if(!room_agent_service_->PublishReply(room_request,envelope,reply.message.content_json,&canonical,&err,&require_existing_reply)) {
+            LOG_ERROR << "Room Agent publication rejected request_id=" << reply.request_id << ": " << err;
+            return false;
+        }
         envelope=std::move(canonical);
         if(!PrepareHermesReply(envelope.dump(),bot_user_id,bot->second,&reply,&err,&room_request))return false;
     }
@@ -1214,16 +1218,17 @@ bool MessageService::HandleHermesReply(const std::string& payload,
     // 真正的 room_id 走已鉴权的存储值，避开被伪造的载荷把回复
     // 归到另一个房间。
     const int64_t reply_room = room_reply ? room_request.at("collaboration").at("room_id").get<int64_t>() : 0;
+    const bool recover_cann_reply=room_reply && !room_request.contains("agent_id");
     // PersistHermesReply 把“分配序号”与“写 outbox + Kafka”两步封成一对
     // lambda（见 hermes_reply.h），顺序契约写在签名里：必须先 allocate 再 persist。
     // 两个 lambda 都捕获了 &err，因此失败原因能一路传到下面的日志。
     if (!PersistHermesReply(
             &message, &is_new,
-            [this, &err](Message* msg, bool* fresh) {
+            [this, &err, recover_cann_reply, require_existing_reply](Message* msg, bool* fresh) {
                 return store_ && store_->AppendMessageHotPath(
                                      msg->session_id, msg->sender_id, msg->msg_type,
                                      msg->content_json, msg->timestamp_ms,
-                                     msg->client_msg_id, msg, fresh, &err);
+                                     msg->client_msg_id, msg, fresh, &err, recover_cann_reply, require_existing_reply);
             },
             [this, user1, user2, reply_room, &err](const Message& msg) {
                 return PersistToTopic(msg, reply_room ? "chatroom" : "single",

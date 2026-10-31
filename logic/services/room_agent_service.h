@@ -68,7 +68,7 @@ class RoomAgentRepository {
     using PublicationDecision=std::function<nlohmann::json(const nlohmann::json&)>;
     using PublicationMatch=std::function<bool(const std::string&,const nlohmann::json&)>;
     virtual bool Publication(const nlohmann::json&,const std::string&,
-                             const PublicationMatch&,const PublicationDecision&,nlohmann::json*,std::string*) { return false; }
+                             const PublicationMatch&,const PublicationDecision&,nlohmann::json*,std::string*,bool* = nullptr) { return false; }
     virtual bool Pending(nlohmann::json*, std::string*) { return false; }
     virtual bool Dispatched(const std::string&, std::string*) { return false; }
     virtual bool MarkAttempt(const std::string&, std::string*) { return false; }
@@ -135,7 +135,7 @@ class RoomAgentService {
     ServiceStatus Install(int64_t actor, int64_t room, const nlohmann::json& input, bool installed);
     ServiceStatus CheckDispatch(const nlohmann::json& request);
     bool PublishReply(const nlohmann::json& request,const nlohmann::json& reply,
-                      const std::string& canonical_content,nlohmann::json*,std::string*);
+                      const std::string& canonical_content,nlohmann::json*,std::string*,bool* require_existing = nullptr);
     bool BuildRequests(const Message&, const std::vector<Message>&, nlohmann::json*, std::string*);
     bool MarkAttempt(const std::string& id,std::string* error) { return repo_->MarkAttempt(id,error); }
     bool Pending(nlohmann::json* requests, std::string* error) { return repo_->Pending(requests,error); }
@@ -184,6 +184,7 @@ class RoomAgentService {
     std::vector<ProjectDefinition> projects_;
     std::string workspace_key_;
     ServiceStatus CheckAuthorization(const nlohmann::json& scope,const nlohmann::json& state) const;
+    bool AuthorizeCannPublication(const nlohmann::json& scope,const nlohmann::json& state) const;
     static nlohmann::json ResultFromReply(const nlohmann::json& request,const nlohmann::json& reply);
     ServiceStatus Mentions(int64_t, int64_t, const nlohmann::json&, std::vector<std::string>*);
     const AgentDefinition* Definition(const std::string&) const;

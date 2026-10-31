@@ -271,6 +271,8 @@ int RunLogic(Config cfg) {
                     throw std::runtime_error("public Agent requires a separate bot identity");
         }
         setup_stage="Agent schema migrations";
+        if(cfg.hermes_enabled && cfg.room_agent_enabled && !room_agent_repository.CheckPublicationSchema(&room_schema_error))
+            throw std::runtime_error("missing CANN publication migration");
         if(!catalog.empty() && !room_agent_repository.CheckCatalogSchema(&room_schema_error))
             throw std::runtime_error("missing optional schema");
         RoomAgentService candidate(&room_agent_repository,cfg.hermes_bot_user_id,

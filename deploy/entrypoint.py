@@ -41,6 +41,8 @@ overrides = {'kafka_brokers':'kafka:29092', 'mysql_host':'mysql', 'mysql_port':'
              'mysql_user':'spark', 'redis_host':'redis', 'internal_grpc_listen_addr':'0.0.0.0',
              'logic_grpc_target':'logic:9100', 'comet_targets':'comet-1=comet:9105',
              'attachment_dir':'/app/data/attachments'}
+if os.environ.get('SPARK_PUSH_CANN_KNOWLEDGE_ROOT'):
+    overrides['cann_knowledge_root'] = os.environ['SPARK_PUSH_CANN_KNOWLEDGE_ROOT']
 config += '\n' + '\n'.join(k+'='+v for k,v in overrides.items()) + '\n'
 target = Path('/tmp/spark-' + role + '.conf')
 target.write_text(config)

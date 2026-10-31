@@ -153,7 +153,7 @@ python3 tests/run_release_smoke.py --out /tmp/spark-release-smoke.json --jobs 2
 | 算法、复杂度、锁与失败路径 | [项目手册](docs/project-guide-and-resume.md)、[模块算法](docs/spark-push-internals.md) |
 | ACK / 游标 / 迁移 / 排障 | [可靠性](docs/reliability-optimization.md)、[工程修复](docs/review-remediation.md) |
 | Kernel Agent 与流式回复 | [产品与子 Agent](docs/kernel-agent.md)、[Kernel Agent 集成](docs/pi-agent-integration.md)、[多 Agent](docs/multi-agent-integration.md) |
-| 共享房间 Agent | [房间协作](docs/room-agent-collaboration.md)，默认关闭 |
+| 共享房间 Agent | [房间协作](docs/room-agent-collaboration.md)、[Docker CANN 原文](docs/cann-docker.md)，默认关闭 |
 | GPU / 推理 Gateway | [推理服务](docs/inference-serving.md)，独立部署与验证 |
 | Android | [构建与连接](android-app/README.md)，需 Android SDK / JDK |
 | 管理员 | [用户中心](docs/user-center.md) |

@@ -10,14 +10,33 @@ import yaml
 BOOTSTRAP=r'''
 import asyncio,json,os,sys
 from pathlib import Path
-root=Path(sys.argv[1]);source=Path(sys.argv[2]);port=int(sys.argv[3])
+root=Path(sys.argv[1]);source=Path(sys.argv[2]);port=int(sys.argv[3]);scripts=Path(sys.argv[4])
 keep={k:v for k,v in os.environ.items() if k.upper() in {'SYSTEMROOT','WINDIR','PATH','PATHEXT','COMSPEC','TEMP','TMP','HTTP_PROXY','HTTPS_PROXY','NO_PROXY'}}
 os.environ.clear();os.environ.update(keep)
-os.environ.update(HERMES_HOME=str(root),HOME=str(root/'home'),USERPROFILE=str(root/'home'),
+os.environ.update(HERMES_HOME=str(root),HERMES_PROFILE='spark-room-test-default',HOME=str(root/'home'),USERPROFILE=str(root/'home'),
                   HERMES_QUIET='1',TERMINAL_CWD=str(root/'workspace'),HERMES_EXEC_ASK='1',PYTHONUTF8='1')
 os.chdir(root/'workspace');sys.path.insert(0,str(source))
+# Apply the same environment boundary as the formal public launcher BEFORE
+# importing Native API/Agent modules. The general private Runs API stays intact.
+sys.path.insert(0,str(scripts))
+from public_runtime import restrict_native_dotenv
+from hermes_constants import get_hermes_home,get_default_hermes_root
+if get_hermes_home().resolve()!=root.resolve() or get_default_hermes_root().resolve()!=root.resolve():
+    raise RuntimeError('isolated fixture inherited another profile root')
+if any((root/name).exists() for name in ('.env','.op.env')):
+    raise RuntimeError('implicit fixture environment file refused')
+from hermes_cli import env_loader
+restrict_native_dotenv(env_loader,root)
+(root/'isolation.json').write_text(json.dumps({'home_is_owned':True,'default_root_is_owned':True,
+    'project_dotenv_disabled':True,'external_secrets_disabled':True}))
 from gateway.config import PlatformConfig
 from gateway.platforms.api_server import APIServerAdapter
+from agent.title_generator import _auto_title_enabled
+if _auto_title_enabled():
+    raise RuntimeError('isolated acceptance fixture must disable auxiliary title generation')
+isolation=json.loads((root/'isolation.json').read_text())
+isolation['auxiliary_titles_disabled']=True
+(root/'isolation.json').write_text(json.dumps(isolation))
 workspace_config=root/'spark-workspace.json'
 expected_tools={'todo'}
 if workspace_config.exists():
@@ -98,6 +117,8 @@ class HermesRoomRuntime:
         (self.root/'auth.json').write_text(json.dumps(isolated));(self.root/'auth.json').chmod(0o600)
         config={'model':{'default':model['default'],'provider':'openai-codex'},
             'agent':{'max_turns':6},'platform_toolsets':{'api_server':['todo']},
+            'tools':{'tool_search':{'enabled':'off'}},
+            'auxiliary':{'title_generation':{'enabled':False}},
             'memory':{'memory_enabled':False,'user_profile_enabled':False},'mcp_servers':{},
             'approvals':{'mode':'manual'},'terminal':{'cwd':self.win(self.root/'workspace')},
             'gateway':{'api_server':{'max_concurrent_runs':2}},'checkpoints':{'enabled':False}}
@@ -117,7 +138,8 @@ class HermesRoomRuntime:
         bootstrap=self.root/'bootstrap.py';bootstrap.write_text(BOOTSTRAP)
         port=int(subprocess.check_output([self.python,'-c','import socket;s=socket.socket();s.bind(("127.0.0.1",0));print(s.getsockname()[1]);s.close()'],text=True).strip())
         self.log=open(self.root/'runtime.log','w')
-        self.proc=subprocess.Popen([self.python,self.win(bootstrap),self.win(self.root),self.win(self.source),str(port)],stdout=self.log,stderr=subprocess.STDOUT)
+        self.proc=subprocess.Popen([self.python,self.win(bootstrap),self.win(self.root),self.win(self.source),str(port),
+            self.win(Path(__file__).resolve().parents[1]/'cannbot/scripts')],stdout=self.log,stderr=subprocess.STDOUT)
         for _ in range(300):
             if (self.root/'ready').exists():break
             if self.proc.poll() is not None:raise RuntimeError('isolated Hermes startup failed; inspect owned runtime.log')

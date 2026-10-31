@@ -1,0 +1,12 @@
+# Optional public CANN reference documents. No model/profile/source directory
+# is mounted; the existing authenticated KnowledgeService serves only IDs.
+services:
+  logic:
+    environment:
+      SPARK_PUSH_CANN_KNOWLEDGE_ROOT: /run/spark-cann
+    volumes:
+      - type: bind
+        source: ${SPARK_PUSH_CANN_DATA_DIR:?Set SPARK_PUSH_CANN_DATA_DIR to the existing CANN knowledge data directory}
+        target: /run/spark-cann/data
+        read_only: true
+        bind: {create_host_path: false}

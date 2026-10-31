@@ -29,6 +29,12 @@ Message Decode(const std::string& value) {
 // 以及 outbox 恢复场景下重建权威序号。
 bool MySqlMessageReservations::Reserve(const Message& proposed, Message* canonical,
                                       bool* fresh, std::string* error) {
+    return ReserveImpl(proposed,canonical,fresh,error,false,false);
+}
+bool MySqlMessageReservations::ReservePublished(const Message& proposed,Message* canonical,bool* fresh,std::string* error,bool require_existing) {
+    return ReserveImpl(proposed,canonical,fresh,error,true,require_existing);
+}
+bool MySqlMessageReservations::ReserveImpl(const Message& proposed,Message* canonical,bool* fresh,std::string* error,bool recover_history,bool require_existing) {
     // session_id 长度上限 128 必须与 schema 里的 VARCHAR(128) 一致，
     // 否则超长 id 会被 MySQL 默默截断，导致两条不同会话撞到同一个计数器上。
     if (!pool_ || !canonical || !fresh || proposed.session_id.empty() || proposed.session_id.size() > 128)
@@ -82,6 +88,31 @@ bool MySqlMessageReservations::Reserve(const Message& proposed, Message* canonic
         }
         *fresh = false;
         return transaction.Commit(error);
+    }
+    if(recover_history) {
+        // GC can run after publication validation and before this transaction.
+        // Check durable history under the SAME sequence lock as allocation,
+        // rather than restoring a reservation in an earlier transaction.
+        if(!SqlExecute(connection,"SELECT msg_seq,msg_type,content_json,timestamp_ms FROM message WHERE session_id=BINARY ? AND sender_id=? AND client_msg_id=BINARY ? ORDER BY msg_seq LIMIT 2",
+            {sid,std::to_string(proposed.sender_id),client},&rows,error))return false;
+        if(rows.size()>1){if(error)*error="ambiguous published reply history";return false;}
+        if(!rows.empty()) {
+            try {
+                const auto seq=std::stoll(rows[0][0]),stamp=std::stoll(rows[0][3]);
+                auto content=nlohmann::json::parse(rows[0][2]);
+                if(seq<=0 || content.at("msg_id")!=sid+"-"+std::to_string(seq) ||
+                    content.at("msg_seq")!=seq || content.at("create_time")!=stamp)
+                    throw std::runtime_error("invalid stored identity");
+                for(const auto* field:{"msg_id","msg_seq","create_time"})content.erase(field);
+                if(rows[0][1]!=proposed.msg_type || content.dump()!=proposed.content_json)
+                    throw std::runtime_error("changed published content");
+                *canonical=proposed;canonical->msg_seq=seq;canonical->msg_id=sid+"-"+std::to_string(seq);canonical->timestamp_ms=stamp;
+            } catch(const std::exception&) {if(error)*error="published reply history conflict";return false;}
+            if(!SqlExecute(connection,"INSERT INTO message_reservation(session_id,msg_seq,sender_id,client_msg_id,original_message,stage) VALUES(?,?,?,?,?,3)",
+                {sid,std::to_string(canonical->msg_seq),std::to_string(canonical->sender_id),client,Encode(*canonical)},nullptr,error))return false;
+            *fresh=false;return transaction.Commit(error);
+        }
+        if(require_existing){if(error)*error="published reply history missing";return false;}
     }
     if (previous == std::numeric_limits<int64_t>::max()) { if (error) *error = "message sequence exhausted"; return false; }
     *canonical = proposed;

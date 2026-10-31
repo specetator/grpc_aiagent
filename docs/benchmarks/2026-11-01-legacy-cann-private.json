@@ -1,0 +1,851 @@
+{
+  "schema": 1,
+  "date": "2026-11-01",
+  "stage": "Legacy CANN documents, durable reply replay, and original private Agent dialogs",
+  "stage_accepted": true,
+  "release_accepted": false,
+  "source": {
+    "parent_commit": "f8c897f13259ee0000cecb9e6f32b5521c933204",
+    "tested_worktree": "Final candidate over parent; 24 real-run source hashes match current files; additional build/test inputs recorded below.",
+    "sha256": {
+      "tests/legacy_private_runtime_fixture.py": "896e68c46197ba955f9acfe922c1eb3531b7b8dfe31a66752f414bd035ed3cb5",
+      "tests/legacy_private_runtime_e2e.py": "04f6c34b36b436138161a0614661451b1f4d6e598ddd0fab5315fcd37b5ce95a",
+      "tests/hermes_room_runtime_fixture.py": "8c82f644ff83cb38ff07413d19fe5457dc09073d383f0c091307761c9eba8ed3",
+      "deploy/entrypoint.py": "60ace4b4c208e3803204b7eaf0211c6566048384c12e4ec24e64a9548248caac",
+      "docker-compose.cann.yml": "6dc85997d3133b787c99b79ff0aacdeddfb3276c6e8d7a7411d8a2f5470aa68f",
+      "scripts/export_cann_documents.py": "28d1f8b96b8539e39e7938815c30ea14b0960f369ee76e5eb103d13e29bc8d66",
+      "logic/services/room_workspace_service.cpp": "f8e2251e4dd64cd821b7137a160b4ee26ff2f20738511197d418aa8bcf457e66",
+      "logic/services/room_agent_service.cpp": "87e6373f4f3e1f6fdf09443a4dc8ab59f082347cde4e4953a20fc3df4adabf6c",
+      "logic/repositories/room_agent_repository.cpp": "beb091fc60bcffe92233b45ba400f8ef9afb7a085c39f2906b01fbac982d74c9",
+      "logic/services/message_service.cpp": "9dc0bd2738bfdd137d32ef7111ac88fd473849852637b4f7a8745b198ae4f67a",
+      "logic/message_reservation.cpp": "8783b7776fab7d408cef8312727cc56cbbe6e5af9944f4ee37fcf923b4a60cb8",
+      "logic/message_reservation.h": "2ea62438b34a06acd73d93edf33c2e1cd2e5cda9b0f208734053edfaa2ef65ea",
+      "logic/conversation_store.cpp": "2a3270b361c4734f7a57c9ced17cc69820d7c551532a68c1d32edfd9fc613051",
+      "logic/conversation_store.h": "c39cfa3b8bb1add2137c9653b584893a5207f7f04d8cd054be404d3b1b6aed16",
+      "logic/main.cpp": "0cbce6e96381613974e7d448bd3d187e4867ed312005060df449a02d3c7c7d23",
+      "sql/migrations/20261101_cann_publications.sql": "5e2dfbd06886788a79bece6a400d19af99370b26ef7f2399c9fa1b9c35ff0e27",
+      "cannbot/scripts/public_runtime.py": "aae022ecd81f055d9d39763e4eabb7a913cc6d5b0a7d5b706b17d411c1403f52",
+      "cannbot/scripts/public_agent_gateway.py": "c7cc89fa7db3f6a5dabfa7a70ab0849f84077df47f3ca097852a27c05708b2b6",
+      "cannbot/scripts/agent_router.py": "5df425d0e0db6090c1e6b18603b698a4def31aa7acd4e29f0be84d1a2d079380",
+      "cannbot/scripts/room_agent.py": "43b5efc27f2b2805424c6e06535f369fd52f67cfa010eeee1cf5519fd07b5911",
+      "cannbot/scripts/pi_gateway.py": "ee0a8cb68d321abee0b83344c47b9c904c1a1eb7f31cd6d8f5656b1e1f5d0e36",
+      "cannbot/scripts/hermes_native_adapter.py": "3ca1b6255082e4b77fc0654af1b764940aa698552fc0b70374dd7aa2c470dd37",
+      "cannbot/pi/extensions/cann-advisor.ts": "cc6e6e5ca007cd1ad0420920302a6fd167794f2ee445a861d2c21f4311507d2e",
+      "cannbot/pi/extensions/room-workspace.ts": "94ee184e8902a18396c48348b7023f71b731f78068d48605f75939c79373b037",
+      "Dockerfile": "fdf93ceb6d3751d1a665f1f283a27d6aafc33cd171741a465cf548bf7f65440a",
+      "logic/services/room_agent_service.h": "03cb3f3aa06e9eacd107df72ec5d9f4f80f199005b022e24678d93b14bfc44c1",
+      "logic/repositories/room_agent_repository.h": "60c59f4da2240223f67259c35685ac85bac09e72aaa8a1c4ecdb381a8d48f893",
+      "tests/room_agent_service_test.cpp": "30758770d3f404be99ea749042f71e1f0ebe11996f93b4185ef83d644d64e419",
+      "tests/space_mysql_integration_test.cpp": "16df9858c983a02446fb3cd83fe1c9889f875384e38b1f3add4a35e848d4d56b",
+      "tests/cann_document_export_test.py": "324e299f827137405cc0f150c6bc8658fdff68fb5af43214454689b2e86d5eec",
+      "tests/CMakeLists.txt": "697cbadd5dda6b8155f545d57748d4b64e9e008bd271399865ab3161ed8eaeed"
+    }
+  },
+  "implementation": [
+    "Optional Logic-only read-only CANN document mount; strict current-generation export keeps original content and permissions unchanged, without mounting private configuration or RAG indexes.",
+    "CANN reuses the existing immutable room_agent_publication decision and v2 transport normalization. Current membership/task/developer authority applies before first publication; saved published replies keep their original content and receipt.",
+    "Verifiable completed legacy replies adopt a publication record from original result and reservation/history. Incomplete, conflicting or ambiguous old evidence fails closed without model reexecution or history replacement.",
+    "Trusted CANN allocation performs strict history recovery inside the existing session sequence transaction. Reservation GC before or after publication cannot cause a new message sequence. Ordinary Reserve and private/generic Agent paths are unchanged.",
+    "Additive CANN publication migration and optional capability schema check; ACK, outbox, Kafka confirmation, Complete ordering and ephemeral delta contracts are unchanged."
+  ],
+  "review": {
+    "architect": "Approved reuse of publication and allocation-transaction recovery; no semantic relaxation in Reserve.",
+    "reviewer": "CANN product round 1 found the GC window; round 2 passed after recovery moved into the sequence transaction. Export and strict Kafka audit separately passed.",
+    "tester": "Final bounded CANN/private stage accepted from run15, matching sources, independent old-image SQL oracle and final checks. Release remains unaccepted."
+  },
+  "verification": {
+    "build": {
+      "command": "cmake --build build-wsl -j2",
+      "exit_code": 0,
+      "local_log": "/tmp/spark-v010-cann-gc-build.log",
+      "sha256": "b55a1403f1e78d8f97805ecd49bcc5cd62ae7ebf9c82c805ffb007f8fcfbb64c"
+    },
+    "final_test_build": {
+      "command": "cmake --build build-wsl -j2 --target space_mysql_integration_test",
+      "exit_code": 0,
+      "local_log": "/tmp/spark-v010-cann-gc-final-tests-build.log",
+      "sha256": "bf01e773d0cf9c3fd16f2db058bccfbb7aeb4a1048f7f99ae4395480ef6b104f"
+    },
+    "image": {
+      "command": "docker build --build-arg BUILD_JOBS=2 -t spark-push:legacy-gc .",
+      "exit_code": 0,
+      "local_log": "/tmp/spark-v010-cann-gc-image.log",
+      "sha256": "6d392633cc74e7ea2ca6bb31925e7e1063decffc73ba4dd766cf5cef148cfdc3",
+      "image_id": "sha256:f71a46e28f5358601f2ca05eabf45c7344274343b07be834a137eaf0032820a5",
+      "registry_digest": null
+    },
+    "ctest": {
+      "command": "SPARK_PLAYWRIGHT_MODULE=/tmp/spark-spaces-browser/node_modules/playwright FONTCONFIG_FILE=/tmp/spark-web-fonts.conf ctest --test-dir build-wsl --output-on-failure -j2",
+      "exit_code": 0,
+      "local_log": "/tmp/spark-v010-cann-gc-final-ctest.log",
+      "sha256": "5eac8717ee13bc60e3e644623eb8d3e85361f386ea52fc47f28413c3a2a8b793",
+      "registered": 64,
+      "passed": 60,
+      "skipped": 4,
+      "failed": 0,
+      "seconds": 55.68,
+      "browser": "Actual Chromium against mocked backend; contract evidence, not this stage’s real browser acceptance."
+    },
+    "mysql": {
+      "command": "SPARK_TEST_CANN_LEGACY_FIXTURE=/tmp/spark-cann-run13-fixture.private.json python3 tests/run_mysql_review_tests.py build-wsl",
+      "exit_code": 0,
+      "local_log": "/tmp/spark-v010-cann-gc-final-mysql.log",
+      "sha256": "f5df8e5d26ffd9e776764c2349d7808609510f06cb486d2cd0db0efc6e1bc1b8",
+      "passed": 2,
+      "seconds": 0.53,
+      "mode": "Fresh real MySQL 8.0; destructive fixtures confined to owned disposable database.",
+      "detail_log": "/tmp/spark-v010-cann-gc-final-mysql-detail.log",
+      "detail_sha256": "e0cb0211dc29810bafdfae84be98a89ee1e4773b1c65b651bdfbe9499ca581b1"
+    },
+    "captured_old_oracle": {
+      "fixture_sha256": "c50280b323c5e77d9d50985582327de68091075f393cc9db425ccb362a579ddf",
+      "local_private_fixture": "/tmp/spark-cann-run13-fixture.private.json",
+      "source_image": "sha256:6f82c534b5cf8e52c704e1242898584767127f24de490a924a22274cbadf9683",
+      "source_attempt": 13,
+      "result": "Original request/result/reservation and protobuf outbox bytes loaded unchanged into real MySQL. Publication adoption and GC recovery retain original full persisted content/time/sequence/result; existing binary outbox is unchanged.",
+      "type": "Real old input + real SQL contract, not a model or Kafka E2E replay."
+    },
+    "redis": {
+      "command": "python3 tests/run_redis_review_tests.py build-wsl",
+      "exit_code": 0,
+      "local_log": "/tmp/spark-v010-cann-gc-final-redis.log",
+      "sha256": "4cef99c096ce65bf1166ba708841520c9238353afb60efc81122639f5449bbf9",
+      "passed": 2,
+      "seconds": 0.15,
+      "mode": "Fresh real Redis container"
+    },
+    "document_export": {
+      "tests": 7,
+      "result": "passed through final CTest",
+      "mode": "Real local filesystem boundary contracts"
+    },
+    "knowledge": {
+      "strict_sources": 119,
+      "strict_exit_code": 0,
+      "citation_exit_code": 0,
+      "sync_check_exit_code": 1,
+      "sync_reason": "Existing installed skill/settings differences intentionally preserved under user instruction; no personal configuration synchronization.",
+      "sync_log": "/tmp/spark-v010-cann-final-sync.log",
+      "sync_sha256": "6bce1a61aea5c376aa689eb08e2cd56882849e14966824610c6a729a63dcc11c"
+    },
+    "real_e2e": {
+      "command": "/tmp/spark-spaces-py311/bin/python tests/legacy_private_runtime_e2e.py --image spark-push:legacy-gc --out /tmp/spark-v010-legacy-private15.json",
+      "exit_code": 0,
+      "local_log": "/tmp/spark-v010-legacy-private15.log",
+      "sha256": "c0d4465df1a2775d71aab6b5b445c8f6ac5a656a78f510e872029c84e41911e9",
+      "receipt": "/tmp/spark-v010-legacy-private15.json",
+      "receipt_sha256": "553325226a2e341f01feffcd4d53525cc45fb556a71f3bfce63e8a4c89aa765c",
+      "result": {
+        "ok": true,
+        "mode": "real Compose + actual Pi/RAG/bubblewrap/g++ + isolated Hermes Native; HTTP/WS clients",
+        "image_id": "sha256:f71a46e28f5358601f2ca05eabf45c7344274343b07be834a137eaf0032820a5",
+        "checks": [
+          "CANN overlay is optional, read-only and requires an existing explicitly selected data directory",
+          "original human single chat delivers while the real optional Agent connector is enabled",
+          "verified CANN citations open through the real Logic container UID; unauthenticated, malformed and absent documents are rejected",
+          "real @CANN searches and fully reads local official evidence; final verified citations match actual native tool results",
+          "owner writes real C++; authorized member B reads it and invokes bubblewrap/g++ with durable unchanged-source receipts",
+          "read-only member actually reads source without mutation; unauthorized development grants are rejected and human handoff is persisted",
+          "original Kernel private dialogs use real models and separate native context/history for A and B",
+          "owner-only Hermes executes through the original IM dialog; forged identity text from B cannot run Native or read owner history",
+          "exact client-message repeats do not add CANN test receipts, Pi conversation turns or Native runs",
+          "Bridge restart and actual Kafka CANN replay preserve the original side-effecting tool receipts and one final message",
+          "cold IM restart and fresh logins recover CANN task/handoff, private histories and owner ACL without repeating tools"
+        ],
+        "knowledge_export": {
+          "generation": "20260918T074115Z-c3df28d94135",
+          "documents": 9451,
+          "documents_sha256": "8821c9889ed230425f54c02b6664934d72b3f423a690b225115201d1b2d903a8",
+          "source_bytes_and_permissions_unchanged": true
+        },
+        "knowledge_mount": {
+          "base_has_no_dependency": true,
+          "required_variable_rejected": true,
+          "missing_directory_rejected_without_creation": true,
+          "target": "/run/spark-cann/data",
+          "read_only": true
+        },
+        "native_isolation": {
+          "home_is_owned": true,
+          "default_root_is_owned": true,
+          "project_dotenv_disabled": true,
+          "external_secrets_disabled": true,
+          "auxiliary_titles_disabled": true
+        },
+        "native_config_sha256": "585fc0594467ca6f6808b325466a3d875e1c72676bc3a4d6fe0204a0ac1567a3",
+        "denials": [
+          {
+            "path": "/api/chatroom/agent/configure",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000213
+          },
+          {
+            "path": "/api/knowledge/document",
+            "http_status": 401,
+            "wire_code": 401,
+            "actor_user_id": null
+          },
+          {
+            "path": "/api/knowledge/document",
+            "http_status": 400,
+            "wire_code": 400,
+            "actor_user_id": 900000000214
+          },
+          {
+            "path": "/api/knowledge/document",
+            "http_status": 404,
+            "wire_code": 404,
+            "actor_user_id": 900000000214
+          },
+          {
+            "path": "/api/session/history",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000213
+          },
+          {
+            "path": "/api/session/history",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000212
+          },
+          {
+            "path": "/api/session/history",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000213
+          },
+          {
+            "path": "/api/session/history",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000213
+          },
+          {
+            "path": "/api/session/history",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000213
+          }
+        ],
+        "cann_evidence": {
+          "request_id": "r_1-1",
+          "verified": true,
+          "tools": [
+            "cann_knowledge_search",
+            "cann_knowledge_get"
+          ],
+          "citations": [
+            {
+              "authority": "official-cann",
+              "cann_version": "8.5.0",
+              "chunk_id": "chk_ec37141c37bb7ab839828d17",
+              "citation_id": "ref_48fa8fd2967827ae",
+              "content_sha256": "64500d6599d4bccb8d639c64411bbfcee21dcdc35e458c94f5cdfa6407ff1da8",
+              "doc_id": "doc_d14851a9e93ed66b562a34a7",
+              "locator": {
+                "type": "heading",
+                "value": "GetBlockIdx<a name=\"ZH-CNTOPIC0000001560710516\"></a>"
+              },
+              "schema_version": "cannkb.citation.v1",
+              "source_id": "cann-official-8.5.0",
+              "source_revision": "fb2021fb9a33b445434f29b6de8cc930ed8b282a",
+              "title": "GetBlockIdx<a name=\"ZH-CNTOPIC0000001560710516\"></a>",
+              "uri": "cannkb://document/doc_d14851a9e93ed66b562a34a7?chunk=chk_ec37141c37bb7ab839828d17"
+            },
+            {
+              "authority": "official-cann",
+              "cann_version": "8.5.0",
+              "chunk_id": "chk_1c54a4e24aaaf00343591c3c",
+              "citation_id": "ref_ba909ac6b07ccd16",
+              "content_sha256": "04142e3b724e1cc3e13b53e7bb24a2840ebed774df36540e97219169c2a4f1ff",
+              "doc_id": "doc_d14851a9e93ed66b562a34a7",
+              "locator": {
+                "type": "heading",
+                "value": "GetBlockIdx<a name=\"ZH-CNTOPIC0000001560710516\"></a> / 函数原型<a name=\"section620mcpsimp\"></a>"
+              },
+              "schema_version": "cannkb.citation.v1",
+              "source_id": "cann-official-8.5.0",
+              "source_revision": "fb2021fb9a33b445434f29b6de8cc930ed8b282a",
+              "title": "GetBlockIdx<a name=\"ZH-CNTOPIC0000001560710516\"></a>",
+              "uri": "cannkb://document/doc_d14851a9e93ed66b562a34a7?chunk=chk_1c54a4e24aaaf00343591c3c"
+            },
+            {
+              "authority": "official-cann",
+              "cann_version": "8.5.0",
+              "chunk_id": "chk_c5fd1277f7b36f275e5186ae",
+              "citation_id": "ref_f9cced5b3596c541",
+              "content_sha256": "0bca06d7983176f0a1913bb201988ac4815db4c6c967226168ccfdc90adae282",
+              "doc_id": "doc_d14851a9e93ed66b562a34a7",
+              "locator": {
+                "type": "heading",
+                "value": "GetBlockIdx<a name=\"ZH-CNTOPIC0000001560710516\"></a> / 约束说明<a name=\"section633mcpsimp\"></a>"
+              },
+              "schema_version": "cannkb.citation.v1",
+              "source_id": "cann-official-8.5.0",
+              "source_revision": "fb2021fb9a33b445434f29b6de8cc930ed8b282a",
+              "title": "GetBlockIdx<a name=\"ZH-CNTOPIC0000001560710516\"></a>",
+              "uri": "cannkb://document/doc_d14851a9e93ed66b562a34a7?chunk=chk_c5fd1277f7b36f275e5186ae"
+            }
+          ],
+          "knowledge_generation": "20260918T074115Z-c3df28d94135",
+          "evidence": {
+            "medium_document_count": 0,
+            "reason": "存在 strong 证据",
+            "strong_count": 1,
+            "sufficient": true,
+            "unmatched_identifiers": []
+          },
+          "unread_evidence": []
+        },
+        "cann_documents": [
+          {
+            "doc_id": "doc_d14851a9e93ed66b562a34a7",
+            "chunk_id": "chk_ec37141c37bb7ab839828d17",
+            "generation": "20260918T074115Z-c3df28d94135",
+            "document_sha256": "2c0a8c777944dd980f179147f26953d452c613dcf780e053f23db1a6538e8edd"
+          },
+          {
+            "doc_id": "doc_d14851a9e93ed66b562a34a7",
+            "chunk_id": "chk_1c54a4e24aaaf00343591c3c",
+            "generation": "20260918T074115Z-c3df28d94135",
+            "document_sha256": "2c0a8c777944dd980f179147f26953d452c613dcf780e053f23db1a6538e8edd"
+          },
+          {
+            "doc_id": "doc_d14851a9e93ed66b562a34a7",
+            "chunk_id": "chk_c5fd1277f7b36f275e5186ae",
+            "generation": "20260918T074115Z-c3df28d94135",
+            "document_sha256": "2c0a8c777944dd980f179147f26953d452c613dcf780e053f23db1a6538e8edd"
+          }
+        ],
+        "cann_test_receipts": [
+          {
+            "run_id": "1ba799c72e6847a49103f0403f0e0282",
+            "code_revision": "82fef7b33248cd27567df045ff305e5e85d289d8208ee18e83680a6f975c156e",
+            "code_revision_after": "82fef7b33248cd27567df045ff305e5e85d289d8208ee18e83680a6f975c156e",
+            "source_unchanged": true,
+            "runner_sha256": "02a8b915f5e63dd546fc947c1a125e5f9e66b5569f168f253e6cc7b83ff8ff60",
+            "exit_code": 0,
+            "timed_out": false,
+            "passed": true,
+            "log": "host probe compiled and exited successfully\n",
+            "log_truncated": false
+          }
+        ],
+        "private_native": {
+          "run_id": "run_ae0b937e76514cbb8d9904c2c09cd470",
+          "hermes_session_id": "spark-im-02155c48d6031729a6adda9b333cef143f74d38461ac74c7c4bcc0a5269cf445-0",
+          "session_id": "agent:private-hermes:spark_pc:f248d8b5363c6d2f3db10b7524c649f2:u900000000212",
+          "status": "completed",
+          "delivery_state": "broker_confirmed"
+        },
+        "replay_baseline": {
+          "cann_execution_request_id": "r_1-5",
+          "exact_client_duplicate_request_ids": [
+            "r_1-5",
+            "s_900000000001_900000000212-3",
+            "s_900000000101_900000000212-1"
+          ],
+          "original_turns_sha256": "674eedb12c7b7e29bdf198751bd0d1531392da19992147516063b8d0f29be9cc",
+          "native_state_sha256": "2368f7bc6f51712004b16c8b56c8189a7b3e794927bbd080ca064d46f19d87f7"
+        },
+        "duplicate_barrier": {
+          "ai_request": {
+            "end": {
+              "0": 1,
+              "1": 9,
+              "2": 2
+            },
+            "committed": {
+              "0": 1,
+              "1": 9,
+              "2": 2
+            }
+          },
+          "ai_reply": {
+            "end": {
+              "0": 5,
+              "1": 1,
+              "2": 6
+            },
+            "committed": {
+              "0": 5,
+              "1": 1,
+              "2": 6
+            }
+          }
+        },
+        "replay_barrier": {
+          "ai_request": {
+            "end": {
+              "0": 1,
+              "1": 9,
+              "2": 3
+            },
+            "committed": {
+              "0": 1,
+              "1": 9,
+              "2": 3
+            }
+          },
+          "ai_reply": {
+            "end": {
+              "0": 5,
+              "1": 1,
+              "2": 7
+            },
+            "committed": {
+              "0": 5,
+              "1": 1,
+              "2": 7
+            }
+          }
+        },
+        "restart_barrier": {
+          "ai_request": {
+            "end": {
+              "0": 1,
+              "1": 9,
+              "2": 3
+            },
+            "committed": {
+              "0": 1,
+              "1": 9,
+              "2": 3
+            }
+          },
+          "ai_reply": {
+            "end": {
+              "0": 5,
+              "1": 1,
+              "2": 7
+            },
+            "committed": {
+              "0": 5,
+              "1": 1,
+              "2": 7
+            }
+          }
+        },
+        "dead_letters": {
+          "after-replay": {
+            "ai_request.dlq": {
+              "end": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "committed": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "records": []
+            },
+            "ai_reply.dlq": {
+              "end": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "committed": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "records": []
+            }
+          },
+          "after-restart": {
+            "ai_request.dlq": {
+              "end": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "committed": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "records": []
+            },
+            "ai_reply.dlq": {
+              "end": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "committed": {
+                "0": 0,
+                "1": 0,
+                "2": 0
+              },
+              "records": []
+            }
+          }
+        },
+        "requests": [
+          {
+            "request_id": "r_1-1",
+            "session_id": "r_1",
+            "bot_user_id": 900000000001,
+            "actor_user_id": 900000000212,
+            "final_msg_id": "r_1-2"
+          },
+          {
+            "request_id": "r_1-3",
+            "session_id": "r_1",
+            "bot_user_id": 900000000001,
+            "actor_user_id": 900000000212,
+            "final_msg_id": "r_1-4"
+          },
+          {
+            "request_id": "r_1-5",
+            "session_id": "r_1",
+            "bot_user_id": 900000000001,
+            "actor_user_id": 900000000213,
+            "final_msg_id": "r_1-6"
+          },
+          {
+            "request_id": "r_1-7",
+            "session_id": "r_1",
+            "bot_user_id": 900000000001,
+            "actor_user_id": 900000000214,
+            "final_msg_id": "r_1-8"
+          },
+          {
+            "request_id": "s_900000000001_900000000212-1",
+            "session_id": "s_900000000001_900000000212",
+            "bot_user_id": 900000000001,
+            "actor_user_id": 900000000212,
+            "final_msg_id": "s_900000000001_900000000212-2"
+          },
+          {
+            "request_id": "s_900000000001_900000000213-1",
+            "session_id": "s_900000000001_900000000213",
+            "bot_user_id": 900000000001,
+            "actor_user_id": 900000000213,
+            "final_msg_id": "s_900000000001_900000000213-2"
+          },
+          {
+            "request_id": "s_900000000001_900000000212-3",
+            "session_id": "s_900000000001_900000000212",
+            "bot_user_id": 900000000001,
+            "actor_user_id": 900000000212,
+            "final_msg_id": "s_900000000001_900000000212-4"
+          },
+          {
+            "request_id": "s_900000000101_900000000212-1",
+            "session_id": "s_900000000101_900000000212",
+            "bot_user_id": 900000000101,
+            "actor_user_id": 900000000212,
+            "final_msg_id": "s_900000000101_900000000212-2"
+          },
+          {
+            "request_id": "s_900000000101_900000000213-1",
+            "session_id": "s_900000000101_900000000213",
+            "bot_user_id": 900000000101,
+            "actor_user_id": 900000000213,
+            "final_msg_id": "s_900000000101_900000000213-2"
+          }
+        ],
+        "artifacts_sha256": {
+          "gateway/rooms/receipts/1_c725e8a0b73d854c6ceded8222698336/1ba799c72e6847a49103f0403f0e0282.json": "ebc2f4541bfa5522139c99a337f1f061c1bd8c55e3e3352d71a57586d536e3d2",
+          "gateway/rooms/workspaces/1_c725e8a0b73d854c6ceded8222698336/operator.cpp": "0e632af6b60dd29c095897f2b3e76175064031555a8ee509dc76585b3e2175d7",
+          "gateway/rooms/workspaces/1_c725e8a0b73d854c6ceded8222698336/.operator-test": "a85313b5597638dfb0db955b789565dec5bc1a3475eed4b6b9af4bba87a435a9",
+          "gateway/rooms/sessions/1_c725e8a0b73d854c6ceded8222698336/room_1_c725e8a0b73d854c6ceded8222698336__0.jsonl": "97308ae2142764533c85685b37d903ddf3d31dcbfd34db93c3c811b2fa897d39",
+          "gateway/prototype/sessions/s_900000000001_900000000212__0.jsonl": "e7f2aac963b2fd3e41683b528414b8434cc5c469249b8b4763eecf2def5599d6",
+          "gateway/prototype/sessions/s_900000000001_900000000213__0.jsonl": "bdf418301853c24ca671d3058eed688435a39b6fedf6c8cf04312bac2004f4ab"
+        },
+        "cleanup": {
+          "owned_compose_removed": true,
+          "owned_native_removed": true,
+          "private_pi_model_files_unchanged": true,
+          "original_windows_profile_unchanged": true
+        },
+        "limitations": [
+          "not browser or Ascend/NPU validation",
+          "Kernel contact remains shared; Pi isolation is by private conversation, not an owner-only catalog entry",
+          "C++ probe uses the generated program self-check, not an independent numerical precision oracle",
+          "Only owned C++ test execution is authorized; public Runtime policy and personal technical profiles are unchanged"
+        ],
+        "native_owner_denial": {
+          "request_id": "s_900000000101_900000000213-1",
+          "native_run_created": false,
+          "admission_error": "当前 Agent 已不可访问，请发送 /agent 重新选择",
+          "admission_attempts": 1
+        }
+      }
+    }
+  },
+  "regression_diagnosis": {
+    "observed_request": "r_1-5",
+    "logic_error": "client_msg_id reused with different content",
+    "kafka_partition": 2,
+    "kafka_offset": 6,
+    "bounded_attempts": 3,
+    "changed_paths": [
+      "request_started_at_ms",
+      "completed_at_ms",
+      "total_latency_ms",
+      "first_delta_at_ms",
+      "delta_count",
+      "response_metadata.agent_event.envelope.event_id",
+      "response_metadata.agent_event.envelope.replayed",
+      "response_metadata.agent_event.envelope.sequence"
+    ],
+    "unchanged": "Every other original/replay field, including text, identity, citations and workspace checkpoint, matched.",
+    "evidence_private": [
+      "/tmp/spark-v010-legacy-private13.after-replay-ai_reply.private.json",
+      "/tmp/spark-v010-legacy-private13.compose.private.log",
+      "/tmp/spark-v010-legacy-private13-manual-persistence.private.log"
+    ]
+  },
+  "native_metadata_diagnostic": {
+    "receipt": "/tmp/spark-v010-native-metadata-probe.json",
+    "sha256": "5046b1adc33dee0f5666a4d7b92a7f55c59ba7eff311ebb0b06deb39db0358c2",
+    "mode": "Three real isolated Native requests called directly, not IM/ACL acceptance.",
+    "observed": "Two sessions changed only title/title_source after completion; message rows and other session fields remained unchanged. Owned test configuration disables auxiliary title generation and asserts the installed runtime sees that setting.",
+    "limit": "Does not establish the exact lost cause of run6/7. Original personal profile/configuration was not changed."
+  },
+  "attempts": [
+    {
+      "attempt": 1,
+      "ok": false,
+      "checks": 4,
+      "exit_code": 130,
+      "receipt": "/tmp/spark-v010-legacy-private1.json",
+      "sha256": "0b7804f6b69d492e143cc31db6bd24124043ed62b99253958b3862a078e83847",
+      "cleanup": {
+        "owned_compose_removed": true,
+        "owned_native_removed": true,
+        "private_pi_model_files_unchanged": true,
+        "original_windows_profile_unchanged": true
+      },
+      "outcome": "Stopped after four checks to correct the private final-message correlation oracle; production CANN work had executed. Not a pass."
+    },
+    {
+      "attempt": 2,
+      "ok": false,
+      "checks": 0,
+      "exit_code": 1,
+      "receipt": "/tmp/spark-v010-legacy-private2.json",
+      "sha256": "99d6edea84e8adc83bfac11305f3f2d3ee69ed0ef8d80d34c3886d9be230618e",
+      "cleanup": {
+        "owned_compose_removed": true,
+        "owned_native_removed": true,
+        "private_pi_model_files_unchanged": true,
+        "original_windows_profile_unchanged": true
+      },
+      "outcome": "Compose normalized output omitted create_host_path=false; fixture incorrectly indexed the omitted key. Source and effective mount are now both checked."
+    },
+    {
+      "attempt": 3,
+      "ok": false,
+      "checks": 2,
+      "exit_code": 1,
+      "receipt": "/tmp/spark-v010-legacy-private3.json",
+      "sha256": "1302cbcf94a1f49e98a00728f3a3f3aa72b3bf55b5e85856be08b2855d1c2c93",
+      "cleanup": {
+        "owned_compose_removed": true,
+        "owned_native_removed": true,
+        "private_pi_model_files_unchanged": true,
+        "original_windows_profile_unchanged": true
+      },
+      "outcome": "Actual container citation reads returned 404 because original 0600 knowledge files were not readable by UID10001. Independent public-document export fixes access without changing originals."
+    },
+    {
+      "attempt": 4,
+      "ok": false,
+      "checks": 2,
+      "exit_code": 1,
+      "receipt": "/tmp/spark-v010-legacy-private4.json",
+      "sha256": "ea135c7918e2b0bd092bf7da140180731ad00ccb278f2e1de18bf44b67821155",
+      "cleanup": {
+        "owned_compose_removed": true,
+        "owned_native_removed": true,
+        "private_pi_model_files_unchanged": true,
+        "original_windows_profile_unchanged": true
+      },
+      "outcome": "Actual model used knowledge tools but final verified flag was false; original metadata was not retained, so the exact cause remains unattributed. Prompt now requires the exact query/version/full evidence read; verifier unchanged."
+    },
+    {
+      "attempt": 5,
+      "ok": false,
+      "checks": 7,
+      "exit_code": 130,
+      "receipt": "/tmp/spark-v010-legacy-private5.json",
+      "sha256": "aaab65bba26f68dcf16a2c13511eaf5827fd1a6966703333d1b4ecce4b884c18",
+      "cleanup": {
+        "owned_compose_removed": true,
+        "owned_native_removed": true,
+        "private_pi_model_files_unchanged": true,
+        "original_windows_profile_unchanged": true
+      },
+      "outcome": "Stopped after seven checks: Native remained unknown because the test fixture removed the explicit test-port marker. Marker retained and actual capabilities probed before IM admission; unknown request was not reexecuted."
+    },
+    {
+      "attempt": 6,
+      "ok": false,
+      "checks": 7,
+      "exit_code": 1,
+      "receipt": "/tmp/spark-v010-legacy-private6.json",
+      "sha256": "97b64fe221f20274e3943c0c62ba82dd4db027d2a644b4c4a61e9ba0d0aeec74",
+      "cleanup": {
+        "owned_compose_removed": true,
+        "owned_native_removed": true,
+        "private_pi_model_files_unchanged": true,
+        "original_windows_profile_unchanged": true
+      },
+      "outcome": "Full Native SQL fingerprint changed after the denied request. Exact original row difference was not retained; cannot retrospectively attribute the change."
+    },
+    {
+      "attempt": 7,
+      "ok": false,
+      "checks": 7,
+      "exit_code": 1,
+      "receipt": "/tmp/spark-v010-legacy-private7.json",
+      "sha256": "fe598785f313ddcce473868078486734fa8f824324a6a8d564e876b82f8ba32c",
+      "cleanup": {
+        "owned_compose_removed": true,
+        "owned_native_removed": true,
+        "private_pi_model_files_unchanged": true,
+        "original_windows_profile_unchanged": true
+      },
+      "outcome": "Same Native comparison failed; failure diagnostics could not serialize a BLOB. Exact old difference not recovered. Snapshot serialization now handles bytes."
+    },
+    {
+      "attempt": 8,
+      "ok": false,
+      "checks": 6,
+      "exit_code": 1,
+      "receipt": "/tmp/spark-v010-legacy-private8.json",
+      "sha256": "cff868b3b8d2308ff41024a00e210a02b957ab3857ace9aa80150d0fa5c88826",
+      "cleanup": {
+        "owned_compose_removed": true,
+        "owned_native_removed": true,
+        "private_pi_model_files_unchanged": true,
+        "original_windows_profile_unchanged": true
+      },
+      "outcome": "Private Pi response did not satisfy the exact expected marker assertion. Original response was not captured; provider failure or context error cannot be distinguished retrospectively."
+    },
+    {
+      "attempt": 9,
+      "ok": false,
+      "checks": 10,
+      "exit_code": 1,
+      "receipt": "/tmp/spark-v010-legacy-private9.json",
+      "sha256": "3b7aa6dff4b88b8caee266ad284f11ba41bfd070a85a885666252dd0205f1eb3",
+      "cleanup": {
+        "owned_compose_removed": true,
+        "owned_native_removed": true,
+        "private_pi_model_files_unchanged": true,
+        "original_windows_profile_unchanged": true
+      },
+      "outcome": "Replay/cold checks completed but the old DLQ offset assertion failed. Raw DLQ records were not yet captured; no retrospective claim about the record identity."
+    },
+    {
+      "attempt": 10,
+      "ok": false,
+      "checks": 1,
+      "exit_code": 1,
+      "receipt": "/tmp/spark-v010-legacy-private10.json",
+      "sha256": "ef827faa6e0711ee967cee7c0b20c2ba35b58cb4af941301eb36dc1fcf6f7794",
+      "cleanup": {
+        "owned_compose_removed": true,
+        "owned_native_removed": true,
+        "private_pi_model_files_unchanged": true,
+        "original_windows_profile_unchanged": true
+      },
+      "outcome": "Early registration returned wire code 500. Original response and corresponding logs were not retained. Later passes do not establish this attempt’s root cause; unexpected responses are now captured privately."
+    },
+    {
+      "attempt": 11,
+      "ok": false,
+      "checks": 10,
+      "exit_code": 1,
+      "receipt": "/tmp/spark-v010-legacy-private11.json",
+      "sha256": "aaaa3997707e0be4994c86ef360d424b9fe1ba6843eb7124aea036debaeab682",
+      "cleanup": {
+        "owned_compose_removed": true,
+        "owned_native_removed": true,
+        "private_pi_model_files_unchanged": true,
+        "original_windows_profile_unchanged": true
+      },
+      "outcome": "Replay/cold checks completed but a mistaken DLQ expectation failed. Ordinary private owner denial is a handled 422 result, not an allowed DLQ failure."
+    },
+    {
+      "attempt": 12,
+      "ok": false,
+      "checks": 10,
+      "exit_code": 1,
+      "receipt": "/tmp/spark-v010-legacy-private12.json",
+      "sha256": "05bde6c40a51d313a8b4ae9d2503143b3170c9b3d50c359ca2421e4b30e368b7",
+      "cleanup": {
+        "owned_compose_removed": true,
+        "owned_native_removed": true,
+        "private_pi_model_files_unchanged": true,
+        "original_windows_profile_unchanged": true
+      },
+      "outcome": "Actual ai_reply.dlq contained the successful CANN compiler request r_1-5 after Bridge replay: attempts=3, processing_exhausted. This was a real product failure, never allowed as an exception."
+    },
+    {
+      "attempt": 13,
+      "ok": false,
+      "checks": 9,
+      "exit_code": 1,
+      "receipt": "/tmp/spark-v010-legacy-private13.json",
+      "sha256": "e4dd478b64bfdb30b8706fca4ed9f4f1b15458abe1c8f82edb6885191795547d",
+      "cleanup": {
+        "owned_compose_removed": true,
+        "owned_native_removed": true,
+        "private_pi_model_files_unchanged": true,
+        "original_windows_profile_unchanged": true
+      },
+      "outcome": "Captured original and replayed CANN ai_reply plus Logic conflict logs established the cause. Diagnostic SQL read of binary outbox then failed UTF-8 decoding; query now uses HEX. Independent manual raw SQL/HEX capture was retained."
+    },
+    {
+      "attempt": 14,
+      "ok": true,
+      "checks": 11,
+      "exit_code": 0,
+      "receipt": "/tmp/spark-v010-legacy-private14.json",
+      "sha256": "5d600d3e03df665890fd143b6ed01c6a63e779e0755e197bd7d9b332ac39f326",
+      "cleanup": {
+        "owned_compose_removed": true,
+        "owned_native_removed": true,
+        "private_pi_model_files_unchanged": true,
+        "original_windows_profile_unchanged": true
+      },
+      "outcome": "First publication fix passed 11 real checks, but independent review subsequently identified a reservation-GC race. This candidate is not evidence for the final GC fix."
+    },
+    {
+      "attempt": 15,
+      "ok": true,
+      "checks": 11,
+      "exit_code": 0,
+      "receipt": "/tmp/spark-v010-legacy-private15.json",
+      "sha256": "553325226a2e341f01feffcd4d53525cc45fb556a71f3bfce63e8a4c89aa765c",
+      "cleanup": {
+        "owned_compose_removed": true,
+        "owned_native_removed": true,
+        "private_pi_model_files_unchanged": true,
+        "original_windows_profile_unchanged": true
+      },
+      "outcome": "Final publication and allocation-transaction recovery candidate passed 11 real checks and independent bounded-stage review."
+    }
+  ],
+  "limitations": [
+    "Real run15 uses three HTTP/WebSocket clients, not three browsers. Final release artifacts, clean Linux installation and final browser acceptance remain pending.",
+    "CANN overlay backup is not yet supported by the existing bind allowlist. This stage does not validate CANN backup/restore.",
+    "The legacy/general Gateway test mode is separate from the formal public launcher. Simultaneous formal public Pi/Hermes plus legacy CANN deployment remains unvalidated.",
+    "C’s real read-only scenario proves source reading with no observed mutation; it did not prove a lower-level attempted write was rejected.",
+    "C++ execution uses the generated program’s own self-check. No Ascend/NPU execution or independent numerical precision oracle was run.",
+    "Old incomplete/contradictory publication data is rejected for manual inspection, not rewritten or automatically reexecuted.",
+    "Historical Native fingerprint, exact Pi marker and early registration failures without retained raw diagnostics remain unattributed; later passes do not retroactively explain them.",
+    "No private credentials, private runtime session contents or raw conversation fixture is committed. Local private diagnostic paths require the original test environment.",
+    "GHCR image publication, versioned installation/upgrade/rollback and GitHub v0.1.0 Release remain outstanding."
+  ]
+}

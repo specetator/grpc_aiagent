@@ -85,7 +85,8 @@ class ConversationStore {
                               const std::string& content_json,
                               int64_t timestamp_ms,
                               const std::string& client_msg_id, Message* message,
-                              bool* is_new, std::string* err_msg);
+                              bool* is_new, std::string* err_msg,
+                              bool recover_published_reply = false,bool require_existing_reply = false);
 
     // 异步落盘：确保 session 行存在并 INSERT message（使用已分配的 msg_seq）
     // scene: "single" | "chatroom"；single 时用 user1/user2，chatroom 用 room_id

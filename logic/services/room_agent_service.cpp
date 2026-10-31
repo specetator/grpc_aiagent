@@ -290,6 +290,13 @@ bool RoomAgentService::Complete(const Json& reply, std::string* error) {
     if (!ValidateReply(reply, &request, error)) return false;
     return repo_->Finish(reply["request_id"], ResultFromReply(request,reply), error);
 }
+bool RoomAgentService::AuthorizeCannPublication(const Json& scope,const Json& state) const {
+    const auto& task=state.at("task");
+    return enabled_ && state.at("member").get<bool>() && task.is_object() &&
+        task.at("task_id")==scope.at("task_id") && task.at("bot_user_id")==scope.at("bot_user_id") &&
+        task.at("owner_user_id")==scope.at("owner_user_id") &&
+        (!scope.at("can_develop").get<bool>() || Developer(task,scope.at("actor_user_id")));
+}
 Json RoomAgentService::ResultFromReply(const Json& request,const Json& reply) {
     // 只取固定几个字段重建 result，而不是把整个 reply 存下来。
     // 这是「重建而非过滤」的典型做法：reply 里多余的、未知的字段
