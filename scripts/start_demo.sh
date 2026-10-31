@@ -30,7 +30,7 @@ usage() {
   SPARK_PUSH_ENV_FILE   环境文件路径，默认 .env.local
   SPARK_PUSH_BUILD_JOBS 编译并行度，默认 nproc
   SPARK_PUSH_ACCESS_IP  Windows/局域网访问用的虚拟机 IP；默认自动检测
-  SPARK_PUSH_HERMES_ENABLED=true 时额外启动 hermes_bridge（现对接 Pi Agent）；
+  SPARK_PUSH_HERMES_ENABLED=true 时额外启动 hermes_bridge（现对接 Kernel Agent）；
   同时需要 SPARK_PUSH_HERMES_BASE_URL、SPARK_PUSH_HERMES_API_KEY
 EOF
 }
@@ -325,7 +325,7 @@ start_services() {
     start_process hermes_bridge "$ROOT/logs/hermes_bridge.out" \
       "$BUILD_DIR/hermes_bridge/hermes_bridge" \
       --config "$ROOT/conf/hermes_bridge.conf"
-    echo "Agent Bridge 已启动（对接 Pi Agent SSE /v1/chat/completions，最终消息仍落库）"
+    echo "Agent Bridge 已启动（对接 Kernel Agent SSE /v1/chat/completions，最终消息仍落库）"
   fi
 
   start_process comet_server "$ROOT/logs/comet.out" \
@@ -388,9 +388,9 @@ start_services() {
   echo "  Job metrics：http://127.0.0.1:9202/metrics"
   echo "  Comet metrics：http://127.0.0.1:9203/metrics"
   if hermes_enabled; then
-    echo "  Pi Agent Bot：900000000001（在单聊页面输入该用户 ID）"
+    echo "  Kernel Agent Bot：900000000001（在单聊页面输入该用户 ID）"
     echo "  Agent Bridge 日志：$ROOT/logs/hermes_bridge.out"
-    echo "  Pi Gateway 日志：$ROOT/logs/pi_gateway.out"
+    echo "  Kernel Agent Gateway 日志：$ROOT/logs/pi_gateway.out"
   fi
   echo "  停止完整栈：./scripts/sparkctl.sh down"
   echo "  仅停止 Spark 业务：bash scripts/stop_demo.sh"

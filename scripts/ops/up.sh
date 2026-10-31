@@ -42,35 +42,35 @@ ensure_hermes_gateway() {
   local health_url
   health_url="$(hermes_health_url)"
   if http_ok "$health_url" 4; then
-    echo "Pi Agent Gateway 已就绪：$health_url"
+    echo "Kernel Agent Gateway 已就绪：$health_url"
     return 0
   fi
   if ! hermes_is_local; then
     echo "远程 Agent API 不可达：$health_url" >&2
-    echo "运维脚本不会自动启动或停止远程 Pi/Hermes。" >&2
+    echo "运维脚本不会自动启动或停止远程 Kernel Agent/Hermes。" >&2
     return 1
   fi
   local command_path
   if ! command_path="$(resolve_pi_command)"; then
-    echo "未找到 pi-spark-agent；先执行 cannbot/scripts/setup_pi_agent.sh，" \
+    echo "未找到 kernel-agent；先执行 cannbot/scripts/setup_kernel_agent.sh，" \
          "或设置 SPARK_PUSH_PI_COMMAND" >&2
     return 1
   fi
   mkdir -p "$PROJECT_ROOT/logs" "$PROJECT_ROOT/.run"
   stop_stale_hermes_gateway
-  echo "启动独立 WSL Pi Agent Gateway..."
+  echo "启动独立 WSL Kernel Agent Gateway..."
   nohup setsid "$command_path" gateway </dev/null \
     >>"$PROJECT_ROOT/logs/pi_gateway.out" 2>&1 &
   printf '%s\n' "$!" >"$PROJECT_ROOT/.run/pi_gateway.pid"
   local attempt
   for ((attempt = 0; attempt < 120; ++attempt)); do
     if http_ok "$health_url" 2; then
-      echo "Pi Agent Gateway 已就绪：$health_url"
+      echo "Kernel Agent Gateway 已就绪：$health_url"
       return 0
     fi
     sleep 0.25
   done
-  echo "Pi Agent Gateway 启动超时，最近日志：" >&2
+  echo "Kernel Agent Gateway 启动超时，最近日志：" >&2
   tail -n 40 "$PROJECT_ROOT/logs/pi_gateway.out" >&2 || true
   return 1
 }

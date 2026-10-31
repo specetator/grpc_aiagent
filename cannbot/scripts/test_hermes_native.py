@@ -290,6 +290,7 @@ class NativeTests(unittest.TestCase):
         worker.join(3)
         self.assertIsInstance(box["error"], RuntimeError)
         self.assertIn("run.cancelled", str(box["error"]))
+        self.assertEqual(box["error"].terminal_status, "cancelled")
 
         seen, release = threading.Event(), threading.Event()
         self.adapter.interactive = True

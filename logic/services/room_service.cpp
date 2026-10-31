@@ -1,4 +1,6 @@
 #include "services/room_service.h"
+#include <algorithm>
+#include <unordered_set>
 
 #include "conversation_store.h"
 #include "group_dao.h"
@@ -46,18 +48,19 @@ ServiceStatus RoomService::ListSubscriptions(int64_t actor, int64_t user,
 ServiceStatus RoomService::Join(int64_t actor, int64_t user, int64_t room) {
     auto status = RoomActor(actor, user, room);
     if (!status.ok()) return status;
-    if (!groups_ || !members_) return {500, "group dao not initialized"};
-    ImGroup group;
-    std::string error;
-    if (!groups_->GetGroup(room, &group, &error))
-        return {404, "chatroom not found: " + error};
-    // group_type != 1 是普通群，不能走聊天室订阅。
-    // 重复 Join 由 DAO 的 INSERT IGNORE 保证幂等，这里不预查成员。
-    // 本方法不改 Redis 在线计数，那是 ReportRoomJoin 的事。
-    if (group.group_type != 1) return {400, "group is not chatroom"};
-    if (!members_->AddOrUpdateMember(room, user, 0, &error))
-        return {500, "add member failed: " + error};
-    return {};
+    if (!spaces_) return {500, "space repository unavailable"};
+    return spaces_->WithRoom(room, [&](SpaceTransaction& tx) -> ServiceStatus {
+        if (tx.Role(user) >= 0) {
+            if(tx.Invitation(user)=="pending") tx.SetInvitation(user,user,"accepted");
+            return {}; // Never downgrade an existing role.
+        }
+        if (tx.Group().visibility != "public" || tx.Invitation(user) == "revoked")
+            return {403, "accept a space invitation before joining"};
+        if (!tx.ActiveUser(user)) return {403, "active user required"};
+        tx.SetMember(user, kRoomMember);
+        if(tx.Invitation(user)=="pending") tx.SetInvitation(user,user,"accepted");
+        return {};
+    });
 }
 ServiceStatus RoomService::Leave(int64_t actor, int64_t user, int64_t room) {
     // Leaving the HTTP page is not unsubscribing or changing WS presence.
@@ -69,11 +72,15 @@ ServiceStatus RoomService::Leave(int64_t actor, int64_t user, int64_t room) {
 ServiceStatus RoomService::Unsubscribe(int64_t actor, int64_t user, int64_t room) {
     auto status = RoomActor(actor, user, room);
     if (!status.ok()) return status;
-    if (!members_) return {500, "group member dao not initialized"};
-    std::string error;
-    if (!members_->RemoveMember(room, user, &error))
-        return {500, "remove member failed: " + error};
-    return {};
+    if (!spaces_) return {500, "space repository unavailable"};
+    return spaces_->WithRoom(room, [&](SpaceTransaction& tx) -> ServiceStatus {
+        if (tx.Group().owner_id == actor) return {409, "owner cannot leave the space"};
+        const auto invitation = tx.Invitation(actor);
+        tx.RemoveMember(actor);
+        // An administrative revocation cannot be cleared by a later leave call.
+        if (invitation != "revoked") tx.SetInvitation(actor, actor, "left");
+        return {};
+    });
 }
 ServiceStatus RoomService::Create(int64_t actor, const std::string& name, int64_t owner,
                                   int64_t* room) {
@@ -96,6 +103,10 @@ ServiceStatus RoomService::List(int64_t actor, int offset, int limit,
         return {500, "list chatrooms failed: " + error};
     return {};
 }
+ServiceStatus RoomService::MemberOnlineCount(int64_t actor, int64_t room, int64_t* count) {
+    auto access=CheckMember(actor,room);
+    return access.ok() ? OnlineCount(room,count) : access;
+}
 ServiceStatus RoomService::OnlineCount(int64_t room, int64_t* count) {
     if (room <= 0) return {400, "room_id required"};
     if (!count) return {500, "count output is null"};
@@ -117,6 +128,8 @@ ServiceStatus RoomService::OnlineCount(int64_t room, int64_t* count) {
 }
 ServiceStatus RoomService::ReportRoomJoin(int64_t room_id, const std::string& comet_id,
                                           int64_t user_id) {
+    const auto access = CheckMember(user_id, room_id);
+    if (!access.ok()) return access;
     if (!redis_) {
         return ServiceStatus{500, "redis store not initialized"};
     }
@@ -182,6 +195,110 @@ ServiceStatus RoomService::ReportRoomLeave(int64_t room_id, const std::string& c
     }
 
     return ServiceStatus{0, "ok"};
+}
+
+
+namespace {
+ServiceStatus SpaceFields(const std::string& name, const std::string& description, const std::string& visibility) {
+    if (name.empty() || name.size() > 128 || name.find_first_not_of(" \t\r\n") == std::string::npos ||
+        description.size() > 2048 || name.find('\0') != std::string::npos || description.find('\0') != std::string::npos)
+        return {400, "name must contain 1..128 bytes; description at most 2048 bytes"};
+    if (visibility != "private" && visibility != "public") return {400, "visibility must be private or public"};
+    return {};
+}
+}
+ServiceStatus RoomService::CheckMember(int64_t actor, int64_t room) {
+    if (actor <= 0 || room <= 0) return {400,"user_id/room_id required"};
+    if (!members_) return {500,"group member dao not initialized"};
+    bool member=false; std::string error;
+    if (!members_->IsMember(room,actor,&member,&error)) return {500,error};
+    return member ? ServiceStatus{} : ServiceStatus{403,"room membership required"};
+}
+ServiceStatus RoomService::FilterMembers(int64_t room, const std::vector<int64_t>& candidates, std::vector<int64_t>* allowed) {
+    if (!allowed || room<=0 || candidates.size()>1000) return {400,"invalid room access request"};
+    allowed->clear();
+    if (!members_) return {500,"group member dao not initialized"};
+    std::vector<int64_t> users; std::string error;
+    if (!members_->ListRoomMembers(room,&users,&error)) return {500,error};
+    std::unordered_set<int64_t> membership(users.begin(),users.end());
+    for(auto user:candidates) if(membership.count(user)) allowed->push_back(user);
+    return {};
+}
+ServiceStatus RoomService::CreateSpace(int64_t actor, const std::string& name, const std::string& description,
+    const std::string& visibility, int64_t* room) {
+    if(actor<=0) return {403,"user required"};
+    auto status=SpaceFields(name,description,visibility); if(!status.ok()) return status;
+    if(!spaces_) return {500,"space repository unavailable"};
+    return spaces_->Create(actor,name,description,visibility,room);
+}
+ServiceStatus RoomService::ListSpaces(int64_t actor,int offset,int limit,std::vector<SpaceSummary>* rooms) {
+    if(actor<=0) return {403,"user required"};
+    if(!spaces_) return {500,"space repository unavailable"};
+    return spaces_->List(actor,std::max(0,offset),std::clamp(limit,1,200),rooms);
+}
+ServiceStatus RoomService::UpdateSpace(int64_t actor,int64_t room,const std::string& name,const std::string& description,const std::string& visibility) {
+    auto status=SpaceFields(name,description,visibility); if(!status.ok()) return status;
+    if(!spaces_) return {500,"space repository unavailable"};
+    return spaces_->WithRoom(room,[&](SpaceTransaction& tx)->ServiceStatus {
+        if(tx.Role(actor)!=kRoomOwner || tx.Group().owner_id!=actor) return {403,"only owner can update the space"};
+        tx.Update(name,description,visibility); return {};
+    });
+}
+ServiceStatus RoomService::Members(int64_t actor,int64_t room,std::vector<SpaceMember>* members) {
+    if(!spaces_ || !members) return {500,"space repository unavailable"};
+    return spaces_->WithRoom(room,[&](SpaceTransaction& tx)->ServiceStatus {
+        if(tx.Role(actor)<0) return {403,"room membership required"};
+        *members=tx.Members(); return {};
+    });
+}
+ServiceStatus RoomService::Invite(int64_t actor,int64_t room,int64_t target) {
+    if(target<=0) return {400,"user_id required"};
+    if(!spaces_) return {500,"space repository unavailable"};
+    return spaces_->WithRoom(room,[&](SpaceTransaction& tx)->ServiceStatus {
+        if(tx.Role(actor)<kRoomAdmin) return {403,"owner/admin required"};
+        if(!tx.ActiveUser(target)) return {404,"active user not found"};
+        if(tx.Role(target)>=0) return {409,"user is already a member"};
+        tx.SetInvitation(target,actor,"pending"); return {};
+    });
+}
+ServiceStatus RoomService::Invitations(int64_t actor,std::vector<SpaceInvitation>* invitations) {
+    if(actor<=0) return {403,"user required"};
+    if(!spaces_) return {500,"space repository unavailable"};
+    return spaces_->Invitations(actor,invitations);
+}
+ServiceStatus RoomService::Accept(int64_t actor,int64_t room) {
+    if(actor<=0) return {403,"user required"};
+    if(!spaces_) return {500,"space repository unavailable"};
+    return spaces_->WithRoom(room,[&](SpaceTransaction& tx)->ServiceStatus {
+        if(!tx.ActiveUser(actor)) return {403,"active user required"};
+        if(tx.Role(actor)>=0) {
+            if(tx.Invitation(actor)=="pending") tx.SetInvitation(actor,actor,"accepted");
+            return {};
+        }
+        if(tx.Invitation(actor)!="pending") return {403,"pending invitation required"};
+        tx.SetMember(actor,kRoomMember); tx.SetInvitation(actor,actor,"accepted"); return {};
+    });
+}
+ServiceStatus RoomService::ChangeRole(int64_t actor,int64_t room,int64_t target,int role) {
+    if(role!=kRoomMember && role!=kRoomAdmin) return {400,"role must be member or admin"};
+    if(!spaces_) return {500,"space repository unavailable"};
+    return spaces_->WithRoom(room,[&](SpaceTransaction& tx)->ServiceStatus {
+        if(tx.Role(actor)!=kRoomOwner || tx.Group().owner_id!=actor) return {403,"only owner can change roles"};
+        if(target==tx.Group().owner_id) return {409,"owner role cannot be changed"};
+        if(tx.Role(target)<0) return {404,"member not found"};
+        tx.SetMember(target,role); return {};
+    });
+}
+ServiceStatus RoomService::Remove(int64_t actor,int64_t room,int64_t target) {
+    if(target<=0) return {400,"user_id required"};
+    if(!spaces_) return {500,"space repository unavailable"};
+    return spaces_->WithRoom(room,[&](SpaceTransaction& tx)->ServiceStatus {
+        const auto role=tx.Role(actor);
+        if(role<kRoomAdmin) return {403,"owner/admin required"};
+        if(target==tx.Group().owner_id || actor==target) return {403,"use leave; owner cannot be removed"};
+        if(role==kRoomAdmin && tx.Role(target)>=kRoomAdmin) return {403,"admin can only remove ordinary members"};
+        tx.RemoveMember(target); tx.SetInvitation(target,actor,"revoked"); return {};
+    });
 }
 
 }  // namespace sparkpush

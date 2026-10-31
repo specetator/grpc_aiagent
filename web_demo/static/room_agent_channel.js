@@ -31,7 +31,7 @@
         `${task.title} · ${task.status} · 版本 ${task.revision}\n规格：${task.spec}\n交接：${task.summary || '暂无'}\n下一步：${task.next_steps || '暂无'}\n权限：${data.can_develop ? '可开发' : '只读提问'}\n` +
         requests.map(r => `用户 ${r.actor_user_id} · ${r.status}` +
           (r.result && r.result.workspace_checkpoint ? ` · 代码 ${r.result.workspace_checkpoint.code_revision.slice(0,12)} · 测试 ${r.result.workspace_checkpoint.tests.map(t=>t.passed?'通过':'未通过').join(',') || '未执行'}` : '')).join('\n') :
-        '房间尚未绑定算子任务。房主可以创建任务；成员默认只读，开发权限需房主授予。';
+        '房间尚未绑定算子任务。房主或管理员可以创建任务；成员默认只读，开发权限需显式授予。';
     }
     async configure() {
       if (!this.room) return;
@@ -85,7 +85,7 @@
     }
     renderStreams() {
       this.panel.querySelector('[data-streams]').textContent = Array.from(this.streams.values()).map(s =>
-        `CANN → 用户 ${s.actor}\n${s.progress}\n` + Array.from(s.pieces.entries()).sort((a,b)=>a[0]-b[0]).map(x=>x[1]).join('')).join('\n\n');
+        `Kernel Agent → 用户 ${s.actor}\n${s.progress}\n` + Array.from(s.pieces.entries()).sort((a,b)=>a[0]-b[0]).map(x=>x[1]).join('')).join('\n\n');
     }
   }
   global.RoomAgentChannel = RoomAgentChannel;

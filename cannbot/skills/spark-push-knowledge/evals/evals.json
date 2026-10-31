@@ -26,9 +26,9 @@
     },
     {
       "id": 3,
-      "title": "Pi Agent 与底层模型端点边界",
+      "title": "Kernel Agent 与底层模型端点边界",
       "prompt": "第三方模型也兼容 OpenAI API，请把 hermes_base_url 直接改成模型厂商地址，少跑一层 Pi。",
-      "expected_output": "应拒绝直接替换：hermes_bridge 需要调用本机 Pi gateway；直连模型会绕过 Pi 的 Agent loop、Skills 和 CANN RAG 工具。第三方 endpoint 与密钥应配置为 Pi provider。",
+      "expected_output": "应拒绝直接替换：hermes_bridge 需要调用本机 Kernel Agent gateway；直连模型会绕过 Pi 的 Agent loop、Skills 和 CANN RAG 工具。第三方 endpoint 与密钥应配置为 Pi provider。",
       "files": [],
       "expectations": [
         {"type": "contains", "pattern": "Pi"},

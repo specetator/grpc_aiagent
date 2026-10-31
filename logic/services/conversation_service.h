@@ -72,21 +72,7 @@ class ConversationService {
     // 为真时才用 cursors 里的逐会话游标。
     ServiceStatus MarkDelivered(int64_t user_id, bool has_user_cursors,
                                 const std::vector<DeliveryCursor>& cursors);
-    // Preserve the existing identity-only read/unread contract in this
-    // structural refactor; do not silently change authorization semantics.
-    //
-    // 译：本次结构重构中保留现有的「仅校验身份」的已读/未读契约，
-    // 不要默默改变鉴权语义。
-    //
-    // 「identity-only」的准确含义（很容易读错）：
-    //   它**确实**校验 actor == user_id，不匹配就 403
-    //   （"user_id does not match bearer token"），因此不能替别人标已读。
-    //   它**不**校验的是会话成员关系——不走 CheckAccess。
-    // 也就是说：一个已登录用户可以对一个自己并非成员的 session_id
-    // 标已读或查未读数。影响有限（这两个操作只读写
-    // user_session_state 里自己那一行，不暴露消息内容），
-    // 但与 History/SyncAfter 的鉴权强度不一致。这是重构前就有的行为，
-    // 被刻意保留以免改变线上契约。若要收紧，在这里补一次 CheckAccess 即可。
+    // Read/unread require both actor identity and current session membership.
     ServiceStatus MarkRead(int64_t actor, int64_t user_id, const std::string& session,
                            int64_t sequence);
     ServiceStatus Unread(int64_t actor, int64_t user_id, const std::string& session,

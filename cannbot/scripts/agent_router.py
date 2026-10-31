@@ -199,11 +199,11 @@ class AgentStore:
         if not isinstance(request_id, str) or not request_id:
             return {}
         with self.connect() as db:
-            row = db.execute("""SELECT input_hash,status,result_text,metadata_json,error_code
+            row = db.execute("""SELECT input_hash,status,result_text,metadata_json,error_code,route_key
                 FROM agent_turns WHERE request_id=?""", (request_id,)).fetchone()
         if not row:
             return {}
-        result = {"input_hash": row[0], "status": row[1]}
+        result = {"input_hash": row[0], "status": row[1], "route_key":row[5]}
         if row[2] is not None:
             result["text"] = row[2]
         if row[3]:
@@ -398,6 +398,12 @@ class AgentRouter:
                  tenant_id="local", channel_id="spark_pc"):
         self.entries = {}
         for entry in entries:
+            # Preserve stable IDs/session namespaces while retiring the old
+            # product label in administrator registries already on disk.
+            if entry.get("runtime") == "pi_rpc":
+                name = entry.get("name", "")
+                if name in {"Pi Agent", "Pi", "Pi · Android", "Pi Agent · Android"}:
+                    entry = {**entry, "name": "Kernel Agent" + (" · Android" if "Android" in name else "")}
             key, name, owners = entry.get("id"), entry.get("name"), entry.get("owner_user_ids")
             routing_keywords = entry.get("routing_keywords", [])
             if (not isinstance(key,str) or not AGENT_ID.fullmatch(key) or key in self.entries or
@@ -442,6 +448,7 @@ class AgentRouter:
         import contextvars
         self.room_scope = contextvars.ContextVar("room_scope", default=None)
         self.room_adapter = None
+        self.public_room_adapter = None
         self.room_binding_lock = threading.Lock()
         self.scheduler = SessionScheduler.from_env()
         try:
@@ -474,7 +481,8 @@ class AgentRouter:
             return {key:entry for key,entry in self.entries.items()
                     if not entry["owner_user_ids"] and self.bot_agents.get(self.room_scope.get()["bot_user_id"]) == key}
         return {key:entry for key,entry in self.entries.items()
-                if not entry["owner_user_ids"] or uid in entry["owner_user_ids"]}
+                if "room_enabled" not in entry and (not entry["owner_user_ids"] or uid in entry["owner_user_ids"])
+                and (not hasattr(self.adapters[key], "visible_to") or self.adapters[key].visible_to(uid))}
 
     def _selected(self, session):
         visible = self._visible(session)
@@ -519,7 +527,10 @@ class AgentRouter:
         key, saved = (self._select_for_first_message(session, message)
                       if message is not None else self._selected(session))
         user_id, _ = self._identity(session)
-        route = canonical_route(self.tenant_id, self.channel_id, session, user_id, key)
+        scope=self.room_scope.get() if session.startswith("r_") else None
+        generic=scope and scope.get("kind")=="room_agent_v1"
+        route = canonical_route(self.tenant_id, self.channel_id, session, user_id, key,
+                                "agent:"+key if generic else "_")
         revision = saved.get("revision", 0) if isinstance(saved, dict) else 0
         mode = "contact" if self.bot_agents else "sticky"
         backend = session
@@ -528,7 +539,8 @@ class AgentRouter:
             # thread identity without migrating Pi or Legacy backend refs.
             backend = route["session_key"] + ":u" + str(user_id)
         if session.startswith("r_"):
-            backend = "room_" + str(self.room_scope.get()["room_id"]) + "_" + self.room_scope.get()["task_id"]
+            backend = (self._execution_key(session) if generic else
+                       "room_" + str(scope["room_id"]) + "_" + scope["task_id"])
         persisted = self.store.bind_route(route, mode, backend, revision)
         native = ({"runtime": "hermes_native"} if
                   getattr(self.adapters[key], "supports_native_runtime", False) else {})
@@ -548,12 +560,45 @@ class AgentRouter:
         with self.locks.hold(session, timeout_s):
             return self._describe_route(session, message)
 
-    def authorize_room(self, session, scope):
+    def _execution_key(self, session):
+        scope=self.room_scope.get() if isinstance(session,str) and session.startswith("r_") else None
+        if scope and scope.get("kind")=="room_agent_v1":
+            return "roomagent_"+str(scope["room_id"])+"_"+scope["agent_id"]
+        return session
+
+    def authorize_room(self, session, scope, request_id=None, *, control=False):
         """Called ONLY after Gateway bearer authentication, with Logic's scope.
 
         Never infer room identity or tool permission from prompt text. Private
         owner ACLs remain intact; shared rooms may bind only a public Pi Agent.
         """
+        if isinstance(scope,dict) and scope.get("kind")=="room_agent_v1":
+            for name in ("room_id","owner_user_id","actor_user_id","bot_user_id","generation"):
+                if type(scope.get(name)) is not int or not 0<scope[name]<2**53:
+                    raise ValueError("invalid public room identity")
+            key=scope.get("agent_id")
+            entry=self.entries.get(key,{})
+            if (session!=f"r_{scope['room_id']}" or self.bot_agents.get(scope["bot_user_id"])!=key or
+                entry.get("owner_user_ids")!=[] or (entry.get("room_enabled") is not True and not control) or
+                entry.get("room_policy")!="read_only" or scope.get("policy")!="read_only" or
+                scope.get("runtime")!=entry.get("runtime") or
+                not isinstance(scope.get("source_msg_id"),str) or
+                not re.fullmatch(re.escape(session)+r"-[1-9][0-9]*",scope["source_msg_id"]) or
+                not isinstance(scope.get("request_id"),str) or
+                not re.fullmatch(r"ra_[a-f0-9]{64}",scope["request_id"]) or
+                (request_id is not None and request_id!=scope["request_id"])):
+                raise ValueError("invalid public room scope")
+            if entry["runtime"]=="pi_rpc":
+                if self.public_room_adapter is None: raise ValueError("public Pi workspace unavailable")
+            elif entry["runtime"]=="hermes_native":
+                if (os.environ.get("SPARK_PUSH_ROOM_HERMES_TEST")!="true" or
+                    entry.get("room_test_only") is not True or
+                    not str(entry.get("profile","")).startswith("spark-room-test-") or
+                    entry.get("native_interactive_approvals") is True):
+                    raise ValueError("Hermes requires an isolated test Profile")
+            else: raise ValueError("unsupported public room runtime")
+            self.room_scope.set(dict(scope))
+            return
         if not isinstance(scope, dict) or self.room_adapter is None:
             raise ValueError("room Agent workspace is not configured")
         for name in ("room_id", "owner_user_id", "actor_user_id", "bot_user_id"):
@@ -576,6 +621,27 @@ class AgentRouter:
                 raise ValueError("room task binding is immutable")
             self.store.put("room_binding", session, binding)
         self.room_scope.set(dict(scope))
+
+    def room_control(self, request):
+        session,request_id=request.get("session_id"),request.get("request_id")
+        scope=request.get("collaboration")
+        if not isinstance(scope,dict) or scope.get("kind")!="room_agent_v1":
+            raise ValueError("generic room scope required")
+        self.authorize_room(session,scope,request_id,control=True)
+        operation=request.get("operation")
+        if operation not in {"status","stop","approve","deny"}: raise ValueError("unsupported operation")
+        route=self._describe_route(session)
+        turn=self.store.get_turn(request_id)
+        if turn and turn.get("route_key")!=route["route_key"]: raise ValueError("request route mismatch")
+        adapter=self.adapters[scope["agent_id"]]
+        status=turn.get("status","queued")
+        data={"request_id":request_id,"agent_id":scope["agent_id"],"status":status,
+              "capabilities":{"status":True,"stop":False,"approve":False,"deny":False}}
+        if getattr(adapter,"supports_native_runtime",False):
+            native=adapter.room_control(route["backend_session_ref"],request_id,operation,request.get("approval_token"))
+            return {"code":0,"data":{**data,**native}}
+        if operation!="status":return {"code":501,"message":"此 Runtime 尚未提供可验证的停止或审批接口"}
+        return {"code":0,"data":data}
 
     def record_event(self, event):
         return self.store.append_event(event)
@@ -604,7 +670,7 @@ class AgentRouter:
     def _unsupported_command(self, operation):
         """Pi and legacy Hermes do not gain a fake native control result."""
         return agent_event("assistant_final", {"text":
-            "暂不支持 Pi Agent 命令 /" + str(operation) +
+            "暂不支持 Kernel Agent 命令 /" + str(operation) +
             "。发送 /help 查看当前可用命令。"})
 
     def control(self, request, timeout_s=30):
@@ -685,6 +751,9 @@ class AgentRouter:
              on_event=None):
         self._visible(session_id)
         room_scope = self.room_scope.get() if session_id.startswith("r_") else None
+        execution_key=self._execution_key(session_id)
+        if room_scope and room_scope.get("kind")=="room_agent_v1" and request_id!=room_scope["request_id"]:
+            raise ValueError("room request identity mismatch")
         started=time.monotonic()
         try:
             agent_hint,_ = self._selected(session_id)
@@ -696,7 +765,7 @@ class AgentRouter:
                 route = self._describe_route(session_id)
                 input_hash = hashlib.sha256(json.dumps({
                     "route_key": route["route_key"], "agent_id": agent_hint,
-                    **self._native_input_scope(agent_hint),
+                    **self._native_input_scope(agent_hint, session_id),
                     "message": message, "retry": retry,
                     "context_start_seq": context_start_seq,
                     **({"room_scope": room_scope} if room_scope else {}),
@@ -709,21 +778,29 @@ class AgentRouter:
                                  "agent_route": route})
                 return existing.get("text", ""), metadata
             if existing.get("status") == "unknown":
-                recovered = self._recover_unknown(
-                    session_id, request_id, message, retry, context_start_seq, images, existing)
+                with self.locks.hold(execution_key, max(.001, timeout_s)):
+                    recovered = self._recover_unknown(
+                        session_id, request_id, message, retry, context_start_seq, images, existing)
                 if recovered is not None:
                     return recovered
-                raise RuntimeError("上次执行结果未知，未自动重跑带副作用的请求")
+                if hasattr(self.adapters[agent_hint], "connection_scope"):
+                    from agent_cli_adapter import ExecutionUnknown
+                    raise ExecutionUnknown("客户 Agent 上次执行结果未知，未自动重跑")
+                from hermes_native_adapter import NativeUnknown
+                raise NativeUnknown("上次执行结果未知，未自动重跑带副作用的请求")
             if existing.get("status") == "failed":
+                if existing.get("error_code") == "terminal:cancelled":
+                    from hermes_native_adapter import NativeTerminal
+                    raise NativeTerminal("Agent 请求已取消，未重复执行", "cancelled")
                 raise RuntimeError("Agent 请求先前已失败，未使用相同 request_id 重复执行")
 
         def run_turn():
-            with self.locks.hold(session_id, max(0.001, timeout_s-(time.monotonic()-started))):
+            with self.locks.hold(execution_key, max(0.001, timeout_s-(time.monotonic()-started))):
                 key,_ = self._select_for_first_message(session_id, message)
                 route = self._describe_route(session_id)
                 input_hash = hashlib.sha256(json.dumps({
                     "route_key": route["route_key"], "agent_id": key,
-                    **self._native_input_scope(key),
+                    **self._native_input_scope(key, session_id),
                     "message": message, "retry": retry,
                     "context_start_seq": context_start_seq,
                     **({"room_scope": room_scope} if room_scope else {}),
@@ -739,14 +816,18 @@ class AgentRouter:
                 if turn["status"] == "running":
                     raise RuntimeError("Agent 请求仍在执行或上次结果未确认，未重复调用工具")
                 if turn["status"] == "unknown":
-                    raise RuntimeError("上次执行结果未知，未自动重跑带副作用的请求")
+                    from hermes_native_adapter import NativeUnknown
+                    raise NativeUnknown("上次执行结果未知，未自动重跑带副作用的请求")
                 if turn["status"] == "failed":
                     raise RuntimeError("Agent 请求先前已失败，未使用相同 request_id 重复执行")
-                self.store.append_context(session_id, "user", message)
+                self.store.append_context(execution_key, "user", message)
                 try:
                     if on_progress:
                         on_progress(self.entries[key]["name"] + " · 正在生成")
-                    adapter = self.room_adapter.for_scope(room_scope) if room_scope else self.adapters[key]
+                    if room_scope and room_scope.get("kind")=="room_agent_v1":
+                        adapter=(self.public_room_adapter.for_scope(room_scope) if self.entries[key]["runtime"]=="pi_rpc" else self.adapters[key])
+                    else:
+                        adapter = self.room_adapter.for_scope(room_scope) if room_scope else self.adapters[key]
                     native_events = {}
                     # Pi's chat() has no on_event parameter. Only the native
                     # Hermes adapter opts in, so the Pi call shape stays put.
@@ -757,7 +838,7 @@ class AgentRouter:
                         None, None, route["backend_session_ref"], 0, retry=retry,
                         on_progress=on_progress, request_id=request_id,
                         images=images, **native_events)
-                    context = self.store.append_context(session_id, "assistant", text)
+                    context = self.store.append_context(execution_key, "assistant", text)
                     data = self._decorate(key,{"text":text})
                     metadata = {**metadata, "agent_state":data["agent_state"],
                         "agent_route":route, "request_id":request_id,
@@ -780,13 +861,15 @@ class AgentRouter:
                                 from hermes_native_adapter import NativeUnknown
                                 raise NativeUnknown("Native 结果尚未完成本地确认，将查询原 Run") from None
                         else:
-                            self.store.fail_turn(request_id, type(exc).__name__)
+                            self.store.fail_turn(request_id, "terminal:"+exc.terminal_status if hasattr(exc,"terminal_status") else type(exc).__name__)
                     raise
 
-        return self.scheduler.run(session_id, agent_hint, timeout_s, on_progress, run_turn)
+        return self.scheduler.run(execution_key, agent_hint, timeout_s, on_progress, run_turn)
 
-    def _native_input_scope(self, key):
+    def _native_input_scope(self, key, session_id=None):
         adapter = self.adapters[key]
+        if hasattr(adapter, "connection_scope"):
+            return adapter.connection_scope(session_id)
         if not getattr(adapter, "supports_native_runtime", False):
             return {}
         config = getattr(adapter, "config", {})
@@ -803,7 +886,7 @@ class AgentRouter:
         room_scope = self.room_scope.get() if isinstance(session_id, str) and session_id.startswith("r_") else None
         input_hash = hashlib.sha256(json.dumps({
             "route_key": route["route_key"], "agent_id": key,
-            **self._native_input_scope(key),
+            **self._native_input_scope(key, session_id),
             "message": message, "retry": retry,
             "context_start_seq": context_start_seq,
             **({"room_scope": room_scope} if room_scope else {}),
@@ -857,6 +940,14 @@ def load_router(path: Path, pi, state_root: Path):
             extras.append(clone)
         pi_adapter = AdapterPool([pi, *extras])
     adapters={}
+    connections = None
+    if os.environ.get("SPARK_PUSH_AGENT_SELF_SERVICE") == "true":
+        from user_agent_connections import Connections, UserConnectionAdapter, TYPES
+        connections = Connections(store)
+        for runtime, (name, bot) in TYPES.items():
+            config["agents"].append({"id": "customer-" + runtime.replace('_', '-'),
+                "name": "我的 " + name, "runtime": "customer_connector",
+                "owner_user_ids": [], "bot_user_id": bot, "connector_type": runtime})
     for entry in config["agents"]:
         runtime=entry.get("runtime")
         # Multiple independent Spark contacts may use the same Pi runtime.
@@ -864,19 +955,33 @@ def load_router(path: Path, pi, state_root: Path):
         # file; allowing more than the default ``pi`` entry lets Android have
         # a separate contact and model/context state without sharing the PC
         # contact's history.
-        if runtime=="pi_rpc":
+        if entry.get("room_enabled") is False:
+            class DisabledRoomAdapter:
+                def is_ready(self): return False
+                def stop(self): pass
+            adapters[entry["id"]]=DisabledRoomAdapter()
+        elif runtime=="pi_rpc":
             adapters[entry["id"]]=pi_adapter
         elif runtime=="hermes_http":
             adapters[entry["id"]]=HermesHttpAdapter(entry,store)
         elif runtime=="hermes_native":
             from hermes_native_adapter import HermesNativeAdapter
             adapters[entry["id"]]=HermesNativeAdapter(entry,store)
+        elif runtime=="customer_connector" and connections is not None:
+            adapters[entry["id"]]=UserConnectionAdapter(entry["connector_type"], connections)
         else:
             raise ValueError("unsupported Agent runtime")
     router = AgentRouter(config["agents"], adapters, store,
         config.get("default_agent", "pi"), config.get("bot_user_id", 900000000001),
         config.get("tenant_id", "local"), config.get("channel_id", "spark_pc"))
+    if connections is not None:
+        connections.guard = lambda actor, runtime: router.locks.hold(
+            f"s_{min(actor, TYPES[runtime][1])}_{max(actor, TYPES[runtime][1])}", 1)
+        router.manage_connections = connections.manage
     if os.environ.get("SPARK_PUSH_ROOM_WORKSPACE_ROOT"):
         from room_agent import RoomPiFactory
         router.room_adapter = RoomPiFactory(pi, Path(os.environ["SPARK_PUSH_ROOM_WORKSPACE_ROOT"]))
+    if os.environ.get("SPARK_PUSH_PUBLIC_PI_ROOT"):
+        from room_agent import PublicRoomPiFactory
+        router.public_room_adapter=PublicRoomPiFactory(pi,Path(os.environ["SPARK_PUSH_PUBLIC_PI_ROOT"]))
     return router

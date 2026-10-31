@@ -1,0 +1,1 @@
+{"runtime":"hermes","base_url":"http://127.0.0.1:8644/v1","expected_model":"technical","credential_env_file":"/absolute/path/to/customer/hermes.env","credential_env_key":"API_SERVER_KEY"}

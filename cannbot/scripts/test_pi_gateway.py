@@ -35,6 +35,14 @@ class GatewayTests(unittest.TestCase):
         self.assertEqual(self.chat("old answer"), "old answer")
         self.assertEqual(self.chat("中文\u2028emoji🙂\u2029tail"), "中文\u2028emoji🙂\u2029tail")
 
+    def test_kernel_product_alias_keeps_configured_model_and_legacy_context(self):
+        self.assertEqual(self.chat("before", model="pi-agent"), "before")
+        session_path = self.client.current_session_path
+        model = self.client.default_model
+        self.assertEqual(self.chat("after", model="kernel-agent"), "after")
+        self.assertEqual(self.client.current_session_path, session_path)
+        self.assertEqual(self.client.default_model, model)
+
     def test_session_switch_and_restart_rebind(self):
         self.assertEqual(self.chat("session", session="a"), str(self.root / "sessions/a__0.jsonl"))
         self.assertEqual(self.chat("session", session="b"), str(self.root / "sessions/b__0.jsonl"))

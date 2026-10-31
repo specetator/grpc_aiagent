@@ -76,10 +76,9 @@ ServiceStatus RoomAgentService::Configure(int64_t actor, int64_t room,
     int64_t owner = 0;
     auto status = Access(repo_, actor, room, &owner);
     if (!status.ok()) return status;
-    // 配置比查看严一级：只有房间拥有者能改，普通成员不行。
-    // 因为本方法能改 developer_user_ids，而那个列表直接决定了
-    // 谁能推进任务、以及 can_develop 标志（会发给 Agent）。
-    if (actor != owner) return {403, "only room owner can configure shared Agent"};
+    int role=-1; std::string role_error;
+    if(!repo_->Role(room,actor,&role,&role_error)) return {500,role_error};
+    if(role<1) return {403,"only owner/admin can configure shared Agent"};
     if (!enabled_) return {503, "room Agent disabled"};
     Json existing;
     std::string error;
@@ -161,6 +160,10 @@ ServiceStatus RoomAgentService::Trigger(int64_t actor, int64_t room,
     if (!status.ok()) return status;
     const auto j = Json::parse(content, nullptr, false);
     if (!j.is_object()) return {400, "invalid room message"};
+    std::vector<std::string> mentions;
+    auto routed=Mentions(actor,room,j,&mentions);
+    if(!routed.ok()) return routed;
+    if(!mentions.empty()) { *trigger=true; return {}; }
     Message message;
     message.content_json = content;
     const auto text = Text(message);
@@ -200,22 +203,19 @@ ServiceStatus RoomAgentService::Trigger(int64_t actor, int64_t room,
 bool RoomAgentService::BuildRequest(const Message& current,
                                    const std::vector<Message>& history,
                                    Json* request, std::string* error) {
-    // 幂等入口：request_id 直接用 msg_id（"session-seq" 的确定性拼接）。
-    // 同一条消息被重放时直接返回已存的请求，不重新构造也不重复入队。
-    // 没有这一步，Kafka 重放就会让 Agent 把同一个问题算两遍。
+    int64_t room=0;
+    try { room=std::stoll(current.session_id.substr(2)); } catch (...) { return false; }
+    if(current.session_id!="r_"+std::to_string(room)) return false;
+    // Replays cannot bypass current membership. Preserve a previously accepted
+    // request's identity and scope after this gate; do not recreate its session.
+    auto membership=CheckMember(current.sender_id,room);
+    if(!membership.ok()) { if(error) *error=membership.message; return false; }
     Json existing;
-    if (!repo_->Request(current.msg_id, &existing, error)) return false;
-    if (existing.is_object()) { *request = existing; return true; }
-    // 房间 id 从 session_id（"r_<room>"）里解出。substr(2) 跳过 "r_"；
-    // 解不出来就返回 false，不猜一个默认房间。
-    int64_t room = 0;
-    try { room = std::stoll(current.session_id.substr(2)); } catch (...) { return false; }
-    // 重新跑一次完整鉴权：不假定调用方已经鉴过。
-    // BuildRequest 可能被 Kafka 消费路径调到，那条路径上的 sender_id
-    // 来自消息体而不是已鉴权的连接上下文。
-    bool trigger = false;
-    auto allowed = Trigger(current.sender_id, room, current.content_json, &trigger);
-    if (!allowed.ok() || !trigger) { *error = allowed.message; return false; }
+    if(!repo_->Request(current.msg_id,&existing,error)) return false;
+    if(existing.is_object()) { *request=existing; return true; }
+    bool trigger=false;
+    auto allowed=Trigger(current.sender_id,room,current.content_json,&trigger);
+    if(!allowed.ok() || !trigger) { if(error) *error=allowed.message; return false; }
     Json task;
     if (!repo_->Load(room, &task, error) || !task.is_object()) return false;
     // scope 里的每个值都来自服务端存的任务或已鉴权的消息，
@@ -292,6 +292,7 @@ bool RoomAgentService::Complete(const Json& reply, std::string* error) {
     // 直接消失，不需要逐个判断它们是否危险。
     Json result = {{"ok", reply.at("ok")}, {"text", reply.value("text", "")},
                    {"completed_at_ms", reply.at("completed_at_ms")}};
+    if (!reply.value("ok",false) && reply.value("terminal_status",Json())=="cancelled") result["terminal_status"]="cancelled";
     const auto metadata = reply.value("response_metadata", Json::object());
     if (metadata.is_object() && metadata.contains("workspace_checkpoint"))
         result["workspace_checkpoint"] = metadata["workspace_checkpoint"];

@@ -1,6 +1,11 @@
 # 多人共享 CANN Agent 与算子任务交接
 
+2026-10-31 增量扩展见 [通用 Room Agent](generic-room-agents.md) 与 [当前验收矩阵](mvp-v1-acceptance.md)。以下日期对应原阶段证据，不替代新报告。
+
 实现与验证日期：2026-10-11。适用根目录当前主线，不适用教学 subset。
+
+产品名称现为 Kernel Agent。房间内子 Agent 仅提供只读研究与审查，不能借委派获得写入或 runner 权限；
+授权主 Agent 继续负责修改与测试。子任务生命周期和限制见 [Kernel Agent](kernel-agent.md)。
 
 ## 1. 能力与边界
 
@@ -123,7 +128,7 @@ SPARK_PUSH_ROOM_TEST_RUNNER=/absolute/admin-owned/runner.py
 测试执行器可留空，届时能协作问答/修改源码，但不能宣称运行测试成功。安装 Linux 依赖
 `bubblewrap util-linux g++`，根目录使用部署账户独享的 0700 目录。公共 Pi 的 bot_user_id 必须与
 Logic 主机器人一致，owner_user_ids 必须为空；私人 technical 不可用。
-启动脚本读取 .env.local 后，重启 Logic、Comet、Bridge、Pi gateway，使新协议和环境生效。
+启动脚本读取 .env.local 后，重启 Logic、Comet、Bridge、Kernel Agent gateway，使新协议和环境生效。
 Gateway 的模型/provider 要选择已配置且实际可用的入口。本次真实模型测试使用本机当前默认
 deepseek/deepseek-flash，没有修改个人模型或凭据配置。
 

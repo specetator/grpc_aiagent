@@ -59,7 +59,7 @@ class AttachmentDao {
     bool ReadBytes(const StoredAttachment& attachment, std::string* bytes,
                    std::string* err_msg) const;
 
-    // 把附件转成 Pi Agent 能消费的 images 负载。
+    // 把附件转成 Kernel Agent 能消费的 images 负载。
     // 真正的文件读取与 base64 编码在 common/image_attachment.cpp 的
     // LoadPiImagesFromDir 里，本方法只负责拼 {attachment_id, mime} 列表。
     // 注意传的是 ref.mime（客户端声明），而下游会自己重新探测并以探测结果为准。

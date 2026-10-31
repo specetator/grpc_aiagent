@@ -86,7 +86,11 @@ class HermesHttpAdapter:
         self.relay_pool=None
         if config.get('transport')=='windows_stdio':
             from windows_agent_transport import WindowsRelayPool
-            self.relay_pool=WindowsRelayPool(config['windows_python'])
+            port=8644
+            if config.get('room_test_only') is True and str(config.get('profile','')).startswith('spark-room-test-'):
+                if parsed.hostname!='127.0.0.1' or parsed.scheme!='http':raise ValueError('test Hermes must use Windows loopback')
+                port=parsed.port or 80
+            self.relay_pool=WindowsRelayPool(config['windows_python'],port=port)
         self.opener=build_opener(ProxyHandler({}),NoRedirect())
 
     def _open(self, path, payload=None, headers=None, timeout=10):

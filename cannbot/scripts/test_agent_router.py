@@ -45,6 +45,17 @@ class RouterTests(unittest.TestCase):
         self.router.scheduler=SessionScheduler(max_inflight=2,max_queue=8,queue_timeout_s=2,max_per_agent=2)
         self.sid='s_3_900000000001'
     def tearDown(self): self.temp.cleanup()
+
+    def test_kernel_product_name_migrates_without_changing_identity_or_acl(self):
+        entries = [{**self.entries[0], 'runtime': 'pi_rpc', 'name': 'Pi Agent'}, self.entries[1]]
+        router = AgentRouter(entries, self.adapters, self.store)
+        self.assertEqual(router.entries['pi']['name'], 'Kernel Agent')
+        self.assertEqual(router.entries['pi']['owner_user_ids'], [])
+        self.assertEqual(router.describe_route(self.sid)['session_key'], self.router.describe_route(self.sid)['session_key'])
+        self.assertEqual(entries[0]['name'], 'Pi Agent')
+        custom = AgentRouter([{**entries[0], 'name': '团队定制助手'}, entries[1]], self.adapters, self.store)
+        self.assertEqual(custom.entries['pi']['name'], '团队定制助手')
+
     def test_context_compaction_keeps_tail_and_revision(self):
         self.store.append_context('ctx', 'user', 'one')
         self.store.append_context('ctx', 'assistant', 'two')

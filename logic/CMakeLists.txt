@@ -18,8 +18,11 @@ add_library(spark_push_logic STATIC
   model.cpp
   attachment_dao.cpp
   repositories/dao_repositories.cpp
+  repositories/space_repository.cpp
   repositories/room_agent_repository.cpp
   services/room_agent_service.cpp
+  services/room_agent_catalog.cpp
+  services/room_task_service.cpp
   services/user_service.cpp
   services/conversation_service.cpp
   services/attachment_service.cpp
@@ -28,10 +31,14 @@ add_library(spark_push_logic STATIC
   services/danmaku_service.cpp
   services/knowledge_service.cpp
   services/room_service.cpp
+  services/agent_connection_service.cpp
 )
 
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(AGENT_CURL REQUIRED IMPORTED_TARGET libcurl)
+
 target_include_directories(spark_push_logic PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(spark_push_logic PUBLIC spark_push_common spark_push_proto)
+target_link_libraries(spark_push_logic PUBLIC spark_push_common spark_push_proto PkgConfig::AGENT_CURL)
 
 add_executable(logic_server main.cpp grpc_service.cpp http_server.cpp)
 

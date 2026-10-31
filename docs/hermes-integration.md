@@ -203,7 +203,7 @@ Logic 在生成 Agent 请求前解析以下命令；控制卡片走 `/v1/agent/c
 完整控制协议、会话恢复语义与验证见 [Pi 集成文档第 8 节](pi-agent-integration.md#8-第四批常用命令卡片与真实会话控制2026-09-06)。
 模型选择和上下文边界会通过持久消息恢复，不依赖 Bridge 的进程内缓存。
 
-当前 OpenAI 兼容接口运行 Pi Agent loop、Skills 和工具，命令由平台显式解析并映射到 Pi RPC。
+当前 OpenAI 兼容接口运行 Kernel Agent，底层复用 Pi Agent loop、Skills 和工具，命令由平台显式解析并映射到 Pi RPC。
 未在上表中的 slash command 返回明确提示；即时 Stop、审批、后台任务和会话分支等控制
 仍按 Pi Session Worker 方案逐步实现。
 

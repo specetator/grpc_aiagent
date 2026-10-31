@@ -183,7 +183,7 @@ class HermesBridgeRunner {
         if (!local_error.empty()) return local_error;
 
         const std::string input_name = command.value("input_name", "");
-        return "暂不支持 Pi Agent 命令 /" + input_name +
+        return "暂不支持 Kernel Agent 命令 /" + input_name +
                "。发送 /help 查看当前可用命令。";
     }
 
@@ -502,6 +502,7 @@ class HermesBridgeRunner {
                 chat_result.metadata["agent_event"] = std::move(final_event);
             }
             reply["ok"] = ok;
+            if (!ok && chat_result.terminal_status == "cancelled") reply["terminal_status"] = "cancelled";
             reply["streamed"] = call_model && config_.streaming;
             reply["delta_count"] = delta_count;
             if (LengthAuditEnabled()) {

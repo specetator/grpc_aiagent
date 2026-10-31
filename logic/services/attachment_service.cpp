@@ -43,12 +43,9 @@ ServiceStatus AttachmentService::Read(int64_t user, const std::string& id,
     std::string error;
     if (!repository_->Find(id, &result->metadata, &error)) return {404, error};
     const auto& stored = result->metadata;
-    // 可见性：上传者本人 或 所属会话的成员。
-    // 不是本人时才去查会话权限，避开了「自己读自己的图还要多一次成员查询」。
-    // 三个失败条件归为同一个 403：session_id 为空、conversations_ 未初始化、
-    // CheckAccess 不通过。对外统一措辞是故意的：不泄露「附件存在但你无权」
-    // 与「附件不存在」的差异，避开用附件 id 做存在性探测。
-    if (stored.owner_user_id != user) {
+    // A room attachment always follows current membership, including its uploader.
+    // Preserve the owner exception for unbound/private single-chat attachments.
+    if (stored.session_id.rfind("r_",0)==0 || stored.owner_user_id != user) {
         Session session;
         if (stored.session_id.empty() || !conversations_ ||
             !conversations_->CheckAccess(user, stored.session_id, &session).ok())

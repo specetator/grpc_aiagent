@@ -1,10 +1,14 @@
 # Spark Push
 
-C++17 分布式实时消息 / IM 项目，提供 WebSocket 接入、gRPC 双向流、Kafka 投递、MySQL 历史与 SQL 幂等/outbox、Redis 路由缓存，以及 Web 和原生 Android 客户端。Pi Agent 和 GPU 推理为可选扩展。
+C++17 分布式实时消息 / IM 项目，提供 WebSocket 接入、gRPC 双向流、Kafka 投递、MySQL 历史与 SQL 幂等/outbox、Redis 路由缓存，以及 Web 和原生 Android 客户端。Kernel Agent 和 GPU 推理为可选扩展。
 
 ## 快速开始
 
-基础 IM 可独立运行，不需要模型 API、Pi Agent、CANN 知识库或 GPU。
+基础 IM 可独立运行，不需要模型 API、Kernel Agent、CANN 知识库或 GPU。
+
+Kernel Agent 是本项目基于 Pi coding agent 定制的算子研发助手，整合 CANN 检索、代码工具、
+子 Agent 编排和多人任务协作。Pi 是底层运行时依赖；旧 `pi` / `pi_rpc` 标识、机器人 ID、
+会话目录和 `pi_gateway.py` 路径保留兼容，不新建或迁移已有聊天历史。
 目前构建与 CI 验证环境为 Ubuntu 22.04 / Linux；Windows 用户可在 WSL2 中运行服务。
 
 ### 1. 准备依赖
@@ -114,13 +118,13 @@ ctest --test-dir build --output-on-failure -j2
 python3 cannbot/scripts/validate_knowledge.py --strict
 python3 cannbot/scripts/test_pi_citations.py
 
-# 三项数据库 opt-in 测试使用独立临时容器补跑。
+# 数据库 opt-in 测试使用独立临时容器补跑。
 python3 tests/run_mysql_review_tests.py build
 python3 tests/run_redis_review_tests.py build
 python3 tests/run_kafka_volume_test.py build
 ```
 
-默认 CTest 注册 47 项，其中 3 项 SQL/Redis 集成测试按环境跳过；GitHub CI 会额外执行集成验证。
+本次环境 CTest 注册 54 项，其中 4 项 SQL/Redis 集成测试按环境跳过；可用上面的独立容器脚本补跑。
 2026-10-28 本地回归 44 项通过，3 项数据库测试在隔离容器补跑通过；详见 [Native 测试回执](docs/benchmarks/2026-10-28-hermes-native.json)。
 可用标准库 harness 启动隔离三服务并做实际 ACK/接收/SQL 校验，不使用个人 `.env.local`：
 
@@ -138,6 +142,19 @@ python3 tests/run_release_smoke.py --out /tmp/spark-release-smoke.json --jobs 2
 它不会读取个人环境文件，会验证 doctor、源码构建、CTest、完整启动/健康、80 条消息 ACK/独立接收/SQL，并清理自身容器和卷。
 2026-10-12 的全新克隆验收已通过，实际结果见 [验收回执](docs/benchmarks/2026-10-12-release-smoke.json)。
 
+## 协作空间
+
+普通用户可在 `chatroom.html` 创建默认私有空间，邀请已有用户并等待接受；支持 owner/admin/member、
+成员管理和退出。旧公开聊天室保留主动加入行为，空间权限来自服务端正式成员关系。
+已有数据库须先执行 `sql/migrations/20261031_collaboration_spaces.sql`，再同步升级 Logic、Job、Comet。
+迁移不清理消息、共享任务或 Agent Session。权限矩阵、API、撤销边界及验证命令见
+[协作空间第一阶段](docs/collaboration-spaces.md)。
+
+通用房间 Agent 支持 owner 安装、结构化 @Mention、多 Agent 独立 Session、持久协作任务和原请求恢复。
+先执行 `sql/migrations/20261031_generic_room_agents.sql`，配置独立公共 Pi / 隔离 Hermes 测试 Runtime。
+见 [配置与 API](docs/generic-room-agents.md)、[MVP 验收矩阵](docs/mvp-v1-acceptance.md) 和
+[2026-10-31 实测报告](docs/benchmarks/2026-10-31-generic-room-agents.md)；尚未标记 MVP V1.0 全部通过。
+
 ## 可选功能与文档
 
 | 主题 | 文档 |
@@ -145,7 +162,7 @@ python3 tests/run_release_smoke.py --out /tmp/spark-release-smoke.json --jobs 2
 | 当前架构与调用链 | [架构](docs/spark-push-architecture.md)、[Logic 业务层](docs/logic-business-layer.md) |
 | 算法、复杂度、锁与失败路径 | [项目手册](docs/project-guide-and-resume.md)、[模块算法](docs/spark-push-internals.md) |
 | ACK / 游标 / 迁移 / 排障 | [可靠性](docs/reliability-optimization.md)、[工程修复](docs/review-remediation.md) |
-| Pi Agent 与流式回复 | [Pi 集成](docs/pi-agent-integration.md)、[多 Agent](docs/multi-agent-integration.md) |
+| Kernel Agent 与流式回复 | [产品与子 Agent](docs/kernel-agent.md)、[Kernel Agent 集成](docs/pi-agent-integration.md)、[多 Agent](docs/multi-agent-integration.md) |
 | 共享房间 Agent | [房间协作](docs/room-agent-collaboration.md)，默认关闭 |
 | GPU / 推理 Gateway | [推理服务](docs/inference-serving.md)，独立部署与验证 |
 | Android | [构建与连接](android-app/README.md)，需 Android SDK / JDK |

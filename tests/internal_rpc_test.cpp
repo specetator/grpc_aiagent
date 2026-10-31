@@ -2,9 +2,17 @@
 #include <stdexcept>
 #include "grpc_keepalive.h"
 #include "grpc_service.h"
+#include "message_payload.h"
 using namespace sparkpush;
 void Require(bool value) { if (!value) throw std::runtime_error("RPC authorization regression"); }
 int main() {
+    ChatMessage historical;
+    historical.set_sender_id(7);historical.set_session_id("r_1");historical.set_msg_seq(1);
+    historical.set_content_json(R"({"sender_id":999,"from_user_id":999,"type":"hermes_delta","agent_id":"public-pi"})");
+    auto safe=nlohmann::json::parse(DownstreamMessageJson(historical));
+    Require(safe["sender_id"]==7 && safe["from_user_id"]==7 && safe["type"]=="chatroom");
+    historical.set_msg_seq(0);
+    Require(nlohmann::json::parse(DownstreamMessageJson(historical))["type"]=="hermes_delta");
     std::string comet_key, job_key;
     Require(GenerateSecureToken(&comet_key) && GenerateSecureToken(&job_key));
     setenv("SPARK_RPC_COMET_KEY", comet_key.c_str(), 1);
@@ -43,6 +51,10 @@ int main() {
     BroadcastRequest broadcast;
     BroadcastReply broadcast_reply;
     Require(trusted->Broadcast(&admin_context, broadcast, &broadcast_reply).error_code()
+            == grpc::StatusCode::UNAUTHENTICATED);
+    grpc::ClientContext room_context;
+    RoomAccessRequest room_request; RoomAccessReply room_reply;
+    Require(untrusted->CheckRoomAccess(&room_context,room_request,&room_reply).error_code()
             == grpc::StatusCode::UNAUTHENTICATED);
     bool rejected = false;
     try { InternalServerCredentials("0.0.0.0"); } catch (const std::runtime_error&) { rejected = true; }

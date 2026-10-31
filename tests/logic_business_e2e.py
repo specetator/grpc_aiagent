@@ -140,11 +140,11 @@ async def exercise(base, ws_base, stub, pb, check):
         check.require(loaded["data"] == png, "participant reads uploaded image bytes")
         call("/api/attachment/get", {"id": image["id"]}, outsider, code=403, status=403)
         call("/api/attachment/upload", {"session_id": session, "data": png}, outsider, code=403, status=403)
-        bad = stub.SendUpstreamMessage(pb.UpstreamMessageRequest(from_user_id=bid,
+        bad = stub.SendUpstreamMessage(pb.UpstreamMessageRequest(from_user_id=bid, auth_token=bob["token"],
             to_user_id=aid, scene="single", client_msg_id="image-owner-" + secrets.token_hex(8),
             content_json=json.dumps({"content": {"attachments": [image]}})), timeout=10)
         check.require(bad.error.code == 400 and bad.ack_stage == pb.ACK_STAGE_UNSPECIFIED, "image sender ownership checked before accepted ACK")
-        bad = stub.SendUpstreamMessage(pb.UpstreamMessageRequest(from_user_id=aid,
+        bad = stub.SendUpstreamMessage(pb.UpstreamMessageRequest(from_user_id=aid, auth_token=alice["token"],
             to_user_id=oid, scene="single", client_msg_id="image-session-" + secrets.token_hex(8),
             content_json=json.dumps({"content": {"attachments": [image]}})), timeout=10)
         check.require(bad.error.code == 400, "image cross-session reference rejected")
@@ -161,9 +161,12 @@ async def exercise(base, ws_base, stub, pb, check):
         count = call("/api/chatroom/online_count", {"room_id": room}, alice)["online_count"]
         check.require(count == 1, "online presence differs from subscription")
         check.require(stub.ReportRoomLeave(report, timeout=10).error.code == 0, "gRPC online room leave")
-        call("/api/chatroom/unsubscribe", room_body, alice)
-        rooms = call("/api/chatroom/list", {"user_id": aid}, alice)["rooms"]
-        check.require(all(r["room_id"] != room for r in rooms), "unsubscribe removes durable membership")
+        # Formal spaces keep an owner; ordinary public members may still leave.
+        call("/api/chatroom/unsubscribe", room_body, alice, code=409, status=200)
+        call("/api/chatroom/join", {"room_id":room,"user_id":bid}, bob)
+        call("/api/chatroom/unsubscribe", {"room_id":room,"user_id":bid}, bob)
+        rooms = call("/api/chatroom/list", {"user_id": bid}, bob)["rooms"]
+        check.require(all(r["room_id"] != room for r in rooms), "unsubscribe removes ordinary member while preserving owner")
         call("/api/admin/chatroom/list", {}, admin)
         call("/api/admin/broadcast", {"scope": "chatroom", "room_id": room, "text": "Layer broadcast"}, admin)
         call("/api/admin/broadcast", {"scope": "unknown", "text": "bad"}, admin, code=400, status=400)
@@ -175,7 +178,7 @@ async def exercise(base, ws_base, stub, pb, check):
     # Both endpoints disconnected. Sending via unary RPC still acknowledges
     # Kafka persistence; the receiver recovers exactly that sequence on WS login.
     client = "offline-" + secrets.token_hex(12)
-    offline = stub.SendUpstreamMessage(pb.UpstreamMessageRequest(from_user_id=aid,
+    offline = stub.SendUpstreamMessage(pb.UpstreamMessageRequest(from_user_id=aid, auth_token=alice["token"],
         to_user_id=bid, scene="single", client_msg_id=client,
         content_json=json.dumps({"content": {"text": "offline recovery"}})), timeout=10)
     check.require(offline.error.code == 0 and offline.ack_stage == pb.ACK_STAGE_ACCEPTED, "offline unary accepts durable event")
@@ -185,7 +188,8 @@ async def exercise(base, ws_base, stub, pb, check):
         event = await receive(b, lambda e: e.get("client_msg_id") == client)
         check.require(event["msg_seq"] == offline.message.msg_seq, "WS reconnect restores offline sequence")
 
-    call("/api/message/send", {"from_user_id": aid, "to_user_id": bid, "content": "legacy text"})
+    call("/api/message/send", {"from_user_id": aid, "to_user_id": bid, "content": "legacy text"}, code=401, status=401)
+    call("/api/message/send", {"from_user_id": aid, "to_user_id": bid, "content": "legacy text"}, alice)
     call("/api/admin/user/update", {"user_id": oid, "name": "Renamed outsider"}, admin)
     call("/api/admin/user/list", {}, admin)
     call("/api/admin/user/revoke_tokens", {"user_id": oid}, admin)

@@ -34,6 +34,10 @@ class NativeTerminal(RuntimeError):
     """Hermes explicitly reported a non-success terminal state."""
     execution_failed = True
 
+    def __init__(self, message, status="failed"):
+        super().__init__(message)
+        self.terminal_status = "cancelled" if status in {"cancelled", "interrupted"} else "failed"
+
 
 def _digest(value):
     return hashlib.sha256(json.dumps(value, ensure_ascii=False, sort_keys=True,
@@ -62,7 +66,7 @@ class HermesNativeAdapter(HermesHttpAdapter):
         if self.relay_pool is not None:
             from windows_agent_transport import WindowsRelayPool
             # A saturated SSE pool must never starve stop, status or denial.
-            self.control_pool = WindowsRelayPool(config["windows_python"], max_workers=2)
+            self.control_pool = WindowsRelayPool(config["windows_python"], max_workers=2, port=self.relay_pool.port)
 
     def _scope(self, session):
         return "spark-im-" + _digest([self.namespace, self.config.get("profile"), session])
@@ -96,6 +100,14 @@ class HermesNativeAdapter(HermesHttpAdapter):
                     'run_submission', 'run_status', 'run_events_sse', 'run_stop',
                     'run_approval_response')) or value.get('model') != self.config['expected_model']):
             raise ValueError('Hermes 未确认所需 Runs API、持久幂等和 technical 身份；Native 未启用')
+        if self.config.get('room_policy')=='read_only':
+            catalog=self._json('/toolsets',timeout=min(timeout,3))
+            rows=catalog.get('data') if isinstance(catalog,dict) else None
+            # todo_list belongs to this AIAgent's own plan. No filesystem,
+            # terminal, memory search, cross-session tools or delegation.
+            if (not isinstance(rows,list) or any(not isinstance(row,dict) or
+                (row.get('enabled') is True and row.get('name') not in {'todo'}) for row in rows)):
+                raise ValueError('共享 Hermes 工具策略未经只读验证')
         return value
 
     def is_ready(self):
@@ -199,7 +211,7 @@ class HermesNativeAdapter(HermesHttpAdapter):
                 raise ValueError('Hermes input exceeds limit')
             with self.active_lock:
                 if self.active[session_id].get('stop_requested'):
-                    raise NativeTerminal('Hermes 任务已在提交前取消，未执行工具')
+                    raise NativeTerminal('Hermes 任务已在提交前取消，未执行工具', 'cancelled')
             key = 'spk-' + _digest([self.namespace, session_id, request_id, self.config.get('profile')])
             journal = {'version': 1, 'request_id': request_id, 'input_hash': input_hash,
                        'session_id': session_id, 'hermes_session_id': upstream, 'run_id': '',
@@ -283,7 +295,7 @@ class HermesNativeAdapter(HermesHttpAdapter):
     def _complete(self, session, request_id, run_id, status, output=None):
         if status != 'completed':
             self._update_record(request_id, status=status)
-            raise NativeTerminal('Hermes run 终态为 run.' + status + '，未记为成功回答')
+            raise NativeTerminal('Hermes run 终态为 run.' + status + '，未记为成功回答', status)
         if not isinstance(output, str) or not output.strip() or len(output.encode()) > _MAX_TEXT:
             raise NativeUnknown('Hermes 成功终态没有有效输出')
         metadata = self._metadata(self._state(session)) | {'run_id': run_id, 'runtime': 'hermes_native'}
@@ -302,7 +314,7 @@ class HermesNativeAdapter(HermesHttpAdapter):
         if record.get('status') == 'completed':
             return record['output'], {**record['metadata'], 'recovered': True}
         if record.get('status') in _TERMINAL:
-            raise NativeTerminal('Hermes run 终态为 ' + record['status'] + '，未记为成功回答')
+            raise NativeTerminal('Hermes run 终态为 ' + record['status'] + '，未记为成功回答', record['status'])
         run_id = record.get('run_id')
         if not isinstance(run_id, str) or not _SAFE_TOKEN.fullmatch(run_id):
             raise NativeUnknown('Hermes 准入结果未知且没有 run_id；禁止重发，请人工核对')
@@ -554,6 +566,28 @@ class HermesNativeAdapter(HermesHttpAdapter):
                 if current.get('approval_token') == token:
                     self._clear_approval(current)
         return agent_event('assistant_final', {'text': '已把一次性决定送回 Hermes：' + choice + '。'})
+
+    def room_control(self, session, request_id, operation, approval_token=None):
+        """Control the exact saved Run, never whichever later task shares a session."""
+        record=self._bound_record(session,request_id)
+        capabilities={"status":True,"stop":True,"approve":self.interactive,"deny":self.interactive}
+        if operation=="status":
+            if not record:return {"status":"queued","capabilities":capabilities}
+            status=record.get("status","unknown")
+            if status not in _TERMINAL and record.get("run_id"):
+                try: status=self._get_run(record["run_id"],3)["status"]
+                except Exception: status="unknown"
+            if status in {"admitting","preparing"}:status="unknown"
+            return {"status":status,"capabilities":capabilities}
+        if operation in {"approve","deny"} and not self.interactive:
+            raise ValueError("交互审批未启用；默认拒绝")
+        with self.active_lock:
+            active=self.active.get(session,{})
+            current=active.get("request_id") or self.store.get(self.namespace+':current',session).get('request_id')
+            if current!=request_id:raise ValueError("目标请求不是当前活动任务，未操作其他任务")
+            event=self.interrupt({"session_id":session,"operation":operation,"argument":approval_token},5)
+        latest=self._bound_record(session,request_id)
+        return {"status":latest.get("status","unknown"),"message":event["data"]["text"],"capabilities":capabilities}
 
     def control(self, request, timeout_s=30):
         operation, session = request.get('operation'), request.get('session_id', '')

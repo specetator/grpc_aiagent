@@ -121,6 +121,7 @@ bool HermesSseParser::ProcessEvent(
       if (on_agent_event_) on_agent_event_(normalized);
       const auto payload = event["data"];
       if (event["type"] == "error") {
+        result->terminal_status = payload.value("terminal_status", nlohmann::json()) == "cancelled" ? "cancelled" : "failed";
         result->native_unconfirmed = payload.value("native_unconfirmed", nlohmann::json()) == true;
         return Fail("Pi gateway reported an execution error", result, error);
       }

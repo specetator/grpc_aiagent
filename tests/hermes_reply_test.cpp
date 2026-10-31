@@ -197,6 +197,13 @@ int main() {
             Require(!PrepareHermesReply(invalid, 99, "Pi", &prepared, &error), "poison record accepted");
             Require(error == "invalid ai_reply envelope", "parser exposed payload");
         }
+        auto cancelled = source;
+        cancelled.update({{"session_id","r_1"},{"ok",false},{"terminal_status","cancelled"},
+            {"collaboration",{{"kind","room_agent_v1"},{"room_id",1}}}});
+        auto authorized = cancelled;
+        authorized.update({{"agent_id","public-pi"},{"agent_name","Pi"},{"source_msg_id","r_1-1"}});
+        Require(PrepareHermesReply(cancelled.dump(),99,"Pi",&prepared,&error,&authorized),"cancelled room reply rejected");
+        Require(nlohmann::json::parse(prepared.message.content_json)["agent_status"]=="cancelled","cancelled final lost status");
         std::cout << "Hermes reply retry and validation tests passed\n";
         return 0;
     } catch (const std::exception& e) {

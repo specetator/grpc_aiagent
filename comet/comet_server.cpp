@@ -18,6 +18,11 @@
 namespace sparkpush {
 
 namespace {
+int64_t RoomId(const std::string& session) {
+    if(session.rfind("r_",0)!=0) return 0;
+    try { const auto id=std::stoll(session.substr(2)); return id>0 && session=="r_"+std::to_string(id) ? id : -1; }
+    catch(...) { return -1; }
+}
 
 // 从 HTTP 请求中提取指定 Header 的值（简单实现，按行搜索）
 // 仅用于握手阶段，不做大小写兼容和多值处理。
@@ -252,6 +257,7 @@ CometServer::CometServer(EventLoop* loop, const Config& cfg)
 //   5. 最后停 grpc_pool_（drain=false，不等在途 RPC，避免关闭卡死）
 CometServer::~CometServer() {
     shutting_down_.store(true);
+    if (room_watchdog_) room_watchdog_->Stop();
     metrics_server_.Stop();
     stream_running_ = false;
     if (stream_watchdog_) stream_watchdog_->Stop();
@@ -656,6 +662,7 @@ void CometServer::Start() {
             }
         }, std::chrono::milliseconds(100));
     }
+    room_watchdog_ = std::make_unique<PeriodicWorker>([this] { RevalidateRooms(); }, std::chrono::milliseconds(1000));
     server_.start();
 }
 
@@ -673,14 +680,19 @@ void CometServer::Start() {
 // 返回值语义：成功 send 的连接数（不是用户数）。调用方据此判断
 // 是否可以 MarkDelivered。
 size_t CometServer::PushToUsers(const ChatMessage& msg, const std::vector<int64_t>& user_ids,
-                               std::vector<int64_t>* delivered_users) {
+                               std::vector<int64_t>* delivered_users, int64_t access_room) {
     if (delivered_users) delivered_users->clear();
+    const auto room=access_room>0 ? access_room : RoomId(msg.session_id());
+    if(room<0) return 0;
+    std::unordered_map<int64_t,uint64_t> generations;
+    if(room) for(auto user:user_ids) generations[user]=RoomAccessGeneration(room,user);
+    const auto authorized=room ? FilterRoomUsers(room,user_ids) : user_ids;
     auto frame = std::make_shared<std::string>(BuildWebSocketTextFrame(DownstreamMessageJson(msg)));
     std::vector<std::pair<int64_t, TcpConnectionPtr>> connections;
     {
         std::lock_guard<std::mutex> lock(conns_mu_);
         std::unordered_set<int64_t> seen;
-        for (auto user : user_ids) {
+        for (auto user : authorized) {
             if (!seen.insert(user).second) continue;
             auto it = user_conns_.find(user);
             if (it != user_conns_.end()) for (const auto& c : it->second) connections.emplace_back(user, c);
@@ -692,8 +704,11 @@ size_t CometServer::PushToUsers(const ChatMessage& msg, const std::vector<int64_
         auto accepted = std::make_shared<std::promise<bool>>();
         results.emplace_back(item.first, accepted->get_future());
         auto c = item.second;
-        c->getLoop()->runInLoop([c, frame, accepted, deadline] {
-            const bool live = c->connected() && std::chrono::steady_clock::now() < deadline;
+        const auto user=item.first;
+        const auto generation=room ? generations[user] : 0;
+        c->getLoop()->runInLoop([this, c, frame, accepted, deadline, room, user, generation] {
+            const bool live = c->connected() && std::chrono::steady_clock::now() < deadline &&
+                (!room || RoomAccessGeneration(room,user)==generation);
             const bool capacity = frame->size() <= 4 * 1024 * 1024 &&
                 c->outputBuffer()->readableBytes() <= 4 * 1024 * 1024 - frame->size();
             if (live && capacity) c->send(*frame);
@@ -724,21 +739,30 @@ size_t CometServer::PushToUsers(const ChatMessage& msg, const std::vector<int64_
 //
 // 空 request_id 直接放行（返回 true）：兼容不带幂等键的旧调用方。
 bool CometServer::AcceptPushRequest(const std::string& request_id) {
-    if (request_id.empty()) return true;
+    if(request_id.empty()) return true;
     std::lock_guard<std::mutex> lock(conns_mu_);
-    if (recent_push_ids_.find(request_id) != recent_push_ids_.end()) {
-        MetricsRegistry::Instance().Increment(
-            "spark_push_delivery_duplicate_total");
+    if(recent_push_ids_.count(request_id)) {
+        MetricsRegistry::Instance().Increment("spark_push_delivery_duplicate_total");
         return false;
     }
+    if(inflight_push_ids_.count(request_id) || inflight_push_ids_.size()>=100000)
+        throw PushAlreadyInFlight();
+    inflight_push_ids_.insert(request_id);
+    return true;
+}
+void CometServer::CompletePushRequest(const std::string& request_id) {
+    if(request_id.empty()) return;
+    std::lock_guard<std::mutex> lock(conns_mu_);
+    inflight_push_ids_.erase(request_id);
     recent_push_ids_.insert(request_id);
     recent_push_order_.push_back(request_id);
-    constexpr size_t kRecentPushLimit = 100000;
-    while (recent_push_order_.size() > kRecentPushLimit) {
-        recent_push_ids_.erase(recent_push_order_.front());
-        recent_push_order_.pop_front();
+    while(recent_push_order_.size()>100000) {
+        recent_push_ids_.erase(recent_push_order_.front());recent_push_order_.pop_front();
     }
-    return true;
+}
+void CometServer::ForgetPushRequest(const std::string& request_id) {
+    std::lock_guard<std::mutex> lock(conns_mu_);
+    inflight_push_ids_.erase(request_id);
 }
 
 // 向发送者回 delivered_ack 帧。
@@ -892,6 +916,13 @@ void CometServer::OnConnection(const TcpConnectionPtr& conn) {
         } catch (const std::bad_any_cast&) {
             // 忽略
         }
+        try {
+            const auto closed=std::any_cast<ConnContext>(conn->getContext());
+            std::vector<int64_t> rooms;
+            { std::lock_guard<std::mutex> lock(conns_mu_);
+              for(const auto& item:room_connections_) if(item.second.count(closed.user_id)) rooms.push_back(item.first); }
+            for(auto room:rooms) LeaveRoomConnection(room,closed.user_id,conn);
+        } catch(const std::bad_any_cast&) {}
         if (need_offline && offline_uid > 0) {
             NotifyUserOffline(offline_uid, offline_generation, offline_token);
         }
@@ -1074,46 +1105,79 @@ void CometServer::HandleWebSocketFrame(const TcpConnectionPtr& conn,
 }
 
 // 将用户加入本机的房间成员表，并在首次加入时通知 logic 侧路由。
-void CometServer::AddUserToRoom(int64_t room_id, int64_t user_id) {
-    bool joined = false;
-    {
-        std::lock_guard<std::mutex> lock(conns_mu_);
-        auto& users = room_users_[room_id];
-        auto res = users.insert(user_id);
-        if (!res.second) {
-            // 已在房间内，忽略重复 join
-            return;
-        }
-        joined = true;
-    }
-    if (joined) {
-        // 由 logic 侧在 Redis 中进行 INCRBY 计数 + room:comets 维护
-        NotifyRoomJoin(room_id, user_id);
-    }
+void CometServer::AddUserToRoom(int64_t room, int64_t user, const TcpConnectionPtr& conn) {
+    bool first=false;
+    { std::lock_guard<std::mutex> lock(conns_mu_);
+      room_connections_[room][user].insert(conn);
+      first=room_users_[room].insert(user).second; }
+    if(first) NotifyRoomJoin(room,user);
 }
-
-// 将用户从本机房间成员表中移除；当成员数为 0 时删除房间记录并上报离开。
-void CometServer::RemoveUserFromRoom(int64_t room_id, int64_t user_id) {
-    bool left = false;
-    {
-        std::lock_guard<std::mutex> lock(conns_mu_);
-        auto it = room_users_.find(room_id);
-        if (it == room_users_.end()) return;
-        auto& users = it->second;
-        size_t before = users.size();
-        users.erase(user_id);
-        if (users.size() == before) {
-            // 原本就不在房间中
-            return;
-        }
-        if (users.empty()) {
-            room_users_.erase(it);
-        }
-        left = true;
+void CometServer::LeaveRoomConnection(int64_t room,int64_t user,const TcpConnectionPtr& conn) {
+    bool last=false;
+    { std::lock_guard<std::mutex> lock(conns_mu_);
+      auto r=room_connections_.find(room);
+      if(r==room_connections_.end()) return;
+      auto u=r->second.find(user); if(u==r->second.end()) return;
+      u->second.erase(conn);
+      if(u->second.empty()) { r->second.erase(u); last=true; }
+      if(r->second.empty()) room_connections_.erase(r);
+      if(last) { auto it=room_users_.find(room); if(it!=room_users_.end()) { it->second.erase(user); if(it->second.empty()) room_users_.erase(it); } }
     }
-    if (left) {
-        NotifyRoomLeave(room_id, user_id);
+    if(last) NotifyRoomLeave(room,user);
+}
+void CometServer::RemoveUserFromRoom(int64_t room,int64_t user) {
+    bool left=false;
+    { std::lock_guard<std::mutex> lock(conns_mu_);
+      auto it=room_users_.find(room);
+      if(it!=room_users_.end()) { left=it->second.erase(user)>0; if(it->second.empty()) room_users_.erase(it); }
+      auto r=room_connections_.find(room);
+      if(r!=room_connections_.end()) { r->second.erase(user); if(r->second.empty()) room_connections_.erase(r); }
     }
+    if(left) NotifyRoomLeave(room,user);
+}
+uint64_t CometServer::RoomAccessGeneration(int64_t room,int64_t user) const {
+    std::lock_guard<std::mutex> lock(conns_mu_);
+    const auto it=room_access_generations_.find({room,user});
+    return it==room_access_generations_.end() ? 0 : it->second;
+}
+void CometServer::RevokeRoomUser(int64_t room,int64_t user) {
+    std::vector<TcpConnectionPtr> connections;
+    { std::lock_guard<std::mutex> lock(conns_mu_);
+      ++room_access_generations_[{room,user}];
+      const auto it=user_conns_.find(user);
+      if(it!=user_conns_.end()) connections.assign(it->second.begin(),it->second.end()); }
+    RemoveUserFromRoom(room,user);
+    for(const auto& conn:connections) conn->getLoop()->queueInLoop([conn,room] {
+        auto* state=std::any_cast<ConnContext>(conn->getMutableContext());
+        if(!conn->connected() || !state) return;
+        ++state->room_join_generation[room];
+        conn->send(BuildWebSocketTextFrame(nlohmann::json{{"type","room_revoked"},{"room_id",room}}.dump()));
+    });
+}
+std::vector<int64_t> CometServer::FilterRoomUsers(int64_t room,const std::vector<int64_t>& users,bool revoke) {
+    if(room<=0) return {};
+    if(!logic_stub_) throw RoomAuthorizationUnavailable();
+    std::vector<int64_t> allowed;
+    for(size_t offset=0;offset<users.size();offset+=1000) {
+        RoomAccessRequest request; request.set_room_id(room);
+        const auto end=std::min(users.size(),offset+1000);
+        for(size_t i=offset;i<end;++i) request.add_user_ids(users[i]);
+        RoomAccessReply reply; grpc::ClientContext context;
+        context.set_deadline(std::chrono::system_clock::now()+std::chrono::seconds(2));
+        if(!logic_stub_->CheckRoomAccess(&context,request,&reply).ok() || reply.error().code()!=0) throw RoomAuthorizationUnavailable();
+        std::unordered_set<int64_t> members(reply.user_ids().begin(),reply.user_ids().end());
+        for(size_t i=offset;i<end;++i) {
+            if(members.count(users[i])) allowed.push_back(users[i]);
+            else if(revoke) RevokeRoomUser(room,users[i]);
+        }
+    }
+    return allowed;
+}
+void CometServer::RevalidateRooms() {
+    std::vector<std::pair<int64_t,std::vector<int64_t>>> rooms;
+    { std::lock_guard<std::mutex> lock(conns_mu_);
+      for(const auto& item:room_users_) rooms.push_back({item.first,{item.second.begin(),item.second.end()}}); }
+    for(const auto& item:rooms) { if(shutting_down_) break; FilterRoomUsers(item.first,item.second); }
 }
 
 // 处理客户端文本上行：
@@ -1181,17 +1245,31 @@ void CometServer::OnTextMessage(const TcpConnectionPtr& conn,
             conn->send(frame);
             return;
         }
-        int64_t room_id = meta.group_id;
+        const int64_t room_id = meta.group_id;
+        auto* state=std::any_cast<ConnContext>(conn->getMutableContext());
+        if(!state) return;
+        const auto generation=++state->room_join_generation[room_id];
         if (type == "chatroom_join") {
-            AddUserToRoom(room_id, ctx.user_id);
-            std::string frame = BuildWebSocketTextFrame(
-                    "{\"type\":\"ack\",\"op\":\"chatroom_join\"}");
-            conn->send(frame);
+            const auto user=ctx.user_id;
+            const auto access_generation=RoomAccessGeneration(room_id,user);
+            if(!grpc_pool_.Submit([this,conn,room_id,user,generation,access_generation] {
+                bool allowed=false; int error_code=403;
+                try { allowed=!FilterRoomUsers(room_id,{user},false).empty(); }
+                catch(const RoomAuthorizationUnavailable&) { error_code=503; }
+                conn->getLoop()->queueInLoop([this,conn,room_id,user,generation,access_generation,allowed,error_code] {
+                    auto* current=std::any_cast<ConnContext>(conn->getMutableContext());
+                    if(!conn->connected() || !current || current->room_join_generation[room_id]!=generation) return;
+                    if(!allowed || RoomAccessGeneration(room_id,user)!=access_generation) {
+                        conn->send(BuildWebSocketTextFrame(nlohmann::json{{"type","error"},{"code",error_code},{"op","chatroom_join"},{"room_id",room_id},{"message","room membership required or authorization unavailable"}}.dump()));
+                        return;
+                    }
+                    AddUserToRoom(room_id,user,conn);
+                    conn->send(BuildWebSocketTextFrame(nlohmann::json{{"type","ack"},{"op","chatroom_join"},{"room_id",room_id}}.dump()));
+                });
+            })) conn->send(BuildWebSocketTextFrame("{\"type\":\"error\",\"code\":503,\"message\":\"room authorization busy\"}"));
         } else {
-            RemoveUserFromRoom(room_id, ctx.user_id);
-            std::string frame = BuildWebSocketTextFrame(
-                    "{\"type\":\"ack\",\"op\":\"chatroom_leave\"}");
-            conn->send(frame);
+            LeaveRoomConnection(room_id,ctx.user_id,conn);
+            conn->send(BuildWebSocketTextFrame("{\"type\":\"ack\",\"op\":\"chatroom_leave\"}"));
         }
         return;
     } else {
@@ -1235,7 +1313,7 @@ void CometServer::OnTextMessage(const TcpConnectionPtr& conn,
             if (!conn->connected()) return;
             if (resp.error().code() != 0) {
                 nlohmann::json error = {
-                    {"type", "error"}, {"message", "send failed"},
+                    {"type", "error"}, {"message", "send failed"}, {"code",resp.error().code()},
                     {"client_msg_id", client_msg_id}};
                 conn->send(BuildWebSocketTextFrame(error.dump()));
                 return;
@@ -1269,7 +1347,7 @@ void CometServer::OnTextMessage(const TcpConnectionPtr& conn,
         if (!conn->connected()) return;
         if (!status.ok() || rep.error().code() != 0) {
             nlohmann::json error = {
-                {"type", "error"}, {"message", "send failed"},
+                {"type", "error"}, {"message", "send failed"}, {"code",status.ok()?rep.error().code():503},
                 {"client_msg_id", req.client_msg_id()}};
             conn->send(BuildWebSocketTextFrame(error.dump()));
             return;
@@ -1447,6 +1525,16 @@ void CometServer::RequestCursorSync(const TcpConnectionPtr& conn,
                 "{\"type\":\"error\",\"message\":\"sync failed\"}"));
             return;
         }
+        const auto room=RoomId(session_id);
+        const auto generation=room>0 ? RoomAccessGeneration(room,user_id) : 0;
+        bool allowed=room>=0;
+        try { if(room>0) allowed=!FilterRoomUsers(room,{user_id}).empty(); }
+        catch(const RoomAuthorizationUnavailable&) {
+            conn->send(BuildWebSocketTextFrame("{\"type\":\"error\",\"code\":503,\"message\":\"room authorization unavailable\"}")); return;
+        }
+        if(!allowed) {
+            conn->send(BuildWebSocketTextFrame("{\"type\":\"error\",\"code\":403,\"message\":\"room membership required\"}")); return;
+        }
         auto frames = std::make_shared<std::vector<std::pair<int64_t, std::string>>>();
         int64_t last_seq = after_seq;
         for (const auto& message : reply.messages()) {
@@ -1460,10 +1548,11 @@ void CometServer::RequestCursorSync(const TcpConnectionPtr& conn,
         auto accepted = std::make_shared<std::promise<std::vector<int64_t>>>();
         auto result = accepted->get_future();
         const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(1);
-        conn->getLoop()->runInLoop([conn, frames, end_frame, accepted, deadline] {
+        conn->getLoop()->runInLoop([this, conn, frames, end_frame, accepted, deadline, room, user_id, generation] {
             std::vector<int64_t> sequences;
             auto send = [&](const std::string& frame) {
-                if (!conn->connected() || std::chrono::steady_clock::now() >= deadline) return false;
+                if (!conn->connected() || std::chrono::steady_clock::now() >= deadline ||
+                    (room && RoomAccessGeneration(room,user_id)!=generation)) return false;
                 constexpr size_t capacity = 4 * 1024 * 1024;
                 if (frame.size() > capacity || conn->outputBuffer()->readableBytes() > capacity - frame.size()) {
                     MetricsRegistry::Instance().Increment("spark_push_comet_slow_connection_closed_total");

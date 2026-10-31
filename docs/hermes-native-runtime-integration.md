@@ -1,5 +1,7 @@
 # Hermes Native Runtime 集成与验收记录
 
+2026-10-31 增量扩展见 [通用 Room Agent](generic-room-agents.md) 与 [当前验收矩阵](mvp-v1-acceptance.md)。以下日期对应原阶段证据，不替代新报告。
+
 验证日期：2026-10-28（Asia/Shanghai）。Spark 基线 HEAD：
 `0c4f1f2c4204481ce77a4a16162a360bbf2bf2fc`，开发分支 `hermes-native-runtime`。
 本次进入仓库时该分支已有 18 个未提交文件（包括 Native 草稿与测试）；保留原工作，

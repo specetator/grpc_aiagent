@@ -19,12 +19,14 @@
 | Kafka 消费、持久化、Job→Comet 推送 | `docs/reliability-optimization.md`、`docs/spark-push-internals.md` | `job/service.cpp`、`common/kafka_consumer.cpp` |
 | 工程审查修复、迁移、故障回归 | `docs/review-remediation.md` | `logic/message_reservation.cpp`、`common/internal_rpc.h`、`sql/migrations/20261011_message_reservations.sql`、`tests/` |
 | Wire contract 与 RPC | `docs/review-remediation.md` | `proto/spark_push.proto`、`common/internal_rpc.h` |
+| Kernel Agent 产品身份、子任务编排与权限 | `docs/kernel-agent.md`、`docs/codex-subagent-reference.md` | `cannbot/pi/extensions/kernel-subagents.ts`、`cannbot/skills/spark-push-agent/` |
 | Agent HTTP/SSE 适配 | `docs/hermes-integration.md`、`docs/pi-agent-integration.md` | `hermes_bridge/hermes_client.cpp`、`hermes_bridge/sse_parser.cpp`、`hermes_bridge/main.cpp`、`cannbot/scripts/pi_gateway.py` |
 | Agent 最终回复重试、持久化死信与恢复 | `docs/pi-agent-integration.md` 第 6 节 | `logic/hermes_reply.cpp`、`logic/services/message_service.cpp`、`common/kafka_consumer.cpp`、`job/service.cpp` |
 | Agent 常用命令卡片、模型/思考等级/新建/重试与通用事件 | `docs/pi-agent-integration.md` 第 7、8 节 | `cannbot/scripts/agent_events.py`、`common/agent_event.h`、`web_demo/static/agent_channel.js`、`cannbot/scripts/pi_gateway.py` |
 | Pi ↔ IM 架构审查、通用事件、会话队列与隔离方案 | `docs/pi-im-architecture-review.md`（2026-09-06 实施前审查快照）；当前路由/turn/事件合同见 `docs/multi-agent-integration.md` | `cannbot/scripts/agent_events.py`、`cannbot/scripts/agent_router.py`、`cannbot/scripts/pi_gateway.py`、`hermes_bridge/`、`logic/grpc_service.cpp` |
-| WSL Pi Agent 安装、配置与二次开发 | `docs/pi-agent-integration.md`、`docs/cannbot-integration.md` | `/home/peco/.pi-spark-agent`、`cannbot/pi/` |
+| WSL Kernel Agent 安装、配置与二次开发 | `docs/pi-agent-integration.md`、`docs/cannbot-integration.md` | `/home/peco/.pi-spark-agent`、`cannbot/pi/` |
 | Agent 命令和多轮上下文 | `docs/hermes-integration.md` | `logic/hermes_command.*`、`logic/services/message_service.cpp` |
+| 用户自助配置 DSH/Codex/Claude Code/Hermes/OpenClaw | `docs/customer-agent-connections.md` | `logic/services/agent_connection_service.cpp`、`cannbot/scripts/user_agent_connections.py`、`cannbot/scripts/agent_connector.py`、`cannbot/scripts/agent_cli_adapter.py`、`web_demo/static/agent_connections.js` |
 | 多 Agent 选择、粘滞路由、事件回放、所有者配置和 Windows technical 隔离接入 | `docs/multi-agent-integration.md` | `cannbot/scripts/agent_events.py`、`cannbot/scripts/agent_router.py`、`cannbot/scripts/pi_gateway.py`、`cannbot/scripts/hermes_adapter.py`、`cannbot/scripts/windows_agent_transport.py` |
 | Hermes Runs API 原生运行时（默认关闭，不替换 Pi 或 Legacy） | `docs/hermes-native-runtime-integration.md` | `cannbot/scripts/hermes_native_adapter.py`、`cannbot/scripts/windows_agent_http.py`、`cannbot/scripts/agent_router.py`、`logic/hermes_command.cpp`、`hermes_bridge/sse_parser.cpp` |
 | 多人共享 CANN 房间、算子任务交接、开发授权与版本化测试回执 | `docs/room-agent-collaboration.md` | `logic/services/room_agent_service.*`、`logic/repositories/room_agent_repository.*`、`cannbot/scripts/room_agent.py`、`cannbot/pi/extensions/room-workspace.ts`、`tests/room_agent_e2e.py` |
@@ -60,3 +62,10 @@
 
 性能报告只代表报告中记录的环境和参数，不能外推为生产容量。若文档和代码不一致，说明差异
 并以当前代码描述“已经实现”的行为。
+
+## 协作空间与通用 Room Agent
+
+- `docs/collaboration-spaces.md`：正式成员、邀请、角色、撤销。
+- `docs/generic-room-agents.md`：Catalog、多绑定、原生 Session 隔离、任务及恢复 API。
+- `docs/mvp-v1-acceptance.md`：M1–M6 / T01–T14 的证据类型与未覆盖边界。
+- `docs/benchmarks/2026-10-31-generic-room-agents.md`：本轮真实/受控验收回执、变更清单与源文件指纹。

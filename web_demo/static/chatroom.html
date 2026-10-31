@@ -248,7 +248,7 @@
   <div id="sidebar">
     <div class="sb-header">
       <h2><span>⚡</span> Spark Chatroom</h2>
-      <small>群聊 / 直播间广播模式</small>
+      <small>协作空间 · 成员与共享任务</small>
     </div>
 
     <!-- 登录前 -->
@@ -274,13 +274,13 @@
     <!-- 登录后 -->
     <div id="room-nav" class="hidden">
        <div class="room-nav-header">
-          <div style="font-size:12px; color:var(--text-secondary); margin-bottom:6px; font-weight:500;">加入新房间 (RoomID):</div>
+          <div style="font-size:12px; color:var(--text-secondary); margin-bottom:6px; font-weight:500;">加入公开房间 (RoomID):</div>
           <div style="display:flex; gap:6px;">
             <input id="join-room-id" class="form-control" placeholder="如 1001" style="margin:0;">
             <button id="join-btn" class="btn-primary" style="width:auto; padding:0 14px;">加入</button>
           </div>
        </div>
-       <div class="room-list-label">我的订阅列表</div>
+       <div class="room-list-label">我的空间</div>
        <div id="room-list" class="room-list"></div>
        <div class="room-profile-bar">
           <span id="my-id" class="room-profile-info"></span>
@@ -294,10 +294,35 @@
        <span id="room-title" style="font-weight:bold;">未选择房间</span>
        <span id="online-count" style="font-size:12px; color:#666;"></span>
     </div>
+    <details id="space-panel" hidden style="padding:8px 24px;max-height:40vh;overflow:auto;">
+      <summary>空间管理 · 创建、邀请与成员</summary>
+      <form data-create-space style="display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;">
+        <input name="name" placeholder="空间名称" aria-label="空间名称" required maxlength="128">
+        <input name="description" placeholder="空间描述" aria-label="空间描述" maxlength="2048">
+        <select name="visibility" aria-label="空间可见性"><option value="private">私有 · 邀请制</option><option value="public">公开 · 可主动加入</option></select>
+        <button type="submit">创建空间</button>
+      </form>
+      <button type="button" data-refresh-spaces>刷新空间与邀请</button>
+      <div data-invitations></div>
+      <form data-invite-space hidden style="margin:8px 0;">
+        <input name="user_id" type="number" min="1" required placeholder="已有用户 ID" aria-label="邀请用户 ID">
+        <button type="submit">邀请成员</button>
+      </form>
+      <div data-space-members></div>
+      <button type="button" data-leave-space disabled>退出当前空间</button>
+      <p style="font-size:12px;">房主不能退出；关闭页面或断线会保留成员关系。</p>
+      <div data-space-status role="status" style="color:var(--status-error)"></div>
+    </details>
+    <details id="room-agents" style="padding:8px 24px;max-height:30vh;overflow:auto;" open>
+      <summary>房间 Agent</summary><button data-agents-refresh>刷新 Agent / 请求</button>
+      <div data-agents-list></div><div data-agent-selected></div><div data-agents-error role="alert"></div>
+      <details><summary>请求与结果</summary><div data-agent-requests></div></details>
+      <details><summary>协作任务与交接</summary><div data-room-tasks></div></details>
+    </details>
     <details id="room-agent-panel" style="padding:8px 24px;max-height:35vh;overflow:auto;">
-      <summary>CANN 协作任务 · 输入 @CANN 提问</summary>
+      <summary>Kernel Agent · 算子协作 · 输入 @CANN 提问</summary>
       <button data-action="refresh">刷新进度</button>
-      <button data-action="configure">房主：创建任务 / 授权开发成员</button>
+      <button data-action="configure">房主 / 管理员：创建任务 / 授权开发成员</button>
       <button data-action="checkpoint">保存交接摘要</button>
       <pre data-task style="white-space:pre-wrap;"></pre>
       <div data-error style="color:var(--status-error)"></div>
@@ -306,13 +331,16 @@
     <div id="msgs">
        <div style="text-align:center; margin-top:50px; color:#ccc;">请先在左侧加入或选择一个房间</div>
     </div>
+    <div id="agent-mention-choices" aria-label="可用 Agent"></div>
     <div id="input-box">
-       <input id="msg-input" class="form-control" placeholder="发送讨论，或 @CANN 提问... (Enter)" style="margin:0;">
+       <input id="msg-input" class="form-control" placeholder="发送讨论，输入 @ 选择 Agent，或 @CANN 提问" style="margin:0;">
        <button id="send-btn" class="btn-primary" style="width:100px;">发送</button>
     </div>
   </div>
 
   <script src="room_agent_channel.js"></script>
+  <script src="room_agents.js"></script>
+  <script src="spaces.js"></script>
   <script>
     const logicBase = window.location.protocol + '//' + window.location.hostname + ':9101';
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -326,6 +354,25 @@
       if (result.code !== 0) throw new Error(result.message || result.msg || '共享任务请求失败');
       return result.data;
     });
+    const roomAgents=new RoomAgents(document.getElementById('room-agents'),document.getElementById('msg-input'),document.getElementById('agent-mention-choices'),async(path,body)=>{
+      const response=await fetch(logicBase+path,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
+      const result=await response.json();if(result.code!==0)throw new Error(result.message||'Agent 请求失败');return result.data;
+    },(...args)=>appendMsg(...args));
+    const spaces = new SpacePanel(document.getElementById('space-panel'), async(path,body)=>{
+      const response=await fetch(logicBase+path,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
+      const result=await response.json();if(result.code!==0) throw new Error(result.message || '空间请求失败');return result.data;
+    },()=>uid,()=>loadMyRooms(),room=>clearSpace(room));
+    function clearSpace(room) {
+      if(Number(room)!==Number(currentRoom)) return;
+      ++roomViewGeneration;
+      if(roomHistoryController) roomHistoryController.abort();
+      if(onlineRefreshTimer) { clearInterval(onlineRefreshTimer);onlineRefreshTimer=null; }
+      if(ws && ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify({type:'chatroom_leave',group_id:Number(room)}));
+      currentRoom=null;currentSessionId=null;roomHistoryReady=false;pendingRoomMessages=[];renderedRoomMessages.clear();
+      roomAgents.select(0);roomAgent.select(0);document.querySelector('[data-task]').textContent='';
+      document.getElementById('msgs').replaceChildren();document.getElementById('room-title').textContent='未选择空间';
+      document.getElementById('online-count').textContent='';spaces.select(0,'');
+    }
     // 对应当前房间在后端的 session_id，用于拉取历史消息
     let currentSessionId=null;
     // 聊天室历史分页状态
@@ -348,6 +395,8 @@
 
     // UI Toggles
     function toggleUI(isLogin) {
+       document.getElementById('space-panel').hidden=!isLogin;
+       document.getElementById('room-agent-panel').hidden=!isLogin;document.getElementById('room-agents').hidden=!isLogin;
        const ab = document.getElementById('auth-box');
        const rn = document.getElementById('room-nav');
        if(isLogin) {
@@ -554,14 +603,16 @@
        if (!text && inner) text = typeof inner === 'string' ? inner : (inner.text || '');
        if (!text) text = JSON.stringify(contentObj);
        const groupId = Number(msg.group_id || contentObj.group_id || 0);
-       const senderId = Number(msg.from_user_id || contentObj.from_user_id || msg.sender_id || 0);
+       const senderId = Number(msg.sender_id || msg.from_user_id || contentObj.from_user_id || 0);
+       const agent = roomAgents.identity({agent_id:msg.agent_id||contentObj.agent_id,from_user_id:senderId});
        const senderName = (contentObj.sender && contentObj.sender.name) ||
          (msg.sender && msg.sender.name) || (senderId ? 'User ' + senderId : '有人');
        return {
          text,
          groupId,
          senderId,
-         senderName,
+         agentId: agent?.agent_id || "",
+         senderName: agent ? '🤖 '+agent.name+' · 发起人 '+(msg.actor_user_id||contentObj.actor_user_id) : senderName,
          msgId: String(msg.msg_id || contentObj.msg_id || ''),
          clientMsgId: String(msg.client_msg_id || contentObj.client_msg_id || ''),
          seq: Number(msg.msg_seq || contentObj.msg_seq || 0),
@@ -619,6 +670,14 @@
              messageSeq: parsed.seq
            });
        }
+       if(parsed.seq>0){
+         node.dataset.messageSeq=String(parsed.seq);
+         const container=document.getElementById('msgs');
+         const next=[...container.querySelectorAll('.msg[data-message-seq]')].find(other=>other!==node &&
+           (Number(other.dataset.messageSeq)>parsed.seq || Number(other.dataset.messageSeq)<=0));
+         if(next)container.insertBefore(node,next);else container.appendChild(node);
+       }
+       if(parsed.agentId) node.dataset.agentIdentity=parsed.agentId;
        keys.forEach(key => renderedRoomMessages.set(key, node));
        while (renderedRoomMessages.size > 20000) {
          renderedRoomMessages.delete(renderedRoomMessages.keys().next().value);
@@ -634,7 +693,8 @@
     }
 
     function handleRoomSocketMessage(msg) {
-       if (msg.type === 'hermes_delta') { roomAgent.delta(msg); return; }
+       if(msg.type==='room_revoked') { clearSpace(msg.room_id);spaces.notice('成员资格已撤销，请重新获取邀请。');loadMyRooms();return; }
+       if (msg.type === 'hermes_delta') { if(msg.agent_id)roomAgents.delta(msg);else roomAgent.delta(msg); return; }
        if (msg.type === 'sync_end') {
          handleRoomSyncEnd(msg);
          return;
@@ -663,7 +723,7 @@
          return;
        }
        if (msg.type === 'chatroom') {
-         if (msg.request_id && msg.session_id === currentSessionId) roomAgent.final(msg.request_id);
+         if(msg.agent_id)roomAgents.final(msg);else if (msg.request_id && msg.session_id === currentSessionId) roomAgent.final(msg.request_id);
          const parsed = parseRoomMessage(msg);
          if (parsed.seq > 0) advanceRoomCursor(parsed.seq);
          if (!currentRoom || (parsed.groupId && Number(parsed.groupId) !== Number(currentRoom))) return;
@@ -730,8 +790,10 @@
     }
 
     async function loadMyRooms() {
+       if(!token || !uid) return;
+       const requestedToken=token;
        try {
-          const res = await fetch(logicBase+'/api/chatroom/list', {
+          const res = await fetch(logicBase+'/api/spaces/list', {
              method:'POST',
              headers:{
                'Content-Type':'application/json',
@@ -740,25 +802,30 @@
              body:JSON.stringify({user_id:uid})
           });
           const d = await res.json();
+          if(requestedToken!==token) return;
           const listDiv = document.getElementById('room-list');
           listDiv.innerHTML = '';
-          if(d.code===0 && d.data.rooms) {
-             d.data.rooms.forEach(r => {
+          if(d.code===0 && d.data.spaces) {
+             d.data.spaces.forEach(r => {
                 const div = document.createElement('div');
                 div.className = 'room-item';
                 if(Number(r.room_id) === Number(currentRoom)) div.classList.add('active');
                 div.dataset.rid = r.room_id;
                 div.dataset.name = r.name;
+                div.dataset.role = r.role;
                 // 记录后端的会话 ID，后面拉取历史消息会用到
                 if (r.session_id) {
                   div.dataset.sessionId = r.session_id;
                 }
-                div.textContent = `${r.name} (${r.room_id})`;
+                div.textContent = `${r.name} (${r.room_id}) · ${r.visibility} · ${r.role}`;
                 div.onclick = () => selectRoom(r.room_id, r.name, div);
                 listDiv.appendChild(div);
              });
-          }
+             if(currentRoom && !d.data.spaces.some(r=>Number(r.room_id)===Number(currentRoom))) clearSpace(currentRoom);
+             await spaces.invitations();
+          } else if(d.code!==0) spaces.notice(d.message || '加载空间失败');
        } catch(e){
+          spaces.notice(e.message);
           console.error('loadMyRooms error', e);
        }
     }
@@ -777,7 +844,7 @@
          });
          const result = await response.json();
          if (result.code !== 0) {
-           document.getElementById('status').textContent = result.message || '加入房间失败';
+           spaces.notice(result.message || '加入房间失败');
            return;
          }
        } catch (e) {
@@ -807,8 +874,12 @@
          clearInterval(onlineRefreshTimer);
          onlineRefreshTimer = null;
        }
+       if(currentRoom && Number(currentRoom)!==Number(rid) && ws && ws.readyState===WebSocket.OPEN)
+         ws.send(JSON.stringify({type:'chatroom_leave',group_id:Number(currentRoom)}));
        currentRoom = rid;
-       roomAgent.select(rid);
+       if(ws && ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify({type:'chatroom_join',group_id:Number(rid)}));
+       spaces.select(rid,el?.dataset.role || '');
+       roomAgent.select(rid);const agentsReady=roomAgents.select(rid);
        currentRoomName = rname || ('房间 '+rid);
        document.getElementById('room-title').textContent = currentRoomName;
        document.getElementById('msgs').innerHTML = ''; // 清空旧消息
@@ -843,7 +914,10 @@
        }
 
        // 先加载历史，再追加“已进入”提示，避免把系统提示插在历史中间
-       loadHistory(true).then(() => {
+       agentsReady.then(() => {
+         if(viewGeneration!==roomViewGeneration)return;
+         return loadHistory(true);
+       }).then(() => {
          if (viewGeneration !== roomViewGeneration || Number(currentRoom) !== Number(rid)) return;
          appendMsg(`已进入 ${currentRoomName}`, true, '系统', true);
          refreshOnlineCount();
@@ -1138,6 +1212,7 @@
        }
        const payload = {
           type:'chatroom', group_id:Number(currentRoom), content:{text:txt},
+          ...(roomAgents.mentions().length?{agent_mentions:roomAgents.mentions()}:{}),
           client_msg_id:Date.now() + '-' + Math.random().toString(36).slice(2, 8)
        };
        try {
@@ -1148,10 +1223,14 @@
          return;
        }
        renderRoomMessage(payload, {optimistic:true});
-       document.getElementById('msg-input').value = '';
+       document.getElementById('msg-input').value = '';roomAgents.sent();
     };
 
     function doLogout() {
+      if(currentRoom) clearSpace(currentRoom);
+      document.querySelector('[data-invitations]').replaceChildren();
+      document.querySelector('[data-space-members]').replaceChildren();
+      spaces.notice('');
       Auth.clear();
       if (reconnectTimer) clearTimeout(reconnectTimer);
       reconnectTimer = null;

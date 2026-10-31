@@ -405,7 +405,7 @@ bool AttachmentDao::ReadBytes(const StoredAttachment& attachment,
     return static_cast<bool>(in);
 }
 
-// 拼出 Pi Agent 需要的 images 负载，实际读文件与 base64 编码在
+// 拼出 Kernel Agent 需要的 images 负载，实际读文件与 base64 编码在
 // common/image_attachment.cpp 的 LoadPiImagesFromDir 里。
 // 放在 common/ 而不是这里，是为了让 hermes_bridge 与单测能直接复用
 // 同一套探测/编码逻辑，避开两边行为不一致。

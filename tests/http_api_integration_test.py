@@ -45,6 +45,27 @@ try:
         for field in fields:
             for value in (123, None, [], {}):
                 assert post(path, {field: value}) == 400, (path, field, value)
+    assert post("/api/agent/connections", {"action":"list"}, False) == 401
+    assert post("/api/agent/connections", {"action":"list", "actor_user_id":8}) == 400
+    assert post("/api/agent/connections", {"action":"save", "binary":"/bin/sh"}) == 400
+    assert post("/api/agent/connections", {"action":"save", "endpoint":None}) == 400
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=2)
+    conn.request("POST", "/api/agent/connections", json.dumps({"action":"list"}),
+                 {"Authorization":"Bearer probe", "Content-Type":"application/json"})
+    result = json.loads(conn.getresponse().read())
+    assert result["code"] == 0 and result["data"]["actor_user_id"] == 7
+    conn.close()
+    for spelling in ("authorization", "aUtHoRiZaTiOn"):
+        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=2)
+        conn.request("POST", "/api/agent/connections", json.dumps({"action":"list"}),
+                     {spelling:"Bearer probe", "Content-Type":"application/json"})
+        assert json.loads(conn.getresponse().read())["code"] == 0, spelling
+        conn.close()
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=2)
+    conn.request("POST", "/api/agent/connections", json.dumps({"action":"list"}),
+                 {"Authorization":"Bearer probe","authorization":"Bearer conflict","Content-Type":"application/json"})
+    assert json.loads(conn.getresponse().read())["code"] == 401
+    conn.close()
     # A partial header must not monopolize the loop or block unrelated requests.
     with socket.create_connection(("127.0.0.1", port), timeout=2) as partial:
         partial.sendall(b"GET /metrics HTTP/1.1\r\nHost: partial")

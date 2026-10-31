@@ -47,6 +47,9 @@
     if (commandForAction(action) !== content.text) return null;
     return actionLabel(action);
   }
+  async function actionSent(sendAction, action) {
+    try { return await sendAction(action) === true; } catch (_) { return false; }
+  }
   function renderCommands(bubble, ui, sendAction) {
     if (typeof ui.title !== 'string' || ui.title.length > 320 || !Array.isArray(ui.actions) ||
         !ui.actions.length || ui.actions.length > 16 || !ui.actions.every(action => action &&
@@ -67,10 +70,12 @@
       button.disabled = action.selected === true;
       button.setAttribute('aria-pressed', String(action.selected === true));
       if (action.selected === true) button.className = 'selected';
-      button.onclick = () => {
+      button.onclick = async () => {
         if (pending) return;
         if (action.id === 'cancel') { actions.remove(); status.textContent = '已取消，当前上下文未改变。'; return; }
-        if (sendAction({kind: action.id, value: action.value, label: action.label}) !== true) {
+        pending = true;
+        if (!await actionSent(sendAction, {kind: action.id, value: action.value, label: action.label})) {
+          pending = false;
           status.textContent = '未发送，请检查连接并回到此会话后重试。'; return;
         }
         pending = true;
@@ -103,7 +108,7 @@
     for (const action of ui.actions) {
       if (!action || typeof action.id !== 'string' || !commandForAction({kind: action.id, value: action.value})) continue;
       const button = doc.createElement('button'); button.type = 'button'; button.textContent = (action.selected ? '✓ ' : '') + String(action.label || action.id); button.disabled = action.selected === true;
-      button.onclick = () => { if (pending) return; if (sendAction({kind: action.id, value: action.value, label: action.label}) !== true) { status.textContent = '未发送，请检查连接。'; return; } pending = true; for (const b of actions.querySelectorAll('button')) b.disabled = true; status.textContent = '已发送，等待确认…'; };
+      button.onclick = async () => { if (pending) return; pending = true; if (!await actionSent(sendAction, {kind: action.id, value: action.value, label: action.label})) { pending = false; status.textContent = '未发送，请检查连接。'; return; } pending = true; for (const b of actions.querySelectorAll('button')) b.disabled = true; status.textContent = '已发送，等待确认…'; };
       actions.appendChild(button);
     }
     card.appendChild(actions); card.appendChild(status);
@@ -120,7 +125,7 @@
     const title=doc.createElement('strong'); title.textContent='选择思考深度'; card.appendChild(title);
     const current=doc.createElement('div'); current.className='agent-model-current'; current.textContent='当前 · '+(ui.current || 'profile 默认'); card.appendChild(current);
     const actions=doc.createElement('div'); actions.className='agent-command-actions'; const status=doc.createElement('div'); status.className='agent-model-status';
-    let pending=false; for (const level of ui.levels) { const b=doc.createElement('button'); b.type='button'; b.textContent=(level===ui.current?'✓ ':'')+level; b.disabled=level===ui.current; b.onclick=()=>{ if(pending) return; if(sendAction({kind:'reasoning_set',value:level})!==true){status.textContent='未发送，请检查连接。';return;} pending=true; for(const x of actions.querySelectorAll('button'))x.disabled=true; status.textContent='已发送，等待确认…';}; actions.appendChild(b); }
+    let pending=false; for (const level of ui.levels) { const b=doc.createElement('button'); b.type='button'; b.textContent=(level===ui.current?'✓ ':'')+level; b.disabled=level===ui.current; b.onclick=async()=>{ if(pending) return; pending=true; if(!await actionSent(sendAction,{kind:'reasoning_set',value:level})){pending=false;status.textContent='未发送，请检查连接。';return;} pending=true; for(const x of actions.querySelectorAll('button'))x.disabled=true; status.textContent='已发送，等待确认…';}; actions.appendChild(b); }
     card.appendChild(actions); card.appendChild(status); const old=bubble.querySelector('.agent-model-picker'); if(old)old.remove(); bubble.appendChild(card); return true;
   }
   function render(bubble, event, sendAction) {
@@ -170,9 +175,9 @@
     const again = make('button', '', '重新选择模型');
     again.type = 'button'; again.hidden = true; card.appendChild(again);
     again.onclick = () => sendAction({kind: 'list_models'});
-    const submit = action => {
+    const submit = async action => {
       if (pending && !['list_models', 'refresh_models'].includes(action.kind)) return;
-      if (sendAction(action) !== true) {
+      if (!await actionSent(sendAction, action)) {
         status.textContent = '未发送，请检查连接并回到此会话后重试。';
         return;
       }

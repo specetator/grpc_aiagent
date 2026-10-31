@@ -11,10 +11,23 @@ class MemoryRepository : public RoomAgentRepository {
  public:
     Json task;
     std::map<std::string, Json> requests, results;
+    Json bindings=Json::array();
+    std::map<std::string,Json> tasks;
     bool fail{false};
+    bool removed{false};
     bool Access(int64_t room, int64_t user, int64_t* owner, bool* member, std::string* e) override {
         if (fail) { *e="database unavailable"; return false; }
-        *owner=7; *member=room==1 && user>=7 && user<=9; return true;
+        *owner=7; *member=room==1 && user>=7 && user<=9 && !(removed && user==8); return true;
+    }
+    bool Task(int64_t,const std::string& id,Json* out,std::string*)override{*out=tasks.count(id)?tasks[id]:Json();return true;}
+    bool Tasks(int64_t,Json* out,std::string*)override{*out=tasks;return true;}
+    bool SaveTask(int64_t,int64_t revision,const Json& task,std::string*)override{
+        const std::string id=task.at("task_id");if(revision && tasks[id].at("revision")!=revision)return false;tasks[id]=task;return true;
+    }
+    bool Bindings(int64_t,Json* out,std::string*) override { *out=bindings;return !fail; }
+    bool SetBinding(int64_t,int64_t,const std::string& id,bool installed,std::string*) override {
+        for(auto& b:bindings)if(b["agent_id"]==id){if(b["installed"]!=installed)b["generation"]=b["generation"].get<int>()+1;b["installed"]=installed;return true;}
+        bindings.push_back({{"agent_id",id},{"installed",installed},{"generation",1}});return true;
     }
     bool Load(int64_t, Json* out, std::string* e) override { if(fail){*e="database unavailable";return false;} *out=task;return true; }
     bool Save(int64_t, int64_t version, const Json& value, std::string* e) override {
@@ -26,6 +39,7 @@ class MemoryRepository : public RoomAgentRepository {
         *out=requests.count(id)?requests[id]:Json(nullptr);return true;
     }
     bool PutRequest(const Json& value,std::string*) override { requests[value.at("request_id")]=value;return true; }
+    bool RecoverDispatch(const std::string&,std::string*) override {return true;}
     bool Finish(const std::string& id,const Json& value,std::string*) override { results[id]=value;return true; }
     bool Requests(int64_t,Json* out,std::string*) override { *out=Json::array();return true; }
 };
@@ -89,6 +103,58 @@ int main() {
     Check(service.Complete(reply,&error),"idempotent completion");
     Check(repo.results.size()==1,"one result after replay");
     Check(repo.task["task_id"]==task_id,"handoff keeps task");
+    Json registry={{"schema",1},{"agents",Json::array({
+        {{"id","public-pi"},{"name","Pi"},{"runtime","pi_rpc"},{"owner_user_ids",Json::array()},{"bot_user_id",101},{"room_enabled",true},{"room_policy","read_only"}},
+        {{"id","second-pi"},{"name","Pi"},{"runtime","pi_rpc"},{"owner_user_ids",Json::array()},{"bot_user_id",102},{"room_enabled",true},{"room_policy","read_only"}}
+    })}};
+    auto catalog=ParseRoomAgentCatalog(registry);
+    RoomAgentService generic(&repo,99,true,catalog);
+    Check(generic.Install(8,1,{{"agent_id","public-pi"}},true).code==403,"member cannot install");
+    Check(generic.Install(7,1,{{"agent_id","public-pi"},{"runtime_url","bad"}},true).code==400,"cannot inject runtime");
+    Check(generic.Install(7,1,{{"agent_id","public-pi"}},true).ok(),"owner install Pi");
+    Check(generic.Install(7,1,{{"agent_id","second-pi"}},true).ok(),"owner install second Agent");
+    Check(generic.Trigger(8,1,text("@Pi plain text"),&trigger).ok()&&!trigger,"display name alone cannot route");
+    auto mention=Json::parse(text("@Pi summarize"));mention["agent_mentions"]=Json::array({"second-pi","public-pi"});
+    current.msg_id="r_1-7";current.msg_seq=7;current.content_json=mention.dump();
+    Check(generic.Trigger(8,1,current.content_json,&trigger).ok()&&trigger,"structured mentions route");
+    Json many;Check(generic.BuildRequests(current,{},&many,&error)&&many.size()==2,"two requests for one source");
+    Check(many[0]["request_id"]!=many[1]["request_id"],"Agent request IDs distinct");
+    Check(many[0]["request_id"].get<std::string>().size()==67,"bounded deterministic request ID");
+    Json replay;Check(generic.BuildRequests(current,{earlier},&replay,&error)&&replay==many,"multi request immutable replay");
+    Check(many[0]["collaboration"]["actor_user_id"]==8 && many[0]["source_msg_id"]=="r_1-7","server request attribution");
+    auto unknown=mention;unknown["agent_mentions"]=Json::array({"unknown"});
+    Check(generic.Trigger(8,1,unknown.dump(),&trigger).code==403,"unknown Agent denied");
+    unknown["agent_mentions"]=Json::array({"public-pi","public-pi"});
+    Check(generic.Trigger(8,1,unknown.dump(),&trigger).code==400,"duplicate IDs denied");
+    Check(generic.CheckDispatch(many[0]).ok(),"installed dispatch admitted");
+    Check(generic.Control(8,1,{{"request_id",many[0]["request_id"]},{"operation","recover"}},&out).ok()&&out["status"]=="recovery_queued","recover original request without new ID");
+    Check(generic.Control(9,1,{{"request_id",many[0]["request_id"]},{"operation","recover"}},&out).code==403,"unrelated member cannot recover another request");
+    Check(generic.Install(7,1,{{"agent_id","public-pi"}},false).ok(),"owner uninstall");
+    Check(generic.CheckDispatch(many[0]).code==403,"uninstalled dispatch denied");
+    Check(generic.Install(7,1,{{"agent_id","public-pi"}},true).ok(),"owner reinstall");
+    Check(generic.CheckDispatch(many[0]).code==403,"old generation stays revoked");
+    auto genericReply=reply;for(const auto* k:{"request_id","session_id","user_id","bot_user_id","collaboration"})genericReply[k]=many[0][k];
+    Check(generic.ValidateReply(genericReply,&authorized,&error),"generic stored reply scope");
+    Check(PrepareHermesReply(genericReply.dump(),101,"Pi",&prepared,&error,&authorized),"generic final uses same IM pipeline");
+    auto final=Json::parse(prepared.message.content_json);
+    Check(final["agent_id"]=="public-pi"&&final["source_msg_id"]==current.msg_id&&!final.contains("agent_mentions"),"final attribution without recursive trigger");
+    genericReply["ok"]=false;genericReply["terminal_status"]="cancelled";
+    Check(generic.Complete(genericReply,&error),"cancelled result persisted");
+    Json createdTask;
+    Check(generic.CreateTask(8,1,{{"request_id",many[0]["request_id"]},{"title","Kafka delivery"},{"steps",Json::array({"trace outbox","test retry"})}},&createdTask).ok(),"member creates durable task from request");
+    const auto taskId=createdTask.at("task_id");
+    Check(generic.UpdateTask(9,1,{{"task_id",taskId},{"revision",1},{"summary","unclaimed"}},&out).code==403,"must claim task before progress");
+    Check(generic.UpdateTask(9,1,{{"task_id",taskId},{"revision",1},{"claim",true},{"status","running"}},&out).ok(),"other member takes task");
+    Check(generic.UpdateTask(8,1,{{"task_id",taskId},{"revision",2},{"claim",true}},&out).code==403,"cannot steal assignment");
+    Check(generic.UpdateTask(9,1,{{"task_id",taskId},{"revision",1},{"summary","stale"}},&out).code==409,"task optimistic concurrency");
+    Check(generic.UpdateTask(9,1,{{"task_id",taskId},{"revision",2},{"summary","handoff"},{"status","completed"}},&out).ok(),"assignee persists progress");
+    generic.SetControlTransport([](const Json& command){return Json{{"code",0},{"data",{{"status","unknown"},{"request_id",command.at("request_id")}}}};});
+    Check(generic.Control(9,1,{{"request_id",many[0]["request_id"]},{"operation","stop"}},&out).code==403,"unrelated member cannot stop task");
+    Check(generic.Control(8,1,{{"request_id",many[0]["request_id"]},{"operation","status"}},&out).ok()&&out["status"]=="unknown","unknown runtime remains unknown");
+    repo.removed=true;
+    Check(generic.Trigger(8,1,current.content_json,&trigger).code==403,"removed member cannot invoke generic Agent");
+    Check(!service.BuildRequest(current,{},&retry,&error),"removed actor cannot replay accepted request");
+    Check(service.View(8,1,&out).code==403,"removed developer cannot view task");
     repo.fail=true;
     Check(service.Trigger(8,1,text("@CANN question"),&trigger).code==500,"membership error fails closed");
     std::cout << "room Agent service: " << checks << " checks passed\n";

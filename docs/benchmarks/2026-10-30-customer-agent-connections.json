@@ -1,0 +1,104 @@
+{
+  "date": "2026-10-30T15:57:25.216386+08:00",
+  "base_revision": "c5c396dc51ca3ccb74ed321044dcc76885c9b2f7",
+  "workspace": "uncommitted; includes concurrent Kernel Agent work",
+  "source_sha256": {
+    "cannbot/scripts/agent_cli_adapter.py": "8fe104c86804f0ffc35e558af267d74d339058d83c8fac2e2dd831d139731677",
+    "cannbot/scripts/agent_connection_transport.py": "1bc4ef8eb61aef00f84c9922bb356334c32b2b83333ecc4d566fadd5c09a11aa",
+    "cannbot/scripts/agent_connector.py": "80bb7a423b48a8963837bd85c1ff9c2453507bf9f5a67b43d0817458a384ddd1",
+    "cannbot/scripts/agent_events.py": "01e3d6da6e435f189449c496a17326683a02d3beba02d4c249c389cecb35c594",
+    "cannbot/scripts/agent_router.py": "facbbd1a875295abea9c0edd00bf0f4d391a14a5191ede4c79ac5c2be35036db",
+    "cannbot/scripts/agent_scheduler.py": "e9bf48ab4cdf6106863d2234d5b1d648e416a511fe4a75e12d5de4a9b8a36ec9",
+    "cannbot/scripts/audit_hermes_wsl.py": "c046fb400c6225ee987b253f9dd24795c583cbc429ddbd0f91f281ddbdecdc36",
+    "cannbot/scripts/configure_hermes_technical.py": "104d551e38c38ae0081d3fde0a44ff5689ef83ae1d778a21cffa3a46c9f9d503",
+    "cannbot/scripts/enable_deepseek_thinking.py": "f2349e3e83910bfbb51540ec9c83c56603839e22491f043e17539d06efb6b716",
+    "cannbot/scripts/enable_relay_reasoning.py": "58377acabc7ff284be6bb0863ab46279050ae01fc0b781cc41be05ba087952d6",
+    "cannbot/scripts/hermes_adapter.py": "29189944e0d58a9a222903a3acc0309a079610729a2c52eeb2926b88f5a21856",
+    "cannbot/scripts/hermes_native_adapter.py": "43f7c5b8e5004a4416582c5692822ede26e6326b12cc10a6b2d27c13a90ba50c",
+    "cannbot/scripts/hermes_restart.py": "7c37cf7d17e0d44f440d6e179b54a797262998b9c2c2c6564a496cd0ea033eb7",
+    "cannbot/scripts/openclaw_adapter.py": "b13a38a6c50e6427f4011050c049b33165f6d39871aba1f105b051f7c258eb0c",
+    "cannbot/scripts/pi_citations.py": "44777314f8248163216edd30e6e49d42acbfd2fa34b911d0cd192b821915521c",
+    "cannbot/scripts/pi_gateway.py": "ac2b0ba229882733d7002d89b324d59024b558b9e7027d94e2ddc9c1b87ad9b2",
+    "cannbot/scripts/room_agent.py": "4a89e385f984f88817da6895ed12c10330326e393d7021c0a76bb5904c93c8aa",
+    "cannbot/scripts/sync_hermes_skills.py": "f40161bb9ac21fd83b787fde1bc743f44d2467ed80d1b9cfaa516a4e8f022d9f",
+    "cannbot/scripts/sync_pi_agent.py": "925084d2b431cb44f896c6bd83642cc740e21fd56ed951a9f9530eb1abfb973c",
+    "cannbot/scripts/test_agent_router.py": "02d804c7fc8761570e58797d16136fa9a478cb2ddb8f6816b8436249d023ddcb",
+    "cannbot/scripts/test_hermes_native.py": "0935ed206ae5d7e9db72e7fc255107e3e3c9a87e86cc00e933af5d4fe343e1ed",
+    "cannbot/scripts/test_hermes_native_gateway.py": "7bea14af5e9a87d8adc5ed74b4b6b95ea1e328f5fa84149a560687f9eb4ae390",
+    "cannbot/scripts/test_pi_citations.py": "0d71c8c977522d15ae91ecbb2a2932bba040e4c783a21dc75605ddcdb33dd460",
+    "cannbot/scripts/test_pi_gateway.py": "7929632ee95dbbc764adc5bac7a53c0d028c197ac05c121dab51ef98101f9d32",
+    "cannbot/scripts/test_room_agent.py": "5e7f7a44e59ee7caac3d604938a36467b9bf72b91c5b351859b45f216fbd91e5",
+    "cannbot/scripts/test_user_agent_connections.py": "8e440a21774d96952814a29286c58bab3134cd21326e4e0070c000dabe13b184",
+    "cannbot/scripts/user_agent_connections.py": "630a10ff2389b3d589cd45fd7398613cea43131f745286382efd289effe2e564",
+    "cannbot/scripts/validate_knowledge.py": "afb46efac4df9b97a84e5af7c95091848bca9f785d34d2c46bfeefa93b1469ad",
+    "cannbot/scripts/windows_agent_http.py": "7318743703f6d491d17627895b45f007cf89e6f1d3b927fa030518ec098ac16a",
+    "cannbot/scripts/windows_agent_transport.py": "8d40450bc461b28ade4b01e40c9f95f2b18ec7f86b4c7e6dc8426cef5c585c22",
+    "docs/customer-agent-connections.md": "6a6c006fda64753ef1a645cbd0167500f44cdabd81b207003c33a513d7569f89",
+    "logic/CMakeLists.txt": "caab9b09c8f919010a5898eb3134fa51e83a7a66a8d0359a0c5e84dcaa27aa1b",
+    "logic/http_server.cpp": "aa7edc0e646f74299cf101009ae028c87f29ceaae6597cfbc01f141b6ddd9148",
+    "logic/http_server.h": "38e5991933a770c2f3aaa4b4a8a18d9d8869350805bd8f419672a697792fad22",
+    "logic/main.cpp": "82275717c841a37622d97705f252445961b156167f90cc2000deefc631fd1509",
+    "logic/services/agent_connection_service.cpp": "606fad8d46c2f7572825b5043aec34e4819710059acdb19422d811540369362a",
+    "logic/services/agent_connection_service.h": "b7544bdd530855d84701aa70fe7b08ddd1b62171bb75f72df826d767e7ec6624",
+    "tests/CMakeLists.txt": "6d4312f4d6d37031f474c383ce10144a05c2c0ea18a54d81ae179caae65b9e5d",
+    "tests/agent_connection_service_test.cpp": "44f5081642f73eb118d12146e1a13d0ca4a6eec4b4cbc152509569b80b5d9dca",
+    "tests/agent_connections_browser_test.cjs": "418d8914b577446c42f930d211cc0961416a4d4f3de4bcaa2427978baec7b25c",
+    "tests/http_api_integration_test.py": "bc3b5fcaa98d1a4bd77410fae80c1f80f77066b89b33b86eff52061aca65f759",
+    "tests/http_api_probe.cpp": "02a20cc106182fd3aaeb22413ccf95324accb3bd161480a15bf34631dac2a82e",
+    "tests/user_agent_http_integration_test.py": "a7e2a154c7af65c4e8221afcd14d72da1bee7893c158ff83131ed9961d3b0a3f",
+    "web_demo/static/agent_connections.css": "1e8e23bdde968bece62c5df330ceed454f1e41a8dfae91989d10ade435f7b24d",
+    "web_demo/static/agent_connections.js": "e9dae06dbccff36572f7cb13d3b0663b7607113ed24d13148b8d780c6c009982",
+    "web_demo/static/index.html": "db5554e483d87b3301b1a73e5e3fd9107deef82e5fbdcaad8eb5f7c3bd6bc22b"
+  },
+  "sources_changed_during_validation": [],
+  "checks": [
+    {
+      "command": [
+        "ctest",
+        "--test-dir",
+        "build-wsl",
+        "--output-on-failure",
+        "-R",
+        "^(agent_connection_service_test|http_api_integration_test|user_agent_http_integration_test|user_agent_connections_test|agent_router_test|pi_gateway_test|hermes_native_test|hermes_native_gateway_test|logic_layer_contract_test)$"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 27.049,
+      "output": "Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl\nTest project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl\n    Start 33: http_api_integration_test\n1/9 Test #33: http_api_integration_test ..........   Passed    0.08 sec\n    Start 34: user_agent_http_integration_test\n2/9 Test #34: user_agent_http_integration_test ...   Passed    1.23 sec\n    Start 40: logic_layer_contract_test\n3/9 Test #40: logic_layer_contract_test ..........   Passed    0.02 sec\n    Start 42: pi_gateway_test\n4/9 Test #42: pi_gateway_test ....................   Passed    2.84 sec\n    Start 43: agent_router_test\n5/9 Test #43: agent_router_test ..................   Passed    6.87 sec\n    Start 44: user_agent_connections_test\n6/9 Test #44: user_agent_connections_test ........   Passed    9.53 sec\n    Start 45: agent_connection_service_test\n7/9 Test #45: agent_connection_service_test ......   Passed    0.01 sec\n    Start 46: hermes_native_test\n8/9 Test #46: hermes_native_test .................   Passed    2.46 sec\n    Start 47: hermes_native_gateway_test\n9/9 Test #47: hermes_native_gateway_test .........   Passed    3.95 sec\n\n100% tests passed, 0 tests failed out of 9\n\nTotal Test time (real) =  26.99 sec\n"
+    },
+    {
+      "command": [
+        "node",
+        "tests/agent_connections_browser_test.cjs"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 1.041,
+      "output": "Agent connections browser test passed: login visibility, detect/save/open/delete, errors, secrets, mobile\n"
+    },
+    {
+      "command": [
+        "python3",
+        "cannbot/scripts/validate_knowledge.py",
+        "--strict"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.03,
+      "output": "knowledge validation passed: 81 source(s)\n"
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.013,
+      "output": ""
+    }
+  ],
+  "limits": [
+    "Five real Agent/model environments were not exercised.",
+    "Full Comet/Kafka/MySQL delivery/history E2E was not exercised.",
+    "Existing agent_channel_browser_test.cjs:129 fails identically using git HEAD assets.",
+    "TLS hostname argument was checked with a fixture; no real certificate handshake tested."
+  ]
+}

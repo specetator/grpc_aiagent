@@ -76,6 +76,19 @@ std::unordered_map<std::string, std::string> ParseForm(const std::string& body) 
 // discarded 值，调用方得记得查 is_discarded()，漏一处就会在后面抛。
 // 抛异常版本把“合法性”收敛到了返回值上，反而更难用错。
 // 代价是必须有人接异常——构造函数里的回调包装就是那个兜底。
+// HTTP field names are case-insensitive. The bundled request map preserves
+// spelling; browsers/proxies commonly send lowercase authorization.
+std::string AuthorizationHeader(const HttpRequest& request) {
+    std::string value; bool seen=false;
+    for (const auto& header : request.headers()) {
+        auto name=header.first;
+        for (auto& c:name) if(c>='A' && c<='Z') c=static_cast<char>(c-'A'+'a');
+        if(name!="authorization")continue;
+        if(seen)return {}; // Ambiguous credentials fail closed.
+        seen=true;value=header.second;
+    }
+    return value;
+}
 bool ParseJsonBody(const std::string& body, nlohmann::json* out) {
     if (!out) return false;
     // 空 body 提前拒：json::parse("") 会抛“unexpected end of input”，
@@ -296,7 +309,8 @@ void WriteAdminServiceError(HttpResponse* resp, const ServiceStatus& status) {
 // cfg.logic_http_threads（config.h 里为 4）。
 HttpApiServer::HttpApiServer(EventLoop* loop, const InetAddress& listenAddr,
                              LogicHttpServices services, int io_threads)
-    : user_service_(&services.users),
+    : agent_connection_service_(services.agent_connections),
+      user_service_(&services.users),
       conversation_service_(&services.conversations),
       attachment_service_(&services.attachments),
       message_service_(&services.messages),
@@ -374,8 +388,19 @@ void HttpApiServer::onRequest(const HttpRequest& req, HttpResponse* resp) {
     //   /api/chatroom/agent/{configure,task,checkpoint} -> handleRoomAgent
     //     三个端点共用鉴权与解包代码，只有最后一步分派不同。
     static const std::unordered_map<std::string, Handler> kRouteTable = {
+        {"/api/spaces/create", &HttpApiServer::handleSpaces},
+        {"/api/spaces/list", &HttpApiServer::handleSpaces},
+        {"/api/spaces/update", &HttpApiServer::handleSpaces},
+        {"/api/spaces/members", &HttpApiServer::handleSpaces},
+        {"/api/spaces/invite", &HttpApiServer::handleSpaces},
+        {"/api/spaces/invitations", &HttpApiServer::handleSpaces},
+        {"/api/spaces/accept", &HttpApiServer::handleSpaces},
+        {"/api/spaces/role", &HttpApiServer::handleSpaces},
+        {"/api/spaces/remove", &HttpApiServer::handleSpaces},
+        {"/api/spaces/leave", &HttpApiServer::handleSpaces},
         {"/api/login", &HttpApiServer::handleLogin},
         {"/api/register", &HttpApiServer::handleRegister},
+        {"/api/agent/connections", &HttpApiServer::handleAgentConnections},
         {"/api/message/send", &HttpApiServer::handleSendMessage},
         {"/api/attachment/upload", &HttpApiServer::handleAttachmentUpload},
         {"/api/attachment/get", &HttpApiServer::handleAttachmentGet},
@@ -393,6 +418,14 @@ void HttpApiServer::onRequest(const HttpRequest& req, HttpResponse* resp) {
         {"/api/chatroom/list", &HttpApiServer::handleChatroomList},
         {"/api/chatroom/agent/configure", &HttpApiServer::handleRoomAgent},
         {"/api/chatroom/agent/task", &HttpApiServer::handleRoomAgent},
+        {"/api/chatroom/tasks/list", &HttpApiServer::handleRoomAgent},
+        {"/api/chatroom/tasks/create", &HttpApiServer::handleRoomAgent},
+        {"/api/chatroom/tasks/update", &HttpApiServer::handleRoomAgent},
+        {"/api/chatroom/agents/control", &HttpApiServer::handleRoomAgent},
+        {"/api/chatroom/agents/list", &HttpApiServer::handleRoomAgent},
+        {"/api/chatroom/agents/install", &HttpApiServer::handleRoomAgent},
+        {"/api/chatroom/agents/uninstall", &HttpApiServer::handleRoomAgent},
+
         {"/api/chatroom/agent/checkpoint", &HttpApiServer::handleRoomAgent},
         {"/api/admin/chatroom/create", &HttpApiServer::handleAdminCreateChatroom},
         {"/api/admin/chatroom/list", &HttpApiServer::handleAdminListChatroom},
@@ -953,11 +986,8 @@ void HttpApiServer::handleHistory(const HttpRequest& req, HttpResponse* resp) {
 // “看起来成功但其实是别人会话”的结果，而不是一个明确的 403。
 // 显式校验能把“客户端逻辑有 bug”当场暴露出来。
 //
-// 这三个接口在 service 层是 **identity-only** 契约：只校验
-// actor == user_id，**不**校验会话成员关系（不走 CheckAccess）。
-// 也就是说一个已登录用户可以对自己并非成员的 session_id 标已读。
-// 这是历史契约（详见 conversation_service.h 里那段英文注释与译文），
-// 结构重构时刻意保留，不要在这里“顺手补上”成员校验。
+// actor/user 一致性和会话成员资格由 ConversationService 校验。
+
 void HttpApiServer::handleMarkRead(const HttpRequest& req, HttpResponse* resp) {
     if (req.method() != HttpRequest::kPost) {
         WriteJson(resp, 405, "only POST allowed", "{}", HttpResponse::k400BadRequest);
@@ -1313,7 +1343,16 @@ void HttpApiServer::handleRoomAgent(const HttpRequest& req, HttpResponse* resp) 
         // 只可能是 /api/chatroom/agent/task。写成 else 而不是显式比路径，
         // 意味着**新增路由表项时忘改这里会静默变成 View**（一个只读操作），
         // 方向上安全但难以发现；新增端点时记得同时改这里。
-        if (req.path() == "/api/chatroom/agent/configure")
+        if(req.path()=="/api/chatroom/tasks/list")status=room_agent_service_->Tasks(actor,room,&output);
+        else if(req.path()=="/api/chatroom/tasks/create")status=room_agent_service_->CreateTask(actor,room,input,&output);
+        else if(req.path()=="/api/chatroom/tasks/update")status=room_agent_service_->UpdateTask(actor,room,input,&output);
+        else if(req.path()=="/api/chatroom/agents/control")status=room_agent_service_->Control(actor,room,input,&output);
+        else if(req.path()=="/api/chatroom/agents/list") status=room_agent_service_->Agents(actor,room,&output);
+        else if(req.path()=="/api/chatroom/agents/install" || req.path()=="/api/chatroom/agents/uninstall") {
+            status=room_agent_service_->Install(actor,room,input,req.path()=="/api/chatroom/agents/install");
+            output=nlohmann::json::object();
+        }
+        else if (req.path() == "/api/chatroom/agent/configure")
             status = room_agent_service_->Configure(actor, room, input, &output);
         else if (req.path() == "/api/chatroom/agent/checkpoint")
             // revision 与 patch 都直接用 at()：Checkpoint 的乐观锁要求
@@ -1329,23 +1368,47 @@ void HttpApiServer::handleRoomAgent(const HttpRequest& req, HttpResponse* resp) 
     }
 }
 
+void HttpApiServer::handleAgentConnections(const HttpRequest& req, HttpResponse* resp) {
+    if (req.method() != HttpRequest::kPost) {
+        WriteJson(resp, 405, "only POST allowed", "{}", HttpResponse::k400BadRequest);
+        return;
+    }
+    int64_t actor = 0;
+    if (!requireUser(req, resp, &actor)) return;
+    if (!agent_connection_service_) {
+        WriteJson(resp, 503, "用户 Agent 接入尚未启用", "{}");
+        return;
+    }
+    if (req.body().size() > 16384) {
+        WriteJson(resp, 413, "connection request too large", "{}");
+        return;
+    }
+    nlohmann::json input, output;
+    if (!ParseJsonBody(req.body(), &input)) {
+        WriteJson(resp, 400, "invalid JSON", "{}", HttpResponse::k400BadRequest);
+        return;
+    }
+    const auto status = agent_connection_service_->Execute(actor, input, &output);
+    if (!status.ok()) { WriteServiceError(resp, status); return; }
+    WriteJson(resp, 0, "ok", output.dump());
+}
+
 // 加入聊天室（订阅关系）
 //
 // 【join / leave / unsubscribe 三个接口的区别——本文件最容易看错的一组】
 // 三个 handler 的代码几乎一模一样（鉴权 -> 解 room_id/user_id -> 调 service），
 // 但**语义完全不同**，而且没有一个会动 Redis 在线计数：
-//   Join         写 group_member 行（持久订阅）。幂等（INSERT IGNORE）。
-//                先验房间存在且 group_type==1。
+//   Join         公开空间写正式成员；私有空间先接受邀请。重复加入保留角色。
 //   Leave        **空操作**，只校参数与身份。关闭页面不等于退订，
 //                也不改变 WS 在线状态。保留它只为了兼容前端已有调用。
 //   Unsubscribe  真正的退订：删 group_member 行。幂等（行不在也返回成功）。
 //
 // 在线存在（presence）是另一条路径：由 Comet 在收到 WS 控制消息时调
-// ReportRoomJoin/ReportRoomLeave（只动 Redis，不碰 MySQL）。
+// ReportRoomJoin/ReportRoomLeave（Join 校验成员，然后维护 Redis 在线状态）。
 // 把这两层混为一谈是读本项目最常见的误解，详见 room_service.h。
 //
 // 三个 handler 都用 actor/user_id 双参数模式（见 handleMarkRead 上方），
-// 但这里的 service **会**校房间相关权限，与 identity-only 那三个不同。
+// Service 统一校验正式成员和空间管理权限。
 void HttpApiServer::handleChatroomJoin(const HttpRequest& req, HttpResponse* resp) {
     if (req.method() != HttpRequest::kPost) {
         WriteJson(resp, 405, "only POST allowed", "{}", HttpResponse::k400BadRequest);
@@ -1518,7 +1581,7 @@ bool HttpApiServer::requireUser(const HttpRequest& req, HttpResponse* resp,
         WriteJson(resp, 503, "user authentication is unavailable");
         return false;
     }
-    const std::string authorization = req.getHeader("Authorization");
+    const std::string authorization = AuthorizationHeader(req);
     constexpr const char* kBearer = "Bearer ";
     // rfind(kBearer, 0) == 0 是 C++17 的 starts_with 惯用写法。
     // 第二个条件是 size() <= 7，即“只有 'Bearer ' 后面什么都没有”也拒，
@@ -1561,7 +1624,7 @@ bool HttpApiServer::requireAdmin(const HttpRequest& req, HttpResponse* resp) {
         WriteJson(resp, 503, "admin login is disabled");
         return false;
     }
-    std::string authorization = req.getHeader("Authorization");
+    std::string authorization = AuthorizationHeader(req);
     constexpr const char* kBearer = "Bearer ";
     if (authorization.rfind(kBearer, 0) != 0 ||
         authorization.size() <= std::char_traits<char>::length(kBearer)) {
@@ -2090,17 +2153,59 @@ void HttpApiServer::handleChatroomOnlineCount(const HttpRequest& req,
         return;
     }
     int64_t count = 0;
-    // OnlineCount 不校成员关系（只收 room_id），因此鉴权完全靠上面的
-    // requireUser。计数优先读 Redis，拿不到时退化到 MySQL 成员总数，
-    // 两者语义不同（“当前在线” vs “订阅过”），兜底值会偏大；
-    // 它只是一个展示用数字，不要拿它做权限或计费判定（详见 room_service.h）。
-    const auto status = room_service_->OnlineCount(room_id, &count);
+    const auto status = room_service_->MemberOnlineCount(authenticated_id, room_id, &count);
     if (!status.ok()) {
         WriteServiceError(resp, status);
         return;
     }
     WriteJson(resp, 0, "ok",
               nlohmann::json{{"room_id", room_id}, {"online_count", count}}.dump());
+}
+
+
+void HttpApiServer::handleSpaces(const HttpRequest& req, HttpResponse* resp) {
+    if (req.method()!=HttpRequest::kPost) { WriteServiceError(resp,{400,"only POST allowed"}); return; }
+    int64_t actor=0;
+    if(!requireUser(req,resp,&actor)) return;
+    nlohmann::json body;
+    if(!ParseJsonBody(req.body(),&body) || !body.is_object()) { WriteServiceError(resp,{400,"JSON object required"}); return; }
+    using Json=nlohmann::json;
+    auto roleName=[](int role) { return role==kRoomOwner ? "owner" : role==kRoomAdmin ? "admin" : "member"; };
+    auto groupJson=[](const ImGroup& g) { return Json{{"room_id",g.id},{"session_id","r_"+std::to_string(g.id)},
+        {"name",g.name},{"description",g.description},{"visibility",g.visibility},{"owner_id",g.owner_id}}; };
+    Json data=Json::object(); ServiceStatus status;
+    try {
+        const auto& path=req.path();
+        const auto room=body.value("room_id",int64_t{0});
+        if(path=="/api/spaces/create") {
+            int64_t id=0;
+            status=room_service_->CreateSpace(actor,body.value("name",std::string{}),body.value("description",std::string{}),body.value("visibility",std::string{"private"}),&id);
+            data={{"room_id",id},{"session_id","r_"+std::to_string(id)}};
+        } else if(path=="/api/spaces/list") {
+            std::vector<SpaceSummary> rooms;
+            status=room_service_->ListSpaces(actor,body.value("offset",0),body.value("limit",100),&rooms);
+            data["spaces"]=Json::array();
+            for(const auto& item:rooms) { auto row=groupJson(item.group); row["role"]=roleName(item.role); data["spaces"].push_back(row); }
+        } else if(path=="/api/spaces/invitations") {
+            std::vector<SpaceInvitation> invitations;
+            status=room_service_->Invitations(actor,&invitations); data["invitations"]=Json::array();
+            for(const auto& item:invitations) { auto row=groupJson(item.group); row["invited_by"]=item.invited_by; data["invitations"].push_back(row); }
+        } else if(path=="/api/spaces/members") {
+            std::vector<SpaceMember> members;
+            status=room_service_->Members(actor,room,&members); data["members"]=Json::array();
+            for(const auto& item:members) data["members"].push_back({{"user_id",item.user_id},{"role",roleName(item.role)},{"account",item.account},{"name",item.name}});
+        } else if(path=="/api/spaces/update") {
+            status=room_service_->UpdateSpace(actor,room,body.value("name",std::string{}),body.value("description",std::string{}),body.value("visibility",std::string{"private"}));
+        } else if(path=="/api/spaces/invite") status=room_service_->Invite(actor,room,body.value("user_id",int64_t{0}));
+        else if(path=="/api/spaces/accept") status=room_service_->Accept(actor,room);
+        else if(path=="/api/spaces/role") {
+            const auto role=body.value("role",std::string{});
+            status=room_service_->ChangeRole(actor,room,body.value("user_id",int64_t{0}),role=="member"?kRoomMember:role=="admin"?kRoomAdmin:-1);
+        } else if(path=="/api/spaces/remove") status=room_service_->Remove(actor,room,body.value("user_id",int64_t{0}));
+        else if(path=="/api/spaces/leave") status=room_service_->Unsubscribe(actor,actor,room);
+        else status={404,"unknown space operation"};
+    } catch(const Json::exception&) { status={400,"invalid space request fields"}; }
+    if(!status.ok()) WriteServiceError(resp,status); else WriteJson(resp,0,"ok",data.dump());
 }
 
 }  // namespace sparkpush

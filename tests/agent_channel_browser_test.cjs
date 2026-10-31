@@ -5,7 +5,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const {chromium} = require(process.env.SPARK_PLAYWRIGHT_MODULE || 'playwright');
 (async () => {
-  const browser = await chromium.launch({headless: true});
+  const browser = await chromium.launch({headless: true, executablePath:process.env.SPARK_CHROMIUM_EXECUTABLE});
   try {
     const page = await browser.newPage({viewport: {width: 1150, height: 900}});
     const errors = [];
@@ -15,7 +15,7 @@ const {chromium} = require(process.env.SPARK_PLAYWRIGHT_MODULE || 'playwright');
     await page.route('**/*', async route => {
       const url = new URL(route.request().url());
       const name = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
-      if (url.origin === 'http://spark.test' && ['index.html', 'auth.js', 'auth_style.css', 'safe_markdown.js', 'agent_channel.js', 'agent_channel.css'].includes(name)) {
+      if (url.origin === 'http://spark.test' && ['index.html', 'auth.js', 'theme.js', 'auth_style.css', 'safe_markdown.js', 'agent_channel.js', 'agent_channel.css', 'agent_connections.js', 'agent_connections.css'].includes(name)) {
         await route.fulfill({body: await fs.readFile(path.join(assets, name)),
           contentType: name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html'});
       } else if (url.pathname === '/api/session/history') {
@@ -123,10 +123,10 @@ const {chromium} = require(process.env.SPARK_PLAYWRIGHT_MODULE || 'playwright');
       };
       showCommandFixture([{id: 'reasoning_set', label: 'max', value: 'max'}, {id: 'new', label: '新建上下文'}]);
     });
-    await page.locator('.agent-command-card button').first().click();
+    await page.locator('.agent-command-card[aria-label="常用命令"] button').first().click();
     assert.equal(await page.evaluate(() => sentActions.at(-1).content.text), '/reasoning max');
     assert.equal(await page.evaluate(() => getMsgText(sentActions.at(-1))), '选择思考深度：max');
-    assert.equal(await page.locator('.agent-command-card button').last().isDisabled(), true);
+    assert.equal(await page.locator('.agent-command-card[aria-label="常用命令"] button').last().isDisabled(), true);
     await page.evaluate(() => showCommandFixture([{id: 'new_confirm', label: '确认新建'}, {id: 'cancel', label: '取消'}]));
     const countBeforeCancel = await page.evaluate(() => sentActions.length);
     await page.locator('.agent-command-card').getByRole('button', {name: '取消'}).click();
@@ -139,7 +139,7 @@ const {chromium} = require(process.env.SPARK_PLAYWRIGHT_MODULE || 'playwright');
     for (const [id, command] of [['new_confirm', '/new now'], ['retry_confirm', '/retry now'],
                                  ['restart', '/restart'], ['restart_confirm', '/restart now'], ['reasoning', '/reasoning'], ['status', '/status'], ['new', '/new'], ['retry', '/retry']]) {
       await page.evaluate(id => showCommandFixture([{id, label: '执行'}]), id);
-      await page.locator('.agent-command-card button').click();
+      await page.locator('.agent-command-card[aria-label="常用命令"] button').click();
       assert.equal(await page.evaluate(() => sentActions.at(-1).content.text), command);
       assert.ok(await page.evaluate(() => SparkAgentChannel.displayAction(sentActions.at(-1).content)), 'card click lost friendly label');
     }
@@ -150,12 +150,13 @@ const {chromium} = require(process.env.SPARK_PLAYWRIGHT_MODULE || 'playwright');
     assert.equal(await page.evaluate(() => SparkAgentChannel.commandForAction({kind: '__proto__'})), null);
     await page.evaluate(() => { showCommandFixture([{id: 'new_confirm', label: '确认新建'}]); currentSessionId = 'other'; });
     const beforeStale = await page.evaluate(() => sentActions.length);
-    await page.locator('.agent-command-card button').click();
+    await page.locator('.agent-command-card[aria-label="常用命令"] button').click();
     assert.equal(await page.evaluate(() => sentActions.length), beforeStale, 'stale command card crossed session');
     await page.evaluate(() => {
       currentSessionId = fixtureMessage.session_id;
       handleHermesDelta({request_id:'progress-test',session_id:currentSessionId,delta:'工具调用已完成，等待模型回答',progress:true});
     });
+    await page.locator('.agent-stream-progress').scrollIntoViewIfNeeded();
     assert.match(await page.locator('.agent-stream-progress').innerText(), /工具调用已完成/);
     assert.equal(await page.locator('.hermes-streaming .msg-bubble').innerText(), '');
     await page.evaluate(() => {
@@ -234,6 +235,7 @@ const {chromium} = require(process.env.SPARK_PLAYWRIGHT_MODULE || 'playwright');
       });
       assert.match(await page.locator('.agent-model-picker strong').innerText(), /正在切换/);
       await page.evaluate(() => renderSingleChatMessage(modelReceipt));
+      await page.locator('.agent-model-picker strong').scrollIntoViewIfNeeded();
       assert.match(await page.locator('.agent-model-picker strong').innerText(), /模型修改成功/);
       assert.equal(await page.locator('.agent-model-options').isVisible(), false);
       assert.match(await page.locator('.agent-model-current').innerText(), /model-1/);
@@ -247,6 +249,7 @@ const {chromium} = require(process.env.SPARK_PLAYWRIGHT_MODULE || 'playwright');
         renderSingleChatMessage({...modelAction,content:{content:modelAction.content}});
         renderSingleChatMessage(modelReceipt); // duplicate delivery is harmless
       });
+      await page.locator('.agent-model-picker strong').scrollIntoViewIfNeeded();
       assert.match(await page.locator('.agent-model-picker strong').innerText(), /模型修改成功/);
       assert.equal(await page.locator('.agent-model-options').isVisible(), false);
       await page.getByRole('button', {name:'重新选择模型'}).click();

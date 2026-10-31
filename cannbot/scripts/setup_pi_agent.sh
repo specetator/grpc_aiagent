@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Create an isolated Pi coding-agent home for Spark Push and install Skills/RAG tools.
+# Compatibility installer for Kernel Agent, powered by the Pi runtime.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 PI_HOME="${PI_CODING_AGENT_DIR:-$HOME/.pi-spark-agent}"
 NODE_BIN="$HOME/.local/node/bin"
-LAUNCHER="$HOME/.local/bin/pi-spark-agent"
+LAUNCHER="$HOME/.local/bin/kernel-agent"
 
 mkdir -p "$PI_HOME" "$HOME/.local/bin"
 export PATH="$NODE_BIN:$HOME/.local/bin:$PATH"
@@ -19,7 +19,7 @@ fi
 if [[ ! -f "$PI_HOME/.env" ]]; then
   umask 077
   printf '%s\n' \
-    '# Isolated Pi Agent env for Spark Push. Do not commit.' \
+    '# Kernel Agent runtime environment. Do not commit.' \
     'CLI_RELAY_API_KEY=' \
     >"$PI_HOME/.env"
   chmod 600 "$PI_HOME/.env"
@@ -34,7 +34,7 @@ set -euo pipefail
 export PI_CODING_AGENT_DIR="${PI_HOME}"
 export PATH="${NODE_BIN}:\$HOME/.local/bin:\$PATH"
 export CANN_KNOWLEDGE_ROOT="\${CANN_KNOWLEDGE_ROOT:-$ROOT/../cann-agent-knowledge}"
-ROOT="\${SPARK_PUSH_PI_CWD:-$ROOT}"
+ROOT="\${SPARK_PUSH_KERNEL_CWD:-\${SPARK_PUSH_PI_CWD:-$ROOT}}"
 if [[ -f "\$PI_CODING_AGENT_DIR/.env" ]]; then
   set -a
   # shellcheck disable=SC1091
@@ -54,10 +54,16 @@ if [[ "\${1:-}" == "gateway" ]]; then
   shift
   exec python3 "$ROOT/cannbot/scripts/pi_gateway.py" "\$@"
 fi
-exec pi "\$@"
+exec pi --append-system-prompt "$ROOT/cannbot/pi/spark-chat-system-prompt.md" "\$@"
 EOF
 chmod 755 "$LAUNCHER"
+cat >"$HOME/.local/bin/pi-spark-agent" <<'EOF'
+#!/usr/bin/env bash
+# Legacy entry point; keep existing deployments and scripts working.
+exec "$(dirname "$0")/kernel-agent" "$@"
+EOF
+chmod 755 "$HOME/.local/bin/pi-spark-agent"
 echo "启动器：$LAUNCHER"
-echo "交互式：cd $ROOT && pi-spark-agent"
-echo "API：   pi-spark-agent gateway"
+echo "交互式：cd $ROOT && kernel-agent"
+echo "API：   kernel-agent gateway"
 echo "配置目录：$PI_HOME"

@@ -24,5 +24,10 @@ int main(int argc,char** argv){
  muduo::Logger::setLogLevel(muduo::Logger::WARN);Users repo;sparkpush::UserService users(&repo,{});sparkpush::ConversationService conversations(nullptr);
  Attachments attachment_repo; sparkpush::AttachmentService attachments(&attachment_repo,&conversations);sparkpush::MessageService messages(nullptr,nullptr,&users,nullptr,nullptr,nullptr,nullptr,nullptr,{},1000,nullptr,false,0,{},&attachments);
  sparkpush::RoomService rooms(nullptr,nullptr,nullptr,nullptr);sparkpush::AdminService admin(nullptr,nullptr,nullptr);sparkpush::DanmakuService danmaku(nullptr,nullptr,nullptr,nullptr,nullptr);sparkpush::KnowledgeService knowledge("");
- muduo::net::EventLoop loop;sparkpush::HttpApiServer server(&loop,muduo::net::InetAddress("127.0.0.1",std::stoi(argv[1])),{users,conversations,attachments,messages,rooms,admin,danmaku,knowledge});server.start();loop.loop();
+ sparkpush::AgentConnectionService::Transport connection_transport=[](const nlohmann::json& input) {
+   return nlohmann::json{{"code",0},{"data",{{"actor_user_id",input.at("actor_user_id")}}}};
+ };
+ if (argc > 2) connection_transport=sparkpush::AgentConnectionService::LocalGateway(std::stoi(argv[2]),"test-gateway-key");
+ sparkpush::AgentConnectionService connections(std::move(connection_transport));
+ muduo::net::EventLoop loop;sparkpush::HttpApiServer server(&loop,muduo::net::InetAddress("127.0.0.1",std::stoi(argv[1])),{users,conversations,attachments,messages,rooms,admin,danmaku,knowledge,nullptr,nullptr,&connections});server.start();loop.loop();
 }

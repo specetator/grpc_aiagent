@@ -197,6 +197,16 @@ void LogicServiceImpl::HandleUpstreamMessage(const UpstreamMessageRequest& reque
     SetError(response->mutable_error(), {});
     return ::grpc::Status::OK;
 }
+::grpc::Status LogicServiceImpl::CheckRoomAccess(::grpc::ServerContext* context,
+    const RoomAccessRequest* request, RoomAccessReply* response) {
+    const auto authorized=AuthorizeInternalRpc(context,"comet");
+    if(!authorized.ok()) return authorized;
+    std::vector<int64_t> candidates(request->user_ids().begin(),request->user_ids().end()), allowed;
+    const auto status=rooms_->FilterMembers(request->room_id(),candidates,&allowed);
+    SetError(response->mutable_error(),status);
+    if(status.ok()) for(auto user:allowed) response->add_user_ids(user);
+    return ::grpc::Status::OK;
+}
 ::grpc::Status LogicServiceImpl::ReportRoomJoin(::grpc::ServerContext* context,
                                                 const RoomReportRequest* request,
                                                 SimpleReply* response) {

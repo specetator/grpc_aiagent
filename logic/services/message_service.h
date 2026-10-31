@@ -112,6 +112,7 @@ class MessageService {
     // 八个阶段（格式门禁 -> 会话级串行 -> 鉴权 -> 限流 -> 路由解析
     // -> 序号分配 -> 持久化 -> 实时投递）详见 .cpp 里的路线图注释。
     UpstreamResult Submit(const UpstreamCommand& command);
+    bool RecoverRoomAgentRequests(std::string* error);
 
     // Compatibility path: old HTTP API synchronously persists a text message,
     // with no accepted/delivered ACK or realtime fanout. Do not route it through

@@ -24,7 +24,7 @@ inline constexpr int64_t kHermesBotUserId = 900000000001LL;
 // bot 账号名是保留字：UserService::Register 会直接 409 拒掉，
 // Login 也会 403。否则任何人都能注册一个叫 hermes_bot 的账号冒充 Agent。
 inline constexpr const char* kHermesBotAccount = "hermes_bot";
-inline constexpr const char* kHermesBotName = "Pi Agent";
+inline constexpr const char* kHermesBotName = "Kernel Agent";
 
 // 状态码 -> 展示文本。default 分支返回 "unknown" 而不是断言：
 // 未知状态可能来自脏数据，抛异常会把一个展示问题变成服务崩溃。
@@ -49,6 +49,8 @@ struct ImGroup {
     std::string name;
     int64_t owner_id{0};
     int group_type{0};
+    std::string description;
+    std::string visibility{"public"};
 };
 // 一条弹幕。timeline_ms 是视频内偏移（回放定位用），
 // timestamp_ms 是发送时刻（服务端自取，不接受客户端传）。

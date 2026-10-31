@@ -1,0 +1,2418 @@
+{
+  "date": "2026-10-31",
+  "generated_at_utc": "2026-10-31T09:49:16.861873+00:00",
+  "source_commit": "c5c396dc51ca3ccb74ed321044dcc76885c9b2f7",
+  "working_tree": true,
+  "mvp_v1_accepted": false,
+  "implemented_scope_test_gate": "passed",
+  "baseline": "Initial generic Room Agent worktree snapshot; earlier M1 and user modifications are not attributed to this change.",
+  "source_fingerprint": {
+    "algorithm": "sha256",
+    "encoding": "UTF-8 sorted relative path + NUL + file sha256 + LF",
+    "sha256": "6504999b09ad6e2da6247b279c8bfe1de5785d85d7cd58155163a47517a4aee4",
+    "scope": "Repository source/test/SQL/HTML/protocol/CMake and public Catalog example; excludes docs, private configuration, generated and vendored code. Captured after final runtime tests; subsequent changes are documentation only.",
+    "files": [
+      {
+        "path": "CMakeLists.txt",
+        "sha256": "2de74c4cf209d7c4c859dac98fadb2745d8484f878720f4b81ba7c278189d462"
+      },
+      {
+        "path": "cannbot/pi/extensions/cann-advisor.ts",
+        "sha256": "cc6e6e5ca007cd1ad0420920302a6fd167794f2ee445a861d2c21f4311507d2e"
+      },
+      {
+        "path": "cannbot/pi/extensions/kernel-subagents.ts",
+        "sha256": "97df7d1afe7072df27e8515a3b5fc2a3bf9f861e798e5f44e77b920fc11f44a6"
+      },
+      {
+        "path": "cannbot/pi/extensions/lib/kernel-agent-control.ts",
+        "sha256": "419d3332b632dced6ae9a40286f6ea4fe069b73daf185f7942a02dd539d6b1fc"
+      },
+      {
+        "path": "cannbot/pi/extensions/room-workspace.ts",
+        "sha256": "94ee184e8902a18396c48348b7023f71b731f78068d48605f75939c79373b037"
+      },
+      {
+        "path": "cannbot/pi/room-agents.json.example",
+        "sha256": "8fee17a24d645213f84ade241893954ab0ebf19c98ecf46b2799991f35029b8f"
+      },
+      {
+        "path": "cannbot/scripts/agent_cli_adapter.py",
+        "sha256": "8fe104c86804f0ffc35e558af267d74d339058d83c8fac2e2dd831d139731677"
+      },
+      {
+        "path": "cannbot/scripts/agent_connection_transport.py",
+        "sha256": "1bc4ef8eb61aef00f84c9922bb356334c32b2b83333ecc4d566fadd5c09a11aa"
+      },
+      {
+        "path": "cannbot/scripts/agent_connector.py",
+        "sha256": "80bb7a423b48a8963837bd85c1ff9c2453507bf9f5a67b43d0817458a384ddd1"
+      },
+      {
+        "path": "cannbot/scripts/agent_events.py",
+        "sha256": "01e3d6da6e435f189449c496a17326683a02d3beba02d4c249c389cecb35c594"
+      },
+      {
+        "path": "cannbot/scripts/agent_router.py",
+        "sha256": "90781a450436df351491ba0065eebce3df0a98000011cfc80d2df79b686fc91d"
+      },
+      {
+        "path": "cannbot/scripts/agent_scheduler.py",
+        "sha256": "e9bf48ab4cdf6106863d2234d5b1d648e416a511fe4a75e12d5de4a9b8a36ec9"
+      },
+      {
+        "path": "cannbot/scripts/audit_hermes_wsl.py",
+        "sha256": "c046fb400c6225ee987b253f9dd24795c583cbc429ddbd0f91f281ddbdecdc36"
+      },
+      {
+        "path": "cannbot/scripts/configure_hermes_technical.py",
+        "sha256": "104d551e38c38ae0081d3fde0a44ff5689ef83ae1d778a21cffa3a46c9f9d503"
+      },
+      {
+        "path": "cannbot/scripts/enable_deepseek_thinking.py",
+        "sha256": "f2349e3e83910bfbb51540ec9c83c56603839e22491f043e17539d06efb6b716"
+      },
+      {
+        "path": "cannbot/scripts/enable_relay_reasoning.py",
+        "sha256": "58377acabc7ff284be6bb0863ab46279050ae01fc0b781cc41be05ba087952d6"
+      },
+      {
+        "path": "cannbot/scripts/hermes_adapter.py",
+        "sha256": "ca56a3a444729e332c4da94cf9e87d4a24e73774b9df8d3603143e74b4f12861"
+      },
+      {
+        "path": "cannbot/scripts/hermes_native_adapter.py",
+        "sha256": "63ab6523a53ee6148a25a280e8fe7e494858f6f981f8b0ace316301d5da033b0"
+      },
+      {
+        "path": "cannbot/scripts/hermes_restart.py",
+        "sha256": "7c37cf7d17e0d44f440d6e179b54a797262998b9c2c2c6564a496cd0ea033eb7"
+      },
+      {
+        "path": "cannbot/scripts/openclaw_adapter.py",
+        "sha256": "b13a38a6c50e6427f4011050c049b33165f6d39871aba1f105b051f7c258eb0c"
+      },
+      {
+        "path": "cannbot/scripts/pi_citations.py",
+        "sha256": "44777314f8248163216edd30e6e49d42acbfd2fa34b911d0cd192b821915521c"
+      },
+      {
+        "path": "cannbot/scripts/pi_gateway.py",
+        "sha256": "d278642220bb7f2c324155789ed74459b5efe5767da90f5d1abfaf056c5db916"
+      },
+      {
+        "path": "cannbot/scripts/room_agent.py",
+        "sha256": "3c4a07e29f379af850d68e9996f148ea15b4246aeb87533c91340fdf343f5bc0"
+      },
+      {
+        "path": "cannbot/scripts/sync_hermes_skills.py",
+        "sha256": "f40161bb9ac21fd83b787fde1bc743f44d2467ed80d1b9cfaa516a4e8f022d9f"
+      },
+      {
+        "path": "cannbot/scripts/sync_pi_agent.py",
+        "sha256": "925084d2b431cb44f896c6bd83642cc740e21fd56ed951a9f9530eb1abfb973c"
+      },
+      {
+        "path": "cannbot/scripts/test_agent_router.py",
+        "sha256": "02d804c7fc8761570e58797d16136fa9a478cb2ddb8f6816b8436249d023ddcb"
+      },
+      {
+        "path": "cannbot/scripts/test_generic_room_agent.py",
+        "sha256": "7ba62bdf4771ba1b46ceca4450817bff7a4df7b6fb18c741a6533893cd8db8a7"
+      },
+      {
+        "path": "cannbot/scripts/test_hermes_native.py",
+        "sha256": "6c17947a6a918b3f1c0393c7f81a2d278c51d9be3bfb78ce9b34c2d8ee0ff04d"
+      },
+      {
+        "path": "cannbot/scripts/test_hermes_native_gateway.py",
+        "sha256": "7bea14af5e9a87d8adc5ed74b4b6b95ea1e328f5fa84149a560687f9eb4ae390"
+      },
+      {
+        "path": "cannbot/scripts/test_pi_citations.py",
+        "sha256": "0d71c8c977522d15ae91ecbb2a2932bba040e4c783a21dc75605ddcdb33dd460"
+      },
+      {
+        "path": "cannbot/scripts/test_pi_gateway.py",
+        "sha256": "7929632ee95dbbc764adc5bac7a53c0d028c197ac05c121dab51ef98101f9d32"
+      },
+      {
+        "path": "cannbot/scripts/test_room_agent.py",
+        "sha256": "5e7f7a44e59ee7caac3d604938a36467b9bf72b91c5b351859b45f216fbd91e5"
+      },
+      {
+        "path": "cannbot/scripts/test_user_agent_connections.py",
+        "sha256": "8e440a21774d96952814a29286c58bab3134cd21326e4e0070c000dabe13b184"
+      },
+      {
+        "path": "cannbot/scripts/user_agent_connections.py",
+        "sha256": "630a10ff2389b3d589cd45fd7398613cea43131f745286382efd289effe2e564"
+      },
+      {
+        "path": "cannbot/scripts/validate_knowledge.py",
+        "sha256": "afb46efac4df9b97a84e5af7c95091848bca9f785d34d2c46bfeefa93b1469ad"
+      },
+      {
+        "path": "cannbot/scripts/windows_agent_http.py",
+        "sha256": "c5aacdb9404c7aacf73ab75e5b44c49f9c476803ff4dc6cd704855c31f319492"
+      },
+      {
+        "path": "cannbot/scripts/windows_agent_transport.py",
+        "sha256": "f2688a2d0cc4f3c01246249573e8b7b759a1ee2e476c849d212796c3527059d8"
+      },
+      {
+        "path": "comet/CMakeLists.txt",
+        "sha256": "a3ed82bfa98bdceaed837577e87f09cb6c51d503c684bea89f1f005053370bfa"
+      },
+      {
+        "path": "comet/app.cpp",
+        "sha256": "2cc004c96a124d597cbd5cc9b92b43d9e6400e7bab1bbbafd590fe4c472b453e"
+      },
+      {
+        "path": "comet/app.h",
+        "sha256": "1bf84e99aa12d827a3e419baf416dabe65ed66627487bd9cbf027ad3b4ea76ed"
+      },
+      {
+        "path": "comet/comet_grpc_service.cpp",
+        "sha256": "b299437baee72877d30bb2e37447ff8ce6593335b4c4143813a00c0794cf2e2a"
+      },
+      {
+        "path": "comet/comet_grpc_service.h",
+        "sha256": "a045ff4989a41a3d102039a272f9bbc4c9ceb3a319807e6618530c48c811392a"
+      },
+      {
+        "path": "comet/comet_server.cpp",
+        "sha256": "6b27a4ada55b93ca8fda1de915ff7acd1019e7dba412640ca11fba2817c0e9d0"
+      },
+      {
+        "path": "comet/comet_server.h",
+        "sha256": "c28ac89476de21130b3be42f5327d40cbe0f59795f8f73fbd6741e7b592bad22"
+      },
+      {
+        "path": "comet/main.cpp",
+        "sha256": "cc535cf95f20125684c308adf06494b82f56e4f9f4f34cbd5d8db187ad2bd991"
+      },
+      {
+        "path": "comet/websocket_utils.cpp",
+        "sha256": "e00eec9b326ef7102a565f0567c5baa94a3992afbbbda7f2c0fb38a0e437157b"
+      },
+      {
+        "path": "comet/websocket_utils.h",
+        "sha256": "e5a41f3dbe2c6f604bdfabadda403609c20907a5e44a59ed54c644b88ef2a689"
+      },
+      {
+        "path": "common/CMakeLists.txt",
+        "sha256": "064b26c829f46f1b9d94986a2d3e007374d3484ea77e2136c38fadc887e94209"
+      },
+      {
+        "path": "common/agent_event.h",
+        "sha256": "b6a0be9910be7caf5828eda421db47d3b1bd706f52a6c77f12a4f1ac7839ac13"
+      },
+      {
+        "path": "common/broadcast_fanout.h",
+        "sha256": "dbd22337d2a15c8850505388d00a6c1b138e83ff6fe4be32731eeb90bdda6beb"
+      },
+      {
+        "path": "common/config.cpp",
+        "sha256": "35f918a2652fd4af905a1b33cd861c0de69c33d1f0d65105889f77586d5a4d57"
+      },
+      {
+        "path": "common/config.h",
+        "sha256": "4d8daad65e177990cf1649be0c03e3a070fba170c65cd8dffca51aa6245e5f69"
+      },
+      {
+        "path": "common/grpc_keepalive.h",
+        "sha256": "32767febc9f6bd920cdd78a18c547cdf2cb0c167e45f997ea97d0a1389427285"
+      },
+      {
+        "path": "common/image_attachment.cpp",
+        "sha256": "c60b96fe40519841649fc9583339eda10706d323c3a14ad72d6351df8b23d065"
+      },
+      {
+        "path": "common/image_attachment.h",
+        "sha256": "34588006fde84549776f144b61c87120d35c5b348252aa8189de938afee8dc1e"
+      },
+      {
+        "path": "common/internal_rpc.h",
+        "sha256": "1e05db099c4d3939479a1bf70702be05b1f246a08716230d71752ecf066f1868"
+      },
+      {
+        "path": "common/kafka_consumer.cpp",
+        "sha256": "8544548e4c089c4b8be3d7117c31cde8e0b059b1836c511d536a459d37260683"
+      },
+      {
+        "path": "common/kafka_consumer.h",
+        "sha256": "1048250f2d6c02c288d01ae0b79fa2c993f267e736a45572adee16a47d22d7ce"
+      },
+      {
+        "path": "common/kafka_producer.cpp",
+        "sha256": "9c55a2564169a972be9fe466f7e6bac71b08a0fb82127830e2549232469f5900"
+      },
+      {
+        "path": "common/kafka_producer.h",
+        "sha256": "2ba8b1f9bdc1d4ead75c1241615955261a03068a83716a3b859c1d942b889a3a"
+      },
+      {
+        "path": "common/keyed_mutex.h",
+        "sha256": "223db0ad38347eebd4a6268d9463453e5fb3b6a09271990d19fd065fb5f3e7e8"
+      },
+      {
+        "path": "common/logging.cpp",
+        "sha256": "999eee31b3a4858f662ba45d469fe70ec3360299d4bfb31e709e240c3a03772f"
+      },
+      {
+        "path": "common/logging.h",
+        "sha256": "6993ac84b20ac4d565a7b0f2d49645ede59b66b0eb00533f6a62e56e23112247"
+      },
+      {
+        "path": "common/message_payload.h",
+        "sha256": "15d5211db54be2b631ea733ba4631fcacb38b7b181ae4af0c32ce76217d9d75b"
+      },
+      {
+        "path": "common/metrics.cpp",
+        "sha256": "6db7a7b32b047c1b80abafcde2f09c53a6f070987aa4574e7f86b6d9a2f8d3bc"
+      },
+      {
+        "path": "common/metrics.h",
+        "sha256": "152b03d1ed7fa3a6866990743b38b22381b03f9c2d31dc5ae44a5a8bfdfa3661"
+      },
+      {
+        "path": "common/metrics_http_server.cpp",
+        "sha256": "68ca4ca53e7fe7728ed3294539758e11d59e3da1f0dfa05b777f47a6e2b7a6e1"
+      },
+      {
+        "path": "common/metrics_http_server.h",
+        "sha256": "c66c3587f9382e25f3b7438ef15d9af5fa185f5249ea16b7149fd8bb64eadb84"
+      },
+      {
+        "path": "common/mysql_pool.cpp",
+        "sha256": "fd98ce9f1da040e29e273deecdb0fc5caf474610bd8afa3b84443e761bc63aa2"
+      },
+      {
+        "path": "common/mysql_pool.h",
+        "sha256": "bea5a0c4d76a7355ab6dbf7611008e2e1a3e25b268c1769eb5752d02483d9b4a"
+      },
+      {
+        "path": "common/mysql_statement.h",
+        "sha256": "eeb242344db955db62c3f7ee178739a3afe2c0d87cdd7a20542772d3202ce28d"
+      },
+      {
+        "path": "common/periodic_worker.h",
+        "sha256": "8862b6e9731f7dfc3f54fcf24a8a28ddd46ccc1e36c86396f6327ec36426b8b0"
+      },
+      {
+        "path": "common/rate_limiter.cpp",
+        "sha256": "b741711d37794d8b7c7c9a3c9b3737959f0a9d27d3efb3b29e8d37bf9fe20c7a"
+      },
+      {
+        "path": "common/rate_limiter.h",
+        "sha256": "4c5059af5318953e3bff1b0e6a6b79b8fad018392fb2361e786528574c8e35d2"
+      },
+      {
+        "path": "common/redis_pool.cpp",
+        "sha256": "a11b3db2fb4aac250f5ba7bbc560be15a21259e8c155c4b8be6dc36a8c3cf151"
+      },
+      {
+        "path": "common/redis_pool.h",
+        "sha256": "4360c8045ae2a590daa017f32cb7d9a334ec7004e63a98539e2fbfefbd6b9a74"
+      },
+      {
+        "path": "common/security.cpp",
+        "sha256": "46c2189310401a1e85ec831d94eaaa0dd630a75f3e507eb702bd2543531520ef"
+      },
+      {
+        "path": "common/security.h",
+        "sha256": "8852d4a78271ba6a5aa99f8d1073d367bb8333207e73f76168b397d100b44840"
+      },
+      {
+        "path": "common/stop_signal.h",
+        "sha256": "4f8cb9876b582be288507f83d0979ec2978eeacdef5f84482b16e33c63341e35"
+      },
+      {
+        "path": "common/text_metrics.h",
+        "sha256": "e5e5e55ef94f39655e97fb3083e9f3b726f18e5d17a09c4f2d50617df2e830e6"
+      },
+      {
+        "path": "common/thread_pool.cpp",
+        "sha256": "ac4acaa10d872e2baed04efa453c64dd72d999fd25a19780d91c2bf2760875c4"
+      },
+      {
+        "path": "common/thread_pool.h",
+        "sha256": "6fdba24548fbf78bbaed778802d03b9e1dd7ebe8d99dc94dedbe2ae147035d9a"
+      },
+      {
+        "path": "hermes_bridge/CMakeLists.txt",
+        "sha256": "175c7a175d76af2e7069822dff347df7ee37bf8f648fab50880c70d7c7df1fd4"
+      },
+      {
+        "path": "hermes_bridge/config.cpp",
+        "sha256": "03743974045df9dc0c03ffb321b9ab0853266ae125f5b5c6455591891d9358dc"
+      },
+      {
+        "path": "hermes_bridge/config.h",
+        "sha256": "42e1539de7e26a7f3353b02aa141c5ef8ae0dfd03645709c6ddae34b0d6f593b"
+      },
+      {
+        "path": "hermes_bridge/grpc_inference_client.cpp",
+        "sha256": "e57608c56a1a751b98712cb855d673a9f328b861be7cea89103ccac6c566d568"
+      },
+      {
+        "path": "hermes_bridge/grpc_inference_client.h",
+        "sha256": "725fcfe4b0a4b8f9d18f7d5b225a471fc81e6e700ccf432e9f9e8644301915f2"
+      },
+      {
+        "path": "hermes_bridge/hermes_client.cpp",
+        "sha256": "c42bfd951b48ecc4be351b15e6ca1175006a7c4db2a1158f7ff067226dffc026"
+      },
+      {
+        "path": "hermes_bridge/hermes_client.h",
+        "sha256": "664c57a1cc2db25dd96fdc97d89ff1a1319a60d9fc7cbd0f05045897a22c1fa7"
+      },
+      {
+        "path": "hermes_bridge/main.cpp",
+        "sha256": "8f6ae24a13560c647cd1b8cec0692da6163548526b846801415a23f6a71d789f"
+      },
+      {
+        "path": "hermes_bridge/native_control.h",
+        "sha256": "f2f3b36d32ce16f56408a249cb2a93195dbe9ad126eecc3bfbabbe218ac3f791"
+      },
+      {
+        "path": "hermes_bridge/sse_parser.cpp",
+        "sha256": "55463f68efb52b29ac13394db71dc52a60308960cb59cf2690382690fd123308"
+      },
+      {
+        "path": "hermes_bridge/sse_parser.h",
+        "sha256": "8577daf39f5ec0c43189d8c1860b710e314f6b3df21744ccea1a265a4ab299ef"
+      },
+      {
+        "path": "inference/CMakeLists.txt",
+        "sha256": "b69acd61a3c678e3e981edf3e40ddce8f15879825d2d5f90ef9e4beef52db0ca"
+      },
+      {
+        "path": "inference/benchmarks/bench_serving.py",
+        "sha256": "ec20a904d9bc69e8341bdadcebab960fc1187f8452271eb68527596f78a6bfc9"
+      },
+      {
+        "path": "inference/benchmarks/check_cuda_ops.py",
+        "sha256": "3babc55606ce69c9a37ceb7af05e3f481aab1150d100dd883750285c3c8d6626"
+      },
+      {
+        "path": "inference/benchmarks/collect_environment.py",
+        "sha256": "0faf649593be3a098f51f6b95fd295d9e7b4b3c0f982b9f5cada83ff25f9ae9a"
+      },
+      {
+        "path": "inference/benchmarks/prepare_test_deps.py",
+        "sha256": "fdd58b6a1e735dccc874a627ad9966e72df450ccfbd3250433df4b50cbb4a707"
+      },
+      {
+        "path": "inference/benchmarks/run_app_matrix.py",
+        "sha256": "cec6fabddc2916a7d82fc0dfb9eeeff315fa0e0e63290ec735861b86721b36ce"
+      },
+      {
+        "path": "inference/benchmarks/run_matrix.py",
+        "sha256": "a95896496acde5c032a7a90be68b2a84abdb25435506be9428330e1f6469cab2"
+      },
+      {
+        "path": "inference/benchmarks/summarize.py",
+        "sha256": "0c239e652bcb0274abcbc01a974580c35289384a097dcba30977e369727fc05c"
+      },
+      {
+        "path": "inference/client/main.cpp",
+        "sha256": "969a8a2ce92d659b13ddf913c8101dd99a633c0e5befed776d5adda27e496404"
+      },
+      {
+        "path": "inference/gateway/gateway_service.cpp",
+        "sha256": "973a2b177c148ff53d4c00fcd2c95d4b670f2284da03d7ce5357eaa21ce4196b"
+      },
+      {
+        "path": "inference/gateway/gateway_service.h",
+        "sha256": "0494ff8de2c58a2d384926456579c3058a4c631aefd7238fa7013496580ba2a0"
+      },
+      {
+        "path": "inference/gateway/main.cpp",
+        "sha256": "eb89a56f561952c00bcd814b26f6eebd20c34517df6f39ef15abd0323a72a858"
+      },
+      {
+        "path": "inference/gateway/scheduler.cpp",
+        "sha256": "8f92275dd1a26eb2f6c0fab596401bcf896f181be43b211028e3c7751df99293"
+      },
+      {
+        "path": "inference/gateway/scheduler.h",
+        "sha256": "d1c7a9a1a342f14680964b34a10d0eeaee8c47e29b49ff2c192fb07523b4950e"
+      },
+      {
+        "path": "inference/gateway/worker_registry.cpp",
+        "sha256": "827e57f04cb8f2575c45e6f57ee507ab937fb78662d532483f8fa9b6c3e35398"
+      },
+      {
+        "path": "inference/gateway/worker_registry.h",
+        "sha256": "3e8229502f2bb46742d2c02ee6a8726c28495cb34384d16f05eeaca5e601491e"
+      },
+      {
+        "path": "inference/proto/CMakeLists.txt",
+        "sha256": "0b769437ba8b4b32521efae50d910a77e681dc4c68e42ac3200f78ff1e1f2e86"
+      },
+      {
+        "path": "inference/proto/inference.proto",
+        "sha256": "737cf0f88dd4cc8adfe24084eecc9dd58e1fd13aee52a3c1dcc8ab31babf55d1"
+      },
+      {
+        "path": "inference/tests/fake_cuda_driver.cpp",
+        "sha256": "5a5be429895b127bed060656fa22dd8b7229d56a574015a6d72ba15ee541d3f4"
+      },
+      {
+        "path": "inference/tests/fake_nvml.cpp",
+        "sha256": "694a8df969de0c984c6ab9eba47112fd469e076fb36204ca1864715acbfb7213"
+      },
+      {
+        "path": "inference/tests/gpu_memory_probe_test.cpp",
+        "sha256": "49d5aaa77e1c9fe578cf934e7c64c192ee9c842f18555d34091ec0dab3197efd"
+      },
+      {
+        "path": "inference/tests/inference_tests.cpp",
+        "sha256": "ea14de2d15867345e2a5eb261265e85f4e9c61a0e4a6da8cf452da6cf7c0340e"
+      },
+      {
+        "path": "inference/tests/llama_cpp_adapter_test.py",
+        "sha256": "240e241d0a6cf8f9e27f78de08b194aa5632e45ab97f655c24a18445588ccbf4"
+      },
+      {
+        "path": "inference/tests/real_runtime_test.py",
+        "sha256": "dec4baa9c0ee7a3a6ae2c312dacf63079d57e0d06cb6b6e98d02dccc80a7cc5d"
+      },
+      {
+        "path": "inference/worker/generation_backend.h",
+        "sha256": "5aa645520de591847162ecb6886d4e038bdfc43b4580e7b612b06c9a54fa3786"
+      },
+      {
+        "path": "inference/worker/gpu_memory_probe.cpp",
+        "sha256": "4bddd82c756513d08450841e22a950b61c0be6b9c041918c3df8295d46c61af0"
+      },
+      {
+        "path": "inference/worker/gpu_memory_probe.h",
+        "sha256": "f9833fcbb56f8953be3015f156a826e8db26797414e968b58723bc17e54b7216"
+      },
+      {
+        "path": "inference/worker/inference_worker_service.cpp",
+        "sha256": "0afcf3aeb3dd99c6906afac6b1472322ef3381593118689c25779524f08ce3ad"
+      },
+      {
+        "path": "inference/worker/inference_worker_service.h",
+        "sha256": "a817a19d23a4ef30e3bf4cb530315ab8c1fc0020f9d38d3abea501cbfafdc62d"
+      },
+      {
+        "path": "inference/worker/llama_cpp_backend.cpp",
+        "sha256": "76539721c62306d1b81865c6ce6f71a6dcbf67d735e5063b92ffd0f8e5502b35"
+      },
+      {
+        "path": "inference/worker/llama_cpp_backend.h",
+        "sha256": "a23967b64baaafb1d979b8c68bf3503043727c0b82704bacdd9c74cb78a5b06e"
+      },
+      {
+        "path": "inference/worker/main.cpp",
+        "sha256": "89ccb9ea992c6c0b57cc8254f859f43110ed9ce6fa1240fd4d9539ebf57dba1c"
+      },
+      {
+        "path": "inference/worker/mock_generation_backend.cpp",
+        "sha256": "4a90e1010b64ee2fd5ce24450888a801806efd506151500b88306c44d40668e9"
+      },
+      {
+        "path": "job/CMakeLists.txt",
+        "sha256": "20ac25d99bc5a431ddca5e342584c24d683bf8a1c5d0012e83be2b913bc35db8"
+      },
+      {
+        "path": "job/main.cpp",
+        "sha256": "9b291b9f0f06402a0c53c2163c0918d6430e03ffb6d326b3dc7222ae20af4eb4"
+      },
+      {
+        "path": "job/service.cpp",
+        "sha256": "67251b46c30655e33f8d82db07db0b98133be069eec6b20482e7b74c0ec53089"
+      },
+      {
+        "path": "job/service.h",
+        "sha256": "68526f8baec002064560cf4142ea8b3ffaeb3733cabfe0475079bcafb837b192"
+      },
+      {
+        "path": "load_test/CMakeLists.txt",
+        "sha256": "de79a04aaac31c3c4a12397b8a5d28a81939252cbd694df9c5b2f7e3b3bd8a07"
+      },
+      {
+        "path": "load_test/connection_bench.cpp",
+        "sha256": "044be31794d0ca91a42c4d032826577d5a9b237895f9db269fd49bc6ae61cc59"
+      },
+      {
+        "path": "load_test/e2e_bench.cpp",
+        "sha256": "e207090fe3f52f62a769d6371b67b838a06c7dc05bd9fdf5237327dcd8db1065"
+      },
+      {
+        "path": "load_test/history_bench.cpp",
+        "sha256": "f55996fcc02f2311ceb378d4e1088868a3ff13cf186fad70f993c522eeb2b250"
+      },
+      {
+        "path": "load_test/kafka_delivery_bench.cpp",
+        "sha256": "382156bf2b417a09a24b2175b6e4ded41ebfd2118b438d236c92f322d9674375"
+      },
+      {
+        "path": "load_test/load_tester.cpp",
+        "sha256": "d8b74d11c67475b9dac576da18e173598f4ad65cc6eb70a1e30ee00370084057"
+      },
+      {
+        "path": "load_test/room_fanout_bench.cpp",
+        "sha256": "f6a89d099d11b97a9230ce2ba57c33002cb1e7d548aa19c21c0f2d11e92cb2de"
+      },
+      {
+        "path": "load_test/storage_bench.cpp",
+        "sha256": "a7806982777f5bb45890134b88241f983676badbc0fa284e76f69ff6455fcddf"
+      },
+      {
+        "path": "load_test/ws_client_cli.cpp",
+        "sha256": "1e1c22d0e8ec314aeb73d61bc672188d39e59ae3984f6176a4bfa2e0d99bfdd8"
+      },
+      {
+        "path": "load_test/ws_client_lib.cpp",
+        "sha256": "f186a2b34cf8cf4468e70c773c1df5e30275f1d27de60fdb4a78d2248913bc4c"
+      },
+      {
+        "path": "load_test/ws_client_lib.h",
+        "sha256": "b8468fdfbc0fe67ea67f55ec7fec876b4eb13974ae3f63b6d8808ea52500cd13"
+      },
+      {
+        "path": "logic/CMakeLists.txt",
+        "sha256": "83e9a96e780e1abb29fdaa6746ddf9eca2755a579eb6dbdb5c5da9016bffe218"
+      },
+      {
+        "path": "logic/attachment_dao.cpp",
+        "sha256": "843fedfb9e1d4b0be18a8e1aac62ea92db0f2fd17c253adb48c79d54605ad371"
+      },
+      {
+        "path": "logic/attachment_dao.h",
+        "sha256": "d473ac04dc47bca879b36a2a4cbc1dd03f794889bb583ec1ed5e63a9b14ac395"
+      },
+      {
+        "path": "logic/audit_log_dao.cpp",
+        "sha256": "42cc65a8438baec5f3f7706e7b89022b559426901fabb8b18f19bebe22e07e68"
+      },
+      {
+        "path": "logic/audit_log_dao.h",
+        "sha256": "7a65dccd84497a0b9e582b15176b62622e18f21cd36e07b2992a8286e54ea34b"
+      },
+      {
+        "path": "logic/citation_validation.cpp",
+        "sha256": "24295719ff1eaf4f68c9859fa5b7b5cd53eddce2f370e672647d9d5e8e9e362c"
+      },
+      {
+        "path": "logic/citation_validation.h",
+        "sha256": "aff5b116132da9d989ca332880cecf8658420ffe3217917f405919f1ba2da9b4"
+      },
+      {
+        "path": "logic/conversation_store.cpp",
+        "sha256": "67b860d83f9dfd734ac22bc34fb14fe627ef3d183bb877ba448fd5ccab5874c9"
+      },
+      {
+        "path": "logic/conversation_store.h",
+        "sha256": "9575582ece2f42cbdea4804b9cef144dd75cd64671d034d382964c05ad8633bc"
+      },
+      {
+        "path": "logic/danmaku_dao.cpp",
+        "sha256": "b593781c582ca7d9e1b893861dc1c9d9ed23a1a79f6ad12268432f95d5a6a94c"
+      },
+      {
+        "path": "logic/danmaku_dao.h",
+        "sha256": "50fb8ed36fcb1a1ab8af33e5af8c18eed42abf14cf248a986dd39ef2da4d2015"
+      },
+      {
+        "path": "logic/group_dao.cpp",
+        "sha256": "39277e024b5dd91a9ee045ff2ba38500faba918528fa4cc47adc0326e868c867"
+      },
+      {
+        "path": "logic/group_dao.h",
+        "sha256": "6df6902430fda6079e7dfbc516dc305bd2e86b20e55d78cbf1a99634fd154c95"
+      },
+      {
+        "path": "logic/grpc_service.cpp",
+        "sha256": "7d75aa3782ae74508e68f91a867460d0194da55125966ee40e40f56cc2606481"
+      },
+      {
+        "path": "logic/grpc_service.h",
+        "sha256": "7f98c47e6966ca6169d87014b62927dc68b45fdc97576b918e36f74c4ae71b2c"
+      },
+      {
+        "path": "logic/hermes_command.cpp",
+        "sha256": "ed669f1104d188e9459081b9d7fda76a01a0993953682d2aa0e493182cd80eb8"
+      },
+      {
+        "path": "logic/hermes_command.h",
+        "sha256": "0b19dabd8ae91e8869b58711bb21483fce81a775886a107df32d5c9ca320ea5a"
+      },
+      {
+        "path": "logic/hermes_reply.cpp",
+        "sha256": "b8496fb24f8c33a5124662b18cda323d5cc4b91109482e59752e0840a7f1c86d"
+      },
+      {
+        "path": "logic/hermes_reply.h",
+        "sha256": "5594e969789ca893f60c7d31f44fc5592ab8fc1103586c0ff38dbb93f6d63fe6"
+      },
+      {
+        "path": "logic/http_server.cpp",
+        "sha256": "d46fade00a7b4475ea1340ef3952ef2679c998c6ae285511efdfdf38dff99669"
+      },
+      {
+        "path": "logic/http_server.h",
+        "sha256": "b6a449a077daee787ebd83b0e0ed13c0a3aa4b82916535629517941811176e7c"
+      },
+      {
+        "path": "logic/knowledge_catalog.cpp",
+        "sha256": "7c71be75dda8a81f7b1ccf49632eff8761adc87b264c6f8333b83956507facdf"
+      },
+      {
+        "path": "logic/knowledge_catalog.h",
+        "sha256": "0e7b2b9301cfd6aea3f76b38b3d87b94012f186ee608783a68281be877dec5ec"
+      },
+      {
+        "path": "logic/main.cpp",
+        "sha256": "fca8d3dd40cd4fd162741f17b3825864d03f132a860db812c597c0c93c311ff7"
+      },
+      {
+        "path": "logic/message_codec.h",
+        "sha256": "ad07afce8484c645f3052355f865fadc2c0540754abbf5752218641670d5be2e"
+      },
+      {
+        "path": "logic/message_dao.cpp",
+        "sha256": "65e3e75c5d13f996d039b3c5685999a7bae2c0e272ff122891a6f67cc078977b"
+      },
+      {
+        "path": "logic/message_dao.h",
+        "sha256": "3a9e060f9aea713134041d69b050765132aa8657ce84e47c1456cef4334c4caa"
+      },
+      {
+        "path": "logic/message_reservation.cpp",
+        "sha256": "491468a6c3124fcfecc84e090f0ac2ccff6af5587fbdab7242d0f15589c08c53"
+      },
+      {
+        "path": "logic/message_reservation.h",
+        "sha256": "fed323a8d602d7d4e9e2e72194334e6fcf9dcf9d884f40496f1f19b10547b6f5"
+      },
+      {
+        "path": "logic/model.cpp",
+        "sha256": "8d55cec2ef85e829a4c86b650b5eff63f8e8f48cdcb9f3df5d577f3b90996271"
+      },
+      {
+        "path": "logic/model.h",
+        "sha256": "b625de95aa3e64e0e5647f5b7227dfa104e2422189e86b20f49ac3d055f295e4"
+      },
+      {
+        "path": "logic/redis_store.cpp",
+        "sha256": "1406b2bcb04df973a4e64296ba3c9760cf661b76e4215749bf5afecd8f2f197a"
+      },
+      {
+        "path": "logic/redis_store.h",
+        "sha256": "da5b60944ea81f28e11bf0fbd92df2f610b959e1346e1d16a4d8692315669447"
+      },
+      {
+        "path": "logic/repositories/dao_repositories.cpp",
+        "sha256": "ee2dd9756a6036d305cbdaed631d2117d9cc66102102b8e47260d00f59ec1162"
+      },
+      {
+        "path": "logic/repositories/dao_repositories.h",
+        "sha256": "354b7b2101dd9eeeb8c5e6ac4b67c320b32c81570f6417b33ebdb7bd8b61b566"
+      },
+      {
+        "path": "logic/repositories/room_agent_repository.cpp",
+        "sha256": "907c2b19e4f13896b91b0bac4b83d32b92e1a9a6f64c5422b0a07b5b3a9e9b8b"
+      },
+      {
+        "path": "logic/repositories/room_agent_repository.h",
+        "sha256": "6aac51859eb2f2b0c6f39191582078c31bda6c60ef3eee48eb869c8ca9f05683"
+      },
+      {
+        "path": "logic/repositories/room_sql.h",
+        "sha256": "0117e852143eee0c8aefb5881139151e6530523496328fb417a887f5b29dd9fd"
+      },
+      {
+        "path": "logic/repositories/space_repository.cpp",
+        "sha256": "9a59ce0f7630f6e6f804af01486da614926f36051f143ac3bcb332f0c5833adb"
+      },
+      {
+        "path": "logic/repositories/space_repository.h",
+        "sha256": "6ccdd75736e9b2050071e092fd7bbc523e35891f4ce575b28c6fd51d6fd84851"
+      },
+      {
+        "path": "logic/services/admin_service.cpp",
+        "sha256": "3081a77c7725607850e8a0095a4ed4fcd960daea1521f683ab80e49e32a201ba"
+      },
+      {
+        "path": "logic/services/admin_service.h",
+        "sha256": "89f9439b93257746f5574bdbfaa81c2ec36714ccd3c8c9f38fff96ed0252dcfc"
+      },
+      {
+        "path": "logic/services/agent_connection_service.cpp",
+        "sha256": "278fc38f4d396415b127bddf6485e8ab9dacce69db07bcb8d4653e074992ea2e"
+      },
+      {
+        "path": "logic/services/agent_connection_service.h",
+        "sha256": "1a51a5e9958894799c8fe9cef883cc0abf341b16cf82272ea726e17c7f5db5fb"
+      },
+      {
+        "path": "logic/services/attachment_service.cpp",
+        "sha256": "40d144205a380acd02ea6c0c84e9a7e044831b753b12d7deb1918ee4f5b418cf"
+      },
+      {
+        "path": "logic/services/attachment_service.h",
+        "sha256": "64fca446952c39f1460e6f571f1c596db3779370d99304e6860bcdcad0390a47"
+      },
+      {
+        "path": "logic/services/business_rules.h",
+        "sha256": "38c346037ac55d191153a30d2225baa7023122b32decc44562d2d89fcbfb0f42"
+      },
+      {
+        "path": "logic/services/conversation_service.cpp",
+        "sha256": "f3c17a1a2c78408dde189cfeac22521927b1ae2b2ad991066468a8ce3d92debb"
+      },
+      {
+        "path": "logic/services/conversation_service.h",
+        "sha256": "19c76ae056a6e8c0d4bdcf24ced52723e31d51d3ce508235a29dba7e2288fc21"
+      },
+      {
+        "path": "logic/services/danmaku_service.cpp",
+        "sha256": "52551eef119599aff9fd0c09f65187b3b1bdc6a787382833957fa563660a1371"
+      },
+      {
+        "path": "logic/services/danmaku_service.h",
+        "sha256": "838a01a0018c0ea53a7f7aff02bd331483a17702d139a78c52011515b62064dd"
+      },
+      {
+        "path": "logic/services/knowledge_service.cpp",
+        "sha256": "34e0f8c0d2a165b5dd14a25145636e2bfd37f4a59bccb6d756e24bad8ed834fb"
+      },
+      {
+        "path": "logic/services/knowledge_service.h",
+        "sha256": "1bc5a24607800478f037ab3900d1543b0e401a6473fa9784f2bd39ef72e94886"
+      },
+      {
+        "path": "logic/services/message_service.cpp",
+        "sha256": "e160e432aceb252b275e351bfd659e1f786886af4bd829d695d4bcaa951f7b8e"
+      },
+      {
+        "path": "logic/services/message_service.h",
+        "sha256": "566faaf88275671ba38a01b151af4ecc83d8d4872873461b0c6d42eac931ae74"
+      },
+      {
+        "path": "logic/services/repositories.h",
+        "sha256": "fc4620b33b19bb76f4cc1eaca5e6e313c23ca261498a14838964e3cec9309b70"
+      },
+      {
+        "path": "logic/services/room_agent_catalog.cpp",
+        "sha256": "204fbe13bf076a846683cc1f80ad45abb1d7022a1e68b7fa7b987d3066cb8484"
+      },
+      {
+        "path": "logic/services/room_agent_service.cpp",
+        "sha256": "405ab69263b8150f1d3c6728d7f939197d891a58d2a091093809b8d57b8dda05"
+      },
+      {
+        "path": "logic/services/room_agent_service.h",
+        "sha256": "6fc0a2f76988b49435ab9d205a64dbb4ef37a221609929e6fb4b3ded967059bc"
+      },
+      {
+        "path": "logic/services/room_service.cpp",
+        "sha256": "4833fb278637ec71d9d9339939b8736efce0cc66a9031a66c3adf335ca9dae16"
+      },
+      {
+        "path": "logic/services/room_service.h",
+        "sha256": "2a1a5b14e635a900a8384401659a64c5b71a77e6fe7c3e13afbddbb0ce366615"
+      },
+      {
+        "path": "logic/services/room_task_service.cpp",
+        "sha256": "d40be78bc77d1357873e424dc41d4ab1e1ab67660fba5a94946fdab112109ec5"
+      },
+      {
+        "path": "logic/services/service_status.h",
+        "sha256": "490c19a996f95164eda3ea104ccf2f4cdc15ff8878f8da522f20e6dee47a755a"
+      },
+      {
+        "path": "logic/services/space_repository.h",
+        "sha256": "03781c241a1efa35adf461abcee5142e2598e46f6954748c59d3755578006933"
+      },
+      {
+        "path": "logic/services/user_service.cpp",
+        "sha256": "b6121e9e348699dd0336b29ca7f4cb91054524e61d28836fd77d28f062503428"
+      },
+      {
+        "path": "logic/services/user_service.h",
+        "sha256": "30f5ecbdad7acb58489fa68736513b10ddaf1ea36fa1c2c3788befc57cb71403"
+      },
+      {
+        "path": "logic/session_dao.cpp",
+        "sha256": "cb7e2b3039bd670cf20023f60e64d08b3a11bfcd9055ace848c41d7a2b148850"
+      },
+      {
+        "path": "logic/session_dao.h",
+        "sha256": "f702312395f778729acc7e97fad3b52cf2e1c76156f6063ec3e6a04c98b46ec7"
+      },
+      {
+        "path": "logic/user_dao.cpp",
+        "sha256": "45b7bcfd8a4c059507994a5323fed70cd2ef948297b4a68703ba0f7be98b2f15"
+      },
+      {
+        "path": "logic/user_dao.h",
+        "sha256": "7f9c9b0b74a8b5557fd0faf155f0f338ffb69d516db9e663e57c2df271ca61f9"
+      },
+      {
+        "path": "logic/user_session_state_dao.cpp",
+        "sha256": "d52e659db1080825cff9f6f508a2b2adef2453605078cb8db009cecce2d0dceb"
+      },
+      {
+        "path": "logic/user_session_state_dao.h",
+        "sha256": "79f67ea0cc3e5a279b85145849aeb8f6ebd297cae33f764f2f60f974bae5f759"
+      },
+      {
+        "path": "proto/CMakeLists.txt",
+        "sha256": "6ca01963ef520bb13dd854fae6136cf7df701f93335255e2facb1cfda53915d6"
+      },
+      {
+        "path": "proto/echo.proto",
+        "sha256": "3e11942c45362db9ad9fc403440debebc507dda0d1435f73fa0c655701329b9f"
+      },
+      {
+        "path": "proto/spark_push.proto",
+        "sha256": "6b114f6f9598663688f4ceb322585b243dedb9a102b25db0eee4da35d0d2a8b2"
+      },
+      {
+        "path": "sql/migrations/001_delivery_cursor.sql",
+        "sha256": "ed1381ca849f32f7f7d60807d166cf4386e1e818084c4b350ac0641289208668"
+      },
+      {
+        "path": "sql/migrations/001_user_center.sql",
+        "sha256": "2d9cfe0d464960009e430edb2daabdf27bf5143cd8af07a5febbd336b301d323"
+      },
+      {
+        "path": "sql/migrations/002_message_content_mediumtext.sql",
+        "sha256": "9182e0db8a5064b66e00cca2e0b6c505da0f976500696da5d2d4a5b7c11446d0"
+      },
+      {
+        "path": "sql/migrations/003_attachment.sql",
+        "sha256": "3635092c6ac540f2154775912f32d0ef5dad9560ff152c2cebd30025eda88a79"
+      },
+      {
+        "path": "sql/migrations/20261011_message_reservations.sql",
+        "sha256": "52ef50bebd01fa5949ca121e2b7d7cae5939cd1917b17fbf775f8a8605f572a4"
+      },
+      {
+        "path": "sql/migrations/20261011_room_agent.sql",
+        "sha256": "28d29f284e8168b6843ec36ee5522bb6d66955abf76d28003612a1d220c7ba58"
+      },
+      {
+        "path": "sql/migrations/20261030_kernel_agent_identity.sql",
+        "sha256": "095092aff6e1dc1368549560abb3e14007bc5d711967f4d04272e4bece96929e"
+      },
+      {
+        "path": "sql/migrations/20261031_collaboration_spaces.sql",
+        "sha256": "547a85681520114842ed9c8fee180bb9b103337335398bcc88a5cce86e766db5"
+      },
+      {
+        "path": "sql/migrations/20261031_generic_room_agents.sql",
+        "sha256": "1bc42ecbbed59c20ab09dcab33acf7df7ac299f79f7072cf226868b724a628e3"
+      },
+      {
+        "path": "sql/reset_dev.sql",
+        "sha256": "e6007ff0c3ed8fee958b9831c444ac25c26f178868544f8566f91da682437364"
+      },
+      {
+        "path": "sql/schema.sql",
+        "sha256": "7f9aa6c51f1926d199941a3fe949b2999b1ff079354ff66c7c62bfd731ad2db0"
+      },
+      {
+        "path": "tests/CMakeLists.txt",
+        "sha256": "27ec6a921b53436af818d31708d358787fcfa965a73d387b14130f1bcad47153"
+      },
+      {
+        "path": "tests/agent_channel_browser_test.cjs",
+        "sha256": "d4c6f56757ac470c86ecce1a5bda92940fa3458f039568e664a6127a9a74df55"
+      },
+      {
+        "path": "tests/agent_connection_service_test.cpp",
+        "sha256": "44f5081642f73eb118d12146e1a13d0ca4a6eec4b4cbc152509569b80b5d9dca"
+      },
+      {
+        "path": "tests/agent_connections_browser_test.cjs",
+        "sha256": "418d8914b577446c42f930d211cc0961416a4d4f3de4bcaa2427978baec7b25c"
+      },
+      {
+        "path": "tests/agent_control_client_probe.cpp",
+        "sha256": "3e1c6754c2e3bfc8d81fe196a814e080b5209530fe297305528a8b9ec00985b1"
+      },
+      {
+        "path": "tests/agent_control_integration_test.py",
+        "sha256": "43f47caf8bd37cd79a88c8ccd04277ddad05baa7d55b3c609f7bc7b25298353a"
+      },
+      {
+        "path": "tests/benchmark_logging.py",
+        "sha256": "9c4e839c92b87810f69fd031a7acaf6fb5e170e6745d01484842ee6b5f0be169"
+      },
+      {
+        "path": "tests/broadcast_fanout_test.cpp",
+        "sha256": "500f78886b54f2e94ec320df3104c787f96ba484067a8ac59e5efe0484c0e757"
+      },
+      {
+        "path": "tests/cann_context_test.cjs",
+        "sha256": "25037a2782d7f4e0bfba83f1ef52b6bd1fdecb911cd75ff8e272030239bd3b68"
+      },
+      {
+        "path": "tests/citation_validation_test.cpp",
+        "sha256": "cf456c4607071cc01a49a1d4cfc4b13698d3fb617852e7b99a67456983be23eb"
+      },
+      {
+        "path": "tests/client_reliability_contract_test.py",
+        "sha256": "baa6615776aad4c57db65d92a9eefd8cd4bdbb7201e1e261c91e5e06224bc395"
+      },
+      {
+        "path": "tests/comet_network_integration_test.py",
+        "sha256": "5693c2893476f600d002fa55d5c040d2258d4e8a18948a1c67e366ffb69aa44d"
+      },
+      {
+        "path": "tests/comet_network_probe.cpp",
+        "sha256": "3e7fbe669197dd9e45ca0bb0e8a2af379d1bf6c010568350d369de44611f4c92"
+      },
+      {
+        "path": "tests/config_test.cpp",
+        "sha256": "7219357af797cbe1811bd1edd65f8d43f392b09f59beef0405629d3c9e6a812c"
+      },
+      {
+        "path": "tests/cursor_recovery_test.cjs",
+        "sha256": "c1c688a446fea84016f83290022881054e79b0a830622b950e171f18883565b6"
+      },
+      {
+        "path": "tests/dlq_replay_test.py",
+        "sha256": "797aa6d403b725fb0f4ccda9cb883fc87b5285fa5856647f777ce267be00a461"
+      },
+      {
+        "path": "tests/fixtures/fake_pi_rpc.py",
+        "sha256": "472f7c12766a294b1c46c600e95d8032824c504d7fe79b5448c85410bd02b8fd"
+      },
+      {
+        "path": "tests/generic_room_agent_e2e.py",
+        "sha256": "71028169e77e99b108cd9bdff4b37bc6986936d3ccf9c3cc55f2cec199a69ae4"
+      },
+      {
+        "path": "tests/hermes_command_test.cpp",
+        "sha256": "7ae4e569b2b0a2aa9688f6ed3b6b57291109bf0611b2b485b16f39ab6094c6e6"
+      },
+      {
+        "path": "tests/hermes_native_config_test.cpp",
+        "sha256": "bbaaa86d34a2b67b112d6e01a09718c06b86281f086847221f0720e376ee6585"
+      },
+      {
+        "path": "tests/hermes_reply_test.cpp",
+        "sha256": "24d1689563a95825c2d2f23a1d196c80df50a045b9dde8e06b9841a98013b3b6"
+      },
+      {
+        "path": "tests/hermes_room_runtime_fixture.py",
+        "sha256": "f047961662e2586a4fd57686b9f3c9d79bb0362f6ed11535a037f642b051553b"
+      },
+      {
+        "path": "tests/hermes_sse_parser_test.cpp",
+        "sha256": "1bae203f5ca04abeab4a5a253336b10c176be11ac31a3ae62a5a4f45a835a1fc"
+      },
+      {
+        "path": "tests/http_api_integration_test.py",
+        "sha256": "42e4ae672515fc85adedd40e656dca3830e7723fcf113698686a005988fd5c0d"
+      },
+      {
+        "path": "tests/http_api_probe.cpp",
+        "sha256": "02a20cc106182fd3aaeb22413ccf95324accb3bd161480a15bf34631dac2a82e"
+      },
+      {
+        "path": "tests/http_parser_test.cpp",
+        "sha256": "6427c04f36252e24ef65f967bb4a4c25efae8e97b01c0dc6093e1ef478875f89"
+      },
+      {
+        "path": "tests/image_attachment_test.cpp",
+        "sha256": "2b772d6e2c95398699c5d9594c6e811a06384eff0cbe2934b2800666b9a718bc"
+      },
+      {
+        "path": "tests/internal_rpc_test.cpp",
+        "sha256": "c281bf290b0f75c5c211d73e79c812aa107e224f065d65bea25978ac9f224070"
+      },
+      {
+        "path": "tests/kafka_failure_integration_test.cpp",
+        "sha256": "db32824aee7bd463150f5688cecf99e3bfb5985df2f036745858dcad7df5e35f"
+      },
+      {
+        "path": "tests/kafka_native_control_integration_test.cpp",
+        "sha256": "ca464ec29d4956d74867f285527b46aed0c48217b1b56e183e1edd1933ea990d"
+      },
+      {
+        "path": "tests/kafka_parallel_integration_test.cpp",
+        "sha256": "0394075629499d87b316db8b5c1d101681dfa42caf8c474d4f8caf49ec2351ba"
+      },
+      {
+        "path": "tests/kernel_agent_identity_browser_test.cjs",
+        "sha256": "c80faa29d2b49a54b7fd9ecefd8355f116ff479bceea06acc5ed5b0338fc5710"
+      },
+      {
+        "path": "tests/kernel_subagents_integration_test.cjs",
+        "sha256": "0829eaffb3669899e379579f4fe11ceceaae446bd11d04b5cc8ba5c7ce3e3409"
+      },
+      {
+        "path": "tests/kernel_subagents_test.cjs",
+        "sha256": "d09a8de7362225179274d0da56d6c6187f81d76652c0cac873a9dc2c3851cc55"
+      },
+      {
+        "path": "tests/knowledge_catalog_test.cpp",
+        "sha256": "eef0979141e9c6939205d952c0188371f039a43763d836ed3852b5f1982ca229"
+      },
+      {
+        "path": "tests/logging_rotation_test.cpp",
+        "sha256": "5fe2e92da1c9c08da1fd0475cb6b4e42bd913bd0829723c8c6d27895b91421df"
+      },
+      {
+        "path": "tests/logic_business_e2e.py",
+        "sha256": "a784078a22030f7174ceb4ae60268e3d4aca77fe75293e13f437b07366d7bfcb"
+      },
+      {
+        "path": "tests/logic_business_service_test.cpp",
+        "sha256": "033fc192e5a1f1b52959b031e88b76c2ea6c5e86bf5a14217b1b958bb08afa4c"
+      },
+      {
+        "path": "tests/logic_layer_contract_test.py",
+        "sha256": "5e932a46a68be4805d1dc8661fd256e3b56ccd21d9e01359676df317b1c4434e"
+      },
+      {
+        "path": "tests/message_acceptance_test.cpp",
+        "sha256": "90bae219253b433efa8a6166bcdac32fe49ccd414c2ddd736c65a88bd2b06b86"
+      },
+      {
+        "path": "tests/message_reservation_integration_test.cpp",
+        "sha256": "0d96e3f74015a4b4644b583720cee273a72d2a55cdf077ca9a23491daf61b8aa"
+      },
+      {
+        "path": "tests/multi_agent_live_browser_test.cjs",
+        "sha256": "28474b728f7b029129dd8e0a4711b9ad5a58093f1ada06a2262bc63cb419b7cd"
+      },
+      {
+        "path": "tests/mysql_pool_recovery_test.cpp",
+        "sha256": "c0257a3915483e642d53b3e30625b55e2fdc4987cf9fbda625c626e268e69780"
+      },
+      {
+        "path": "tests/queue_capacity_test.cpp",
+        "sha256": "842f125e5201af3aa2246bc847077c8b4eb2b3b4345fff847afee055d3faa43e"
+      },
+      {
+        "path": "tests/rate_limiter_test.cpp",
+        "sha256": "5ae7ed7f265a1949f8f7f2f3e333d43ee24dfcfafcf8476105f8c35d50e6debb"
+      },
+      {
+        "path": "tests/redis_sequence_integration_test.cpp",
+        "sha256": "ad82420e68f9da1e143136f43b675f2b3932b59fb8ccec760f7982d8a66a22ab"
+      },
+      {
+        "path": "tests/room_agent_channel_test.cjs",
+        "sha256": "74b75a7efa7b7c1e11d8d9cfccb9821ace5d73a7162a51abc8b4b2fd9c5a1b88"
+      },
+      {
+        "path": "tests/room_agent_e2e.py",
+        "sha256": "46da54db0f2a9d08c58c748cb050e2c90774e634c9437e74d6c599fc2575af6a"
+      },
+      {
+        "path": "tests/room_agent_live_pi.py",
+        "sha256": "e719095407223946e77333192f18e4aed51a474cffa5d0cfd6c760b8988cfc93"
+      },
+      {
+        "path": "tests/room_agent_real_runtime.py",
+        "sha256": "10dc9f6af2286b6c9b9607c404bdb07df93e02a252af006e969877419f8535dd"
+      },
+      {
+        "path": "tests/room_agent_service_test.cpp",
+        "sha256": "9c0773654132ae8bbbda652f502e7485abc961b2037dc994f4d6fa6ed8238a07"
+      },
+      {
+        "path": "tests/room_agents_browser_test.cjs",
+        "sha256": "737fc711ecdf9fac21dc6efe4397d549e95f938b386f989de7fcf9c00a03019f"
+      },
+      {
+        "path": "tests/room_agents_live_browser_test.cjs",
+        "sha256": "0578163d4f1d6e25452e72d7c643b90162fa0aeb242bd5d4362febbe5f1b98b2"
+      },
+      {
+        "path": "tests/room_workspace_test.cjs",
+        "sha256": "f5c5e3f010cf63a165ae7fea3df55fde987ffc97e813b823b94ef20829300ff4"
+      },
+      {
+        "path": "tests/route_generation_integration_test.cpp",
+        "sha256": "4ef1c4dcbaf9e6a99e8eeaabed331e7ecbd6af236a2d96995aa9311c90da6d2a"
+      },
+      {
+        "path": "tests/run_current_benchmarks.py",
+        "sha256": "aa0ac35a65435be64bbd1fe823b06e1e9257bc5fc8af71f62053ca18ac106e66"
+      },
+      {
+        "path": "tests/run_kafka_volume_test.py",
+        "sha256": "a09fca4c6989aa4389ae7d3f56b6e16fad0b6e7288ec1f0fb9ff32dc11a9143f"
+      },
+      {
+        "path": "tests/run_mysql_review_tests.py",
+        "sha256": "41753bcce2e48c277aacb3dfaa5ec3027713fc1cc0cabf5ff08f37ca9bdaf7a2"
+      },
+      {
+        "path": "tests/run_redis_review_tests.py",
+        "sha256": "b630be984216fa4b337406131f66a364cb4ea4bc5eda9959b40489843e3b095e"
+      },
+      {
+        "path": "tests/run_release_smoke.py",
+        "sha256": "b5b1bd7eb87be56c9afff43c9dea230c09aa6bca4be6f6aa2744ecc81f66c8b8"
+      },
+      {
+        "path": "tests/security_test.cpp",
+        "sha256": "b1b04065c686b9a7c9f0f6022202357dd3e9fe56d4e0d210e0643264794eacbc"
+      },
+      {
+        "path": "tests/space_mysql_integration_test.cpp",
+        "sha256": "acbcb0eb5c81247b53eb47782c1ec8cb85105d09524207ba399874ff15ef4955"
+      },
+      {
+        "path": "tests/space_service_test.cpp",
+        "sha256": "5b86d9e8524cbdbdabc6f735bfa29465dd73b3618dab445a9db2906941b08473"
+      },
+      {
+        "path": "tests/spaces_browser_test.cjs",
+        "sha256": "5daa368b28fdea62bd8519b067bae6fe7db5d929d4570182a8b9e20b70ae64ba"
+      },
+      {
+        "path": "tests/spaces_e2e.py",
+        "sha256": "ef37e63a81d9cee70a66fe041ddf44bca561b8c686a20663cb95bde3df283282"
+      },
+      {
+        "path": "tests/user_agent_http_integration_test.py",
+        "sha256": "a7e2a154c7af65c4e8221afcd14d72da1bee7893c158ff83131ed9961d3b0a3f"
+      },
+      {
+        "path": "tests/websocket_utils_test.cpp",
+        "sha256": "a991f910cdc4411495d6738a6ec81df252e90e771798fed4619833a8704ed12a"
+      },
+      {
+        "path": "tools/CMakeLists.txt",
+        "sha256": "021fd2da1b33b18318295cb66f96f3361c8787af1a9d1263ef2beb42de58ed0e"
+      },
+      {
+        "path": "tools/dlq_replay.cpp",
+        "sha256": "23770989c65a2efe74517d0c8f1ae6ed5080a6464b455fa02824e45d544106f1"
+      },
+      {
+        "path": "web_demo/CMakeLists.txt",
+        "sha256": "665aead66be63277f82b99a9c0f4d0ac9c9abef3d6e47db25d0080857ddfea84"
+      },
+      {
+        "path": "web_demo/static/admin_chatroom.html",
+        "sha256": "74c3d09278b573dfb81fa015579b8f76421304d2f83db5db025e0812dde9dfd0"
+      },
+      {
+        "path": "web_demo/static/agent_channel.js",
+        "sha256": "085e66bd1ee1d12863ac1eadc421f310695e53098ed605a68254b97e69ce6815"
+      },
+      {
+        "path": "web_demo/static/agent_connections.js",
+        "sha256": "e9dae06dbccff36572f7cb13d3b0663b7607113ed24d13148b8d780c6c009982"
+      },
+      {
+        "path": "web_demo/static/auth.js",
+        "sha256": "181e382067a60b4cf5386d0eb0275ddf427812142f4f534568efe8485d07327e"
+      },
+      {
+        "path": "web_demo/static/chatroom.html",
+        "sha256": "4cee8d80fc1ebf0b2fbf1b5f6af6be17aa530fa76fd4492326c3c0a64a716912"
+      },
+      {
+        "path": "web_demo/static/danmaku.html",
+        "sha256": "45478d2969b7e1e63c7d77fa27926ca5427a066a8d57ad59e60220ff2e80eab4"
+      },
+      {
+        "path": "web_demo/static/index.html",
+        "sha256": "db5554e483d87b3301b1a73e5e3fd9107deef82e5fbdcaad8eb5f7c3bd6bc22b"
+      },
+      {
+        "path": "web_demo/static/knowledge.html",
+        "sha256": "f0c8f98c55aef640291b21f929beb7cea85e00ca4b16b7d62935afeee8cadc54"
+      },
+      {
+        "path": "web_demo/static/room_agent_channel.js",
+        "sha256": "8c58100deb17f31a29a6fbd34317c756e9dc35d8a6af70e15628730fe93be516"
+      },
+      {
+        "path": "web_demo/static/room_agents.js",
+        "sha256": "fc838b71bd0d4fd0bdee08373d5eedbe46d532b9cf17258e8ba29f4fc4aaff47"
+      },
+      {
+        "path": "web_demo/static/safe_markdown.js",
+        "sha256": "cff2b04bac022f72823d29143b704fb5befa2716a0d7a27c301100882a23e7e7"
+      },
+      {
+        "path": "web_demo/static/spaces.js",
+        "sha256": "519986f74324a9d9f22327f773c8f4f271dc63dcf770fedb4cffc6b0a85bd563"
+      },
+      {
+        "path": "web_demo/static/theme.js",
+        "sha256": "799b5db56a2caa57f322b27e38a6f9522e017fce3df6463b53b1de7898704ead"
+      },
+      {
+        "path": "web_demo/web_server.cpp",
+        "sha256": "2f55074e3dd2295986eab245bfc9745b5713fb74947a89df86ac7078c2b96a83"
+      }
+    ]
+  },
+  "current_task_changed_files": [
+    {
+      "path": "README.md",
+      "change": "modified",
+      "sha256": "e8ad549ea9b5d90a65021d48e0f8a802139bb5a418acd4bee0b86dbaf7ff6f53"
+    },
+    {
+      "path": "cannbot/knowledge-sources.json",
+      "change": "modified",
+      "sha256": "a99a95e2569639618332e4193f0899bed54c4c3f9687daf5292be14d7af4d93d"
+    },
+    {
+      "path": "cannbot/pi/room-agents.json.example",
+      "change": "added",
+      "sha256": "8fee17a24d645213f84ade241893954ab0ebf19c98ecf46b2799991f35029b8f"
+    },
+    {
+      "path": "cannbot/scripts/agent_router.py",
+      "change": "modified",
+      "sha256": "90781a450436df351491ba0065eebce3df0a98000011cfc80d2df79b686fc91d"
+    },
+    {
+      "path": "cannbot/scripts/hermes_adapter.py",
+      "change": "modified",
+      "sha256": "ca56a3a444729e332c4da94cf9e87d4a24e73774b9df8d3603143e74b4f12861"
+    },
+    {
+      "path": "cannbot/scripts/hermes_native_adapter.py",
+      "change": "modified",
+      "sha256": "63ab6523a53ee6148a25a280e8fe7e494858f6f981f8b0ace316301d5da033b0"
+    },
+    {
+      "path": "cannbot/scripts/pi_gateway.py",
+      "change": "modified",
+      "sha256": "d278642220bb7f2c324155789ed74459b5efe5767da90f5d1abfaf056c5db916"
+    },
+    {
+      "path": "cannbot/scripts/room_agent.py",
+      "change": "modified",
+      "sha256": "3c4a07e29f379af850d68e9996f148ea15b4246aeb87533c91340fdf343f5bc0"
+    },
+    {
+      "path": "cannbot/scripts/test_generic_room_agent.py",
+      "change": "added",
+      "sha256": "7ba62bdf4771ba1b46ceca4450817bff7a4df7b6fb18c741a6533893cd8db8a7"
+    },
+    {
+      "path": "cannbot/scripts/test_hermes_native.py",
+      "change": "modified",
+      "sha256": "6c17947a6a918b3f1c0393c7f81a2d278c51d9be3bfb78ce9b34c2d8ee0ff04d"
+    },
+    {
+      "path": "cannbot/scripts/windows_agent_http.py",
+      "change": "modified",
+      "sha256": "c5aacdb9404c7aacf73ab75e5b44c49f9c476803ff4dc6cd704855c31f319492"
+    },
+    {
+      "path": "cannbot/scripts/windows_agent_transport.py",
+      "change": "modified",
+      "sha256": "f2688a2d0cc4f3c01246249573e8b7b759a1ee2e476c849d212796c3527059d8"
+    },
+    {
+      "path": "cannbot/skills/spark-push-knowledge/references/architecture-map.md",
+      "change": "modified",
+      "sha256": "bf14bdbc9aa629267f1e1532b0d6adf2b71bda834a1fda077bd06bf0f55952c2"
+    },
+    {
+      "path": "common/message_payload.h",
+      "change": "modified",
+      "sha256": "15d5211db54be2b631ea733ba4631fcacb38b7b181ae4af0c32ce76217d9d75b"
+    },
+    {
+      "path": "docs/generic-room-agents.md",
+      "change": "added",
+      "sha256": "1f097f5d92afbee93d77d1152dfeb19cd98daf0a38ecc8c7e36ac493d213a8fa"
+    },
+    {
+      "path": "docs/hermes-native-runtime-integration.md",
+      "change": "modified",
+      "sha256": "da1f18e0f0aa9fa5fb23d481682c13bc11588f43be63b8afbeca591d88e99e54"
+    },
+    {
+      "path": "docs/mvp-v1-acceptance.md",
+      "change": "added",
+      "sha256": "e09fc025b4886302141db85bf3f8705d441bbb3c2cdb390bcf2c5367138331f8"
+    },
+    {
+      "path": "docs/room-agent-collaboration.md",
+      "change": "modified",
+      "sha256": "d4ad72a6312a0382d4168c340467d7be83afa9880009bfcf07532a96a332a04e"
+    },
+    {
+      "path": "hermes_bridge/hermes_client.cpp",
+      "change": "modified",
+      "sha256": "c42bfd951b48ecc4be351b15e6ca1175006a7c4db2a1158f7ff067226dffc026"
+    },
+    {
+      "path": "hermes_bridge/hermes_client.h",
+      "change": "modified",
+      "sha256": "664c57a1cc2db25dd96fdc97d89ff1a1319a60d9fc7cbd0f05045897a22c1fa7"
+    },
+    {
+      "path": "hermes_bridge/main.cpp",
+      "change": "modified",
+      "sha256": "8f6ae24a13560c647cd1b8cec0692da6163548526b846801415a23f6a71d789f"
+    },
+    {
+      "path": "hermes_bridge/sse_parser.cpp",
+      "change": "modified",
+      "sha256": "55463f68efb52b29ac13394db71dc52a60308960cb59cf2690382690fd123308"
+    },
+    {
+      "path": "logic/CMakeLists.txt",
+      "change": "modified",
+      "sha256": "83e9a96e780e1abb29fdaa6746ddf9eca2755a579eb6dbdb5c5da9016bffe218"
+    },
+    {
+      "path": "logic/hermes_reply.cpp",
+      "change": "modified",
+      "sha256": "b8496fb24f8c33a5124662b18cda323d5cc4b91109482e59752e0840a7f1c86d"
+    },
+    {
+      "path": "logic/http_server.cpp",
+      "change": "modified",
+      "sha256": "d46fade00a7b4475ea1340ef3952ef2679c998c6ae285511efdfdf38dff99669"
+    },
+    {
+      "path": "logic/main.cpp",
+      "change": "modified",
+      "sha256": "fca8d3dd40cd4fd162741f17b3825864d03f132a860db812c597c0c93c311ff7"
+    },
+    {
+      "path": "logic/repositories/room_agent_repository.cpp",
+      "change": "modified",
+      "sha256": "907c2b19e4f13896b91b0bac4b83d32b92e1a9a6f64c5422b0a07b5b3a9e9b8b"
+    },
+    {
+      "path": "logic/repositories/room_agent_repository.h",
+      "change": "modified",
+      "sha256": "6aac51859eb2f2b0c6f39191582078c31bda6c60ef3eee48eb869c8ca9f05683"
+    },
+    {
+      "path": "logic/services/agent_connection_service.cpp",
+      "change": "modified",
+      "sha256": "278fc38f4d396415b127bddf6485e8ab9dacce69db07bcb8d4653e074992ea2e"
+    },
+    {
+      "path": "logic/services/agent_connection_service.h",
+      "change": "modified",
+      "sha256": "1a51a5e9958894799c8fe9cef883cc0abf341b16cf82272ea726e17c7f5db5fb"
+    },
+    {
+      "path": "logic/services/message_service.cpp",
+      "change": "modified",
+      "sha256": "e160e432aceb252b275e351bfd659e1f786886af4bd829d695d4bcaa951f7b8e"
+    },
+    {
+      "path": "logic/services/message_service.h",
+      "change": "modified",
+      "sha256": "566faaf88275671ba38a01b151af4ecc83d8d4872873461b0c6d42eac931ae74"
+    },
+    {
+      "path": "logic/services/room_agent_catalog.cpp",
+      "change": "added",
+      "sha256": "204fbe13bf076a846683cc1f80ad45abb1d7022a1e68b7fa7b987d3066cb8484"
+    },
+    {
+      "path": "logic/services/room_agent_service.cpp",
+      "change": "modified",
+      "sha256": "405ab69263b8150f1d3c6728d7f939197d891a58d2a091093809b8d57b8dda05"
+    },
+    {
+      "path": "logic/services/room_agent_service.h",
+      "change": "modified",
+      "sha256": "6fc0a2f76988b49435ab9d205a64dbb4ef37a221609929e6fb4b3ded967059bc"
+    },
+    {
+      "path": "logic/services/room_task_service.cpp",
+      "change": "added",
+      "sha256": "d40be78bc77d1357873e424dc41d4ab1e1ab67660fba5a94946fdab112109ec5"
+    },
+    {
+      "path": "sql/migrations/20261031_generic_room_agents.sql",
+      "change": "added",
+      "sha256": "1bc42ecbbed59c20ab09dcab33acf7df7ac299f79f7072cf226868b724a628e3"
+    },
+    {
+      "path": "sql/schema.sql",
+      "change": "modified",
+      "sha256": "7f9aa6c51f1926d199941a3fe949b2999b1ff079354ff66c7c62bfd731ad2db0"
+    },
+    {
+      "path": "tests/CMakeLists.txt",
+      "change": "modified",
+      "sha256": "27ec6a921b53436af818d31708d358787fcfa965a73d387b14130f1bcad47153"
+    },
+    {
+      "path": "tests/agent_channel_browser_test.cjs",
+      "change": "modified",
+      "sha256": "d4c6f56757ac470c86ecce1a5bda92940fa3458f039568e664a6127a9a74df55"
+    },
+    {
+      "path": "tests/generic_room_agent_e2e.py",
+      "change": "added",
+      "sha256": "71028169e77e99b108cd9bdff4b37bc6986936d3ccf9c3cc55f2cec199a69ae4"
+    },
+    {
+      "path": "tests/hermes_reply_test.cpp",
+      "change": "modified",
+      "sha256": "24d1689563a95825c2d2f23a1d196c80df50a045b9dde8e06b9841a98013b3b6"
+    },
+    {
+      "path": "tests/hermes_room_runtime_fixture.py",
+      "change": "added",
+      "sha256": "f047961662e2586a4fd57686b9f3c9d79bb0362f6ed11535a037f642b051553b"
+    },
+    {
+      "path": "tests/hermes_sse_parser_test.cpp",
+      "change": "modified",
+      "sha256": "1bae203f5ca04abeab4a5a253336b10c176be11ac31a3ae62a5a4f45a835a1fc"
+    },
+    {
+      "path": "tests/http_api_integration_test.py",
+      "change": "modified",
+      "sha256": "42e4ae672515fc85adedd40e656dca3830e7723fcf113698686a005988fd5c0d"
+    },
+    {
+      "path": "tests/internal_rpc_test.cpp",
+      "change": "modified",
+      "sha256": "c281bf290b0f75c5c211d73e79c812aa107e224f065d65bea25978ac9f224070"
+    },
+    {
+      "path": "tests/logic_business_e2e.py",
+      "change": "modified",
+      "sha256": "a784078a22030f7174ceb4ae60268e3d4aca77fe75293e13f437b07366d7bfcb"
+    },
+    {
+      "path": "tests/room_agent_real_runtime.py",
+      "change": "added",
+      "sha256": "10dc9f6af2286b6c9b9607c404bdb07df93e02a252af006e969877419f8535dd"
+    },
+    {
+      "path": "tests/room_agent_service_test.cpp",
+      "change": "modified",
+      "sha256": "9c0773654132ae8bbbda652f502e7485abc961b2037dc994f4d6fa6ed8238a07"
+    },
+    {
+      "path": "tests/room_agents_browser_test.cjs",
+      "change": "added",
+      "sha256": "737fc711ecdf9fac21dc6efe4397d549e95f938b386f989de7fcf9c00a03019f"
+    },
+    {
+      "path": "tests/room_agents_live_browser_test.cjs",
+      "change": "added",
+      "sha256": "0578163d4f1d6e25452e72d7c643b90162fa0aeb242bd5d4362febbe5f1b98b2"
+    },
+    {
+      "path": "tests/space_mysql_integration_test.cpp",
+      "change": "modified",
+      "sha256": "acbcb0eb5c81247b53eb47782c1ec8cb85105d09524207ba399874ff15ef4955"
+    },
+    {
+      "path": "tests/spaces_browser_test.cjs",
+      "change": "modified",
+      "sha256": "5daa368b28fdea62bd8519b067bae6fe7db5d929d4570182a8b9e20b70ae64ba"
+    },
+    {
+      "path": "tests/spaces_e2e.py",
+      "change": "modified",
+      "sha256": "ef37e63a81d9cee70a66fe041ddf44bca561b8c686a20663cb95bde3df283282"
+    },
+    {
+      "path": "web_demo/static/agent_channel.js",
+      "change": "modified",
+      "sha256": "085e66bd1ee1d12863ac1eadc421f310695e53098ed605a68254b97e69ce6815"
+    },
+    {
+      "path": "web_demo/static/chatroom.html",
+      "change": "modified",
+      "sha256": "4cee8d80fc1ebf0b2fbf1b5f6af6be17aa530fa76fd4492326c3c0a64a716912"
+    },
+    {
+      "path": "web_demo/static/room_agents.js",
+      "change": "added",
+      "sha256": "fc838b71bd0d4fd0bdee08373d5eedbe46d532b9cf17258e8ba29f4fc4aaff47"
+    }
+  ],
+  "report_artifacts": [
+    "docs/benchmarks/2026-10-31-generic-room-agents.md",
+    "docs/benchmarks/2026-10-31-generic-room-agents.json"
+  ],
+  "tests": [
+    {
+      "name": "build",
+      "command": "cmake --build build-wsl -j2",
+      "exit_code": 0,
+      "log": "/tmp/spark-room-agents-build16.log",
+      "tail": [
+        "[ 94%] Built target muduo_inspect",
+        "[ 95%] Linking CXX executable logic_server",
+        "[ 96%] Built target space_mysql_integration_test",
+        "[ 96%] Built target inference_gateway",
+        "[ 97%] Built target inference_worker",
+        "[ 98%] Built target gpu_memory_probe_test",
+        "[ 99%] Built target inference_tests",
+        "[100%] Built target logic_server"
+      ]
+    },
+    {
+      "name": "ctest",
+      "command": "ctest --test-dir build-wsl --output-on-failure -j2",
+      "exit_code": 0,
+      "registered": 55,
+      "passed": 51,
+      "skipped": 4,
+      "failed": 0,
+      "log": "/tmp/spark-room-agents-ctest3.log",
+      "tail": [
+        "54/55 Test #51: websocket_utils_test ....................   Passed    0.00 sec",
+        "55/55 Test #19: room_agent_service_test .................   Passed    0.00 sec",
+        "",
+        "100% tests passed, 0 tests failed out of 55",
+        "",
+        "Total Test time (real) =  47.23 sec",
+        "",
+        "The following tests did not run:",
+        "\t 13 - route_generation_integration_test (Skipped)",
+        "\t 17 - message_reservation_integration_test (Skipped)",
+        "\t 52 - redis_sequence_integration_test (Skipped)",
+        "\t 54 - space_mysql_integration_test (Skipped)"
+      ]
+    },
+    {
+      "name": "real-mysql",
+      "command": "python3 tests/run_mysql_review_tests.py build-wsl",
+      "exit_code": 0,
+      "passed": 2,
+      "log": "/tmp/spark-room-agents-mysql4.log",
+      "output": "Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl\nTest project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl\n    Start 17: message_reservation_integration_test\n1/2 Test #17: message_reservation_integration_test ...   Passed    0.20 sec\n    Start 54: space_mysql_integration_test\n2/2 Test #54: space_mysql_integration_test ...........   Passed    0.14 sec\n\n100% tests passed, 0 tests failed out of 2\n\nTotal Test time (real) =   0.34 sec\n"
+    },
+    {
+      "name": "real-redis",
+      "command": "python3 tests/run_redis_review_tests.py build-wsl",
+      "exit_code": 0,
+      "passed": 2,
+      "log": "/tmp/spark-room-agents-redis.log",
+      "output": "Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl\nTest project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl\n    Start 13: route_generation_integration_test\n1/2 Test #13: route_generation_integration_test ...   Passed    0.04 sec\n    Start 52: redis_sequence_integration_test\n2/2 Test #52: redis_sequence_integration_test .....   Passed    0.10 sec\n\n100% tests passed, 0 tests failed out of 2\n\nTotal Test time (real) =   0.15 sec\n"
+    },
+    {
+      "name": "javascript",
+      "command": "node tests/<script>.cjs (SPARK_PLAYWRIGHT_MODULE points to external Playwright installation)",
+      "exit_code": 0,
+      "scripts": [
+        "room_agents_browser_test",
+        "spaces_browser_test",
+        "agent_channel_browser_test",
+        "agent_connections_browser_test",
+        "kernel_agent_identity_browser_test",
+        "room_agent_channel_test",
+        "room_workspace_test",
+        "cursor_recovery_test",
+        "cann_context_test",
+        "kernel_subagents_test",
+        "kernel_subagents_integration_test"
+      ],
+      "output": "RoomAgents component contract passed: structured IDs, separated streams, order/dedup, safe text, failure, revoke, stale responses\nroom_agents_browser_test PASS\nspaces browser passed: create/default privacy, list, invitations, roles, removal, safe text, revocation\nspaces_browser_test PASS\nAgent command cards and model picker browser interaction tests passed\nagent_channel_browser_test PASS\nAgent connections browser test passed: login visibility, detect/save/open/delete, errors, secrets, mobile\nagent_connections_browser_test PASS\nKernel Agent browser identity: 6 checks passed\nkernel_agent_identity_browser_test PASS\nroom Agent UI: safe text, attribution, ordering, deduplication, final authority and stale-room checks passed\nroom_agent_channel_test PASS\nroom workspace guard: path, symlink, read-only/developer and fixed runner checks passed\nroom_workspace_test PASS\ngap, settled prefix and pagination regression checks passed\ncursor_recovery_test PASS\nCANN lossless pagination, tail qualifiers, Unicode, revision guard and context links passed\ncann_context_test PASS\nKernel subagent lifecycle, permission and race tests: 53 checks passed\nkernel_subagents_test PASS\nKernel subagent real Pi SDK integration: 32 checks passed\nkernel_subagents_integration_test PASS\nFAILED []\n",
+      "final_narrow_reruns": {
+        "room_agents_browser_test": "RoomAgents component contract passed: structured IDs, separated streams, order/dedup, safe text, failure, revoke, stale responses\n",
+        "spaces_browser_test": "spaces browser passed: create/default privacy, list, invitations, roles, removal, safe text, revocation\n"
+      }
+    },
+    {
+      "name": "controlled-stack",
+      "command": "python tests/generic_room_agent_e2e.py --build build-wsl --browser --out /tmp/spark-room-agents-controlled-final3",
+      "exit_code": 0,
+      "mode": "real MySQL/Redis/Kafka/HTTP/gRPC/WS and browser; controlled model",
+      "receipt": {
+        "ok": true,
+        "source_commit": "c5c396dc51ca3ccb74ed321044dcc76885c9b2f7",
+        "working_tree": true,
+        "legacy_business_checks": 93,
+        "agent": {
+          "model_adapter": "deterministic, not a real LLM",
+          "actual_test_runner": "bubblewrap + g++ precision executable",
+          "agent_executions": 7,
+          "room_members_tested": 3,
+          "peak_workspace_executions": 1
+        },
+        "generic": {
+          "agents": [
+            "public-pi",
+            "second-pi"
+          ],
+          "users": 3,
+          "runtime_mode": "controlled",
+          "requests": 4,
+          "task_revisions": 3
+        },
+        "browser": "real HTTP/WS; controlled model",
+        "runtime_executions": {
+          "pi": 6,
+          "hermes-native-post": 0
+        },
+        "checks": [
+          "migration keeps old room public",
+          "migration backfills owner",
+          "rerun migration preserves Agent workspace",
+          "/api/register business code 0",
+          "/api/register HTTP status 200",
+          "/api/login business code 0",
+          "/api/login HTTP status 200",
+          "register/login identity",
+          "/api/register business code 0",
+          "/api/register HTTP status 200",
+          "/api/login business code 0",
+          "/api/login HTTP status 200",
+          "register/login identity",
+          "/api/register business code 0",
+          "/api/register HTTP status 200",
+          "/api/login business code 0",
+          "/api/login HTTP status 200",
+          "register/login identity",
+          "/api/session/history business code 401",
+          "/api/session/history HTTP status 401",
+          "/api/login business code 0",
+          "/api/admin/user/list business code 403",
+          "/api/admin/user/list HTTP status 400",
+          "accepted/delivered share message sequence",
+          "duplicate client ID keeps sequence and message ID",
+          "persisted history HTTP response",
+          "one persisted row after duplicate acceptance",
+          "/api/session/history business code 403",
+          "/api/session/history HTTP status 403",
+          "gRPC sync shares HTTP history permission",
+          "gRPC cursor page",
+          "gRPC delivered cursor rejects outsider",
+          "gRPC delivered cursor persisted",
+          "/api/session/mark_read business code 403",
+          "/api/session/mark_read HTTP status 403",
+          "/api/session/mark_read business code 0",
+          "/api/session/unread business code 0",
+          "read state independent of delivered cursor",
+          "/api/session/list_single business code 0",
+          "/api/attachment/upload business code 0",
+          "/api/attachment/get business code 0",
+          "participant reads uploaded image bytes",
+          "/api/attachment/get business code 403",
+          "/api/attachment/get HTTP status 403",
+          "/api/attachment/upload business code 403",
+          "/api/attachment/upload HTTP status 403",
+          "image sender ownership checked before accepted ACK",
+          "image cross-session reference rejected",
+          "/api/admin/chatroom/create business code 0",
+          "/api/chatroom/join business code 0",
+          "/api/chatroom/join business code 403",
+          "/api/chatroom/join HTTP status 403",
+          "/api/chatroom/leave business code 0",
+          "/api/chatroom/list business code 0",
+          "HTTP leave preserves durable subscription",
+          "gRPC online room join",
+          "/api/chatroom/online_count business code 0",
+          "online presence differs from subscription",
+          "gRPC online room leave",
+          "/api/chatroom/unsubscribe business code 409",
+          "/api/chatroom/unsubscribe HTTP status 200",
+          "/api/chatroom/join business code 0",
+          "/api/chatroom/unsubscribe business code 0",
+          "/api/chatroom/list business code 0",
+          "unsubscribe removes ordinary member while preserving owner",
+          "/api/admin/chatroom/list business code 0",
+          "/api/admin/broadcast business code 0",
+          "/api/admin/broadcast business code 400",
+          "/api/admin/broadcast HTTP status 400",
+          "/api/danmaku/send business code 401",
+          "/api/danmaku/send HTTP status 400",
+          "/api/danmaku/send business code 0",
+          "/api/danmaku/list business code 0",
+          "/api/knowledge/document business code 400",
+          "/api/knowledge/document HTTP status 400",
+          "offline unary accepts durable event",
+          "persisted history HTTP response",
+          "offline message persisted exactly once in test",
+          "WS reconnect restores offline sequence",
+          "/api/message/send business code 401",
+          "/api/message/send HTTP status 401",
+          "/api/message/send business code 0",
+          "/api/admin/user/update business code 0",
+          "/api/admin/user/list business code 0",
+          "/api/admin/user/revoke_tokens business code 0",
+          "/api/session/list_single business code 401",
+          "/api/session/list_single HTTP status 401",
+          "/api/login business code 0",
+          "/api/admin/user/disable business code 0",
+          "/api/login business code 403",
+          "/api/login HTTP status 400",
+          "disabled token invalid on realtime entrance",
+          "/api/admin/user/restore business code 0",
+          "/api/login business code 0",
+          "/api/admin/audit/list business code 0",
+          "user administration audited",
+          "/api/register: expected 0, got 0 ok",
+          "/api/register: expected 0, got 0 ok",
+          "/api/register: expected 0, got 0 ok",
+          "/api/register: expected 0, got 0 ok",
+          "/api/spaces/create: expected 0, got 0 ok",
+          "/api/spaces/list: expected 0, got 0 ok",
+          "ordinary user creates private owner space; SQL roundtrip",
+          "/api/chatroom/join: expected 403, got 403 accept a space invitation before joining",
+          "/api/spaces/accept: expected 403, got 403 pending invitation required",
+          "/api/spaces/invite: expected 0, got 0 ok",
+          "/api/session/history: expected 403, got 403 user is not a member of this session",
+          "/api/spaces/invitations: expected 0, got 0 ok",
+          "invitation inbox",
+          "/api/spaces/accept: expected 0, got 0 ok",
+          "/api/spaces/role: expected 0, got 0 ok",
+          "/api/spaces/invite: expected 0, got 0 ok",
+          "/api/spaces/accept: expected 0, got 0 ok",
+          "/api/spaces/invite: expected 403, got 403 owner/admin required",
+          "/api/spaces/role: expected 403, got 403 only owner can change roles",
+          "/api/spaces/remove: expected 403, got 403 use leave; owner cannot be removed",
+          "/api/spaces/leave: expected 409, got 409 owner cannot leave the space",
+          "/api/spaces/members: expected 403, got 403 room membership required",
+          "/api/chatroom/online_count: expected 403, got 403 room membership required",
+          "/api/session/unread: expected 403, got 403 user is not a member of this session",
+          "/api/session/mark_read: expected 403, got 403 user is not a member of this session",
+          "/api/chatroom/agent/task: expected 403, got 403 room membership required",
+          "/api/attachment/upload: expected 403, got 403 user is not a member of this session",
+          "/api/attachment/upload: expected 0, got 0 ok",
+          "member WS authorization",
+          "member WS authorization",
+          "member WS authorization",
+          "member WS authorization",
+          "outsider WS join denied",
+          "gRPC nonmember send rejected with Agent disabled",
+          "gRPC nonmember sync rejected",
+          "offline excludes nonmembers",
+          "Kafka acceptance",
+          "idempotent sequence preserved",
+          "/api/session/history: expected 0, got 0 ok",
+          "/api/session/history: expected 0, got 0 ok",
+          "tab leave keeps durable membership",
+          "offline member message accepted",
+          "/api/session/history: expected 0, got 0 ok",
+          "/api/session/history: expected 0, got 0 ok",
+          "reconnect receives offline persisted room message",
+          "/api/spaces/remove: expected 0, got 0 ok",
+          "/api/session/history: expected 403, got 403 user is not a member of this session",
+          "/api/chatroom/agent/task: expected 403, got 403 room membership required",
+          "/api/attachment/get: expected 403, got 403 attachment is not visible",
+          "/api/spaces/accept: expected 403, got 403 pending invitation required",
+          "removed WS sender rejected immediately",
+          "removed cursor sync rejected",
+          "removed offline sync excluded",
+          "both Comets revoke existing subscriptions",
+          "queued pre-removal target rejected at delivery",
+          "queued pre-removal target rejected at delivery",
+          "rejected delivery does not advance receipts",
+          "/api/spaces/leave: expected 0, got 0 ok",
+          "/api/spaces/members: expected 403, got 403 room membership required",
+          "/api/spaces/create: expected 0, got 0 ok",
+          "/api/chatroom/join: expected 0, got 0 ok",
+          "/api/chatroom/leave: expected 0, got 0 ok",
+          "/api/session/history: expected 0, got 0 ok",
+          "/api/spaces/leave: expected 0, got 0 ok",
+          "/api/chatroom/join: expected 0, got 0 ok",
+          "public join, page leave, formal leave and rejoin remain compatible",
+          "authorization outage is retryable, no delivery",
+          "room snapshot authorization outage is retryable",
+          "same request ID retries after authorization recovers: code=0, delivered=1",
+          "room snapshot original ID retries after outage",
+          "isolated membership lookup lock acquired",
+          "concurrent fallback cannot acknowledge an unfinished push",
+          "original authorization timeout remains retryable",
+          "unfinished push retries after DB recovery",
+          "/api/register expected 0",
+          "/api/register expected 0",
+          "/api/register expected 0",
+          "/api/register expected 0",
+          "/api/login expected 0",
+          "/api/admin/chatroom/create expected 0",
+          "/api/chatroom/join expected 0",
+          "/api/chatroom/join expected 0",
+          "/api/chatroom/join expected 0",
+          "/api/chatroom/agent/configure expected 403",
+          "/api/chatroom/agent/configure expected 0",
+          "room RPC without bearer denied before acceptance",
+          "forged room sender denied despite a valid other-user bearer",
+          "/api/chatroom/agent/task expected 0",
+          "member read-only by default",
+          "/api/chatroom/agent/task expected 403",
+          "/api/chatroom/agent/checkpoint expected 403",
+          "/api/chatroom/agent/checkpoint expected 0",
+          "/api/chatroom/agent/checkpoint expected 409",
+          "ordinary discussion does not invoke Agent",
+          "ephemeral progress does not advance cursor",
+          "all room members receive one sequenced final answer",
+          "/api/chatroom/agent/task expected 0",
+          "real failing precision receipt persisted",
+          "duplicate room request retains ID and sequence",
+          "duplicate request does not execute tools again",
+          "second developer receives actual passing result",
+          "/api/chatroom/agent/task expected 0",
+          "real successful precision receipt persisted",
+          "handoff preserves task and summary",
+          "separate actor attribution in shared task",
+          "read-only member cannot change workspace",
+          "outsider WS submit rejected",
+          "unauthorized WS presence receives no room Agent content",
+          "sender disconnect does not cancel room task",
+          "history contains final messages, no deltas",
+          "reconnected member recovers same final sequence",
+          "simultaneous users execute in server message order",
+          "same workspace has only one active execution",
+          "/api/chatroom/unsubscribe expected 0",
+          "/api/chatroom/agent/task expected 403",
+          "/api/session/history expected 403",
+          "unsubscribed online socket cannot receive new Agent output",
+          "transport bearer never enters room history",
+          "generic /api/register: expected 0, got 0",
+          "generic /api/register: expected 0, got 0",
+          "generic /api/register: expected 0, got 0",
+          "generic /api/register: expected 0, got 0",
+          "generic /api/spaces/create: expected 0, got 0",
+          "generic /api/spaces/invite: expected 0, got 0",
+          "generic /api/spaces/accept: expected 0, got 0",
+          "generic /api/spaces/invite: expected 0, got 0",
+          "generic /api/spaces/accept: expected 0, got 0",
+          "generic /api/chatroom/join: expected 403, got 403",
+          "generic /api/chatroom/agents/install: expected 0, got 0",
+          "generic /api/chatroom/agents/install: expected 0, got 0",
+          "generic /api/chatroom/agents/install: expected 403, got 403",
+          "generic /api/chatroom/agents/install: expected 400, got 400",
+          "client cannot forge agent_id",
+          "client cannot forge agent_id in content",
+          "client cannot forge agent_id in content",
+          "client cannot forge agent_event",
+          "client cannot forge agent_event in content",
+          "client cannot forge agent_event in content",
+          "client cannot forge request_id",
+          "client cannot forge request_id in content",
+          "client cannot forge request_id in content",
+          "client cannot forge actor_user_id",
+          "client cannot forge actor_user_id in content",
+          "client cannot forge actor_user_id in content",
+          "client cannot forge collaboration",
+          "client cannot forge collaboration in content",
+          "client cannot forge collaboration in content",
+          "client cannot forge bot_user_id",
+          "client cannot forge bot_user_id in content",
+          "client cannot forge bot_user_id in content",
+          "client cannot forge source_msg_id",
+          "client cannot forge source_msg_id in content",
+          "client cannot forge source_msg_id in content",
+          "client cannot forge agent_status",
+          "client cannot forge agent_status in content",
+          "client cannot forge agent_status in content",
+          "WS sender fields come from authenticated actor",
+          "T02 human accepted",
+          "T02 human accepted",
+          "T02 human accepted",
+          "ordinary group messages do not invoke runtime",
+          "multi Agent message accepted",
+          "trusted Agent and initiator attribution",
+          "Agent final is successful: public-pi",
+          "trusted Agent and initiator attribution",
+          "Agent final is successful: second-pi",
+          "two Agents have independent native sessions",
+          "Agents share one IM conversation",
+          "generic /api/chatroom/agents/control: expected 0, got 0",
+          "runtime status is actual completed ledger",
+          "generic /api/chatroom/agents/control: expected 403, got 403",
+          "generic /api/chatroom/agents/control: expected 501, got 501",
+          "duplicate uses canonical message and Agent IDs",
+          "duplicate message does not repeat tools",
+          "all Agent results persisted",
+          "one final per request in live timeline",
+          "one final per request in live timeline",
+          "generic /api/chatroom/tasks/create: expected 0, got 0",
+          "generic /api/chatroom/tasks/update: expected 0, got 0",
+          "generic /api/chatroom/tasks/update: expected 403, got 403",
+          "generic /api/chatroom/tasks/update: expected 0, got 0",
+          "generic /api/chatroom/tasks/list: expected 0, got 0",
+          "task revisions durable and shared",
+          "Bridge restart/redelivery preserves first durable result receipts",
+          "actual Pi chat / Native POST count unchanged after Kafka redelivery and Bridge restart",
+          "actual Kafka redelivery after Bridge restart never reruns runtime",
+          "replayed requests use unchanged persistent execution ledger",
+          "two users share this Agent native session",
+          "disconnect recovers final through offline sync",
+          "generic /api/login: expected 0, got 0",
+          "same user logs in again after Logic restart",
+          "generic /api/chatroom/tasks/list: expected 0, got 0",
+          "Logic restart preserves task and handoff",
+          "generic /api/session/history: expected 0, got 0",
+          "restart history has one authoritative final",
+          "restart history has one authoritative final",
+          "restart history has one authoritative final",
+          "generic /api/spaces/create: expected 0, got 0",
+          "generic /api/chatroom/agents/install: expected 0, got 0",
+          "second room accepted: ",
+          "same Agent in another room has isolated context",
+          "persisted Runtime prompts contain only authorized room history",
+          "one execution in second room",
+          "generic /api/spaces/remove: expected 0, got 0",
+          "revoked member cannot invoke Agent",
+          "generic /api/chatroom/tasks/list: expected 403, got 403",
+          "generic /api/chatroom/agents/list: expected 403, got 403",
+          "generic /api/session/history: expected 403, got 403",
+          "three independent browser contexts: actual auth, invitation, messages, Agents and tasks"
+        ],
+        "checks_passed": 305
+      },
+      "browser_receipt": {
+        "ok": true,
+        "browsers": 3,
+        "backend": "real HTTP/WS",
+        "checks": [
+          "registration",
+          "private creation",
+          "invitations",
+          "three-user messaging",
+          "structured mentions",
+          "both agent finals",
+          "same timeline",
+          "task persistence",
+          "claim",
+          "logout/login recovery"
+        ]
+      }
+    },
+    {
+      "name": "real-stack",
+      "command": "python tests/generic_room_agent_e2e.py --build build-wsl --real-runtimes --browser --out /tmp/spark-room-agents-real-final",
+      "exit_code": 0,
+      "mode": "real infrastructure, Pi process/model, isolated Windows Hermes Native API/model and three browsers; legacy CANN still controlled model",
+      "receipt": {
+        "ok": true,
+        "source_commit": "c5c396dc51ca3ccb74ed321044dcc76885c9b2f7",
+        "working_tree": true,
+        "legacy_business_checks": 93,
+        "agent": {
+          "model_adapter": "deterministic, not a real LLM",
+          "actual_test_runner": "bubblewrap + g++ precision executable",
+          "agent_executions": 7,
+          "room_members_tested": 3,
+          "peak_workspace_executions": 1
+        },
+        "generic": {
+          "agents": [
+            "public-pi",
+            "hermes-room-test"
+          ],
+          "users": 3,
+          "runtime_mode": "real Pi and isolated Windows Hermes Native",
+          "requests": 6,
+          "task_revisions": 3
+        },
+        "browser": "real HTTP/WS; real Pi/Hermes",
+        "runtime_executions": {
+          "pi": 4,
+          "hermes-native-post": 4
+        },
+        "checks": [
+          "migration keeps old room public",
+          "migration backfills owner",
+          "rerun migration preserves Agent workspace",
+          "/api/register business code 0",
+          "/api/register HTTP status 200",
+          "/api/login business code 0",
+          "/api/login HTTP status 200",
+          "register/login identity",
+          "/api/register business code 0",
+          "/api/register HTTP status 200",
+          "/api/login business code 0",
+          "/api/login HTTP status 200",
+          "register/login identity",
+          "/api/register business code 0",
+          "/api/register HTTP status 200",
+          "/api/login business code 0",
+          "/api/login HTTP status 200",
+          "register/login identity",
+          "/api/session/history business code 401",
+          "/api/session/history HTTP status 401",
+          "/api/login business code 0",
+          "/api/admin/user/list business code 403",
+          "/api/admin/user/list HTTP status 400",
+          "accepted/delivered share message sequence",
+          "duplicate client ID keeps sequence and message ID",
+          "persisted history HTTP response",
+          "one persisted row after duplicate acceptance",
+          "/api/session/history business code 403",
+          "/api/session/history HTTP status 403",
+          "gRPC sync shares HTTP history permission",
+          "gRPC cursor page",
+          "gRPC delivered cursor rejects outsider",
+          "gRPC delivered cursor persisted",
+          "/api/session/mark_read business code 403",
+          "/api/session/mark_read HTTP status 403",
+          "/api/session/mark_read business code 0",
+          "/api/session/unread business code 0",
+          "read state independent of delivered cursor",
+          "/api/session/list_single business code 0",
+          "/api/attachment/upload business code 0",
+          "/api/attachment/get business code 0",
+          "participant reads uploaded image bytes",
+          "/api/attachment/get business code 403",
+          "/api/attachment/get HTTP status 403",
+          "/api/attachment/upload business code 403",
+          "/api/attachment/upload HTTP status 403",
+          "image sender ownership checked before accepted ACK",
+          "image cross-session reference rejected",
+          "/api/admin/chatroom/create business code 0",
+          "/api/chatroom/join business code 0",
+          "/api/chatroom/join business code 403",
+          "/api/chatroom/join HTTP status 403",
+          "/api/chatroom/leave business code 0",
+          "/api/chatroom/list business code 0",
+          "HTTP leave preserves durable subscription",
+          "gRPC online room join",
+          "/api/chatroom/online_count business code 0",
+          "online presence differs from subscription",
+          "gRPC online room leave",
+          "/api/chatroom/unsubscribe business code 409",
+          "/api/chatroom/unsubscribe HTTP status 200",
+          "/api/chatroom/join business code 0",
+          "/api/chatroom/unsubscribe business code 0",
+          "/api/chatroom/list business code 0",
+          "unsubscribe removes ordinary member while preserving owner",
+          "/api/admin/chatroom/list business code 0",
+          "/api/admin/broadcast business code 0",
+          "/api/admin/broadcast business code 400",
+          "/api/admin/broadcast HTTP status 400",
+          "/api/danmaku/send business code 401",
+          "/api/danmaku/send HTTP status 400",
+          "/api/danmaku/send business code 0",
+          "/api/danmaku/list business code 0",
+          "/api/knowledge/document business code 400",
+          "/api/knowledge/document HTTP status 400",
+          "offline unary accepts durable event",
+          "persisted history HTTP response",
+          "offline message persisted exactly once in test",
+          "WS reconnect restores offline sequence",
+          "/api/message/send business code 401",
+          "/api/message/send HTTP status 401",
+          "/api/message/send business code 0",
+          "/api/admin/user/update business code 0",
+          "/api/admin/user/list business code 0",
+          "/api/admin/user/revoke_tokens business code 0",
+          "/api/session/list_single business code 401",
+          "/api/session/list_single HTTP status 401",
+          "/api/login business code 0",
+          "/api/admin/user/disable business code 0",
+          "/api/login business code 403",
+          "/api/login HTTP status 400",
+          "disabled token invalid on realtime entrance",
+          "/api/admin/user/restore business code 0",
+          "/api/login business code 0",
+          "/api/admin/audit/list business code 0",
+          "user administration audited",
+          "/api/register: expected 0, got 0 ok",
+          "/api/register: expected 0, got 0 ok",
+          "/api/register: expected 0, got 0 ok",
+          "/api/register: expected 0, got 0 ok",
+          "/api/spaces/create: expected 0, got 0 ok",
+          "/api/spaces/list: expected 0, got 0 ok",
+          "ordinary user creates private owner space; SQL roundtrip",
+          "/api/chatroom/join: expected 403, got 403 accept a space invitation before joining",
+          "/api/spaces/accept: expected 403, got 403 pending invitation required",
+          "/api/spaces/invite: expected 0, got 0 ok",
+          "/api/session/history: expected 403, got 403 user is not a member of this session",
+          "/api/spaces/invitations: expected 0, got 0 ok",
+          "invitation inbox",
+          "/api/spaces/accept: expected 0, got 0 ok",
+          "/api/spaces/role: expected 0, got 0 ok",
+          "/api/spaces/invite: expected 0, got 0 ok",
+          "/api/spaces/accept: expected 0, got 0 ok",
+          "/api/spaces/invite: expected 403, got 403 owner/admin required",
+          "/api/spaces/role: expected 403, got 403 only owner can change roles",
+          "/api/spaces/remove: expected 403, got 403 use leave; owner cannot be removed",
+          "/api/spaces/leave: expected 409, got 409 owner cannot leave the space",
+          "/api/spaces/members: expected 403, got 403 room membership required",
+          "/api/chatroom/online_count: expected 403, got 403 room membership required",
+          "/api/session/unread: expected 403, got 403 user is not a member of this session",
+          "/api/session/mark_read: expected 403, got 403 user is not a member of this session",
+          "/api/chatroom/agent/task: expected 403, got 403 room membership required",
+          "/api/attachment/upload: expected 403, got 403 user is not a member of this session",
+          "/api/attachment/upload: expected 0, got 0 ok",
+          "member WS authorization",
+          "member WS authorization",
+          "member WS authorization",
+          "member WS authorization",
+          "outsider WS join denied",
+          "gRPC nonmember send rejected with Agent disabled",
+          "gRPC nonmember sync rejected",
+          "offline excludes nonmembers",
+          "Kafka acceptance",
+          "idempotent sequence preserved",
+          "/api/session/history: expected 0, got 0 ok",
+          "/api/session/history: expected 0, got 0 ok",
+          "tab leave keeps durable membership",
+          "offline member message accepted",
+          "/api/session/history: expected 0, got 0 ok",
+          "/api/session/history: expected 0, got 0 ok",
+          "reconnect receives offline persisted room message",
+          "/api/spaces/remove: expected 0, got 0 ok",
+          "/api/session/history: expected 403, got 403 user is not a member of this session",
+          "/api/chatroom/agent/task: expected 403, got 403 room membership required",
+          "/api/attachment/get: expected 403, got 403 attachment is not visible",
+          "/api/spaces/accept: expected 403, got 403 pending invitation required",
+          "removed WS sender rejected immediately",
+          "removed cursor sync rejected",
+          "removed offline sync excluded",
+          "both Comets revoke existing subscriptions",
+          "queued pre-removal target rejected at delivery",
+          "queued pre-removal target rejected at delivery",
+          "rejected delivery does not advance receipts",
+          "/api/spaces/leave: expected 0, got 0 ok",
+          "/api/spaces/members: expected 403, got 403 room membership required",
+          "/api/spaces/create: expected 0, got 0 ok",
+          "/api/chatroom/join: expected 0, got 0 ok",
+          "/api/chatroom/leave: expected 0, got 0 ok",
+          "/api/session/history: expected 0, got 0 ok",
+          "/api/spaces/leave: expected 0, got 0 ok",
+          "/api/chatroom/join: expected 0, got 0 ok",
+          "public join, page leave, formal leave and rejoin remain compatible",
+          "authorization outage is retryable, no delivery",
+          "room snapshot authorization outage is retryable",
+          "same request ID retries after authorization recovers: code=0, delivered=1",
+          "room snapshot original ID retries after outage",
+          "isolated membership lookup lock acquired",
+          "concurrent fallback cannot acknowledge an unfinished push",
+          "original authorization timeout remains retryable",
+          "unfinished push retries after DB recovery",
+          "/api/register expected 0",
+          "/api/register expected 0",
+          "/api/register expected 0",
+          "/api/register expected 0",
+          "/api/login expected 0",
+          "/api/admin/chatroom/create expected 0",
+          "/api/chatroom/join expected 0",
+          "/api/chatroom/join expected 0",
+          "/api/chatroom/join expected 0",
+          "/api/chatroom/agent/configure expected 403",
+          "/api/chatroom/agent/configure expected 0",
+          "room RPC without bearer denied before acceptance",
+          "forged room sender denied despite a valid other-user bearer",
+          "/api/chatroom/agent/task expected 0",
+          "member read-only by default",
+          "/api/chatroom/agent/task expected 403",
+          "/api/chatroom/agent/checkpoint expected 403",
+          "/api/chatroom/agent/checkpoint expected 0",
+          "/api/chatroom/agent/checkpoint expected 409",
+          "ordinary discussion does not invoke Agent",
+          "ephemeral progress does not advance cursor",
+          "all room members receive one sequenced final answer",
+          "/api/chatroom/agent/task expected 0",
+          "real failing precision receipt persisted",
+          "duplicate room request retains ID and sequence",
+          "duplicate request does not execute tools again",
+          "second developer receives actual passing result",
+          "/api/chatroom/agent/task expected 0",
+          "real successful precision receipt persisted",
+          "handoff preserves task and summary",
+          "separate actor attribution in shared task",
+          "read-only member cannot change workspace",
+          "outsider WS submit rejected",
+          "unauthorized WS presence receives no room Agent content",
+          "sender disconnect does not cancel room task",
+          "history contains final messages, no deltas",
+          "reconnected member recovers same final sequence",
+          "simultaneous users execute in server message order",
+          "same workspace has only one active execution",
+          "/api/chatroom/unsubscribe expected 0",
+          "/api/chatroom/agent/task expected 403",
+          "/api/session/history expected 403",
+          "unsubscribed online socket cannot receive new Agent output",
+          "transport bearer never enters room history",
+          "generic /api/register: expected 0, got 0",
+          "generic /api/register: expected 0, got 0",
+          "generic /api/register: expected 0, got 0",
+          "generic /api/register: expected 0, got 0",
+          "generic /api/spaces/create: expected 0, got 0",
+          "generic /api/spaces/invite: expected 0, got 0",
+          "generic /api/spaces/accept: expected 0, got 0",
+          "generic /api/spaces/invite: expected 0, got 0",
+          "generic /api/spaces/accept: expected 0, got 0",
+          "generic /api/chatroom/join: expected 403, got 403",
+          "generic /api/chatroom/agents/install: expected 0, got 0",
+          "generic /api/chatroom/agents/install: expected 0, got 0",
+          "generic /api/chatroom/agents/install: expected 403, got 403",
+          "generic /api/chatroom/agents/install: expected 400, got 400",
+          "client cannot forge agent_id",
+          "client cannot forge agent_id in content",
+          "client cannot forge agent_id in content",
+          "client cannot forge agent_event",
+          "client cannot forge agent_event in content",
+          "client cannot forge agent_event in content",
+          "client cannot forge request_id",
+          "client cannot forge request_id in content",
+          "client cannot forge request_id in content",
+          "client cannot forge actor_user_id",
+          "client cannot forge actor_user_id in content",
+          "client cannot forge actor_user_id in content",
+          "client cannot forge collaboration",
+          "client cannot forge collaboration in content",
+          "client cannot forge collaboration in content",
+          "client cannot forge bot_user_id",
+          "client cannot forge bot_user_id in content",
+          "client cannot forge bot_user_id in content",
+          "client cannot forge source_msg_id",
+          "client cannot forge source_msg_id in content",
+          "client cannot forge source_msg_id in content",
+          "client cannot forge agent_status",
+          "client cannot forge agent_status in content",
+          "client cannot forge agent_status in content",
+          "WS sender fields come from authenticated actor",
+          "T02 human accepted",
+          "T02 human accepted",
+          "T02 human accepted",
+          "multi Agent message accepted",
+          "trusted Agent and initiator attribution",
+          "Agent final is successful: public-pi",
+          "trusted Agent and initiator attribution",
+          "Agent final is successful: hermes-room-test",
+          "two Agents have independent native sessions",
+          "Agents share one IM conversation",
+          "generic /api/chatroom/agents/control: expected 0, got 0",
+          "runtime status is actual completed ledger",
+          "generic /api/chatroom/agents/control: expected 403, got 403",
+          "generic /api/chatroom/agents/control: expected 501, got 501",
+          "generic /api/chatroom/agents/control: expected 0, got 0",
+          "real Native stop persists cancelled into shared timeline",
+          "generic /api/chatroom/agents/list: expected 0, got 0",
+          "cancelled survives request history refresh",
+          "native status confirms original Run terminal before final-message recovery",
+          "generic /api/chatroom/agents/control: expected 0, got 0",
+          "Native SSE loss recovers original request to durable IM final",
+          "native original Run recovery is confirmed",
+          "Native SSE recovery performs exactly one real POST",
+          "duplicate uses canonical message and Agent IDs",
+          "all Agent results persisted",
+          "one final per request in live timeline",
+          "one final per request in live timeline",
+          "generic /api/chatroom/tasks/create: expected 0, got 0",
+          "generic /api/chatroom/tasks/update: expected 0, got 0",
+          "generic /api/chatroom/tasks/update: expected 403, got 403",
+          "generic /api/chatroom/tasks/update: expected 0, got 0",
+          "generic /api/chatroom/tasks/list: expected 0, got 0",
+          "task revisions durable and shared",
+          "Bridge restart/redelivery preserves first durable result receipts",
+          "actual Pi chat / Native POST count unchanged after Kafka redelivery and Bridge restart",
+          "replayed requests use unchanged persistent execution ledger",
+          "two users share this Agent native session",
+          "disconnect recovers final through offline sync",
+          "generic /api/login: expected 0, got 0",
+          "same user logs in again after Logic restart",
+          "generic /api/chatroom/tasks/list: expected 0, got 0",
+          "Logic restart preserves task and handoff",
+          "generic /api/session/history: expected 0, got 0",
+          "restart history has one authoritative final",
+          "restart history has one authoritative final",
+          "restart history has one authoritative final",
+          "generic /api/spaces/create: expected 0, got 0",
+          "generic /api/chatroom/agents/install: expected 0, got 0",
+          "second room accepted: ",
+          "same Agent in another room has isolated context",
+          "persisted Runtime prompts contain only authorized room history",
+          "generic /api/spaces/remove: expected 0, got 0",
+          "revoked member cannot invoke Agent",
+          "generic /api/chatroom/tasks/list: expected 403, got 403",
+          "generic /api/chatroom/agents/list: expected 403, got 403",
+          "generic /api/session/history: expected 403, got 403",
+          "three independent browser contexts: actual auth, invitation, messages, Agents and tasks"
+        ],
+        "checks_passed": 310
+      },
+      "browser_receipt": {
+        "ok": true,
+        "browsers": 3,
+        "backend": "real HTTP/WS",
+        "checks": [
+          "registration",
+          "private creation",
+          "invitations",
+          "three-user messaging",
+          "structured mentions",
+          "both agent finals",
+          "same timeline",
+          "task persistence",
+          "claim",
+          "logout/login recovery"
+        ]
+      }
+    },
+    {
+      "name": "native-real-t14",
+      "command": "python tests/room_agent_real_runtime.py --out /tmp/spark-room-agents-native-real4.json",
+      "exit_code": 0,
+      "mode": "real isolated Windows Native API/model; transport fault injected after real POST",
+      "receipt": {
+        "ok": true,
+        "source_commit": "c5c396dc51ca3ccb74ed321044dcc76885c9b2f7",
+        "working_tree": true,
+        "model": "authorized Windows default profile model",
+        "runtime": "real Windows Hermes Native",
+        "checks": [
+          "native runtime exposes only per-Agent plan tool; file/shell/memory/session search disabled",
+          "real model produces completed native output",
+          "real tool start/end events observed",
+          "same request replays stored result without another POST",
+          "adapter restart recovers durable native result without repeating tools",
+          "disconnect remains unknown with original Run ID",
+          "unknown recovers original real Run by GET with no second POST",
+          "stop target is a real admitted Run",
+          "real stop reaches non-success terminal state",
+          "cancelled result recovery never reruns tools",
+          "public approval unavailable; no invented success",
+          "actual provider failure persists run.failed, not a successful partial response",
+          "failed Run recovery never reposts execution"
+        ],
+        "original_profile_unchanged": true,
+        "native_post_count": 4
+      }
+    },
+    {
+      "name": "knowledge",
+      "command": "python3 cannbot/scripts/validate_knowledge.py --strict",
+      "exit_code": 0,
+      "sources": 86
+    },
+    {
+      "name": "citations",
+      "command": "python3 cannbot/scripts/test_pi_citations.py",
+      "exit_code": 0,
+      "output": "pi citation tests passed\n"
+    },
+    {
+      "name": "installed-sync",
+      "command": "python3 cannbot/scripts/sync_pi_agent.py --check",
+      "exit_code": 1,
+      "status": "drift; not passed; personal installation preserved",
+      "output": "spark-push-agent: current (/home/peco/.pi-spark-agent/skills/spark-push-agent)\nspark-push-knowledge: changed (/home/peco/.pi-spark-agent/skills/spark-push-knowledge)\ncann-advisor.ts: current (/home/peco/.pi-spark-agent/extensions/cann-advisor.ts)\nkernel-subagents.ts: current (/home/peco/.pi-spark-agent/extensions/kernel-subagents.ts)\nlib/PI-LICENSE.txt: current (/home/peco/.pi-spark-agent/extensions/lib/PI-LICENSE.txt)\nlib/kernel-agent-control.ts: current (/home/peco/.pi-spark-agent/extensions/lib/kernel-agent-control.ts)\nsettings: changed (/home/peco/.pi-spark-agent/settings.json)\nmodels: present (/home/peco/.pi-spark-agent/models.json)\n"
+    }
+  ],
+  "review": {
+    "source_review": "round 3 PASS; read-only supplied-source review, no tests run by reviewer",
+    "tester": "implemented-scope gate PASS; MVP overall incomplete; independently assessed parent-provided receipts, no tests run by tester"
+  },
+  "counting": "305/310 overlap and include the legacy 93 business checks and CANN sandbox checks. They are not unique test totals; do not sum across runs.",
+  "not_completed_or_verified": [
+    "Generic public Pi has tools disabled; isolated Hermes exposes only per-Agent todo. Repository-file analysis and code-write sandbox are not implemented/accepted for generic Agents.",
+    "Real private Pi/Hermes direct-chat model regression and real CANN LLM/RAG E2E were not run; contract, UI, original IM and controlled-CANN tool regressions are separate evidence.",
+    "Simultaneous hard power loss of the entire stack, cross-host partitions and production scale are not covered. Defined Logic/Bridge and adapter/store recovery tests passed.",
+    "Installed knowledge/settings drift is retained; sync check exits 1. No private configuration was overwritten.",
+    "Native recovery after retry exhaustion requires querying the original Run then explicitly recovering the same request. Pi unknown cannot be automatically rerun; unsupported operations remain unavailable."
+  ],
+  "privacy": "No model credentials, runtime service logs, private sessions or private workspaces are included in this report. Temporary owned test resources are cleaned. No release or shared personal Hermes profile was enabled."
+}

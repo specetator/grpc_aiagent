@@ -17,7 +17,7 @@
 
 ## 1. 系统拆分
 
-Spark Push 把实时 IM 拆成三个 C++ 进程，再用可选的 Agent Bridge 接 Pi/Hermes：
+Spark Push 把实时 IM 拆成三个 C++ 进程，再用可选的 Agent Bridge 接 Kernel Agent/Hermes：
 
 ```text
 Client ──WebSocket──► Comet ──MessageStream──► Logic
@@ -33,7 +33,7 @@ Client ──WebSocket──► Comet ──MessageStream──► Logic
 
 Agent 路径（可选）：
 
-Logic ── ai_request ──► hermes_bridge ──HTTP/SSE──► Pi gateway
+Logic ── ai_request ──► hermes_bridge ──HTTP/SSE──► Kernel Agent gateway
   ▲                         │
   │                         ├─ 当前轮按 id 读本地图片 → Pi RPC prompt.images
   │                         ├─ ai_delta ──► Logic 临时推送（不落库、不占 msg_seq）
@@ -45,8 +45,8 @@ Logic ── ai_request ──► hermes_bridge ──HTTP/SSE──► Pi gatew
 | Logic | gRPC 9100 / HTTP 9101 | 鉴权、序号、幂等、Kafka 生产、历史/游标、图片附件 HTTP、管理员 HTTP、`/metrics` |
 | Comet | WS 9000 / gRPC 9105 / metrics 9203 | 长连接接入、上行解析、本机下推、离线补推 |
 | Job | metrics 9202 | 消费四类 Kafka topic；写 MySQL；经 PushStream 投递 Comet |
-| Hermes Bridge | 无监听端口 | 消费 `ai_request`，调用本机 Pi gateway，发布 `ai_delta` / `ai_reply` |
-| Agent Router / Pi gateway | 本机 HTTP/SSE | 路由绑定、turn 幂等、事件账本、模型执行 |
+| Hermes Bridge | 无监听端口 | 消费 `ai_request`，调用本机 Kernel Agent gateway，发布 `ai_delta` / `ai_reply` |
+| Agent Router / Kernel Agent gateway | 本机 HTTP/SSE | 路由绑定、turn 幂等、事件账本、模型执行 |
 | WebDemo | HTTP 9010 | 浏览器历史、乐观气泡、流式预览、管理员页 |
 | Android | 独立 APK | 原生 Compose 客户端，复用同一套 HTTP/WS 合同 |
 | 数据层 | Redis / Kafka / MySQL / SQLite | 热状态、阶段解耦、最终消息、Agent 账本 |
@@ -106,7 +106,7 @@ sequenceDiagram
   participant L as Logic
   participant B as Hermes Bridge
   participant R as Router
-  participant P as Pi/Hermes
+  participant P as Kernel Agent/Hermes
   participant J as Job
 
   C->>L: 向 Agent 联系人发单聊
@@ -230,7 +230,7 @@ Bridge 只做传输和投影：
 
 - 消费 `ai_request`，按 `request_id` 去重；
 - 若本轮带 `images[].attachment_id`，从 `attachment_dir` 读文件并转成 Pi RPC 图片块；
-- HTTP/SSE 只打本机 Pi gateway `/v1/chat/completions`；
+- HTTP/SSE 只打本机 Kernel Agent gateway `/v1/chat/completions`；
 - 文本增量按 48 字节 / 50 ms 合并后发 `ai_delta`；
 - 终态完整文本发 `ai_reply`，再进入普通单聊。
 
@@ -241,7 +241,7 @@ Router 拥有 Agent 运行时：
 - `append_event` 以 `(request_id, sequence)` 和唯一 `event_id` 双约束；
 - HTTP replay 只读账本，不重新执行模型。
 
-Spark Push 拥有鉴权、成员、序号、历史和投递；Pi/Hermes 拥有推理、工具、Skill 和模型访问。
+Spark Push 拥有鉴权、成员、序号、历史和投递；Kernel Agent/Hermes 拥有推理、工具、Skill 和模型访问；Kernel Agent 复用 Pi 运行时。
 
 Agent 执行是「会话内串行、会话间并行」：`SessionScheduler` 限制排队和 in-flight，`AdapterPool` 用多个 Pi RPC 进程做亲和调度。SQLite 路由库仍由**一个** Gateway 写入，不要靠加 Gateway 副本扩容。进度为排队中 / 正在执行 / 正在生成 / 已完成；崩溃遗留的 `running` turn 启动时标为 `unknown`，不自动重跑。看板见 `GET /v1/agent/metrics`。
 

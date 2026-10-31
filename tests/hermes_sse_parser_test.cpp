@@ -38,6 +38,14 @@ int main() {
                "native unknown must fail without losing recovery marker")) return 1;
   }
   {
+    sparkpush::HermesSseParser parser;
+    sparkpush::HermesChatResult result;
+    std::string error;
+    const std::string cancelled = "event: agent.event\ndata: {\"schema\":\"sparkpush.agent_event.v1\",\"type\":\"error\",\"data\":{\"text\":\"cancelled\",\"terminal_status\":\"cancelled\"}}\n\n";
+    if (!Check(!parser.Feed(cancelled, &result, {}, &error) && result.terminal_status == "cancelled" && !result.native_unconfirmed,
+               "explicit cancellation lost its terminal status")) return 1;
+  }
+  {
     std::string status, error, delta;
     sparkpush::HermesSseParser parser([&](const std::string& s) {status += s;});
     sparkpush::HermesChatResult result;

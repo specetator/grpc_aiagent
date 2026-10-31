@@ -146,6 +146,10 @@ message RoomReportRequest {
   string comet_id = 3;
 }
 
+// Internal Comet authorization, evaluated against durable membership each time.
+message RoomAccessRequest { int64 room_id = 1; repeated int64 user_ids = 2; }
+message RoomAccessReply { ErrorInfo error = 1; repeated int64 user_ids = 2; }
+
 // 广播请求（由 HTTP 或内部调用）
 message BroadcastRequest {
   string scope = 1;          // all / group / tag ...
@@ -182,6 +186,7 @@ service LogicService {
   rpc VerifyToken(VerifyTokenRequest) returns (VerifyTokenReply);
   rpc SendUpstreamMessage(UpstreamMessageRequest) returns (UpstreamMessageReply);
   rpc UserOffline(UserOfflineRequest) returns (SimpleReply);
+  rpc CheckRoomAccess(RoomAccessRequest) returns (RoomAccessReply);
   rpc ReportRoomJoin(RoomReportRequest) returns (SimpleReply);
   rpc ReportRoomLeave(RoomReportRequest) returns (SimpleReply);
   rpc Broadcast(BroadcastRequest) returns (BroadcastReply);
@@ -207,6 +212,7 @@ message PushToCometRequest {
   string ack_comet_id = 5;     // delivered_ack 回传的来源 Comet
   int64 ack_user_id = 6;
   string scene = 7;            // single / group / broadcast，便于独立排队与指标
+  int64 access_room_id = 8;     // room-scoped broadcasts also require current membership
 }
 
 message PushToCometReply {

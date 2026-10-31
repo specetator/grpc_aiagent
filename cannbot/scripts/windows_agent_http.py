@@ -15,6 +15,8 @@ from urllib.request import Request, build_opener, ProxyHandler, HTTPRedirectHand
 from urllib.parse import urlparse
 
 
+LOOPBACK_PORT = 8644
+
 class NoRedirect(HTTPRedirectHandler):
     def redirect_request(self, *args, **kwargs):
         return None
@@ -46,7 +48,7 @@ def streams_response(path):
 
 def serve(request):
     parsed=urlparse(request['url'])
-    if (parsed.scheme!='http' or parsed.hostname!='127.0.0.1' or parsed.port!=8644 or
+    if (parsed.scheme!='http' or parsed.hostname!='127.0.0.1' or parsed.port!=LOOPBACK_PORT or
         not allowed_technical_path(parsed.path) or
         parsed.query or parsed.fragment or parsed.username or parsed.password):
         raise ValueError('only the technical loopback API is allowed')
@@ -89,4 +91,7 @@ def main():
 
 
 if __name__=='__main__':
+    if len(sys.argv)>1:
+        LOOPBACK_PORT=int(sys.argv[1])
+        if not 1<=LOOPBACK_PORT<=65535:raise ValueError('invalid operator loopback port')
     main()

@@ -4,7 +4,10 @@
 [`多人共享 Agent 与算子交接`](room-agent-collaboration.md)。以下独立联系人与私人 technical
 隔离规则继续有效；房间不合并任何人的私聊历史，不取消所有者 ACL。
 
-每个 Agent 是独立联系人、独立对话框：Pi Agent 为 `900000000001`，Hermes · technical 为
+本页描述多个独立 Agent 接入。Kernel Agent 内部子 Agent 编排是另一层能力，
+见 [Kernel Agent 子任务编排](kernel-agent.md)；多个 worker 并发不等于子 Agent 协作。
+
+每个 Agent 是独立联系人、独立对话框：Kernel Agent 为 `900000000001`，Hermes · technical 为
 `900000000101`。点击左侧“打开其他 Agent 对话”，或在 Agent 会话中发送 `/agent`，然后
 点击卡片打开对应窗口。`/agent hermes-technical` 只返回打开该联系人的按钮，不改变当前
 对话绑定的运行时。原 Pi 历史保持原位，Hermes 使用全新会话。
@@ -69,8 +72,9 @@ technical 使用自己的 API 密钥与 `API_SERVER_MODEL_NAME=technical`，WSL 
 访问 `127.0.0.1:8644`。脚本不覆盖已有模型、凭据、技能、工作目录或 Telegram 设置。
 Windows `.env` 和备份含凭据，应沿用该 profile 的 Windows 访问控制；WSL chmod 不替代 NTFS ACL。
 
-注册表为后续用户自配置保留所有权和独立实例字段。**当前尚无用户自助配置表单**，注册由管理员
-完成。新增 Agent 运行时需要实现 `agent_events.AgentAdapter`，在 `load_router` 注册工厂；
+既有本机运行时的注册表仍由管理员维护。新增的用户自助入口见
+[`用户自助接入 Agent`](customer-agent-connections.md)：启用后，登录用户通过网页配置自己的
+Connector，支持 DSH、Codex、Claude Code、Hermes、OpenClaw；凭据和上游会话按用户隔离。新增 Agent 运行时需要实现 `agent_events.AgentAdapter`，在 `load_router` 注册工厂；
 支持其他 Hermes profile 时，可增加独立端点与所有者的条目。Pi 暂只支持现有 `pi` 运行实例。
 联系人同时在 `conf/logic.conf` 的 `agent_bot_users=ID:名称;ID:名称` 注册；Logic 启动时安全
 创建没有登录密码的机器人账号，ID 已被普通账号占用时拒绝启动，不覆盖账号。
@@ -93,8 +97,9 @@ Windows `.env` 和备份含凭据，应沿用该 profile 的 Windows 访问控�
 - Hermes 使用包含 Agent ID 和 IM session 的 SHA-256 命名空间，通过
   `X-Hermes-Session-Id` 延续对话，通过 `X-Hermes-Session-Key` 标识稳定会话范围。
   `/new` 更换 transcript ID；`/retry` 仅重新发送该上下文记录的最后一条输入，不撤销工具副作用。
-- 框架可同时处理不同会话，但原 Pi worker 仍使用全局锁，Bridge Kafka 消费仍有原有顺序瓶颈；
-  本批没有宣称实现了完整多 session worker pool 或 IM 端全面并行。
+- 当前 Router 使用有界 Pi worker 池处理不同会话；同一会话仍经 FIFO 和会话锁串行执行。
+  `SPARK_PUSH_PI_WORKERS` 默认 2，配额由 Scheduler 限制。这是跨会话执行池，
+  与 Kernel Agent 在单个 turn 中派生子 Agent 的编排机制分别计数。
 - 现有 accepted/delivered ACK、消息游标、最终答复幂等和历史持久化保持原链路。进度仍为
   临时 ai_delta；断流、非 stop 终态、缺失 DONE 不当作成功最终答复。没有自动重放模型请求。
 
@@ -112,7 +117,7 @@ PC 链路现已加入三项可组合的基础能力；Android 原生客户端复
    `terminal/replayed` 标志。流式事件按 request 严格递增；Gateway 提供内部
    `/v1/agent/events/replay`，重复 request 会读取已完成 turn 和事件账本，不再次调用模型或工具。
    若进程恰好在 turn 完成后、终态事件落账前中断，Gateway 会从已完成结果补建终态事件。
-3. **首次路由、粘滞与手动切换**：当前 PC 的 Pi/Hermes 是独立联系人，联系人本身就是明确的首次
+3. **首次路由、粘滞与手动切换**：当前 PC 的 Kernel Agent/Hermes 是独立联系人，联系人本身就是明确的首次
    路由决策，随后以 `contact` 模式固定绑定。对于不配置独立 `bot_user_id` 的聚合入口，Router 可按
    管理员设置的 `routing_keywords` 对第一条消息做确定性选择，保存后保持 `sticky`；用户通过
    `/agent` 手动切换时提高 revision，并覆盖后续路由。聊天正文不能提交 Agent ID、URL 或运行命令。

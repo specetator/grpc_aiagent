@@ -1,11 +1,20 @@
 #pragma once
 #include <map>
+#include <functional>
 #include <mutex>
 #include <nlohmann/json.hpp>
 #include "model.h"
 #include "services/service_status.h"
 
 namespace sparkpush {
+struct AgentDefinition {
+    std::string agent_id, display_name, runtime;
+    int64_t bot_user_id{0};
+    bool enabled{false};
+};
+// Only administrator-owned registry files feed this catalog. No HTTP write API.
+std::vector<AgentDefinition> ParseRoomAgentCatalog(const nlohmann::json& registry,
+                                                 bool hermes_test = false);
 // A repository owns persistence, not permissions or use-case rules.
 //
 // 译：repository 只负责持久化，不负责权限与用例规则。
@@ -17,9 +26,15 @@ class RoomAgentRepository {
  public:
     virtual ~RoomAgentRepository() = default;
     // 一次查询同时回答两件事：房间拥有者是谁、actor 是不是成员。
-    // 合并成一个方法是为了避开「先查成员再查拥有者」中间状态发生变化。
+    // MySQL 实现用同一条查询读取 owner 与当前正式成员角色。
     virtual bool Access(int64_t room, int64_t user, int64_t* owner, bool* member,
                         std::string* error) = 0;
+    virtual bool Role(int64_t room, int64_t user, int* role, std::string* error) {
+        int64_t owner=0; bool member=false;
+        if(!Access(room,user,&owner,&member,error)) return false;
+        *role=member ? (owner==user ? 2 : 0) : -1;
+        return true;
+    }
     // Missing rows return true + null; database failures return false.
     // 译：行不存在时返回 true 且 task 为 null（非 object）；数据库故障才返回 false。
     // 这个区分很关键：「还没配置任务」是正常状态（对应 404/409），
@@ -36,6 +51,16 @@ class RoomAgentRepository {
                         std::string* error) = 0;
     virtual bool Requests(int64_t room, nlohmann::json* requests,
                           std::string* error) = 0;
+    virtual bool Tasks(int64_t,nlohmann::json*,std::string*) { return false; }
+    virtual bool Task(int64_t,const std::string&,nlohmann::json*,std::string*) { return false; }
+    virtual bool SaveTask(int64_t,int64_t,const nlohmann::json&,std::string*) { return false; }
+    virtual bool Bindings(int64_t, nlohmann::json*, std::string*) { return false; }
+    virtual bool SetBinding(int64_t, int64_t, const std::string&, bool, std::string*) { return false; }
+    virtual bool Pending(nlohmann::json*, std::string*) { return false; }
+    virtual bool Dispatched(const std::string&, std::string*) { return false; }
+    virtual bool MarkAttempt(const std::string&, std::string*) { return false; }
+    virtual bool RecoverDispatch(const std::string&, std::string*) { return false; }
+    virtual bool BlockDispatch(const std::string&, const std::string&, std::string*) { return false; }
 };
 
 // Durable operator progress is separate from the Agent transcript.
@@ -47,7 +72,7 @@ class RoomAgentRepository {
 // 把两者混在一张表里会让「修改任务描述」与「发一次提问」共用同一把锁。
 //
 // 与 RoomAgentService 的权限区别（很容易看错）：
-//   Configure   只有房间拥有者能改（actor == owner）
+//   Configure   owner/admin 可管理开发成员授权（不重置任务）
 //   Checkpoint  拥有者**或** developer_user_ids 里的人能改
 // 后者宽是为了让多个开发者能交接进度，但可改字段被严格限定。
 class OperatorTaskService {
@@ -75,8 +100,23 @@ class RoomAgentService {
  public:
     // public_cann_bot 是共享 Agent 的 bot 账号 id；enabled 为假时所有功能回 503。
     RoomAgentService(RoomAgentRepository* repo, int64_t public_cann_bot,
-                     bool enabled) : repo_(repo), bot_(public_cann_bot), enabled_(enabled) {}
-    // 创建/更新房间任务。只有房间拥有者能调。
+                     bool enabled, std::vector<AgentDefinition> catalog = {})
+        : repo_(repo), bot_(public_cann_bot), enabled_(enabled), catalog_(std::move(catalog)) {}
+    using ControlTransport=std::function<nlohmann::json(const nlohmann::json&)>;
+    void SetControlTransport(ControlTransport transport) { control_=std::move(transport); }
+    ServiceStatus Control(int64_t,int64_t,const nlohmann::json&,nlohmann::json*);
+    ServiceStatus Tasks(int64_t,int64_t,nlohmann::json*);
+    ServiceStatus CreateTask(int64_t,int64_t,const nlohmann::json&,nlohmann::json*);
+    ServiceStatus UpdateTask(int64_t,int64_t,const nlohmann::json&,nlohmann::json*);
+    ServiceStatus Agents(int64_t actor, int64_t room, nlohmann::json* result);
+    ServiceStatus Install(int64_t actor, int64_t room, const nlohmann::json& input, bool installed);
+    ServiceStatus CheckDispatch(const nlohmann::json& request);
+    bool BuildRequests(const Message&, const std::vector<Message>&, nlohmann::json*, std::string*);
+    bool MarkAttempt(const std::string& id,std::string* error) { return repo_->MarkAttempt(id,error); }
+    bool Pending(nlohmann::json* requests, std::string* error) { return repo_->Pending(requests,error); }
+    bool Dispatched(const std::string& id, std::string* error) { return repo_->Dispatched(id,error); }
+    bool RejectPending(const nlohmann::json&, const std::string&, std::string*);
+    // 创建/更新房间任务。owner/admin 可调。
     // 已存在的任务**绝不会被重置或重新绑定**（见 .cpp 里的注释），
     // 只能改 developer_user_ids。revision 不匹配回 409。
     ServiceStatus Configure(int64_t actor, int64_t room, const nlohmann::json& input,
@@ -113,5 +153,9 @@ class RoomAgentService {
     RoomAgentRepository* repo_;
     int64_t bot_;
     bool enabled_;
+    std::vector<AgentDefinition> catalog_;
+    ControlTransport control_;
+    ServiceStatus Mentions(int64_t, int64_t, const nlohmann::json&, std::vector<std::string>*);
+    const AgentDefinition* Definition(const std::string&) const;
 };
 }  // namespace sparkpush

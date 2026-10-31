@@ -1,4 +1,4 @@
-# Pi Agent 多角色工作流
+# Kernel Agent 子 Agent 工作流
 
 ## 何时启用
 
@@ -9,12 +9,18 @@ Agent 直接完成。
 ## 顺序
 
 1. 主 Agent 加载 `spark-push-knowledge` 并确认实时源码是否可访问。
-2. 以 Architect 角色只读输出事实、计划、风险和测试矩阵。
+2. 通过 `spawn_agent` 派发 architect 子任务，只读输出事实、计划、风险和测试矩阵。
 3. 主 Agent 核对计划；存在会改变用户目标的选择时先请求用户决定。
-4. 切换到 Developer 实施。上下文必须包含 Architect 结论和允许写入文件。
-5. Developer 完成后，再分别以 Reviewer 与 Tester 角色检查，两者不得修改同一产品文件。
+4. 用 `wait_agent` 收集计划后，主 Agent 实施或派发 developer；输入包含计划与 `allowed_writes`。
+   多个 developer 的写入文件必须不重叠，主 Agent 同时避免修改它们持有的文件。
+5. Developer 完成后，派发 reviewer / tester 独立只读检查。Tester 检查测试覆盖与证据；
+   它没有 shell，构建和测试命令由主 Agent 执行，再用 `send_input` 补充实际输出。
 6. 有阻塞问题时，把具体证据交给 Developer 修复，再重新审查/测试；最多三轮。
-7. 主 Agent 读取最终 diff、复核测试证据并汇总交付。
+7. 主 Agent 读取最终 diff、复核测试证据；确认每个子任务已收集，`close_agent` 释放会话后交付。
+
+只有依赖独立的研究、审查或互不修改同文件的开发任务可并行。子 Agent 使用独立内存上下文，
+不自动继承整段主聊天；必要事实与证据应显式传入。扩展未加载时由主 Agent 执行并说明限制，
+不得把同一会话角色切换当作独立子 Agent。房间子 Agent 只读；房间授权的写入和测试由主 Agent 执行。
 
 ## 委派上下文最小字段
 
@@ -29,5 +35,5 @@ validation: <要执行的命令和成功标准>
 expected_output: <结构化交付内容>
 ```
 
-Spark Push 聊天 Bot 经 Pi gateway 调用时，cwd 就是项目根目录，允许使用工具修改和验证代码。
+Spark Push 聊天 Bot 经 Kernel Agent gateway 调用时，cwd 就是项目根目录，允许使用工具修改和验证代码。
 只有确认当前进程看不到该工作树时，才把 `project_root` 标为不可访问并保持只读分析。

@@ -213,6 +213,10 @@ ServiceStatus ConversationService::SyncOffline(int64_t user, int limit, MessageP
         // 按 id 字典序跳过已经拉过的会话。依赖上面的排序，
         // 否则 "session.id < after_session" 这个剪枝会错跳或漏跳。
         if (!after_session.empty() && session.id < after_session) continue;
+        Session current;
+        auto access=CheckAccess(user,session.id,&current);
+        if(access.code==403 || access.code==404) continue;
+        if(!access.ok()) return access;
         int64_t delivered = 0;
         // 起点是服务端的 delivered 水位（无空洞），不是客户端传的 after_seq。
         // 这使客户端无法靠谎报游标跳过它实际没收到的消息。
@@ -265,6 +269,9 @@ ServiceStatus ConversationService::MarkRead(int64_t actor, int64_t user,
     if (user <= 0 || session.empty() || sequence <= 0)
         return {400, "user_id/session_id/read_seq required"};
     if (!Available()) return {500, "conversation store not initialized"};
+    Session value;
+    auto access=CheckAccess(user,session,&value);
+    if(!access.ok()) return access;
     std::string error;
     if (!repository_->MarkRead(user, session, sequence, &error))
         return {500, "mark read failed: " + error};
@@ -275,6 +282,9 @@ ServiceStatus ConversationService::Unread(int64_t actor, int64_t user,
     if (actor != user) return {403, "user_id does not match bearer token"};
     if (user <= 0 || session.empty()) return {400, "user_id/session_id required"};
     if (!Available()) return {500, "conversation store not initialized"};
+    Session value;
+    auto access=CheckAccess(user,session,&value);
+    if(!access.ok()) return access;
     std::string error;
     if (!count || !repository_->Unread(user, session, count, &error))
         return {500, "get unread failed: " + error};

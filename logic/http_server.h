@@ -14,6 +14,7 @@
 #include "services/room_service.h"
 #include "services/user_service.h"
 #include "services/room_agent_service.h"
+#include "services/agent_connection_service.h"
 
 namespace sparkpush {
 
@@ -39,6 +40,7 @@ struct LogicHttpServices {
     KnowledgeService& knowledge;
     RoomAgentService* room_agents{nullptr};
     OperatorTaskService* operator_tasks{nullptr};
+    AgentConnectionService* agent_connections{nullptr};
 };
 
 // HTTP adapter: request parsing, bearer extraction and response serialization.
@@ -68,6 +70,10 @@ class HttpApiServer {
     void start();
 
    private:
+    void handleSpaces(const muduo::net::HttpRequest&, muduo::net::HttpResponse*);
+    void handleAgentConnections(const muduo::net::HttpRequest& req,
+                                muduo::net::HttpResponse* resp);
+    AgentConnectionService* agent_connection_service_;
     // 功能：统一请求入口，路由到具体处理函数
     // 参数：req 请求；resp 响应
     // 返回：无

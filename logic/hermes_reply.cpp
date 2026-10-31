@@ -179,7 +179,15 @@ bool PrepareHermesReply(const std::string& payload, int64_t bot_user_id,
         if (room) {
             content["group_id"] = reply.at("collaboration").at("room_id");
             content["actor_user_id"] = user_id;
-            content["task_id"] = reply.at("collaboration").at("task_id");
+            if(reply.at("collaboration").contains("task_id")) content["task_id"] = reply.at("collaboration").at("task_id");
+            else {
+                content["agent_id"]=authorized_room_request->at("agent_id");
+                content["agent_status"]=ok?"completed":reply.value("terminal_status",nlohmann::json())=="cancelled"?"cancelled":"failed";
+                content["content"]["error"]=!ok;
+                content["agent_name"]=authorized_room_request->at("agent_name");
+                content["source_msg_id"]=authorized_room_request->at("source_msg_id");
+                content["sender"]["name"]=authorized_room_request->at("agent_name");
+            }
             content["request_id"] = request_id;
             content.erase("to_user_id");
         }

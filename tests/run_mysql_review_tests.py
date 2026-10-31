@@ -41,7 +41,7 @@ with tempfile.TemporaryDirectory(prefix="spark-review-mysql-") as temp:
         port = docker("port", name, "3306/tcp", capture_output=True, text=True).stdout.strip().rsplit(":", 1)[1]
         env = dict(os.environ, SPARK_PUSH_RUN_MYSQL_TESTS="1", SPARK_TEST_MYSQL_PORT=port,
                    SPARK_TEST_MYSQL_PASSWORD=password)
-        subprocess.run(["ctest", "--test-dir", str(build), "-R", "message_reservation_integration_test",
+        subprocess.run(["ctest", "--test-dir", str(build), "-R", "message_reservation_integration_test|space_mysql_integration_test",
                         "--output-on-failure"], env=env, check=True)
     finally:
         subprocess.run(["docker", "rm", "--force", name], stdout=subprocess.DEVNULL,

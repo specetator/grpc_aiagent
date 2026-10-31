@@ -1,9 +1,12 @@
-# 用 Pi Agent 替换 Hermes 基座
+# Kernel Agent 集成与 Pi 运行时
 
 Spark Push 的 IM 可靠性边界不变：Logic 仍负责鉴权、`msg_seq`、Kafka、幂等和投递。
 `hermes_bridge` 仍消费 `ai_request`、发布 `ai_delta`/`ai_reply`。变化只在 Agent 运行时：
-WSL 中的 Hermes Gateway 换成 Pi coding agent，前面加一个兼容 OpenAI Chat Completions 的
-本地 gateway。
+对外产品是 Kernel Agent，基于 Pi coding agent 的 Agent loop、工具和会话能力定制，
+前面使用兼容 OpenAI Chat Completions 的本地 gateway。Pi 作为底层依赖保留。
+
+为兼容存量部署，`pi` / `pi_rpc`、`~/.pi-spark-agent`、`pi_gateway.py`、机器人
+`900000000001` 与 Android `900000000201` 保持不变；产品改名不会新建联系人或迁移历史。
 
 ```text
 Spark Push 用户
@@ -12,7 +15,7 @@ Spark Push 用户
 Logic ──Kafka ai_request──► hermes_bridge
                                  │ OpenAI-compatible HTTP/SSE
                                  ▼
-                         Pi gateway  :8643
+                         Kernel Agent gateway :8643
                                  │ RPC JSONL
                                  ▼
                          Pi coding agent
@@ -25,43 +28,46 @@ CANN 知识库、`cannkb://` 引用和 `knowledge.html` 原文页全部保留。
 gateway 在最终回答上做和原先 Hermes `transform_llm_output` 相同的引用改写，再通过
 `hermes.final` / `pi.final` 交给 Bridge。
 
+产品能力、子 Agent 工具与权限边界见 [Kernel Agent](kernel-agent.md)。
+
 ## 目录与拉起
 
 | 内容 | 路径 |
 |---|---|
 | Pi 配置 / Skills / 扩展 / 密钥 | `/home/peco/.pi-spark-agent` |
-| 启动器 | `~/.local/bin/pi-spark-agent` |
+| 产品启动器 | `~/.local/bin/kernel-agent`；`pi-spark-agent` 保留兼容 |
 | Pi CLI 本体 | `~/.local/node/bin/pi` |
 | Linux Node | `~/.local/node/` |
-| 项目源码（cwd） | `/home/peco/cppcode/fenbushi/11.2-spark_push` |
+| 项目源码（cwd） | `/home/peco/cppcode/fenbushi/sparkpush_project` |
 | CANN RAG | `/home/peco/cppcode/fenbushi/cann-agent-knowledge` |
 | Gateway 日志 | `logs/pi_gateway.out` |
 
 ```bash
 # 交互式 TUI（在项目根目录，可读实时源码）
-cd /home/peco/cppcode/fenbushi/11.2-spark_push
-pi-spark-agent
+cd /home/peco/cppcode/fenbushi/sparkpush_project
+kernel-agent
 
 # 只拉起给 Spark 用的 HTTP API（127.0.0.1:8643）
-pi-spark-agent gateway
+kernel-agent gateway
 
 # 随 Spark 整栈一起拉起
 ./scripts/sparkctl.sh up --fast
 ```
 
-`PI_CODING_AGENT_DIR` 固定指向 `~/.pi-spark-agent`，不会读 `~/.pi` 或已删除的 Hermes 目录。
+安装器默认将 `PI_CODING_AGENT_DIR` 指向 `~/.pi-spark-agent`；安装前可显式设置该变量使用另一独立目录。
+这不复用 `~/.pi` 或旧 Hermes 的会话与凭据。
 
 ## 1. 一次性安装
 
 需要 Linux Node（不要用 Windows 的 `node.exe`）和全局 `pi`：
 
 ```bash
-cd /home/peco/cppcode/fenbushi/11.2-spark_push
-bash cannbot/scripts/setup_pi_agent.sh
+cd /home/peco/cppcode/fenbushi/sparkpush_project
+bash cannbot/scripts/setup_kernel_agent.sh
 ```
 
-这会创建隔离状态目录 `/home/peco/.pi-spark-agent`，安装 Skills 与 `cann-advisor`
-扩展，并写入 `~/.local/bin/pi-spark-agent`。第三方模型密钥放在该目录的 `.env`：
+这会创建隔离状态目录 `/home/peco/.pi-spark-agent`，安装 Skills、`cann-advisor` 和 `kernel-subagents`
+扩展，并写入 `~/.local/bin/kernel-agent`。第三方模型密钥放在该目录的 `.env`：
 
 ```dotenv
 CLI_RELAY_API_KEY=<原 Hermes 使用的 CLI Relay 密钥>
@@ -72,13 +78,13 @@ CLI_RELAY_API_KEY=<原 Hermes 使用的 CLI Relay 密钥>
 
 ## 2. 接到 Spark Push
 
-`.env.local` 保持原来的 Bridge 变量，只是 8643 上现在是 Pi gateway：
+`.env.local` 保持原来的 Bridge 变量，8643 上运行 Kernel Agent gateway：
 
 ```dotenv
 SPARK_PUSH_HERMES_ENABLED=true
 SPARK_PUSH_HERMES_BASE_URL=http://127.0.0.1:8643/v1
 SPARK_PUSH_HERMES_API_KEY=<与 Spark 侧约定的 Bearer，可继续用原 API_SERVER_KEY>
-SPARK_PUSH_HERMES_MODEL=pi-agent
+SPARK_PUSH_HERMES_MODEL=kernel-agent
 SPARK_PUSH_HERMES_STREAMING=true
 ```
 
@@ -88,14 +94,16 @@ SPARK_PUSH_HERMES_STREAMING=true
 ./scripts/sparkctl.sh up --fast
 ```
 
-`up` 会先尝试停掉占用 8643 的旧 Hermes Gateway，再启动 `pi-spark-agent gateway`。
-Web 页面按钮现为「与 Pi Agent 对话」，机器人 UserID 仍是 `900000000001`，历史会话外键不变。
+`up` 先检查配置的 Agent 健康接口；已健康的服务会直接复用，未就绪的本机服务才启动
+`kernel-agent gateway`。它不会为了产品改名自动替换一个正在运行且健康的旧 Gateway；
+更新扩展后应通过现有运维流程重启服务。
+Web 页面按钮现为「与 Kernel Agent 对话」，机器人 UserID 仍是 `900000000001`，历史会话外键不变。
 
 交互式二次开发（可读实时源码）：
 
 ```bash
-cd /home/peco/cppcode/fenbushi/11.2-spark_push
-pi-spark-agent
+cd /home/peco/cppcode/fenbushi/sparkpush_project
+kernel-agent
 ```
 
 ## 3. 保留的 CANNBot / RAG 能力
@@ -615,7 +623,7 @@ Web/Android
   → Logic 校验所有权后 persist/push（仍是 JSON 引用）
   → 若对端是 Agent：ai_request.images = [{attachment_id,...}]（仅本轮）
   → Bridge 读 data/attachments/<id>
-  → Pi gateway / Pi RPC prompt.images
+  → Kernel Agent gateway / Pi RPC prompt.images
   → deepseek-flash 视觉理解
 ```
 

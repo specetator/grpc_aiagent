@@ -37,6 +37,12 @@ inline std::string DownstreamMessageJson(const ChatMessage& message) {
     body["msg_seq"] = message.msg_seq();       // 客户端连续游标的依据
     body["create_time"] = message.timestamp_ms();
     body["from_user_id"] = message.sender_id();
+    body["sender_id"] = message.sender_id();
+    // Historical user-controlled envelopes cannot masquerade as a live delta.
+    if (message.msg_seq() > 0) {
+        if (message.session_id().rfind("r_", 0) == 0) body["type"] = "chatroom";
+        else if (message.session_id().rfind("s_", 0) == 0) body["type"] = "single_chat";
+    }
     body["client_msg_id"] = message.client_msg_id();
     return body.dump();
 }

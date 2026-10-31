@@ -42,6 +42,7 @@ struct HermesChatResult {
     // Trusted Gateway failure marker: retry delivery/query of the original
     // native Run, never cache a transport ambiguity as a permanent answer.
     bool native_unconfirmed{false};
+    std::string terminal_status;
     // text 是 Hermes transform_llm_output 之后的权威最终文本。流式 delta
     // 仅用于预览，收到 hermes.final 后必须以此处文本覆盖。
     std::string text;

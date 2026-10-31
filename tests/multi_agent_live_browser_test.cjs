@@ -33,7 +33,7 @@ const {chromium}=require(process.env.SPARK_PLAYWRIGHT_MODULE || 'playwright');
     assert(reply.content.text.startsWith('当前对话：'), 'Agent catalog request failed');
     assert.deepEqual(actions.map(a=>a.value),['900000000001'],'personal technical profile leaked to another user');
     reply=await send('/agent pi');
-    assert(reply.content.text.includes('当前对话：Pi Agent'));
+    assert(reply.content.text.includes('当前对话：Kernel Agent'));
     const finalId=reply.msg_id;
     const result=await page.evaluate(async id=>{
       const response=await fetch(logicBase+'/api/session/history',{method:'POST',

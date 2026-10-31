@@ -1,6 +1,6 @@
 ---
 name: spark-push-knowledge
-description: Spark Push 项目知识查询与变更影响分析。适用于 Comet/Logic/Job 架构、Kafka 消息链路、ACK/游标/幂等、用户中心、Pi Agent 接入，以及项目参考文档维护；不用于 CANN 算子开发。
+description: Spark Push 项目知识查询与变更影响分析。适用于 Comet/Logic/Job 架构、Kafka 消息链路、ACK/游标/幂等、用户中心、Kernel Agent 接入，以及项目参考文档维护；不用于 CANN 算子开发。
 version: 0.3.0
 author: Spark Push project
 license: UNLICENSED
@@ -12,7 +12,7 @@ metadata:
 
 # Spark Push Knowledge
 
-本技能是项目知识的路由层。源码仓中由登记表指向实时文件；安装到 Pi Agent 时，同步脚本会把
+本技能是项目知识的路由层。源码仓中由登记表指向实时文件；安装到 Kernel Agent 时，同步脚本会把
 登记过的文档和关键源码打包成自包含快照。回答前先定位权威来源，再区分已实现事实、文档设计
 和后续建议。
 
@@ -34,8 +34,8 @@ metadata:
 - `ai_delta` 只提供流式体验，不落消息历史、不推进游标；最终 `ai_reply` 才进入单聊或协作房间的
   持久化、实时投递和离线恢复链路。
 - Spark Push 管理鉴权、会话、`msg_seq`、幂等和历史。Agent runtime 只生成答案。
-- 当前 `hermes_bridge` 调用本机 Pi gateway 的 OpenAI-compatible Chat Completions HTTP/SSE；
-  该接口进入 Pi Agent loop，而不是直接调用底层第三方模型。
+- 当前 `hermes_bridge` 调用本机 Kernel Agent gateway 的 OpenAI-compatible Chat Completions HTTP/SSE；
+  该接口进入 Kernel Agent 的 Pi 运行时 Agent loop，而不是直接调用底层第三方模型。
 - 根目录主线是运行真源；构建目录、依赖源码和教学快照不得混入日常 Codebase 检索结果。
 
 ## 回答要求

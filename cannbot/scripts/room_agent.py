@@ -120,14 +120,17 @@ class RoomPiTurn:
         prototype = factory.prototype
         source = Path(__file__).resolve().parents[1]
         tools = ["read", "cann_knowledge_search", "cann_knowledge_get",
-                 "cann_knowledge_neighbors", "cann_knowledge_status"]
+                 "cann_knowledge_neighbors", "cann_knowledge_status",
+                 "spawn_agent", "send_input", "wait_agent", "close_agent", "list_agents"]
         if scope["can_develop"]:
             tools += ["write", "edit", "room_run_tests"]
         # Do not inherit global extensions, shell tools, project Skills or the
-        # private Spark-development prompt. Keep only the CANN RAG and guard.
+        # private Spark-development prompt. Children are read-only and scoped
+        # to this room; the workspace guard is deliberately loaded last.
         argv = [prototype.argv[0], "--mode", "rpc", "--approve", "--session-dir", str(sessions),
                 "--no-extensions", "--no-skills", "--no-prompt-templates",
                 "--tools", ",".join(tools), "-e", str(source / "pi/extensions/cann-advisor.ts"),
+                "-e", str(source / "pi/extensions/kernel-subagents.ts"),
                 "-e", str(source / "pi/extensions/room-workspace.ts"),
                 "--append-system-prompt", str(source / "pi/room-system-prompt.md")]
         for option in ("--provider", "--model"):
@@ -163,6 +166,73 @@ class RoomPiTurn:
         checkpoint["tests"] = [json.loads(p.read_text()) for p in sorted(receipts.glob("*.json"))
                                if p.name not in before_runs]
         return text, {**metadata, "workspace_checkpoint": checkpoint}
+
+
+class PublicRoomPiFactory:
+    """Dedicated public Pi process: no tools, extensions, private HOME or session.
+
+    Model credentials/config are provisioned explicitly by an operator. Nothing
+    from an IM request can select env files, commands, paths, models or tools.
+    """
+    def __init__(self, prototype, root: Path):
+        if not root.is_absolute() or root.is_symlink():
+            raise ValueError("public Pi root must be an absolute, non-symlink path")
+        root.mkdir(parents=True,exist_ok=True,mode=0o700)
+        if root.resolve()!=root:
+            raise ValueError("public Pi root cannot contain symlinks")
+        for private in (prototype.cwd, prototype.session_dir, Path(prototype.env.get("PI_CODING_AGENT_DIR",str(prototype.session_dir)))):
+            if root.is_relative_to(Path(private).resolve()):
+                raise ValueError("public Pi cannot inherit private directories")
+        self.root,self.prototype=root,prototype
+        self.credentials={}
+        env_file=os.environ.get("SPARK_PUSH_PUBLIC_PI_ENV_FILE")
+        if env_file:
+            for line in Path(env_file).read_text().splitlines():
+                if not line.strip() or line.lstrip().startswith("#") or "=" not in line: continue
+                key,value=line.split("=",1);key=key.strip()
+                # No NODE_OPTIONS, arbitrary PATH, HOME, tools or runtime URLs.
+                if key in {"OPENAI_API_KEY","ANTHROPIC_API_KEY","GEMINI_API_KEY","GOOGLE_API_KEY",
+                           "DEEPSEEK_API_KEY","CLI_RELAY_API_KEY","OPENROUTER_API_KEY","AZURE_OPENAI_API_KEY"}:
+                    self.credentials[key]=value.strip().strip('"').strip("'")
+        self.models=os.environ.get("SPARK_PUSH_PUBLIC_PI_MODELS_FILE")
+
+    def for_scope(self, scope):
+        import re
+        if (scope.get("kind")!="room_agent_v1" or scope.get("policy")!="read_only" or
+            type(scope.get("room_id")) is not int or scope["room_id"]<=0 or
+            not re.fullmatch(r"[a-z][a-z0-9_-]{0,47}",scope.get("agent_id",""))):
+            raise ValueError("invalid public Pi scope")
+        factory=self
+        class Turn:
+            def chat(self,message,on_delta,timeout_s,provider=None,model=None,session_id="",
+                     context_start_seq=0,retry=False,on_progress=None,request_id="",images=None):
+                namespace=f"roomagent_{scope['room_id']}_{scope['agent_id']}"
+                if session_id!=namespace or request_id!=scope["request_id"] or retry:
+                    raise ValueError("public Pi session/request mismatch")
+                paths=[factory.root/namespace/name for name in ("workspace","sessions","home","agent-home")]
+                for path in paths:
+                    if path.is_symlink() or path.parent.is_symlink(): raise ValueError("public Pi storage symlink")
+                    path.mkdir(parents=True,exist_ok=True,mode=0o700)
+                    if not path.resolve().is_relative_to(factory.root): raise ValueError("public Pi storage escape")
+                workspace,sessions,home,agent_home=paths
+                if factory.models:
+                    shutil.copyfile(factory.models,agent_home/"models.json")
+                    (agent_home/"models.json").chmod(0o600)
+                prototype=factory.prototype
+                argv=[prototype.argv[0],"--mode","rpc","--session-dir",str(sessions),
+                      "--no-tools","--no-extensions","--no-skills","--no-prompt-templates","--no-themes",
+                      "--system-prompt","You are a public room assistant. Discuss only the supplied room context. No tools are available. Never claim to have executed code or tests."]
+                for option in ("--provider","--model"):
+                    if option in prototype.argv: argv += [option,prototype.argv[prototype.argv.index(option)+1]]
+                env={"PATH":prototype.env.get("PATH","/usr/bin:/bin"),"HOME":str(home),
+                     "PI_CODING_AGENT_DIR":str(agent_home),"LANG":"C.UTF-8",**factory.credentials}
+                worker=type(prototype)(argv,workspace,env,sessions)
+                try:
+                    worker.start()
+                    return worker.chat(message,on_delta,timeout_s,None,None,session_id,0,
+                                       retry=False,on_progress=on_progress,request_id=request_id,images=images)
+                finally: worker.stop()
+        return Turn()
 
 
 if __name__ == "__main__":

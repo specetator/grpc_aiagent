@@ -78,6 +78,8 @@ class LogicServiceImpl final : public sparkpush::LogicService::Service {
                                const ::sparkpush::UserOfflineRequest* request,
                                ::sparkpush::SimpleReply* response) override;
 
+    ::grpc::Status CheckRoomAccess(::grpc::ServerContext*, const ::sparkpush::RoomAccessRequest*,
+                                  ::sparkpush::RoomAccessReply*) override;
     ::grpc::Status ReportRoomJoin(::grpc::ServerContext* context,
                                   const ::sparkpush::RoomReportRequest* request,
                                   ::sparkpush::SimpleReply* response) override;

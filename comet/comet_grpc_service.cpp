@@ -1,4 +1,5 @@
 #include "comet_grpc_service.h"
+#include <exception>
 
 #include "logging.h"
 #include "internal_rpc.h"
@@ -26,10 +27,17 @@ size_t CometServiceImpl::ProcessPushRequest(
     const ::sparkpush::PushToCometRequest& request) {
     // AcceptPushRequest 先做幂等：Job 重连重放、Unary 兜底与流路径重叠时
     // 同一消息可能多次到达。返回 0 而不是错误：对 Job 而言重复投递
-    // 应当被当成「已处理成功」，否则它会一直重试。
+    // 已完成重复返回成功；处理中重复回 503，不能替原请求确认。
     if (!server_ || !server_->AcceptPushRequest(request.request_id())) {
         return 0;
     }
+    // Only a completed attempt enters the durable-for-this-process dedup cache.
+    // Concurrent retries receive 503 until the owner finishes; failures release
+    // only their own in-flight reservation, never a subsequent retry's slot.
+    struct Completion {
+        CometServer* server; const std::string& id; int exceptions=std::uncaught_exceptions();
+        ~Completion() { if(std::uncaught_exceptions()>exceptions) server->ForgetPushRequest(id); else server->CompletePushRequest(id); }
+    } completion{server_,request.request_id()};
     if (request.targets_size() > 0) {
         std::vector<int64_t> users;
         users.reserve(request.targets_size());
@@ -37,7 +45,7 @@ size_t CometServiceImpl::ProcessPushRequest(
             if (target.user_id() > 0) users.push_back(target.user_id());
         }
         std::vector<int64_t> delivered_users;
-        const size_t delivered = server_->PushToUsers(request.message(), users, &delivered_users);
+        const size_t delivered = server_->PushToUsers(request.message(), users, &delivered_users, request.access_room_id());
         // 只有真正 send 成功才推进 delivered 游标。游标是 SyncOffline
         // 的唯一依据，提前推进会造成消息永久丢失。
         if (delivered > 0) {
@@ -54,8 +62,7 @@ size_t CometServiceImpl::ProcessPushRequest(
             const int64_t room_id = std::stoll(session_id.substr(2));
             if (room_id <= 0) return 0;
             // GetRoomUserIds 返回的是**本机内存快照**，不是权威成员表。
-            // 权威校验已在 Logic 侧完成（成员资格 + bearer），
-            // 这里只负责「把消息交给本机的在线连接」。
+            // PushToUsers 会向 Logic 复查当前成员，再向本机连接投递。
             const auto users = server_->GetRoomUserIds(room_id);
             std::vector<int64_t> delivered_users;
             const size_t delivered = server_->PushToUsers(request.message(), users, &delivered_users);
@@ -63,6 +70,8 @@ size_t CometServiceImpl::ProcessPushRequest(
                 server_->ReportDeliveredToUsers(request.message(), delivered_users);
             }
             return delivered;
+        } catch (const RoomAuthorizationUnavailable&) {
+            throw; // Preserve retryability for snapshot-based room fanout too.
         } catch (...) {
             return 0;   // stoll 对脏 session_id 会抛，吃掉并计为未投递
         }
@@ -88,7 +97,20 @@ size_t CometServiceImpl::ProcessPushRequest(
     ::sparkpush::PushToCometReply* response) {
     const auto authorized = AuthorizeInternalRpc(context, "job");
     if (!authorized.ok()) return authorized;
-    const size_t delivered = ProcessPushRequest(*request);
+    size_t delivered=0;
+    try { delivered=ProcessPushRequest(*request); }
+    catch(const PushAlreadyInFlight&) {
+        response->set_request_id(request->request_id());
+        response->mutable_error()->set_code(503);
+        response->mutable_error()->set_message("push already in flight; retry");
+        return ::grpc::Status::OK;
+    }
+    catch(const RoomAuthorizationUnavailable&) {
+        response->set_request_id(request->request_id());
+        response->mutable_error()->set_code(503);
+        response->mutable_error()->set_message("room authorization unavailable; retry push");
+        return ::grpc::Status::OK;
+    }
     response->set_request_id(request->request_id());
     response->set_delivered_count(static_cast<int32_t>(delivered));
     response->mutable_error()->set_code(0);
@@ -129,8 +151,23 @@ size_t CometServiceImpl::ProcessPushRequest(
     MetricsRegistry::Instance().Set("spark_push_comet_push_stream_ready", 1);
     PushToCometRequest request;
     while (stream->Read(&request)) {
-        const size_t delivered = ProcessPushRequest(request);
+        size_t delivered=0;
         PushToCometReply reply;
+        try { delivered=ProcessPushRequest(request); }
+        catch(const PushAlreadyInFlight&) {
+            reply.set_request_id(request.request_id());
+            reply.mutable_error()->set_code(503);
+            reply.mutable_error()->set_message("push already in flight; retry");
+            if(!stream->Write(reply)) break;
+            continue;
+        }
+        catch(const RoomAuthorizationUnavailable&) {
+            reply.set_request_id(request.request_id());
+            reply.mutable_error()->set_code(503);
+            reply.mutable_error()->set_message("room authorization unavailable; retry push");
+            if(!stream->Write(reply)) break;
+            continue;
+        }
         // 回填 request_id 是幂等匹配的关键：Job 靠它找到对应的
         // PromiseState 并唤醒阻塞的消费线程。漏了会让 Job 永远等不到。
         reply.set_request_id(request.request_id());

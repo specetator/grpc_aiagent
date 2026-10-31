@@ -1,7 +1,18 @@
 {
   "schema_version": 1,
-  "description": "Curated truth sources packaged for the Spark Push Pi knowledge skill.",
+  "description": "Curated truth sources packaged for the Kernel Agent knowledge skill.",
   "sources": [
+    {"id":"collaboration-spaces","path":"docs/collaboration-spaces.md","authority":"canonical","topics":["room","membership","authorization","migration"]},
+    {"id":"generic-room-agents","path":"docs/generic-room-agents.md","authority":"canonical","topics":["room","agent","catalog","session","tasks","recovery"]},
+    {"id":"mvp-v1-acceptance","path":"docs/mvp-v1-acceptance.md","authority":"canonical","topics":["mvp","acceptance","e2e","limitations"]},
+    {"id":"kernel-agent-validation","path":"docs/benchmarks/2026-10-30-kernel-agent/validation.json","authority":"snapshot","topics":["kernel","subagents","validation","source-revision"]},
+    {"id":"kernel-agent","path":"docs/kernel-agent.md","authority":"canonical","topics":["kernel","agent","subagents","permissions","configuration"]},
+    {"id":"codex-subagent-reference","path":"docs/codex-subagent-reference.md","authority":"canonical","topics":["codex","pi","reuse","subagents","license"]},
+    {"id":"kernel-agent-control","path":"cannbot/pi/extensions/lib/kernel-agent-control.ts","authority":"code","topics":["kernel","subagents","lifecycle","concurrency","permissions"]},
+    {"id":"kernel-subagents-extension","path":"cannbot/pi/extensions/kernel-subagents.ts","authority":"code","topics":["kernel","subagents","tools","lifecycle"]},
+    {"id":"customer-agent-connections","path":"docs/customer-agent-connections.md","authority":"canonical","topics":["agent","self-service","connector","codex","claude","dsh","openclaw","authorization"]},
+    {"id":"customer-agent-connection-code","path":"cannbot/scripts/user_agent_connections.py","authority":"code","topics":["agent","connector","authorization","credentials","recovery"]},
+    {"id":"customer-agent-cli-code","path":"cannbot/scripts/agent_cli_adapter.py","authority":"code","topics":["agent","codex","claude","dsh","sessions"]},
     {"id": "downstream-message-payload", "path": "common/message_payload.h", "authority": "code", "topics": ["websocket", "recovery", "history", "protocol"]},
     {"id": "review-remediation", "path": "docs/review-remediation.md", "authority": "canonical", "topics": ["review", "reliability", "migration", "authentication", "startup", "tests"]},
     {"id": "message-reservation", "path": "logic/message_reservation.cpp", "authority": "code", "topics": ["sequence", "idempotency", "outbox", "mysql", "recovery"]},
@@ -423,6 +434,12 @@
       "path": "docs/benchmarks/2026-10-11-current/README.md",
       "authority": "snapshot",
       "topics": ["testing", "performance", "e2e", "sql", "kafka", "timeout"]
+    },
+    {
+      "id": "generic-room-agents-acceptance-2026-10-31",
+      "path": "docs/benchmarks/2026-10-31-generic-room-agents.md",
+      "authority": "snapshot",
+      "topics": ["room-agent", "testing", "e2e", "hermes", "permissions", "recovery"]
     },
     {
       "id": "third-party-notices",

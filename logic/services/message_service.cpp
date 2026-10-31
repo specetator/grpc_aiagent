@@ -386,7 +386,7 @@ bool MessageService::BuildHermesRequest(const Message& current, nlohmann::json* 
         // session 行可能还不存在、历史也可能是空的。这是**正常情况**
         // 而不是错误，因此 RoomAgentService::BuildRequest 必须能在
         // 空历史上工作（只拿当前这条提问拼 prompt）。
-        return room_agent_service_->BuildRequest(current, history, request, err);
+        return room_agent_service_->BuildRequests(current, history, request, err);
     }
     if (!request) {
         if (err) *err = "Hermes request output is null";
@@ -617,13 +617,34 @@ bool MessageService::EnqueueHermesRequest(const Message& current, std::string* e
     }
     nlohmann::json request;
     if (!BuildHermesRequest(current, &request, err)) return false;
-    const std::string payload = request.dump();
-    if (!hermes_request_producer_->SendAndWait(current.session_id, payload,
-                                               persist_kafka_timeout_ms_)) {
-        if (err) *err = "Hermes request topic delivery failed";
-        return false;
+    const auto requests=request.is_array()?request:nlohmann::json::array({request});
+    for(const auto& item:requests) {
+        // Generic room requests are dispatched by the durable source-gated outbox.
+        if(item.value("collaboration",nlohmann::json::object()).value("kind","")=="room_agent_v1") continue;
+        if(!hermes_request_producer_->SendAndWait(current.session_id,item.dump(),persist_kafka_timeout_ms_)) {
+            if(err)*err="Hermes request topic delivery failed";return false;
+        }
+        MetricsRegistry::Instance().Increment("spark_push_hermes_requests_total");
     }
-    MetricsRegistry::Instance().Increment("spark_push_hermes_requests_total");
+    return true;
+}
+
+bool MessageService::RecoverRoomAgentRequests(std::string* error) {
+    if(!room_agent_service_ || !hermes_request_producer_)return true;
+    nlohmann::json pending;
+    if(!room_agent_service_->Pending(&pending,error))return false;
+    for(const auto& request:pending) {
+        const auto access=room_agent_service_->CheckDispatch(request);
+        if(!access.ok()) {
+            if(access.code!=403)return false; // Transient auth/storage failure: retry, never deny permanently.
+            if(!room_agent_service_->RejectPending(request,access.message,error))return false;
+            continue;
+        }
+        const auto key=request.at("session_id").get<std::string>()+":"+request.at("agent_id").get<std::string>();
+        if(!room_agent_service_->MarkAttempt(request.at("request_id"),error))return false;
+        if(!hermes_request_producer_->SendAndWait(key,request.dump(),persist_kafka_timeout_ms_))return false;
+        if(!room_agent_service_->Dispatched(request.at("request_id"),error))return false;
+    }
     return true;
 }
 
@@ -666,6 +687,18 @@ UpstreamResult MessageService::Submit(const UpstreamCommand& request) {
     if (input.is_discarded() || !input.is_object()) {
         result.status = {400, "message content must be a JSON object"};
         return result;
+    }
+    // Agent identity and execution receipts are server-owned, including nested
+    // content consumed by history clients. Reject before reserving a sequence.
+    auto nested_content = input.value("content", nlohmann::json());
+    if (nested_content.is_string()) nested_content = nlohmann::json::parse(nested_content.get<std::string>(), nullptr, false);
+    for (const auto* key : {"agent_id", "agent_name", "actor_user_id", "request_id",
+                           "source_msg_id", "agent_status", "agent_event", "collaboration",
+                           "bot_user_id", "task_id", "agent_command_result"}) {
+        if (input.contains(key) || (nested_content.is_object() && nested_content.contains(key))) {
+            result.status = {400, "server-owned Agent metadata is not accepted"};
+            return result;
+        }
     }
     // 阶段 2：会话级串行锁。
     //
@@ -804,6 +837,11 @@ UpstreamResult MessageService::Submit(const UpstreamCommand& request) {
             return result;
         }
         session_id = "r_" + std::to_string(room_id);
+        bool is_member=false;
+        if (!group_member_dao_ || !group_member_dao_->IsMember(room_id,from_user,&is_member,&err)) {
+            result.status = {500,"room membership lookup failed"}; return result;
+        }
+        if (!is_member) { result.status={403,"room membership required"}; return result; }
         if (room_agent_service_) {
             const auto access = room_agent_service_->Trigger(from_user, room_id, request.content_json, &hermes_target);
             if (!access.ok()) { result.status = access; return result; }
@@ -907,11 +945,14 @@ UpstreamResult MessageService::Submit(const UpstreamCommand& request) {
     std::string push_json = msg.content_json;
     try {
         auto j = nlohmann::json::parse(push_json);
+        j["type"] = scene == "chatroom" ? "chatroom" : "single_chat";
+        if (scene == "chatroom") j["group_id"] = room_id;
         j["msg_id"] = msg.msg_id;
         j["session_id"] = msg.session_id;
         j["msg_seq"] = msg.msg_seq;
         j["create_time"] = msg.timestamp_ms;
         j["from_user_id"] = from_user;
+        j["sender_id"] = from_user;
         if (!j.contains("client_msg_id")) {
             j["client_msg_id"] = request.client_msg_id;
         }
@@ -941,6 +982,12 @@ UpstreamResult MessageService::Submit(const UpstreamCommand& request) {
     //
     // 注意这里是同步等待（SendAndWait），因此整个 Submit 的延迟下限
     // 就是一次 Kafka round-trip。这是用延迟换可靠性的明确取舍。
+    // Materialize ALL generic intents before preparing the source message outbox.
+    // A crash after source confirmation can then be recovered without client retry.
+    if(scene=="chatroom" && hermes_target && input.contains("agent_mentions") && !input["agent_mentions"].empty()) {
+        nlohmann::json intents;
+        if(!BuildHermesRequest(msg,&intents,&err)) { result.status={503,err};return result; }
+    }
     if (!PersistToTopic(msg, scene, single_u1, single_u2, room_id, &err)) {
         MetricsRegistry::Instance().Increment("spark_push_persist_events_failed_total");
         result.status = ServiceStatus{503, err};
@@ -1412,7 +1459,12 @@ bool MessageService::HandleHermesDelta(const std::string& payload,
     if (room_delta) {
         content["group_id"] = delta_room;
         content["actor_user_id"] = user_id;
-        content["task_id"] = room_request.at("collaboration").at("task_id");
+        if(room_request.at("collaboration").contains("task_id")) content["task_id"] = room_request.at("collaboration").at("task_id");
+        else {
+            content["agent_id"]=room_request.at("agent_id");
+            content["agent_name"]=room_request.at("agent_name");
+            content["source_msg_id"]=room_request.at("source_msg_id");
+        }
         content.erase("to_user_id");
     }
 

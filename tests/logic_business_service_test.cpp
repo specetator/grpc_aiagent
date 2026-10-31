@@ -513,6 +513,16 @@ void TestConversationsAndImages() {
             .AuthorizeMessageImages(1, single.id, "{\"content\":{\"text\":\"hello\"}}")
             .ok(),
         "text path needs no attachment lookup");
+    storage.members[7] = {1};
+    StoredAttachment room_image;
+    Require(attachments.Upload(1,room.id,"room image","YWJj",&room_image).ok(),"member uploads room attachment");
+    storage.members[7].clear();
+    Require(attachments.Read(1,room_image.id,&contents).code==403,"removed uploader cannot read room attachment");
+    Require(attachments.Upload(1,room.id,"room image","YWJj",&room_image).code==403,"removed member cannot upload");
+    Require(service.MarkRead(1,1,room.id,1).code==403,"removed member cannot update read state");
+    Require(service.Unread(1,1,room.id,&unread).code==403,"removed member cannot read unread state");
+    Require(service.SyncAfter(1,room.id,0,20,&page).code==403,"removed member cannot sync history");
+    Require(attachments.Read(1,image_id,&contents).ok(),"single attachment ownership unchanged");
     images.available = false;
     Require(attachments.Read(1, image_id, &contents).code == 503,
             "attachment dependency failure");

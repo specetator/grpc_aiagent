@@ -18,8 +18,10 @@
 #include <deque>
 #include <functional>
 #include <mutex>
+#include <map>
 #include <queue>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <thread>
 #include <unordered_map>
@@ -30,6 +32,12 @@
 
 namespace sparkpush {
 
+struct PushAlreadyInFlight : std::runtime_error {
+    PushAlreadyInFlight() : std::runtime_error("push already in flight; retry") {}
+};
+struct RoomAuthorizationUnavailable : std::runtime_error {
+    RoomAuthorizationUnavailable() : std::runtime_error("room authorization temporarily unavailable") {}
+};
 using muduo::net::Buffer;
 using muduo::net::EventLoop;
 using muduo::net::TcpConnectionPtr;
@@ -49,6 +57,7 @@ struct ConnContext {
     int64_t user_id{0};           // 鉴权成功后由 Logic 回填，0 表示未认证
     std::string auth_token;       // 原始 bearer。上行时透传给 Logic 做二次校验，
                                   // 保证「WS 在线」不等于「有权限」
+    std::unordered_map<int64_t, uint64_t> room_join_generation;
     int64_t route_generation{0};  // 路由代数。同一 user 多设备/快速重连时用于
                                   // 区分新旧路由，避免旧连接断开时误摘新路由
 };
@@ -78,7 +87,7 @@ public:
     // delivered_users 回填真正投递成功的 user_id 集合，供 MarkDelivered 使用。
     size_t PushToUsers(const ChatMessage& msg,
                        const std::vector<int64_t>& user_ids,
-                       std::vector<int64_t>* delivered_users = nullptr);
+                       std::vector<int64_t>* delivered_users = nullptr, int64_t access_room = 0);
     // 投递给本机 room_users_ 里的所有在线用户；跨节点由 Logic 做 comet 级 fanout
     size_t PushToRoom(const ChatMessage& msg, int64_t room_id);
     // 全量广播：遍历 user_conns_ 的所有 key 后复用 PushToUsers
@@ -93,9 +102,11 @@ public:
     // 快照本机房间成员。返回拷贝，调用方不持锁。
     std::vector<int64_t> GetRoomUserIds(int64_t room_id) const;
 
-    // Job 重连重放时使用 request_id 去重；返回 false 表示已经处理过。
+    // Job 重连重放时使用 request_id 去重；false 表示已完成，处理中抛可重试错误。
     // 内部是 unordered_set + deque 组成的插入序 LRU（上限 10 万条）。
     bool AcceptPushRequest(const std::string& request_id);
+    void ForgetPushRequest(const std::string& request_id);
+    void CompletePushRequest(const std::string& request_id);
 
 private:
     // ===== muduo 回调 =====
@@ -134,7 +145,12 @@ private:
                            int limit);
 
     // ===== 本机房间表（仅内存快照，权威成员表在 MySQL）=====
-    void AddUserToRoom(int64_t room_id, int64_t user_id);
+    void AddUserToRoom(int64_t room_id, int64_t user_id, const TcpConnectionPtr& conn);
+    void LeaveRoomConnection(int64_t room_id, int64_t user_id, const TcpConnectionPtr& conn);
+    std::vector<int64_t> FilterRoomUsers(int64_t room, const std::vector<int64_t>& users, bool revoke = true);
+    void RevokeRoomUser(int64_t room, int64_t user);
+    void RevalidateRooms();
+    uint64_t RoomAccessGeneration(int64_t room, int64_t user) const;
     void RemoveUserFromRoom(int64_t room_id, int64_t user_id);
     void NotifyRoomJoin(int64_t room_id, int64_t user_id);
     void NotifyRoomLeave(int64_t room_id, int64_t user_id);
@@ -180,8 +196,12 @@ private:
     std::unordered_map<int64_t, std::string> user_route_tokens_;
     // room_id -> 本机在线成员快照（不是权威成员表）
     std::unordered_map<int64_t, std::set<int64_t>> room_users_;
+    std::unordered_map<int64_t, std::unordered_map<int64_t, std::set<TcpConnectionPtr>>> room_connections_;
+    std::map<std::pair<int64_t,int64_t>,uint64_t> room_access_generations_;
+    std::unique_ptr<PeriodicWorker> room_watchdog_;
     mutable std::mutex conns_mu_;
     // request_id 幂等去重：set 做查找，deque 做插入序 LRU 淘汰
+    std::unordered_set<std::string> inflight_push_ids_;
     std::unordered_set<std::string> recent_push_ids_;
     std::deque<std::string> recent_push_order_;
     std::shared_ptr<grpc::Channel> channel_;

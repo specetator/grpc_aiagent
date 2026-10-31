@@ -14,8 +14,8 @@ import time
 
 
 class _Worker:
-    def __init__(self, python):
-        self.proc=subprocess.Popen([python,'-u','-c',Path(__file__).with_name('windows_agent_http.py').read_text()],
+    def __init__(self, python, port=8644):
+        self.proc=subprocess.Popen([python,'-u','-c',Path(__file__).with_name('windows_agent_http.py').read_text(),str(port)],
             stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
         self.records=queue.Queue(maxsize=128)
         self.closed=threading.Event()
@@ -61,7 +61,9 @@ class _Worker:
 
 
 class WindowsRelayPool:
-    def __init__(self,python,max_workers=4):
+    def __init__(self,python,max_workers=4,port=8644):
+        if type(port) is not int or not 1<=port<=65535:raise ValueError("invalid loopback port")
+        self.port=port
         if not 1<=max_workers<=16:
             raise ValueError('invalid relay worker limit')
         self.python=python
@@ -81,7 +83,7 @@ class WindowsRelayPool:
                 if self.idle:
                     return self.idle.pop()
                 if len(self.workers)<self.max_workers:
-                    worker=_Worker(self.python)
+                    worker=_Worker(self.python) if self.port==8644 else _Worker(self.python,self.port)
                     self.workers.add(worker)
                     return worker
                 self.condition.wait(timeout=max(0,deadline-time.monotonic()))

@@ -1,6 +1,7 @@
 #pragma once
 #include "model.h"
 #include "services/service_status.h"
+#include "services/space_repository.h"
 
 namespace sparkpush {
 class ConversationStore;
@@ -28,8 +29,23 @@ struct RoomSummary {
 class RoomService {
    public:
     RoomService(ConversationStore* store, GroupDao* groups, GroupMemberDao* members,
-                RedisStore* redis)
-        : store_(store), groups_(groups), members_(members), redis_(redis) {}
+                RedisStore* redis, SpaceRepository* spaces = nullptr)
+        : store_(store), groups_(groups), members_(members), redis_(redis), spaces_(spaces) {}
+
+    ServiceStatus CheckMember(int64_t actor, int64_t room);
+    ServiceStatus FilterMembers(int64_t room, const std::vector<int64_t>& candidates,
+                                std::vector<int64_t>* allowed);
+    ServiceStatus CreateSpace(int64_t actor, const std::string& name, const std::string& description,
+                               const std::string& visibility, int64_t* room);
+    ServiceStatus ListSpaces(int64_t actor, int offset, int limit, std::vector<SpaceSummary>* rooms);
+    ServiceStatus UpdateSpace(int64_t actor, int64_t room, const std::string& name,
+                               const std::string& description, const std::string& visibility);
+    ServiceStatus Members(int64_t actor, int64_t room, std::vector<SpaceMember>* members);
+    ServiceStatus Invite(int64_t actor, int64_t room, int64_t target);
+    ServiceStatus Invitations(int64_t actor, std::vector<SpaceInvitation>* invitations);
+    ServiceStatus Accept(int64_t actor, int64_t room);
+    ServiceStatus ChangeRole(int64_t actor, int64_t room, int64_t target, int role);
+    ServiceStatus Remove(int64_t actor, int64_t room, int64_t target);
 
     // 列出用户已订阅的聊天室，同时补全房间名。
     // 单个房间查不到只记日志并 continue，不让整个列表失败：
@@ -37,8 +53,7 @@ class RoomService {
     ServiceStatus ListSubscriptions(int64_t actor, int64_t user,
                                     std::vector<RoomSummary>* rooms);
 
-    // 建立持久订阅（写 group_member 表）。先验房间存在且 group_type==1，
-    // 避开把普通群当聊天室订阅。重复 Join 幂等（INSERT IGNORE）。
+    // 公开空间主动加入；私有空间必须先接受邀请。重复 Join 保留角色。
     // 注意：本方法**不**改 Redis 在线计数，那是 ReportRoomJoin 的职责。
     ServiceStatus Join(int64_t actor, int64_t user, int64_t room);
 
@@ -49,7 +64,7 @@ class RoomService {
     // 必须先想清楚它应该动哪一层（几乎肯定不是 MySQL 订阅）。
     ServiceStatus Leave(int64_t actor, int64_t user, int64_t room);
 
-    // 真正的退订：删 group_member 行。幂等（行不存在也返回成功）。
+    // 正式退出：删 group_member，保留邀请/撤销状态；owner 不能退出。
     ServiceStatus Unsubscribe(int64_t actor, int64_t user, int64_t room);
 
     // 以下两个是管理员接口，先过 RequireAdministrator。
@@ -63,13 +78,14 @@ class RoomService {
     // 后者是「订阅过的人数」（包括离线的），因此兜底值会偏大。
     // 这是一个展示用数字，偏大可接受；若将来要用它做权限或计费判定，
     // 必须先分清这两个语义。
+    ServiceStatus MemberOnlineCount(int64_t actor, int64_t room, int64_t* count);
     ServiceStatus OnlineCount(int64_t room, int64_t* count);
 
-    // Durable subscription and online presence are DIFFERENT use cases.
+    // Durable membership and online presence are DIFFERENT use cases.
     // 译：持久订阅与在线存在是两个不同的用例。
     //
     // 下面两个 Report* 由 Comet 在 WS 控制消息（room_join/room_leave）时调，
-    // 只动 Redis，**不碰 MySQL 订阅**。它们维护两层计数：
+    // Join 先查 MySQL 成员资格，再维护 Redis；Leave 只释放在线计数。
     //   全局在线数   room 维度的 INCRBY，供 OnlineCount 读
     //   分 comet 计数 (room_id, comet_id) 维度，驱动 room:comets:{room_id} 路由集
     // 第二层才是关键：广播时靠这个集合知道「该往哪几个 Comet 推」。
@@ -84,5 +100,6 @@ class RoomService {
     GroupDao* groups_;
     GroupMemberDao* members_;
     RedisStore* redis_;
+    SpaceRepository* spaces_;
 };
 }  // namespace sparkpush

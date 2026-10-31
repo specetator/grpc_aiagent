@@ -25,6 +25,7 @@ inline std::optional<PushToCometRequest> BuildBroadcastPush(const BroadcastTaskR
     request.set_request_id(task.task_id() + "@" + comet);
     request.set_scene("broadcast");
     if (task.scope() == "group") {
+        request.set_access_room_id(task.group_id());
         // 定向广播：user_ids 是 Logic 从**持久化成员表**解出的快照，
         // 不是 WebSocket 在线列表。安全约束：绝不能把「在线」当成
         // 「有权接收」，否则非成员连上房间就能窃听工作区消息。

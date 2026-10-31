@@ -123,11 +123,21 @@ target_link_libraries(http_api_probe PRIVATE spark_push_logic muduo_http muduo_n
 add_test(NAME http_api_integration_test COMMAND ${Python3_EXECUTABLE}
   ${PROJECT_SOURCE_DIR}/tests/http_api_integration_test.py $<TARGET_FILE:http_api_probe>)
 set_tests_properties(http_api_integration_test PROPERTIES TIMEOUT 20)
+add_test(NAME user_agent_http_integration_test COMMAND ${Python3_EXECUTABLE}
+  ${PROJECT_SOURCE_DIR}/tests/user_agent_http_integration_test.py $<TARGET_FILE:http_api_probe>)
+set_tests_properties(user_agent_http_integration_test PROPERTIES
+  ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 30)
 add_test(NAME room_agent_test
   COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/cannbot/scripts/test_room_agent.py)
 set_tests_properties(room_agent_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 45)
 find_program(SPARK_NODE_EXECUTABLE node)
 if(SPARK_NODE_EXECUTABLE)
+  add_test(NAME kernel_subagents_test
+    COMMAND ${SPARK_NODE_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/kernel_subagents_test.cjs)
+  add_test(NAME kernel_subagents_integration_test
+    COMMAND ${SPARK_NODE_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/kernel_subagents_integration_test.cjs)
+  set_tests_properties(kernel_subagents_test kernel_subagents_integration_test PROPERTIES
+    TIMEOUT 60 SKIP_RETURN_CODE 77)
   add_test(NAME cursor_recovery_test COMMAND ${SPARK_NODE_EXECUTABLE}
     ${PROJECT_SOURCE_DIR}/tests/cursor_recovery_test.cjs)
   add_test(NAME room_agent_channel_test
@@ -155,6 +165,12 @@ add_test(NAME pi_gateway_test
 )
 add_test(NAME agent_router_test
   COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/cannbot/scripts/test_agent_router.py)
+add_test(NAME user_agent_connections_test
+  COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/cannbot/scripts/test_user_agent_connections.py)
+set_tests_properties(user_agent_connections_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 30)
+add_executable(agent_connection_service_test agent_connection_service_test.cpp)
+target_link_libraries(agent_connection_service_test PRIVATE spark_push_logic)
+add_test(NAME agent_connection_service_test COMMAND agent_connection_service_test)
 set_tests_properties(agent_router_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 30)
 add_test(NAME hermes_native_test
   COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/cannbot/scripts/test_hermes_native.py)
@@ -211,3 +227,14 @@ add_test(NAME redis_sequence_integration_test
 set_tests_properties(redis_sequence_integration_test PROPERTIES
   SKIP_RETURN_CODE 77
 )
+
+add_executable(space_service_test space_service_test.cpp)
+target_link_libraries(space_service_test PRIVATE spark_push_logic)
+add_test(NAME space_service_test COMMAND space_service_test)
+add_executable(space_mysql_integration_test space_mysql_integration_test.cpp)
+target_link_libraries(space_mysql_integration_test PRIVATE spark_push_logic)
+add_test(NAME space_mysql_integration_test COMMAND space_mysql_integration_test)
+set_tests_properties(space_mysql_integration_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 45)
+
+add_test(NAME generic_room_agent_test COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/cannbot/scripts/test_generic_room_agent.py)
+set_tests_properties(generic_room_agent_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 45)

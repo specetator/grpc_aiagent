@@ -19,9 +19,8 @@ namespace sparkpush {
 // 自带建表让它能自包含地开关；而 outbox 表一旦建错就会造成消息丢失，
 // 必须走人工审阅的迁移脚本。两者均在 main.cpp 启动序列里，失败直接退出。
 //
-// 本文件排版比工程其余部分紧凑得多（一行多个语句），是有意为之：
-// 所有方法都是“拼 SQL -> Exec -> 读回校验”三步，摊开写会把真正的
-// 关键信息（乐观锁、幂等比对）淡在模板代码里。
+// User-controlled strings and JSON payloads use prepared statements. Task
+// revision CAS, immutable requests and first-result-wins remain unchanged.
 class MySqlRoomAgentRepository : public RoomAgentRepository {
  public:
     // groups_ / members_ 不是用来读写的，而是用来做 Access 判定：
@@ -33,7 +32,19 @@ class MySqlRoomAgentRepository : public RoomAgentRepository {
     // 注意它不是 RoomAgentRepository 接口的一部分（没有 override），
     // 因为只有生产实现需要建表，测试假实现不需要。
     bool EnsureSchema(std::string* error);
+    bool Tasks(int64_t,nlohmann::json*,std::string*) override;
+    bool Task(int64_t,const std::string&,nlohmann::json*,std::string*) override;
+    bool SaveTask(int64_t,int64_t,const nlohmann::json&,std::string*) override;
+    bool CheckCatalogSchema(std::string* error);
+    bool Bindings(int64_t, nlohmann::json*, std::string*) override;
+    bool SetBinding(int64_t, int64_t, const std::string&, bool, std::string*) override;
+    bool Pending(nlohmann::json*, std::string*) override;
+    bool Dispatched(const std::string&, std::string*) override;
+    bool MarkAttempt(const std::string&, std::string*) override;
+    bool RecoverDispatch(const std::string&,std::string*) override;
+    bool BlockDispatch(const std::string&,const std::string&,std::string*) override;
     bool Access(int64_t, int64_t, int64_t*, bool*, std::string*) override;
+    bool Role(int64_t, int64_t, int*, std::string*) override;
     bool Load(int64_t, nlohmann::json*, std::string*) override;
     bool Save(int64_t, int64_t, const nlohmann::json&, std::string*) override;
     bool Request(const std::string&, nlohmann::json*, std::string*) override;
@@ -41,6 +52,7 @@ class MySqlRoomAgentRepository : public RoomAgentRepository {
     bool Finish(const std::string&, const nlohmann::json&, std::string*) override;
     bool Requests(int64_t, nlohmann::json*, std::string*) override;
  private:
+    bool catalog_schema_{false};
     MySqlConnectionPool* pool_;
     GroupDao* groups_;
     GroupMemberDao* members_;
