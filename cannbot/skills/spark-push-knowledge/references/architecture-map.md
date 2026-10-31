@@ -78,3 +78,5 @@
 - `docs/v0.1.0-delivery.md`：v0.1.0 产品交付要求、部署/工作区/Web/发行的验收进度；未完成项不代表已交付。
 - `docs/install.md`：完整 Docker 同源入口、凭据/数据卷、增量迁移和旧 WSL 开发模式。
 - `docs/optional-agent-connector.md`：可选 Connector overlay、独立授权回连、凭据导出及配置故障隔离；正式公共 Runtime 与完整浏览器验收状态见交付跟踪。
+- `tests/public_cross_room_scenario.py`：正式公共启动器下的两私有空间、原生工具与会话隔离专项；复用 `tests/public_room_runtime_e2e.py --cross-room`，消费屏障和冷重启后核对原始执行记录。
+- `docs/benchmarks/2026-11-01-public-cross-room.json`：两个真实公共 Agent、四个原生会话、聊天与执行并存、Kafka 重投/冷重启的限定回执；逐项列出未覆盖的主动越权读取及上下文断言方向。

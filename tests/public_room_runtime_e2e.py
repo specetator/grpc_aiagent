@@ -81,6 +81,7 @@ def main():
     parser.add_argument('--image',default='spark-push:public-runtime')
     parser.add_argument('--out',required=True,type=Path)
     parser.add_argument('--team-backup',action='store_true',help='also restore an actual IM + public Runtime cold batch')
+    parser.add_argument('--cross-room',action='store_true',help='also verify real public sessions and code tools in two private rooms')
     args=parser.parse_args();output=args.out.resolve()
     report={'ok':False,'mode':'real Compose + public launchers + actual Pi/Hermes models; three HTTP/WS clients, not browsers',
         'source_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=ROOT,text=True).strip(),'checks':[]}
@@ -91,7 +92,7 @@ def main():
         'cannbot/scripts/hermes_public_gateway.py','cannbot/scripts/agent_router.py',
         'cannbot/scripts/hermes_native_adapter.py','scripts/spark_backup.py','scripts/spark_team_backup.py',
         'tests/public_runtime_fixture.py','tests/hermes_room_runtime_fixture.py',
-        'tests/team_backup_scenario.py','tests/public_room_runtime_e2e.py')}
+        'tests/team_backup_scenario.py','tests/public_cross_room_scenario.py','tests/public_room_runtime_e2e.py')}
     def check(label):report['checks'].append(label);print(label,flush=True)
     with tempfile.TemporaryDirectory(prefix='spark-public-e2e-',dir='/mnt/f') as temporary:
         root=Path(temporary);root.chmod(0o755)
@@ -103,6 +104,16 @@ def main():
         projects=config/'projects.json'
         projects.write_text(json.dumps({'schema':1,'projects':[{'id':'spark-push','name':'Spark Push',
             'root':str(source),'paths':['probe.cpp','logic']}]}))
+        second_nonce=None
+        if args.cross_room:
+            second_source=root/'second-source';(second_source/'logic').mkdir(parents=True)
+            shutil.copyfile(ROOT/'logic/message_reservation.cpp',second_source/'logic/message_reservation.cpp')
+            second_nonce=secrets.token_hex(12)
+            (second_source/'probe.cpp').write_text('// Acceptance nonce: '+second_nonce+'\nint other_project_probe() { return 29; }\n')
+            approved=json.loads(projects.read_text())
+            approved['projects'].append({'id':'second-project','name':'Second approved project',
+                'root':str(second_source),'paths':['probe.cpp','logic']})
+            projects.write_text(json.dumps(approved))
         registry=config/'agents.json'
         catalog=json.loads((ROOT/'deploy/agents/agents.json.example').read_text())
         keys={'SPARK_PUSH_HERMES_API_KEY':secrets.token_hex(32),'SPARK_PUSH_WORKSPACE_AUTH_KEY':secrets.token_hex(32)}
@@ -133,8 +144,13 @@ def main():
             return compose('exec','-T','mysql','sh','-c',
                 'MYSQL_PWD="$(cat /run/spark-admin/mysql-root-password)" mysql -uroot --default-character-set=utf8mb4 --batch --raw --skip-column-names spark_push',input=query+';\n').strip()
         def call(path,body,user=None,expected=0):
-            response=json.loads(http(base,path,body,user['token'] if user else None)[1])
+            status,raw=http(base,path,body,user['token'] if user else None)
+            response=json.loads(raw)
             assert response.get('code')==expected,(path,response.get('code'),expected)
+            if expected:
+                report.setdefault('authorization_denials',[]).append({'path':path,'http_status':status,
+                    'wire_code':response['code'],'actor_user_id':user['user_id'] if user else None,
+                    'room_id':body.get('room_id'),'session_id':body.get('session_id')})
             return response.get('data',{})
         native=PublicHermesRuntime(workspace={'authority':authority,'key':keys['SPARK_PUSH_WORKSPACE_AUTH_KEY'],
                                               'snapshots':str(root/'snapshots')})
@@ -191,6 +207,12 @@ print(json.dumps(codes))
                         if set(done)==set(target) and all(n==0 or done[p]>=n for p,n in target.items()):return done
                         await asyncio.sleep(.5)
                     raise AssertionError(topic+' consumer offsets did not settle')
+                async def agent_barrier():
+                    evidence={}
+                    for topic,group in [('ai_request','spark_push_hermes_bridge'),('ai_reply','spark_push_group_hermes_reply')]:
+                        target=await offsets(topic)
+                        evidence[topic]={'end':target,'committed':await settled(topic,group,target)}
+                    return evidence
                 try:
                     for name in ('A','B','C','Outsider'):
                         credentials={'account':'public_'+secrets.token_hex(8),'name':name,'password':secrets.token_hex(24)}
@@ -235,6 +257,11 @@ print(json.dumps(codes))
                     assert len({t['metadata']['agent_route']['backend_session_ref'] for t in turns})==2
                     assert all(t['metadata']['agent_route']['conversation_id']==f'r_{room}' for t in turns)
                     assert any(e.get('type')=='hermes_delta' for e in clients[2].events)
+                    if args.cross_room:
+                        from public_cross_room_scenario import exercise as cross_room,verify_history,verify_transcripts
+                        await cross_room(root=root,call=call,sql=sql,store=store,native=native,users=users,clients=clients,
+                            room=room,nonce=nonce,second_nonce=second_nonce,original_requests=requests,
+                            until=until,rid=rid,barrier=agent_barrier,report=report,check=check)
                     # Native transcripts prove actual tool outputs rather than
                     # inferring execution solely from an assistant statement.
                     native_db=native.root/'service/state.db'
@@ -431,6 +458,9 @@ print(json.dumps(codes))
                             if json.loads(line).get('message',{}).get('role')=='toolResult')
                     assert len(replay_pi)==len(pi_tools)
                     assert transcripts==transcript_state()
+                    if args.cross_room:
+                        verify_transcripts(root,native,store,report['cross_room']['sessions'])
+                        report['cross_room']['original_transcripts_unchanged_after_kafka_replay']=True
                     report['transcripts_unchanged']={'pi_sessions':len(transcripts['pi_sessions']),
                         'hermes_messages':transcripts['hermes_messages'],'hermes_sessions':transcripts['hermes_sessions']}
                     for topic in ('ai_request.dlq','ai_reply.dlq'):
@@ -449,6 +479,15 @@ print(json.dumps(codes))
                     b['token']=call('/api/login',b['credentials'])['token']
                     call('/api/session/history',{'session_id':f'r_{room}'},b,403)
                     check('full Compose restart and fresh login retain final messages, claimed task and membership revocation')
+                    if args.cross_room:
+                        report['cross_room']['barriers']['cold_restart']=await agent_barrier()
+                        verify_transcripts(root,native,store,report['cross_room']['sessions'])
+                        verify_history(call,users,report['cross_room'])
+                        for row in report['cross_room']['sessions']:
+                            assert store.get_turn(row['request_id'])['metadata']['agent_route']['backend_session_ref']==row['backend_session_ref']
+                        report['cross_room']['restart_history_and_routes_unchanged']=True
+                        report['cross_room']['original_transcripts_unchanged_after_cold_restart']=True
+                        check('second-room history, membership boundary and all native route identities survive the same full cold restart')
                 finally:
                     await asyncio.gather(*(client.close() for client in clients),return_exceptions=True)
             asyncio.run(exercise());report['ok']=True

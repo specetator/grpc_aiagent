@@ -2,6 +2,9 @@
   "schema_version": 1,
   "description": "Curated truth sources packaged for the Kernel Agent knowledge skill.",
   "sources": [
+    {"id":"public-cross-room-validation","path":"docs/benchmarks/2026-11-01-public-cross-room.json","authority":"snapshot","topics":["public-runtime","isolation","sessions","validation","limitations"]},
+    {"id":"public-runtime-e2e","path":"tests/public_room_runtime_e2e.py","authority":"code","topics":["public-runtime","validation","replay","recovery","limitations"]},
+    {"id":"public-cross-room-scenario","path":"tests/public_cross_room_scenario.py","authority":"code","topics":["public-runtime","isolation","sessions","validation","limitations"]},
     {"id":"team-backup-validation","path":"docs/benchmarks/2026-11-01-team-backup-restore.json","authority":"snapshot","topics":["backup","restore","public-runtime","validation","limitations"]},
     {"id":"team-backup-code","path":"scripts/spark_team_backup.py","authority":"code","topics":["backup","restore","public-runtime","locking","recovery"]},
     {"id":"runtime-archive-code","path":"cannbot/scripts/public_runtime_archive.py","authority":"code","topics":["backup","restore","public-runtime","native-os","identity"]},

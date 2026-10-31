@@ -221,6 +221,28 @@ Windows Hermes 模型；三个独立 HTTP/WS 客户端验证实际文件读取�
 2026-10-31 这条真实链路的 10 项检查已通过；镜像、源码指纹、重投 offset 与
 限制见 [公共 Runtime 回执](benchmarks/2026-10-31-public-runtime.json)。
 
+追加跨房间专项使用同一条真实链路：
+
+```bash
+python3 tests/public_room_runtime_e2e.py --cross-room \
+  --image spark-push:team-backup --out /tmp/spark-cross-room.json
+```
+
+`--image` 应指向本机已构建的待验镜像。该选项增加第二个私有空间和独立批准项目，
+检查两种 Agent 的原生 Session、真实读取回执、服务端请求上下文及对象权限；同时
+要求普通聊天在 Pi 实际执行期间完成投递，并验证两个同房间 Pi 请求最终按序返回。
+第二个请求先被受理并不等同于已观测到 Runtime Scheduler 排队；回执分别记录这些边界。
+它需要已安装的 Pi、Windows Hermes 和专用测试模型凭据，不能在没有真实 Runtime
+的机器上以 Mock 替代。详细夹具前提与原有测试相同，三浏览器及私人 Agent/CANN
+仍需各自的验收结果。
+跨房间与 `--team-backup` 场景分别运行；当前不支持组合这两个选项。
+
+2026-11-01 最终真实运行的 16 项检查通过，详见
+[两空间回执](benchmarks/2026-11-01-public-cross-room.json)。它包括消费进度、原生
+记录指纹、六次请求到四个会话的映射以及实际 HTTP/WS 拒绝；首次调试运行和随后
+主动中止的运行分别保留，未用于替代最终结果。此处不宣称 Scheduler 排队公平性、
+Native 跨房并行或任意工具副作用已完成验收。
+
 2026-10-31 当前镜像的 16 项部署检查与 11 项基础 IM 回归结果记录于
 [阶段回执](benchmarks/2026-10-31-optional-connector.json)，含源文件指纹、镜像 ID
 与未验证项。这里的阶段通过不代表 v0.1.0 已完成发行验收。

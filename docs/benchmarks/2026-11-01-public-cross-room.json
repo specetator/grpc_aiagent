@@ -1,0 +1,554 @@
+{
+  "schema": 1,
+  "date": "2026-11-01",
+  "stage": "Formal public Runtime two-room isolation and chat during Agent execution",
+  "stage_accepted": true,
+  "release_accepted": false,
+  "source": {
+    "parent_commit": "44ae26af3ca8ab62f2eb84fa16db260666ca9476",
+    "tested_worktree": "test-only changes over parent; all real-run source SHA256 values checked against current files",
+    "sha256": {
+      "Dockerfile": "fdf93ceb6d3751d1a665f1f283a27d6aafc33cd171741a465cf548bf7f65440a",
+      "tools/dlq_replay.cpp": "23770989c65a2efe74517d0c8f1ae6ed5080a6464b455fa02824e45d544106f1",
+      "cannbot/scripts/public_runtime.py": "aae022ecd81f055d9d39763e4eabb7a913cc6d5b0a7d5b706b17d411c1403f52",
+      "cannbot/scripts/public_runtime_archive.py": "f5a3ed240e45973b6db3a59df96631b5f1ee07a9b122823d5525c9261774a045",
+      "cannbot/scripts/public_runtime_maintenance.py": "50c7e13306235d08d992e123080c92f0bce0aa9d6097073558ef6af1b71ee275",
+      "cannbot/scripts/public_agent_gateway.py": "c7cc89fa7db3f6a5dabfa7a70ab0849f84077df47f3ca097852a27c05708b2b6",
+      "cannbot/scripts/hermes_public_gateway.py": "013e459fd353dff1570e7e1c8362c7cccb43723bcc9780023b62e695fa6aaeb9",
+      "cannbot/scripts/agent_router.py": "5df425d0e0db6090c1e6b18603b698a4def31aa7acd4e29f0be84d1a2d079380",
+      "cannbot/scripts/hermes_native_adapter.py": "3ca1b6255082e4b77fc0654af1b764940aa698552fc0b70374dd7aa2c470dd37",
+      "scripts/spark_backup.py": "92d5218565886968592b7ed4f54e55fc40b63bf8d2cc6ee15285d740a9c5910d",
+      "scripts/spark_team_backup.py": "68aae789d6dacd788daf132d9682d63e71fa6d254c40c978a0d81ab183677559",
+      "tests/public_runtime_fixture.py": "23ef72b1ca1cc5c36eaa2acc3a0a136f431045ec371d4594031597960867a09c",
+      "tests/hermes_room_runtime_fixture.py": "f3b28c46786c76bec0eb2dd7874f21ea8692864e7cef0f743e36a3487fdd2f41",
+      "tests/team_backup_scenario.py": "f64d3513b67577a2802b7932f8aef07d8e1ec777c5986bf4ff22132d04b364bb",
+      "tests/public_cross_room_scenario.py": "6c1ea8d3fe17c620f6f62f79540d11f15d267a00dbbb0ab4d9b5ad3cd60ec342",
+      "tests/public_room_runtime_e2e.py": "d6efcafbda70ecdff0b5214878c72a1143cb7720d522fbfcb491ceca59bbd304"
+    }
+  },
+  "implementation": [
+    "Optional --cross-room scenario reuses the existing full Compose stack and formal public Pi/Hermes launchers. No production code, migrations or permission rules changed.",
+    "Two approved source projects and private rooms produce four native Agent/session scopes. Six real requests retain trusted actor/room/Agent attribution.",
+    "Duplicate client messages, Kafka request/reply redelivery and a cold restart compare original completed turns and scoped native transcripts after explicit consumer-offset barriers."
+  ],
+  "review": {
+    "architect": "approved bounded optional scenario",
+    "reviewer": "final test changes accepted; no remaining code-review blocker",
+    "tester": "accepted bounded public cross-room stage from actual run3 receipts and primary source-hash verification; no independent command execution; release remains unaccepted"
+  },
+  "verification": {
+    "build": {
+      "command": "cmake --build build-wsl -j2",
+      "exit_code": 0,
+      "local_log": "/tmp/spark-v010-cross-build.log",
+      "sha256": "39324c69aa184b5bb31e401e0683ae8856b9bc624c9e246627d5af40ddc854da"
+    },
+    "ctest": {
+      "command": "ctest --test-dir build-wsl --output-on-failure",
+      "exit_code": 0,
+      "registered": 63,
+      "passed": 58,
+      "skipped": 5,
+      "skipped_names": [
+        "route_generation_integration_test",
+        "message_reservation_integration_test",
+        "collaboration_browser_test",
+        "redis_sequence_integration_test",
+        "space_mysql_integration_test"
+      ],
+      "local_log": "/tmp/spark-v010-cross-ctest.log",
+      "sha256": "44b2a2e7fe3c4add9627f8172d593a32f5658bbf7082d1000790259a6829a819",
+      "seconds": 96.77
+    },
+    "browser_supplement": {
+      "command": "SPARK_PLAYWRIGHT_MODULE=/tmp/spark-spaces-browser/node_modules/playwright FONTCONFIG_FILE=/tmp/spark-web-fonts.conf ctest --test-dir build-wsl -R ^collaboration_browser_test$ --output-on-failure",
+      "exit_code": 0,
+      "passed": 1,
+      "mode": "actual Chromium against mocked backend; UI contract only",
+      "local_log": "/tmp/spark-v010-cross-browser.log",
+      "sha256": "18208c2c5ba111b3397cb24e1ac59f3f9cb368f547a6955bfe6faa74af1a6bd1",
+      "seconds": 10.39
+    },
+    "mysql_supplement": {
+      "command": "python3 tests/run_mysql_review_tests.py build-wsl",
+      "exit_code": 0,
+      "passed": 2,
+      "mode": "real fresh owned MySQL 8.0 container",
+      "local_log": "/tmp/spark-v010-cross-mysql.log",
+      "sha256": "a3e18d300364f1db8232ce1c2e503dedd324dc8b5346838a592ddc3afc524e90",
+      "seconds": 0.39
+    },
+    "redis_supplement": {
+      "command": "python3 tests/run_redis_review_tests.py build-wsl",
+      "exit_code": 0,
+      "passed": 2,
+      "mode": "real fresh owned Redis 7.2 container",
+      "local_log": "/tmp/spark-v010-cross-redis.log",
+      "sha256": "05b825039e240833864f125d88dc368b0cb006be7157ddd316e7d04e09a1350e",
+      "seconds": 0.19
+    },
+    "real_e2e": {
+      "command": "/tmp/spark-spaces-py311/bin/python tests/public_room_runtime_e2e.py --cross-room --image spark-push:team-backup --out /tmp/spark-v010-cross-room3.json",
+      "exit_code": 0,
+      "local_log": "/tmp/spark-v010-cross-room3.log",
+      "sha256": "1e799cc54bfd6680d1c38a95eb36ce99af04cbbf69a3eb97aeab8c980dc50bb1",
+      "receipt": {
+        "ok": true,
+        "mode": "real Compose + public launchers + actual Pi/Hermes models; three HTTP/WS clients, not browsers",
+        "source_commit": "44ae26af3ca8ab62f2eb84fa16db260666ca9476",
+        "checks": [
+          "formal Native capabilities and HTTP whitelist deny chat/profile/tool/session bypasses",
+          "three independent users exchange real messages; normal chat does not invoke models",
+          "public-pi reads the real nonce and C++ file; all three clients see its attributed durable final",
+          "public-hermes reads the real nonce and C++ file; all three clients see its attributed durable final",
+          "original Native room broker receipt succeeds and both consumers commit without dead letters",
+          "second private room admits accepted invitees; nonmembers cannot join WS, call Agents or read history/tasks",
+          "two same-room Pi requests are accepted while the first runs; all three users receive ordinary chat before its final",
+          "both formal public Agents read the second project with correct actor attribution and no first-room nonce",
+          "four distinct room/Agent native sessions and actual tool transcripts exclude the other project and private discussion",
+          "second-room duplicate client messages retain original turns and exactly one persisted result per authorized user",
+          "real native tool transcripts confirm file contents; Agents use separate sessions and share one IM timeline",
+          "Native process restart reuses the owned Profile without rewriting config, model auth or identity",
+          "tasks and handoff are persisted; duplicate client messages preserve completed execution records",
+          "Kafka redelivery after revoke, catalog disable and Connector/Bridge restart preserves one original result",
+          "full Compose restart and fresh login retain final messages, claimed task and membership revocation",
+          "second-room history, membership boundary and all native route identities survive the same full cold restart"
+        ],
+        "image_id": "sha256:4547d462c392bd81103a17cfbd9e61db4ee908f61c53ec7c0c0af14a795b1c38",
+        "source_sha256": {
+          "Dockerfile": "fdf93ceb6d3751d1a665f1f283a27d6aafc33cd171741a465cf548bf7f65440a",
+          "tools/dlq_replay.cpp": "23770989c65a2efe74517d0c8f1ae6ed5080a6464b455fa02824e45d544106f1",
+          "cannbot/scripts/public_runtime.py": "aae022ecd81f055d9d39763e4eabb7a913cc6d5b0a7d5b706b17d411c1403f52",
+          "cannbot/scripts/public_runtime_archive.py": "f5a3ed240e45973b6db3a59df96631b5f1ee07a9b122823d5525c9261774a045",
+          "cannbot/scripts/public_runtime_maintenance.py": "50c7e13306235d08d992e123080c92f0bce0aa9d6097073558ef6af1b71ee275",
+          "cannbot/scripts/public_agent_gateway.py": "c7cc89fa7db3f6a5dabfa7a70ab0849f84077df47f3ca097852a27c05708b2b6",
+          "cannbot/scripts/hermes_public_gateway.py": "013e459fd353dff1570e7e1c8362c7cccb43723bcc9780023b62e695fa6aaeb9",
+          "cannbot/scripts/agent_router.py": "5df425d0e0db6090c1e6b18603b698a4def31aa7acd4e29f0be84d1a2d079380",
+          "cannbot/scripts/hermes_native_adapter.py": "3ca1b6255082e4b77fc0654af1b764940aa698552fc0b70374dd7aa2c470dd37",
+          "scripts/spark_backup.py": "92d5218565886968592b7ed4f54e55fc40b63bf8d2cc6ee15285d740a9c5910d",
+          "scripts/spark_team_backup.py": "68aae789d6dacd788daf132d9682d63e71fa6d254c40c978a0d81ab183677559",
+          "tests/public_runtime_fixture.py": "23ef72b1ca1cc5c36eaa2acc3a0a136f431045ec371d4594031597960867a09c",
+          "tests/hermes_room_runtime_fixture.py": "f3b28c46786c76bec0eb2dd7874f21ea8692864e7cef0f743e36a3487fdd2f41",
+          "tests/team_backup_scenario.py": "f64d3513b67577a2802b7932f8aef07d8e1ec777c5986bf4ff22132d04b364bb",
+          "tests/public_cross_room_scenario.py": "6c1ea8d3fe17c620f6f62f79540d11f15d267a00dbbb0ab4d9b5ad3cd60ec342",
+          "tests/public_room_runtime_e2e.py": "d6efcafbda70ecdff0b5214878c72a1143cb7720d522fbfcb491ceca59bbd304"
+        },
+        "authorization_denials": [
+          {
+            "path": "/api/chatroom/join",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000406,
+            "room_id": 1,
+            "session_id": null
+          },
+          {
+            "path": "/api/chatroom/workspace/set",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000404,
+            "room_id": 1,
+            "session_id": null
+          },
+          {
+            "path": "/api/chatroom/join",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000404,
+            "room_id": 2,
+            "session_id": null
+          },
+          {
+            "path": "/api/chatroom/agents/list",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000404,
+            "room_id": 2,
+            "session_id": null
+          },
+          {
+            "path": "/api/chatroom/tasks/list",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000404,
+            "room_id": 2,
+            "session_id": null
+          },
+          {
+            "path": "/api/session/history",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000404,
+            "room_id": null,
+            "session_id": "r_2"
+          },
+          {
+            "path": "/api/chatroom/join",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000406,
+            "room_id": 2,
+            "session_id": null
+          },
+          {
+            "path": "/api/chatroom/agents/list",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000406,
+            "room_id": 2,
+            "session_id": null
+          },
+          {
+            "path": "/api/chatroom/tasks/list",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000406,
+            "room_id": 2,
+            "session_id": null
+          },
+          {
+            "path": "/api/session/history",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000406,
+            "room_id": null,
+            "session_id": "r_2"
+          },
+          {
+            "path": "/api/chatroom/agents/control",
+            "http_status": 404,
+            "wire_code": 404,
+            "actor_user_id": 900000000403,
+            "room_id": 2,
+            "session_id": null
+          },
+          {
+            "path": "/api/session/history",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000404,
+            "room_id": null,
+            "session_id": "r_2"
+          },
+          {
+            "path": "/api/session/history",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000406,
+            "room_id": null,
+            "session_id": "r_2"
+          },
+          {
+            "path": "/api/session/history",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000404,
+            "room_id": null,
+            "session_id": "r_1"
+          },
+          {
+            "path": "/api/chatroom/agents/list",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000404,
+            "room_id": 1,
+            "session_id": null
+          },
+          {
+            "path": "/api/session/history",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000404,
+            "room_id": null,
+            "session_id": "r_1"
+          },
+          {
+            "path": "/api/session/history",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000404,
+            "room_id": null,
+            "session_id": "r_2"
+          },
+          {
+            "path": "/api/session/history",
+            "http_status": 403,
+            "wire_code": 403,
+            "actor_user_id": 900000000406,
+            "room_id": null,
+            "session_id": "r_2"
+          }
+        ],
+        "cross_room": {
+          "ordinary_message_seconds": 0.21742290898691863,
+          "chat_delivered_while_agent_running": true,
+          "ws_denials": [
+            {
+              "type": "error",
+              "op": "chatroom_join",
+              "room_id": 2,
+              "code": 403
+            },
+            {
+              "type": "error",
+              "code": 403,
+              "client_msg_id": "ca9e4c1406b5b2471895cd3f5bbc3684"
+            }
+          ],
+          "timing_seconds_from_first_running": {
+            "second_request_accepted": 0.10126747100730427,
+            "ordinary_message_accepted": 0.2172399559931364,
+            "ordinary_message_received_by_user": {
+              "900000000403": 0.21732020398485474,
+              "900000000404": 0.21737569899414666,
+              "900000000405": 0.21742211098899134
+            },
+            "first_still_running_after_chat": 0.21742290898691863,
+            "finals_observed": {
+              "ra_92aae3eb836d5a614782f122e21c55608f01ee91787564c8c3b80dcc56a87dae": 7.271505117008928,
+              "ra_f57be5765102386d978d50b4be0a5132e7e03bcd242ebef02ab4c3ba06d07da6": 10.48708773800172
+            }
+          },
+          "queue_evidence": "second request accepted before the same room/Agent first execution completed; no Scheduler metric inferred",
+          "sessions": [
+            {
+              "request_id": "ra_bec31a54c41706318f3a2f5f8d001cbdc5a2a1bc4b78888b5172936a2550a481",
+              "room_id": 1,
+              "agent_id": "public-pi",
+              "actor_user_id": 900000000403,
+              "own_discussion_in_prompt_and_transcript": true,
+              "backend_session_ref": "roomagent_1_public-pi_w09947f0d4acce8f093b1ba4f",
+              "tool_results": 12,
+              "turn_sha256": "a6bc97f156a58dd811764316eb347b222aa2a824ea2c0fed5d334428943ad9d3",
+              "transcript_sha256": "701d6e529e21200b8b1335fd2cf384bb2655e5ca67486a759a8ee26166a84b2e",
+              "prompt_sha256": "d47f9f788f0d4854224e3f458399599abe0f867f81ea895244f91e0eccf5fe69"
+            },
+            {
+              "request_id": "ra_4e79877635a3aa016bddd46ec0d974edcca52f8b6515ca86493815e2120c8b2f",
+              "room_id": 1,
+              "agent_id": "public-hermes",
+              "actor_user_id": 900000000404,
+              "own_discussion_in_prompt_and_transcript": true,
+              "backend_session_ref": "roomagent_1_public-hermes_w09947f0d4acce8f093b1ba4f",
+              "tool_results": 5,
+              "turn_sha256": "37bacd08ae620d5abf045efbabf3e149f1306764079f3c1d5a6ab8265926e93c",
+              "transcript_sha256": "3c121ea5cd9d7559eb4df0ecba4b6d983a32d1c76bd3efe00a5a1689aed65242",
+              "prompt_sha256": "ea66f0bdde76738fc6e3bb329b04f6b74df7d8ff648f3b5989c3e8735ffcee9c"
+            },
+            {
+              "request_id": "ra_92aae3eb836d5a614782f122e21c55608f01ee91787564c8c3b80dcc56a87dae",
+              "room_id": 1,
+              "agent_id": "public-pi",
+              "actor_user_id": 900000000403,
+              "own_discussion_in_prompt_and_transcript": true,
+              "backend_session_ref": "roomagent_1_public-pi_w09947f0d4acce8f093b1ba4f",
+              "tool_results": 12,
+              "turn_sha256": "009fedef79c93f6ace77634f93c30dfce8d3e960255a8414f3ebf5785d24c1fa",
+              "transcript_sha256": "701d6e529e21200b8b1335fd2cf384bb2655e5ca67486a759a8ee26166a84b2e",
+              "prompt_sha256": "f217ee70133fdcfbe880bf97da21152cea2d6290bba0e98da57398121ba33f18"
+            },
+            {
+              "request_id": "ra_f57be5765102386d978d50b4be0a5132e7e03bcd242ebef02ab4c3ba06d07da6",
+              "room_id": 1,
+              "agent_id": "public-pi",
+              "actor_user_id": 900000000405,
+              "own_discussion_in_prompt_and_transcript": true,
+              "backend_session_ref": "roomagent_1_public-pi_w09947f0d4acce8f093b1ba4f",
+              "tool_results": 12,
+              "turn_sha256": "e2d0715a3c87063e5e4729d0a39b0a1e1afa17c801db3e5af96f4b050cecafa2",
+              "transcript_sha256": "701d6e529e21200b8b1335fd2cf384bb2655e5ca67486a759a8ee26166a84b2e",
+              "prompt_sha256": "114648c753fd6823de7561d081f68eb3662a279c81f20925357edf21b8f48b18"
+            },
+            {
+              "request_id": "ra_577401c17cf4104744c4a853bbff84108e882aa8c5f3161b7317a268e5bbe0a2",
+              "room_id": 2,
+              "agent_id": "public-pi",
+              "actor_user_id": 900000000403,
+              "own_discussion_in_prompt_and_transcript": true,
+              "backend_session_ref": "roomagent_2_public-pi_w9e6888881491d482fdad9651",
+              "tool_results": 3,
+              "turn_sha256": "a866ca2fcd1c17558922be276ebd1b00f9637372ff2443ea667e1ca2a258e1ff",
+              "transcript_sha256": "3fd5c4833b77fb720ff81344b9bae5fda59fdd6ff2e78ed5ccd38be3b0edab54",
+              "prompt_sha256": "4c74b45c67d387c1cfb62f47d90d005b0a37058ecf3790abbb0e249b8d5d3a4a"
+            },
+            {
+              "request_id": "ra_fa898f2cb3b464f01891ac1fbd647a6c6f299dc5530bcd6dc18d1f689416b625",
+              "room_id": 2,
+              "agent_id": "public-hermes",
+              "actor_user_id": 900000000405,
+              "own_discussion_in_prompt_and_transcript": true,
+              "backend_session_ref": "roomagent_2_public-hermes_w9e6888881491d482fdad9651",
+              "tool_results": 5,
+              "turn_sha256": "059013d76c64ee4454f79d94908626da1e75c8214ed7531a3038e54a916c2a3c",
+              "transcript_sha256": "0044a019e19493676d74cbfef850f1cc5a76e9bd1fdaa72c7289457f50515df4",
+              "prompt_sha256": "a0644fe7dd3931d450f46925483811bae8820f19237e25a2f8787cf9a8be6453"
+            }
+          ],
+          "room_id": 2,
+          "request_ids": [
+            "ra_577401c17cf4104744c4a853bbff84108e882aa8c5f3161b7317a268e5bbe0a2",
+            "ra_fa898f2cb3b464f01891ac1fbd647a6c6f299dc5530bcd6dc18d1f689416b625"
+          ],
+          "barriers": {
+            "duplicates": {
+              "ai_request": {
+                "end": {
+                  "0": 3,
+                  "1": 1,
+                  "2": 2
+                },
+                "committed": {
+                  "0": 3,
+                  "1": 1,
+                  "2": 2
+                }
+              },
+              "ai_reply": {
+                "end": {
+                  "0": 1,
+                  "1": 2,
+                  "2": 3
+                },
+                "committed": {
+                  "0": 1,
+                  "1": 2,
+                  "2": 3
+                }
+              }
+            },
+            "cold_restart": {
+              "ai_request": {
+                "end": {
+                  "0": 3,
+                  "1": 1,
+                  "2": 4
+                },
+                "committed": {
+                  "0": 3,
+                  "1": 1,
+                  "2": 4
+                }
+              },
+              "ai_reply": {
+                "end": {
+                  "0": 2,
+                  "1": 2,
+                  "2": 6
+                },
+                "committed": {
+                  "0": 2,
+                  "1": 2,
+                  "2": 6
+                }
+              }
+            }
+          },
+          "original_transcripts_unchanged_after_kafka_replay": true,
+          "restart_history_and_routes_unchanged": true,
+          "original_transcripts_unchanged_after_cold_restart": true
+        },
+        "tool_receipts": {
+          "pi_results": 15,
+          "hermes_results": 10,
+          "source_sha256": "491468a6c3124fcfecc84e090f0ac2ccff6af5587fbdab7242d0f15589c08c53"
+        },
+        "native_offline_before_replay": true,
+        "kafka_replay": {
+          "request_before": {
+            "0": 3,
+            "1": 1,
+            "2": 2
+          },
+          "request_after": {
+            "0": 3,
+            "1": 1,
+            "2": 4
+          },
+          "committed": {
+            "0": 3,
+            "1": 1,
+            "2": 4
+          },
+          "reply_before": {
+            "0": 1,
+            "1": 2,
+            "2": 3
+          },
+          "reply_after": {
+            "0": 1,
+            "1": 2,
+            "2": 5
+          },
+          "exact_results_replayed": 2,
+          "reply_committed": {
+            "0": 1,
+            "1": 2,
+            "2": 5
+          },
+          "independent_reply_redelivery": {
+            "0": 2,
+            "1": 2,
+            "2": 6
+          },
+          "redelivery_committed": {
+            "0": 2,
+            "1": 2,
+            "2": 6
+          }
+        },
+        "transcripts_unchanged": {
+          "pi_sessions": 2,
+          "hermes_messages": 20,
+          "hermes_sessions": 2
+        },
+        "cleanup": {
+          "owned_compose_resources_removed": true,
+          "private_pi_model_files_unchanged": true,
+          "original_windows_profile_unchanged": true,
+          "owned_native_profile_removed": true
+        },
+        "limitations": [
+          "not browser acceptance",
+          "Windows shared storage does not prove OS read-only mounts",
+          "CANN/private Agent regression is separate; no arbitrary side-effecting tool execution",
+          "unknown-run failure injection is separate"
+        ]
+      }
+    },
+    "knowledge": "strict validation passed for 112 registered sources; Pi citations passed; installed-skill sync --check exits 1 for existing private skills/settings drift, deliberately not synchronized"
+  },
+  "earlier_attempts": [
+    {
+      "attempt": 1,
+      "exit_code": 0,
+      "checks_passed": 16,
+      "acceptance_use": "exploratory only; duplicate barrier and context/timing evidence strengthened afterward",
+      "cleanup": {
+        "owned_compose_resources_removed": true,
+        "private_pi_model_files_unchanged": true,
+        "original_windows_profile_unchanged": true,
+        "owned_native_profile_removed": true
+      }
+    },
+    {
+      "attempt": 2,
+      "exit_code": 130,
+      "checks_passed": 1,
+      "acceptance_use": "intentionally interrupted during Compose startup to finish stronger context/actor/timing assertions; not a product failure or final acceptance",
+      "cleanup": {
+        "owned_compose_resources_removed": true,
+        "private_pi_model_files_unchanged": true,
+        "original_windows_profile_unchanged": true,
+        "owned_native_profile_removed": true
+      }
+    }
+  ],
+  "limitations": [
+    "Three independent HTTP/WS clients, not a new three-browser product acceptance. The separate Chromium supplement uses a mocked backend.",
+    "The pending-request timing proves subsequent acceptance and ordinary chat delivery during actual Pi execution; it does not prove Scheduler queue observation, fairness, Native parallelism or load capacity.",
+    "Both directions exclude the other project nonce from actual prompts/transcripts; those nonces also appear in the original room Agent replies. Own human discussion is present in both rooms; room one excludes room two's human marker. The inverse fixed-human-sentence exclusion is not explicitly asserted and remains for final candidate validation.",
+    "No new active cross-project tool-read attack, attachment object access, CANN/private Agent, arbitrary side-effecting tool or host OS reboot acceptance in this phase.",
+    "The local image ID is not a GHCR manifest digest. Final immutable artifact, clean Linux installation and Release acceptance are still pending.",
+    "Run --cross-room and --team-backup separately; a combined scenario is unsupported and was not run."
+  ]
+}
