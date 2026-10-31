@@ -160,4 +160,5 @@ python3 tests/run_release_smoke.py --out /tmp/spark-release-smoke.json --jobs 2
 
 保留的带日期测试报告用于复现证据，适用环境和版本以各报告为准。
 
-第三方源码的版权与许可见 [THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES.md)。
+项目代码采用 [MIT 许可证](LICENSE)。第三方源码保留各自版权与许可，见
+[THIRD_PARTY_NOTICES](THIRD_PARTY_NOTICES.md)。
