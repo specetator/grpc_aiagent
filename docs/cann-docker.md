@@ -37,7 +37,7 @@ SPARK_PUSH_CANN_DATA_DIR=/srv/spark-public/cann-data
 # 仅 IM + 公开文档 API，不启动 Agent：
 docker compose -f docker-compose.yml -f docker-compose.cann.yml up -d
 
-# 已配置可选 Connector 的部署：
+# 正式公共模式仅增加引用原文，不启用旧 CANN 任务：
 docker compose -f docker-compose.yml -f docker-compose.agents.yml \
   -f docker-compose.cann.yml --profile agents up -d
 ```
@@ -50,6 +50,32 @@ docker compose -f docker-compose.yml -f docker-compose.agents.yml \
 这不会把 legacy CANN 配置安装进正式公共 Catalog，也不会把私人 Hermes Profile
 变成共享 Agent。原协作任务与开发权限见 [CANN 协作](room-agent-collaboration.md)，
 公共只读部署见 [可选 Connector](optional-agent-connector.md)。
+
+## Legacy CANN 兼容模式
+
+已有部署继续使用原 general Gateway 和 `RoomPiFactory`，保留原 bot ID、房间
+工作区、Session 和私聊 owner ACL。该模式用于原信任边界内的兼容，不将私人
+Pi/Hermes 配置变成公开共享服务；新团队优先采用上面的正式公共模式。
+
+Gateway 主机按 [原协作配置](room-agent-collaboration.md#6-启用与使用) 设置
+`SPARK_PUSH_ROOM_WORKSPACE_ROOT`、`CANN_KNOWLEDGE_ROOT` 及可选的固定测试 runner，
+通过已有 `kernel-agent gateway` 入口启动。其底层命令是
+`python3 cannbot/scripts/pi_gateway.py`；使用原 `--pi-home`、provider/model 和
+`SPARK_PUSH_AGENT_REGISTRY`，不要指向正式公共 launcher，也不要复制私人 Profile
+到公共目录。API key 通过私有环境文件设置，不写入命令行或仓库。
+
+Docker 端在专用 `.env` 设置匹配的 `SPARK_PUSH_HERMES_API_KEY`、
+`SPARK_PUSH_AGENT_GATEWAY_ORIGIN`（仅 origin，不带 `/v1`）和公开文档目录，然后运行：
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.legacy-cann.yml \
+  -f docker-compose.cann.yml --profile agents up -d
+```
+
+这个薄 overlay 只启用既有 legacy 链，不挂载公共 Catalog 或私人 Profile。
+不要再叠加 `docker-compose.agents.yml`。房主/管理员仍需在房间配置任务，服务端
+校验开发权限；没有 runner 时测试能力仍不可用。文档副本可按下文冷备，但旧
+Gateway 的状态和工作区不属于公共 Runtime 成套备份支持范围，须保留原有备份。
 
 升级旧 CANN-only 部署也需执行增量迁移
 [`20261101_cann_publications.sql`](../sql/migrations/20261101_cann_publications.sql)。

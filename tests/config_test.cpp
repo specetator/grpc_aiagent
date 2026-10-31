@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 int main() {
+    unsetenv("SPARK_PUSH_ROOM_CANN_ENABLED");
     char path[] = "/tmp/spark_push_config_test_XXXXXX";
     int fd = mkstemp(path);
     if (fd < 0) return 1;
@@ -31,6 +32,24 @@ int main() {
     }
 
     sparkpush::Config cfg = sparkpush::LoadConfig(path);
+    if (!cfg.room_cann_enabled) return 1; // Old files without the new field retain legacy admission.
+    {
+        std::ofstream out(path, std::ios::app);
+        out << "room_cann_enabled=false\n";
+    }
+    if (sparkpush::LoadConfig(path).room_cann_enabled) return 1;
+    setenv("SPARK_PUSH_ROOM_CANN_ENABLED", "true", 1);
+    if (!sparkpush::LoadConfig(path).room_cann_enabled) return 1;
+    {
+        std::ofstream out(path, std::ios::app);
+        out << "room_cann_enabled=true\n";
+    }
+    for (const char* value : {"false", "0", "invalid", ""}) {
+        setenv("SPARK_PUSH_ROOM_CANN_ENABLED", value, 1);
+        if (sparkpush::LoadConfig(path).room_cann_enabled) return 1;
+    }
+    unsetenv("SPARK_PUSH_ROOM_CANN_ENABLED");
+    if (!sparkpush::LoadConfig(path).room_cann_enabled) return 1;
     unlink(path);
     unsetenv("SPARK_PUSH_TEST_SECRET");
     unsetenv("SPARK_PUSH_MYSQL_PASSWORD");

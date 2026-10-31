@@ -1,0 +1,438 @@
+{
+  "schema": "sparkpush.validation.v1",
+  "date": "2026-11-01",
+  "stage": "public Agent and legacy CANN deployment admission",
+  "stage_accepted": true,
+  "release_accepted": false,
+  "base_revision": "d608b311f239178144e545a54068906da06e289d",
+  "scope": "Separate public Pi/Hermes and legacy CANN deployment modes; preserve accepted requests and original private identities. Not mixed-Gateway or final release acceptance.",
+  "source_sha256": {
+    ".env.example": "efee1eccbaf7500df8855d46d77a1e3d5ec561d16b71a000446339401f9c4cc1",
+    "common/config.cpp": "fedb5544afd6a922010c8368dde09b112c8d0205337fa47749a1ff0e7dff7ca9",
+    "common/config.h": "a0c6d940a92195989b3d3901a2d9c66323a349e2746963b18671d9f6b3060c9d",
+    "conf/logic.conf": "f85e69c4efe955c8c30480d33875fe5084fc74b64795ac3d14fbca85092c9be7",
+    "docker-compose.agents.yml": "5e93d7fc6549a0738d906937f6fa299b72a5918b9aaa1af84ae7ee626c270f75",
+    "logic/main.cpp": "9e2129bc3b6c3f9d92aa7139111a4c4f00b5eb3729b99fadbc137694548d2ecc",
+    "logic/services/room_agent_service.cpp": "b774c678e5c189d5cc151cc936ca2802f2bf887c08cdfbbc4077263f1a3d1dd2",
+    "logic/services/room_agent_service.h": "e3668e33fd37411d836a40b84677c0d9e84d802cb46efa876c0e9093686afa41",
+    "scripts/spark_team_backup.py": "391a9ac97d62c0d779767f21b738bc22fe67a89b12a5462756ccec699d2d9fcc",
+    "tests/CMakeLists.txt": "ba12bc80d136143d437efee409ca2c6b8f2652ab65bc18dce7a50b0b5fb5e599",
+    "tests/backup_contract_test.py": "f2e09f53f0b47035a16cbdbc285c531d7befd413ce1b49c329a0ae7dec630387",
+    "tests/config_test.cpp": "acd28fd41fea2d6f72bbf718e9c8255bacacc56613b694889b087277f36c267b",
+    "tests/connector_deployment_e2e.py": "11c65c0bd75e84f2d062250c11aa7d7d729dfef230fafd18621cfe7604ba5871",
+    "tests/legacy_private_runtime_e2e.py": "f7064c2b0c2781f77387fac98585c9e1ff3f1db439925b74be296f01b1a4b89b",
+    "tests/legacy_private_runtime_fixture.py": "283d5beac043b402c4ec84d08d7fe44e67afc7ce33431850b2b849b381bb9579",
+    "tests/public_room_runtime_e2e.py": "6c96ef8539971f087bb5ac4aceaaa0fd80c8b2cca0241a6fa7de4ff58e6bad63",
+    "tests/room_agent_channel_test.cjs": "6864fef3f9dd8073ed69ac139db5017c930b1d71adf5f8829a450da960871156",
+    "tests/room_agent_service_test.cpp": "33219de8730284bb728a93a708ace506baaf2361d2af5c1f9053f9e13e941a60",
+    "tests/team_backup_scenario.py": "c8e03d063a0bd0f8a1ca5e338005d849b0babcaa330be0569694b3189d3d14f1",
+    "web_demo/static/chatroom.html": "77c01e3d1857d8ce72eb772c9bf9a136efdce22eb8e67b8d8e4af666de27105d",
+    "web_demo/static/room_agent_channel.js": "f1563fa9037aaca502b5a6caff692219cf2bbf19ff03692e138b65a214bf5349",
+    "docker-compose.legacy-cann.yml": "0dcbc1d6b54f3e07760b1f0f88696a92d407a773b6220e209bb29365147bf086",
+    "scripts/verify_public_agent_mode.py": "fa66253998b709104fb937e4f0194b0eea90beafc1a5686ea9ba7219258ee3e7",
+    "tests/public_agent_mode_test.py": "1659a57292952f423f6fd6488672ff4e7dbae5725b69cd6db61947fd65ff6ff2"
+  },
+  "application_image": {
+    "tag": "spark-push:cann-admission",
+    "id": "sha256:fc6c3365fb7a410ff8bfd568ca7cb6f374e0113384a5e2348f7536d76650056a",
+    "registry_digest_published": false
+  },
+  "changes": [
+    "Legacy CANN admission defaults to prior behavior; explicit invalid/empty override values disable it.",
+    "Public Compose disables CANN admission. Configure, Trigger and BuildRequest reject before new work is queued, including saved-request reuse.",
+    "Generic routing, accepted legacy replies/publication/completion, history, handoff and private owner ACLs retain their original rules.",
+    "Legacy Compose uses the existing general Gateway and RoomPiFactory. No personal profile, workspace or session is copied/reset.",
+    "Web hides an unavailable empty CANN panel, preserves old task history/handoff and disables configuration.",
+    "Team restore preserves exact images and starts Agents-off. It records pending admission verification; an authenticated helper requires literal boolean false.",
+    "Activation checks disabled IM and the cold-started enabled configuration without Bridge/Runtime; only then add the agents profile without replacing Logic."
+  ],
+  "contracts": [
+    {
+      "command": "cmake --build build-wsl -j2",
+      "exit_code": 0,
+      "log": "/tmp/spark-v010-cann-admission-build.log"
+    },
+    {
+      "command": "SPARK_PLAYWRIGHT_MODULE=/tmp/spark-spaces-browser/node_modules/playwright FONTCONFIG_FILE=/tmp/spark-web-fonts.conf ctest --test-dir build-wsl --output-on-failure",
+      "exit_code": 0,
+      "registered": 65,
+      "passed": 61,
+      "skipped": 4,
+      "log": "/tmp/spark-v010-cann-admission-final2-ctest.log",
+      "scope": "Includes config, legacy/generic service, Web and HTTP helper contracts. Browser contract uses a Mock backend, not product E2E.",
+      "seconds": 112.52
+    },
+    {
+      "command": "python3 tests/public_agent_mode_test.py",
+      "exit_code": 0,
+      "tests_passed": 6,
+      "scope": "HTTP fixture, not an actual old image. Missing, true, zero, string or null capability, membership failure, no spaces and redirects fail closed."
+    }
+  ],
+  "public_service_contract": {
+    "command": "python3.11 tests/connector_deployment_e2e.py --image spark-push:cann-admission --out /tmp/spark-v010-cann-admission-public1.json",
+    "exit_code": 0,
+    "checks_passed": 17,
+    "scope": "Actual Compose/MySQL/Redis/Kafka/Logic, offline Connector, no model or Runtime execution.",
+    "receipt": "/tmp/spark-v010-cann-admission-public1.json",
+    "checks": [
+      "optional overlay starts without any reachable Connector or model",
+      "bootstrap upgrades old credentials once without changing existing or unknown values",
+      "empty Compose keys use persisted keys; export contains only two keys and refuses overwrite",
+      "Connector-offline chat is Kafka-accepted, delivered to another member and present in SQL history",
+      "public-only deployment rejects CANN configure and WS invocation before Kafka while preserving ordinary chat and membership checks",
+      "exact callback route uses its separate key and returns only the stored request scope",
+      "workspace revoke/regrant and an independent member removal each invalidate authorized requests",
+      "invalid catalog disables Agents while authenticated chat and history remain available",
+      "invalid project catalog disables Agents while authenticated chat and history remain available",
+      "invalid gateway origin disables Agents while authenticated chat and history remain available",
+      "invalid authorization key disables Agents while authenticated chat and history remain available",
+      "Agent bot ID already owned by a human disables Agents while authenticated chat and history remain available",
+      "repair plus normal Logic restart preserves bindings and accepted requests",
+      "missing optional Agent schema disables Agents but preserves ordinary IM",
+      "persisted NUL key remains unchanged; IM starts and Agents report unavailable",
+      "persisted unencodable Unicode key remains unchanged; IM starts and Agents report unavailable",
+      "explicit key overrides agree with exported keys without rotating persistent credentials"
+    ],
+    "cann_admission": {
+      "task_capability": false,
+      "configure_code": 503,
+      "websocket_code": 503,
+      "broker_offsets_unchanged": {
+        "ai_request": [
+          "ai_request:0:0",
+          "ai_request:1:0",
+          "ai_request:2:0"
+        ],
+        "persist_message": [
+          "persist_message:0:0",
+          "persist_message:1:1",
+          "persist_message:2:0"
+        ]
+      },
+      "history_and_task_unchanged": true
+    }
+  },
+  "public_helper_service_receipt": {
+    "command": "python3.11 tests/connector_deployment_e2e.py --image spark-push:cann-admission --out /tmp/spark-v010-cann-admission-public2.json",
+    "receipt_ok": true,
+    "terminal_exit_code": null,
+    "terminal_note": "Execution handle lost during context compaction. Completed report and final stdout exist, but no independently recorded shell exit code is claimed.",
+    "checks_passed": 17,
+    "helper": {
+      "verified": true,
+      "cann_enabled": false,
+      "scope": "running Logic configuration only; no Runtime or Bridge was started"
+    },
+    "source_sha256": {
+      "common/config.cpp": "fedb5544afd6a922010c8368dde09b112c8d0205337fa47749a1ff0e7dff7ca9",
+      "common/config.h": "a0c6d940a92195989b3d3901a2d9c66323a349e2746963b18671d9f6b3060c9d",
+      "conf/logic.conf": "f85e69c4efe955c8c30480d33875fe5084fc74b64795ac3d14fbca85092c9be7",
+      "logic/main.cpp": "9e2129bc3b6c3f9d92aa7139111a4c4f00b5eb3729b99fadbc137694548d2ecc",
+      "logic/services/room_agent_service.cpp": "b774c678e5c189d5cc151cc936ca2802f2bf887c08cdfbbc4077263f1a3d1dd2",
+      "logic/services/room_agent_service.h": "e3668e33fd37411d836a40b84677c0d9e84d802cb46efa876c0e9093686afa41",
+      "docker-compose.agents.yml": "5e93d7fc6549a0738d906937f6fa299b72a5918b9aaa1af84ae7ee626c270f75",
+      "scripts/verify_public_agent_mode.py": "fa66253998b709104fb937e4f0194b0eea90beafc1a5686ea9ba7219258ee3e7",
+      "tests/connector_deployment_e2e.py": "11c65c0bd75e84f2d062250c11aa7d7d729dfef230fafd18621cfe7604ba5871"
+    },
+    "receipt": "/tmp/spark-v010-cann-admission-public2.json"
+  },
+  "legacy_real_models": {
+    "command": "python3.11 tests/legacy_private_runtime_e2e.py --image spark-push:cann-admission --out /tmp/spark-v010-cann-admission-legacy1.json",
+    "exit_code": 0,
+    "receipt": "/tmp/spark-v010-cann-admission-legacy1.json",
+    "mode": "real Compose + actual Pi/RAG/bubblewrap/g++ + isolated Hermes Native; HTTP/WS clients",
+    "checks_passed": 11,
+    "checks": [
+      "CANN overlay is optional, read-only and requires an existing explicitly selected data directory",
+      "original human single chat delivers while the real optional Agent connector is enabled",
+      "verified CANN citations open through the real Logic container UID; unauthenticated, malformed and absent documents are rejected",
+      "real @CANN searches and fully reads local official evidence; final verified citations match actual native tool results",
+      "owner writes real C++; authorized member B reads it and invokes bubblewrap/g++ with durable unchanged-source receipts",
+      "read-only member actually reads source without mutation; unauthorized development grants are rejected and human handoff is persisted",
+      "original Kernel private dialogs use real models and separate native context/history for A and B",
+      "owner-only Hermes executes through the original IM dialog; forged identity text from B cannot run Native or read owner history",
+      "exact client-message repeats do not add CANN test receipts, Pi conversation turns or Native runs",
+      "Bridge restart and actual Kafka CANN replay preserve the original side-effecting tool receipts and one final message",
+      "cold IM restart and fresh logins recover CANN task/handoff, private histories and owner ACL without repeating tools"
+    ],
+    "source_sha256": {
+      "tests/legacy_private_runtime_fixture.py": "283d5beac043b402c4ec84d08d7fe44e67afc7ce33431850b2b849b381bb9579",
+      "tests/legacy_private_runtime_e2e.py": "f7064c2b0c2781f77387fac98585c9e1ff3f1db439925b74be296f01b1a4b89b",
+      "tests/hermes_room_runtime_fixture.py": "8c82f644ff83cb38ff07413d19fe5457dc09073d383f0c091307761c9eba8ed3",
+      "deploy/entrypoint.py": "60ace4b4c208e3803204b7eaf0211c6566048384c12e4ec24e64a9548248caac",
+      "docker-compose.cann.yml": "6dc85997d3133b787c99b79ff0aacdeddfb3276c6e8d7a7411d8a2f5470aa68f",
+      "docker-compose.legacy-cann.yml": "0dcbc1d6b54f3e07760b1f0f88696a92d407a773b6220e209bb29365147bf086",
+      "common/config.cpp": "fedb5544afd6a922010c8368dde09b112c8d0205337fa47749a1ff0e7dff7ca9",
+      "common/config.h": "a0c6d940a92195989b3d3901a2d9c66323a349e2746963b18671d9f6b3060c9d",
+      "conf/logic.conf": "f85e69c4efe955c8c30480d33875fe5084fc74b64795ac3d14fbca85092c9be7",
+      "scripts/export_cann_documents.py": "e89f977c1dde8f0ef52151e3756f38bb59bac135d62aab4630e06c84e43dbff0",
+      "logic/services/room_workspace_service.cpp": "f8e2251e4dd64cd821b7137a160b4ee26ff2f20738511197d418aa8bcf457e66",
+      "logic/services/room_agent_service.cpp": "b774c678e5c189d5cc151cc936ca2802f2bf887c08cdfbbc4077263f1a3d1dd2",
+      "logic/repositories/room_agent_repository.cpp": "beb091fc60bcffe92233b45ba400f8ef9afb7a085c39f2906b01fbac982d74c9",
+      "logic/services/message_service.cpp": "9dc0bd2738bfdd137d32ef7111ac88fd473849852637b4f7a8745b198ae4f67a",
+      "logic/message_reservation.cpp": "8783b7776fab7d408cef8312727cc56cbbe6e5af9944f4ee37fcf923b4a60cb8",
+      "logic/message_reservation.h": "2ea62438b34a06acd73d93edf33c2e1cd2e5cda9b0f208734053edfaa2ef65ea",
+      "logic/conversation_store.cpp": "2a3270b361c4734f7a57c9ced17cc69820d7c551532a68c1d32edfd9fc613051",
+      "logic/conversation_store.h": "c39cfa3b8bb1add2137c9653b584893a5207f7f04d8cd054be404d3b1b6aed16",
+      "logic/main.cpp": "9e2129bc3b6c3f9d92aa7139111a4c4f00b5eb3729b99fadbc137694548d2ecc",
+      "sql/migrations/20261101_cann_publications.sql": "5e2dfbd06886788a79bece6a400d19af99370b26ef7f2399c9fa1b9c35ff0e27",
+      "cannbot/scripts/public_runtime.py": "aae022ecd81f055d9d39763e4eabb7a913cc6d5b0a7d5b706b17d411c1403f52",
+      "cannbot/scripts/public_agent_gateway.py": "c7cc89fa7db3f6a5dabfa7a70ab0849f84077df47f3ca097852a27c05708b2b6",
+      "cannbot/scripts/agent_router.py": "5df425d0e0db6090c1e6b18603b698a4def31aa7acd4e29f0be84d1a2d079380",
+      "cannbot/scripts/room_agent.py": "43b5efc27f2b2805424c6e06535f369fd52f67cfa010eeee1cf5519fd07b5911",
+      "cannbot/scripts/pi_gateway.py": "ee0a8cb68d321abee0b83344c47b9c904c1a1eb7f31cd6d8f5656b1e1f5d0e36",
+      "cannbot/scripts/hermes_native_adapter.py": "3ca1b6255082e4b77fc0654af1b764940aa698552fc0b70374dd7aa2c470dd37",
+      "cannbot/pi/extensions/cann-advisor.ts": "cc6e6e5ca007cd1ad0420920302a6fd167794f2ee445a861d2c21f4311507d2e",
+      "cannbot/pi/extensions/room-workspace.ts": "94ee184e8902a18396c48348b7023f71b731f78068d48605f75939c79373b037"
+    },
+    "dead_letters": {
+      "after-replay": {
+        "ai_request.dlq": {
+          "end": {
+            "0": 0,
+            "1": 0,
+            "2": 0
+          },
+          "committed": {
+            "0": 0,
+            "1": 0,
+            "2": 0
+          },
+          "records": []
+        },
+        "ai_reply.dlq": {
+          "end": {
+            "0": 0,
+            "1": 0,
+            "2": 0
+          },
+          "committed": {
+            "0": 0,
+            "1": 0,
+            "2": 0
+          },
+          "records": []
+        }
+      },
+      "after-restart": {
+        "ai_request.dlq": {
+          "end": {
+            "0": 0,
+            "1": 0,
+            "2": 0
+          },
+          "committed": {
+            "0": 0,
+            "1": 0,
+            "2": 0
+          },
+          "records": []
+        },
+        "ai_reply.dlq": {
+          "end": {
+            "0": 0,
+            "1": 0,
+            "2": 0
+          },
+          "committed": {
+            "0": 0,
+            "1": 0,
+            "2": 0
+          },
+          "records": []
+        }
+      }
+    },
+    "cleanup": {
+      "owned_compose_removed": true,
+      "owned_native_removed": true,
+      "private_pi_model_files_unchanged": true,
+      "original_windows_profile_unchanged": true
+    },
+    "limitations": [
+      "not browser or Ascend/NPU validation",
+      "Kernel contact remains shared; Pi isolation is by private conversation, not an owner-only catalog entry",
+      "C++ probe uses the generated program self-check, not an independent numerical precision oracle",
+      "Only owned C++ test execution is authorized; public Runtime policy and personal technical profiles are unchanged"
+    ]
+  },
+  "review": {
+    "admission": "PASS, independent review round 1",
+    "activation_guard": "PASS, independent incremental review round 1",
+    "tester": "PASS: actual 18-check team batch, two authenticated admission gates, unchanged Logic on Bridge activation, same Native Run recovery and matching sources. Release remains incomplete."
+  },
+  "limitations": [
+    "Admission does not cancel running work or drain Kafka. Mode switches require maintenance and resolution under the original Runtime.",
+    "Existing saved CANN request rejection is a service repository contract; the real public Kafka rejection scenario begins with an empty legacy task.",
+    "No actual old binary activation test: missing capability refusal is an HTTP contract. Exact-image restore remains supported with Agents disabled.",
+    "Public and legacy modes are separate. No same-Gateway mixed execution acceptance or private Runtime backup is claimed.",
+    "Four default-skipped DB CTest cases were not rerun in this phase. Real service E2Es use real DBs, which is different evidence.",
+    "No GHCR candidate, clean Linux install or final artifact/browser acceptance in this stage. v0.1.0 remains incomplete."
+  ],
+  "real_team_restore": {
+    "command": "python3.11 tests/public_room_runtime_e2e.py --image spark-push:cann-admission --team-backup --out /tmp/spark-v010-cann-admission-team1.json",
+    "exit_code": 0,
+    "receipt": "/tmp/spark-v010-cann-admission-team1.json",
+    "checks_passed": 18,
+    "mode": "real Compose + public launchers + actual Pi/Hermes models; three HTTP/WS clients, not browsers",
+    "source_sha256": {
+      "Dockerfile": "fdf93ceb6d3751d1a665f1f283a27d6aafc33cd171741a465cf548bf7f65440a",
+      "tools/dlq_replay.cpp": "23770989c65a2efe74517d0c8f1ae6ed5080a6464b455fa02824e45d544106f1",
+      "cannbot/scripts/public_runtime.py": "aae022ecd81f055d9d39763e4eabb7a913cc6d5b0a7d5b706b17d411c1403f52",
+      "cannbot/scripts/public_runtime_archive.py": "f5a3ed240e45973b6db3a59df96631b5f1ee07a9b122823d5525c9261774a045",
+      "cannbot/scripts/public_runtime_maintenance.py": "50c7e13306235d08d992e123080c92f0bce0aa9d6097073558ef6af1b71ee275",
+      "cannbot/scripts/public_agent_gateway.py": "c7cc89fa7db3f6a5dabfa7a70ab0849f84077df47f3ca097852a27c05708b2b6",
+      "cannbot/scripts/hermes_public_gateway.py": "013e459fd353dff1570e7e1c8362c7cccb43723bcc9780023b62e695fa6aaeb9",
+      "cannbot/scripts/agent_router.py": "5df425d0e0db6090c1e6b18603b698a4def31aa7acd4e29f0be84d1a2d079380",
+      "cannbot/scripts/hermes_native_adapter.py": "3ca1b6255082e4b77fc0654af1b764940aa698552fc0b70374dd7aa2c470dd37",
+      "scripts/spark_backup.py": "7cc724bcb069250053aaa8e89a778a3d2ad90da58862653a2ae75b32ac5daa60",
+      "scripts/spark_team_backup.py": "391a9ac97d62c0d779767f21b738bc22fe67a89b12a5462756ccec699d2d9fcc",
+      "scripts/verify_public_agent_mode.py": "fa66253998b709104fb937e4f0194b0eea90beafc1a5686ea9ba7219258ee3e7",
+      "docker-compose.agents.yml": "5e93d7fc6549a0738d906937f6fa299b72a5918b9aaa1af84ae7ee626c270f75",
+      "common/config.cpp": "fedb5544afd6a922010c8368dde09b112c8d0205337fa47749a1ff0e7dff7ca9",
+      "logic/services/room_agent_service.cpp": "b774c678e5c189d5cc151cc936ca2802f2bf887c08cdfbbc4077263f1a3d1dd2",
+      "tests/public_runtime_fixture.py": "23ef72b1ca1cc5c36eaa2acc3a0a136f431045ec371d4594031597960867a09c",
+      "tests/hermes_room_runtime_fixture.py": "8c82f644ff83cb38ff07413d19fe5457dc09073d383f0c091307761c9eba8ed3",
+      "tests/team_backup_scenario.py": "c8e03d063a0bd0f8a1ca5e338005d849b0babcaa330be0569694b3189d3d14f1",
+      "tests/public_cross_room_scenario.py": "6c1ea8d3fe17c620f6f62f79540d11f15d267a00dbbb0ab4d9b5ad3cd60ec342",
+      "tests/public_room_runtime_e2e.py": "6c96ef8539971f087bb5ac4aceaaa0fd80c8b2cca0241a6fa7de4ff58e6bad63"
+    },
+    "checks": [
+      "formal Native capabilities and HTTP whitelist deny chat/profile/tool/session bypasses",
+      "three independent users exchange real messages; normal chat does not invoke models",
+      "public-pi reads the real nonce and C++ file; all three clients see its attributed durable final",
+      "public-hermes reads the real nonce and C++ file; all three clients see its attributed durable final",
+      "original Native room broker receipt succeeds and both consumers commit without dead letters",
+      "real native tool transcripts confirm file contents; Agents use separate sessions and share one IM timeline",
+      "actual Native Run completes while injected event/status loss leaves the Gateway request unknown; Bridge is stopped before backup",
+      "real IM volumes and WSL Gateway/Windows Native archives form one batch; original services remain stopped",
+      "existing Runtime targets and a corrupt Native archive are refused before creating restore targets",
+      "fresh IM and original Runtime paths restored with Agents disabled; sessions/snapshots verified and existing public configs unchanged",
+      "restored disabled and enabled IM each prove boolean CANN admission false through authenticated CLI before public Runtimes or Bridge start",
+      "operator cold-starts the enabled restored stack and original public Runtimes; actual readiness and all six volume identities are verified",
+      "explicit original DLQ replay recovers the same Native Run and leaves all tool transcripts unchanged",
+      "three users relogin after cold restore; first WS handshakes and message succeed without retries, with original turns and native transcripts unchanged",
+      "Native process restart reuses the owned Profile without rewriting config, model auth or identity",
+      "tasks and handoff are persisted; duplicate client messages preserve completed execution records",
+      "Kafka redelivery after revoke, catalog disable and Connector/Bridge restart preserves one original result",
+      "full Compose restart and fresh login retain final messages, claimed task and membership revocation"
+    ],
+    "team_backup": {
+      "batch_id": "a3b361996e48418196b7f31253172d3b",
+      "source_project": "spark-public-d45e69d40cef",
+      "target_project": "spark-public-d45e69d40cef-restored",
+      "default_agents_enabled": false,
+      "admission": {
+        "disabled_im": {
+          "verified": true,
+          "cann_enabled": false,
+          "scope": "running Logic configuration only; no Runtime or Bridge was started"
+        },
+        "enabled_im_without_bridge": {
+          "verified": true,
+          "cann_enabled": false,
+          "scope": "running Logic configuration only; no Runtime or Bridge was started"
+        }
+      },
+      "logic_not_recreated_when_bridge_added": true,
+      "runtime_archives": {
+        "gateway": "aa03eb5bd0b023aa18cb5d53b5027e6fe3d285680a6ca40c2da77cebf2b237c3",
+        "hermes": "2f5274756ed97c4364e94eaa3679588dd7ea3d09e5b637840cfb4efe31f167f1"
+      }
+    },
+    "unknown_before_backup": {
+      "request_id": "ra_ab2679885e9c3bd5c4dad2ce3ff7711a408eb7177c8ad65f4174209eb13116ea",
+      "run_id": "run_bdc45b9da323440ebf11451fc81e2d1d",
+      "router_status": "unknown",
+      "actual_native_status": "completed",
+      "fault": "event/status receipt loss in owned Gateway only",
+      "native_tool_count": 6,
+      "dead_letter_attempts": 3,
+      "dead_letter_payload_sha256": "bc58dbdf519a20f097a261818e02a4260732e4666ae922dc4b91af771f8caf49"
+    },
+    "unknown_after_restore": {
+      "run_id": "run_bdc45b9da323440ebf11451fc81e2d1d",
+      "router_status": "completed",
+      "native_transcript_unchanged": true,
+      "delivery_state": "broker_confirmed",
+      "consumer_offsets_settled": true,
+      "recovery": "operator dry-run/apply using existing dlq_replay; original DLQ retained",
+      "one_durable_final_per_user": true
+    },
+    "native_offline_before_replay": true,
+    "kafka_replay": {
+      "request_before": {
+        "0": 1,
+        "1": 0,
+        "2": 3
+      },
+      "request_after": {
+        "0": 1,
+        "1": 0,
+        "2": 5
+      },
+      "committed": {
+        "0": 1,
+        "1": -1,
+        "2": 5
+      },
+      "reply_before": {
+        "0": 1,
+        "1": 0,
+        "2": 2
+      },
+      "reply_after": {
+        "0": 1,
+        "1": 0,
+        "2": 4
+      },
+      "exact_results_replayed": 2,
+      "reply_committed": {
+        "0": 1,
+        "1": -1,
+        "2": 4
+      },
+      "independent_reply_redelivery": {
+        "0": 2,
+        "1": 0,
+        "2": 5
+      },
+      "redelivery_committed": {
+        "0": 2,
+        "1": -1,
+        "2": 5
+      }
+    },
+    "transcripts_unchanged": {
+      "pi_sessions": 1,
+      "hermes_messages": 15,
+      "hermes_sessions": 1
+    },
+    "cleanup": {
+      "owned_compose_resources_removed": true,
+      "private_pi_model_files_unchanged": true,
+      "original_windows_profile_unchanged": true,
+      "owned_native_profile_removed": true
+    },
+    "limitations": [
+      "not browser acceptance",
+      "Windows shared storage does not prove OS read-only mounts",
+      "CANN/private Agent regression is separate; no arbitrary side-effecting tool execution",
+      "unknown recovery uses controlled event/status receipt loss, not a natural outage"
+    ]
+  },
+  "knowledge": {
+    "strict_validation": {
+      "exit_code": 0,
+      "sources": 123
+    },
+    "citations": {
+      "exit_code": 0
+    },
+    "personal_install_sync_check": {
+      "exit_code": 1,
+      "scope": "Existing personal installed skill drift; check-only, no installation or replacement performed."
+    }
+  }
+}

@@ -408,7 +408,8 @@ def main():
         'image_id': subprocess.check_output(['docker', 'image', 'inspect', args.image, '--format', '{{.Id}}'], text=True).strip()}
     report['source_sha256'] = {name: hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in (
         'tests/legacy_private_runtime_fixture.py', 'tests/legacy_private_runtime_e2e.py', 'tests/hermes_room_runtime_fixture.py',
-        'deploy/entrypoint.py', 'docker-compose.cann.yml', 'scripts/export_cann_documents.py',
+        'deploy/entrypoint.py', 'docker-compose.cann.yml', 'docker-compose.legacy-cann.yml',
+        'common/config.cpp', 'common/config.h', 'conf/logic.conf', 'scripts/export_cann_documents.py',
         'logic/services/room_workspace_service.cpp', 'logic/services/room_agent_service.cpp',
         'logic/repositories/room_agent_repository.cpp', 'logic/services/message_service.cpp',
         'logic/message_reservation.cpp', 'logic/message_reservation.h',

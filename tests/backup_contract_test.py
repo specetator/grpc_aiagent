@@ -201,6 +201,7 @@ class BackupPreflight(unittest.TestCase):
             team.enabled_compose(batch, target, 'restored')
             command.assert_called_once()
         enabled = json.loads((target / 'compose.agents.json').read_text())
+        self.assertEqual(enabled['services']['logic']['environment']['SPARK_PUSH_ROOM_CANN_ENABLED'], 'false')
         mount = enabled['services']['logic']['volumes'][0]
         self.assertEqual(mount['source'], str(target / 'bindings/logic-0/content'))
         self.assertTrue(mount['read_only'])

@@ -3,6 +3,7 @@
   class RoomAgentChannel {
     constructor(panel, api) {
       this.panel = panel; this.api = api; this.room = 0; this.task = null;
+      this.cannEnabled = false;
       this.streams = new Map();
       this.completed = new Set();
       panel.querySelector('[data-action=refresh]').onclick = () => this.refresh();
@@ -11,6 +12,8 @@
     }
     select(room) {
       this.room = Number(room); this.task = null; this.streams.clear(); this.completed.clear(); this.renderStreams();
+      this.cannEnabled = false;
+      this.panel.querySelector('[data-action=configure]').disabled = true;
       this.panel.querySelector('[data-task]').textContent = '加载共享任务…';
       return this.refresh();
     }
@@ -24,7 +27,12 @@
       const data = await this.invoke('/api/chatroom/agent/task', {room_id:room});
       if (!data || room !== this.room) return;
       this.task = data.task;
-      this.panel.querySelector('[data-error]').textContent = '';
+      this.cannEnabled = data.cann_enabled !== false; // Older servers retain their legacy contract.
+      this.panel.hidden = !this.cannEnabled && !data.task;
+      this.panel.querySelector('[data-action=configure]').disabled = !this.cannEnabled;
+      this.panel.querySelector('[data-action=checkpoint]').disabled = !data.task || !data.can_develop;
+      this.panel.querySelector('[data-error]').textContent = this.cannEnabled ? '' :
+        '此部署未启用 CANN。已有任务、请求和交接仍然保留。';
       const task = data.task;
       const requests = data.requests || [];
       this.panel.querySelector('[data-task]').textContent = task ?
@@ -34,7 +42,7 @@
         '房间尚未绑定算子任务。房主或管理员可以创建任务；成员默认只读，开发权限需显式授予。';
     }
     async configure() {
-      if (!this.room) return;
+      if (!this.room || !this.cannEnabled) return;
       const room = this.room;
       const input = {room_id:room};
       if (this.task) input.revision = this.task.revision;

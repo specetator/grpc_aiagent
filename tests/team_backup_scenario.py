@@ -9,7 +9,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def roundtrip(root, native, gateway, options, environment, port, output, cleanup, check):
+def roundtrip(root, native, gateway, options, environment, port, output, cleanup, check, credentials):
     """Caller drained requests/clients; restore to a fresh owned Compose project."""
     native.stop_process();gateway.stop()
     batch = root / 'team-backup';deployment = root / 'team-restored'
@@ -24,8 +24,9 @@ def roundtrip(root, native, gateway, options, environment, port, output, cleanup
          'credential_file': native.win(native.root / 'api.env')}]}
     plan = root / 'runtime-plan.json';plan.write_text(json.dumps(specification));plan.chmod(0o600)
     cli = [sys.executable, str(ROOT / 'scripts/spark_team_backup.py')]
-    def run(command, expected=0):
-        result = subprocess.run(command, cwd=ROOT, env=environment, capture_output=True, text=True, timeout=900)
+    environment = {key: value for key, value in environment.items() if key != 'COMPOSE_PROFILES'}
+    def run(command, expected=0, input=None):
+        result = subprocess.run(command, cwd=ROOT, env=environment, capture_output=True, text=True, timeout=900, input=input)
         path = output.with_suffix('.team.private.log')
         with os.fdopen(os.open(path, os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o600), 'w') as log:
             log.write(result.stdout);log.write(result.stderr)
@@ -66,15 +67,33 @@ def roundtrip(root, native, gateway, options, environment, port, output, cleanup
     disabled = json.loads((deployment / 'compose.json').read_text())
     assert 'agent-bridge' not in disabled['services'] and 'agent-authority' not in disabled['services']
     assert disabled['services']['logic']['environment']['SPARK_PUSH_HERMES_ENABLED'] == 'false'
-    assert json.loads((deployment / 'team-restore.json').read_text())['complete']
+    restore_receipt = json.loads((deployment / 'team-restore.json').read_text())
+    assert restore_receipt['complete'] and restore_receipt['requires_cann_admission_verification'] is True
     check('fresh IM and original Runtime paths restored with Agents disabled; sessions/snapshots verified and existing public configs unchanged')
+    def verify_mode(compose_options):
+        running = run(['docker', 'compose', *compose_options, 'ps', '--services', '--status', 'running']).split()
+        assert 'agent-bridge' not in running and 'agent-authority' not in running
+        result = json.loads(run([sys.executable, str(ROOT / 'scripts/verify_public_agent_mode.py'),
+            '--origin', 'http://127.0.0.1:' + str(port), '--credentials-stdin'],
+            input=json.dumps({key: credentials[key] for key in ('account', 'password')})))
+        assert result['verified'] is True and result['cann_enabled'] is False
+        return result
+    disabled_options = ['--env-file', '/dev/null', '-p', project, '-f', str(deployment / 'compose.json')]
+    admission = {'disabled_im': verify_mode(disabled_options)}
     # Cold maintenance activation: retain the restored volumes while stopping
     # every old client before replacing Logic's configuration and container.
-    run(['docker', 'compose', '-p', project, '-f', str(deployment / 'compose.json'), 'down', '--remove-orphans'])
+    run(['docker', 'compose', *disabled_options, 'down', '--remove-orphans'])
+    enabled_im = ['--env-file', '/dev/null', '-p', project, '-f', str(deployment / 'compose.agents.json')]
+    run(['docker', 'compose', *enabled_im, 'up', '-d', '--wait', '--wait-timeout', '180', '--pull', 'never'])
+    admission['enabled_im_without_bridge'] = verify_mode(enabled_im)
+    logic_id = run(['docker', 'compose', *enabled_im, 'ps', '-q', 'logic']).strip()
+    assert logic_id
+    check('restored disabled and enabled IM each prove boolean CANN admission false through authenticated CLI before public Runtimes or Bridge start')
     if getattr(gateway,'native_fault_marker',None):gateway.native_fault_marker.unlink(missing_ok=True)
     native.launch();gateway.start()
-    restored_options = ['-p', project, '-f', str(deployment / 'compose.agents.json'), '--profile', 'agents']
+    restored_options = [*enabled_im, '--profile', 'agents']
     run(['docker', 'compose', *restored_options, 'up', '-d', '--wait', '--wait-timeout', '180', '--pull', 'never'])
+    assert run(['docker', 'compose', *restored_options, 'ps', '-q', 'logic']).strip() == logic_id
     for role in ('logic', 'comet', 'job'):
         run(['docker', 'compose', *restored_options, 'exec', '-T', role, 'python3', '/app/deploy/health.py', role])
     expected_volumes={value['name'] for value in disabled['volumes'].values()}
@@ -82,7 +101,8 @@ def roundtrip(root, native, gateway, options, environment, port, output, cleanup
     assert actual_volumes==expected_volumes
     check('operator cold-starts the enabled restored stack and original public Runtimes; actual readiness and all six volume identities are verified')
     return restored_options, {'batch_id': manifest['batch_id'], 'source_project': source_project, 'target_project': project,
-        'default_agents_enabled': False, 'runtime_archives': {name: json.loads((batch / name / 'runtime.json').read_text())['archive_sha256']
+        'default_agents_enabled': False, 'admission': admission, 'logic_not_recreated_when_bridge_added': True,
+        'runtime_archives': {name: json.loads((batch / name / 'runtime.json').read_text())['archive_sha256']
                                                            for name in ('gateway', 'hermes')}}
 
 

@@ -91,6 +91,8 @@ def main():
         'cannbot/scripts/public_runtime_maintenance.py','cannbot/scripts/public_agent_gateway.py',
         'cannbot/scripts/hermes_public_gateway.py','cannbot/scripts/agent_router.py',
         'cannbot/scripts/hermes_native_adapter.py','scripts/spark_backup.py','scripts/spark_team_backup.py',
+        'scripts/verify_public_agent_mode.py','docker-compose.agents.yml','common/config.cpp',
+        'logic/services/room_agent_service.cpp',
         'tests/public_runtime_fixture.py','tests/hermes_room_runtime_fixture.py',
         'tests/team_backup_scenario.py','tests/public_cross_room_scenario.py','tests/public_room_runtime_e2e.py')}
     def check(label):report['checks'].append(label);print(label,flush=True)
@@ -323,7 +325,7 @@ print(json.dumps(codes))
                         connected_users=[client.user for client in clients]
                         for client in clients:await client.close()
                         clients.clear()
-                        restored_options,evidence=await asyncio.to_thread(roundtrip,root,native,gateway,options,environment,port,output,cleanup_projects,check)
+                        restored_options,evidence=await asyncio.to_thread(roundtrip,root,native,gateway,options,environment,port,output,cleanup_projects,check,users[0]['credentials'])
                         options[:]=restored_options
                         report['team_backup']=evidence
                         assert store.get_turn(unknown_request)['status']=='unknown'

@@ -277,6 +277,9 @@ def enabled_compose(directory, target, project):
     _, manifest, original = im.verify(directory / 'im')
     disabled = json.loads((target / 'compose.json').read_text())
     config = copy.deepcopy(original)
+    # Explicit admission policy for binaries that implement it. This cannot
+    # backport the capability into an old image; activation still needs an API check.
+    config['services']['logic'].setdefault('environment', {})['SPARK_PUSH_ROOM_CANN_ENABLED'] = 'false'
     config.update(name=project, networks=disabled['networks'], volumes=disabled['volumes'])
     config['services']['gateway']['ports'] = disabled['services']['gateway']['ports']
     for key, record in manifest['bindings'].items():
@@ -326,8 +329,10 @@ def restore(args):
         for lease in leases:lease.call('commit', 'committed')
         for lease in leases:lease.release()
         im.save_json(target / 'team-restore.json', {'complete': True, 'batch_id': batch['batch_id'], 'agents_enabled': False,
-            'runtime_plan': batch['plan'], 'next': 'Validate restored IM, then down compose.json for this target project without -v. Start the original public Runtimes and cold-start compose.agents.json with --profile agents; do not hot-switch Logic.'})
-        return {**result, 'scope': 'im-and-public-runtimes', 'batch_id': batch['batch_id'], 'agents_enabled': False}
+            'requires_cann_admission_verification': True, 'runtime_plan': batch['plan'],
+            'next': 'Keep public Runtimes and Bridge stopped. Verify the running task API has boolean cann_enabled=false in disabled IM, then cold-start the enabled Compose IM without the agents profile and verify again. Only then start the original public Runtimes and agents profile. Unsupported old images stay Agents-off; see docs/backup-restore.md.'})
+        return {**result, 'scope': 'im-and-public-runtimes', 'batch_id': batch['batch_id'], 'agents_enabled': False,
+                'requires_cann_admission_verification': True}
     finally:
         for lease in leases:lease.close()
 

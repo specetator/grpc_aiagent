@@ -257,3 +257,5 @@ add_test(NAME runtime_archive_test COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURC
 set_tests_properties(runtime_archive_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 60)
 add_test(NAME cann_document_export_test COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/cann_document_export_test.py)
 set_tests_properties(cann_document_export_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 30)
+add_test(NAME public_agent_mode_test COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/public_agent_mode_test.py)
+set_tests_properties(public_agent_mode_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 30)

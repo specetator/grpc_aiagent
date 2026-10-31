@@ -43,6 +43,22 @@ docker compose -f docker-compose.yml -f docker-compose.agents.yml \
 
 两个 origin 由 operator 配置，不能由聊天正文或用户 API 改写。
 
+## 公共模式与旧 CANN 模式
+
+`docker-compose.agents.yml` 与正式公共启动器只提供 Catalog 中的 Pi/Hermes；
+该 overlay 固定关闭 `SPARK_PUSH_ROOM_CANN_ENABLED`，防止把旧 `@CANN` 任务
+交给未加载 `RoomPiFactory` 的公共 Gateway。普通聊天和结构化公共 Mention 不受影响。
+房间的旧 CANN 任务、请求和授权交接仍可查看，已接受回复按原成员权限与发布记录处理。
+
+既有 CANN/个人 Agent 部署使用 [legacy 兼容入口](cann-docker.md#legacy-cann-兼容模式)。
+两种 overlay 不叠加；当前未验收同一 Gateway 同时承载正式公共与 legacy 工作流。
+不要为了加载旧任务而放宽公共 Catalog 或将私人 Hermes Profile 加入共享列表。
+
+切换模式需维护窗口：先停止新 Agent 请求，核对既有请求、原 Runtime 及 Kafka
+消费状态，完成或按原恢复协议处理进行中的任务，再冷切换服务。新开关只限制
+接纳/重新入队，不取消执行、不清空积压、不迁移 Session；旧队列不能直接改投
+不支持该工作流的 Gateway。原未知执行仍保持 unknown，不能清空账本重跑。
+
 ## 独立公共启动器
 
 以专用服务账号运行 Connector，使用新的绝对目录。不要把 `home` 指向个人 Pi、

@@ -132,6 +132,7 @@ CANN 知识检索已实测，但不能把知识回答当作硬件验证。
 
 ```dotenv
 SPARK_PUSH_ROOM_AGENT_ENABLED=true
+SPARK_PUSH_ROOM_CANN_ENABLED=true
 SPARK_PUSH_ROOM_WORKSPACE_ROOT=/home/peco/.local/share/spark-push-rooms
 SPARK_PUSH_ROOM_TEST_RUNNER=/absolute/admin-owned/runner.py
 ```
@@ -142,6 +143,15 @@ Logic 主机器人一致，owner_user_ids 必须为空；私人 technical 不可
 启动脚本读取 .env.local 后，重启 Logic、Comet、Bridge、Kernel Agent gateway，使新协议和环境生效。
 Gateway 的模型/provider 要选择已配置且实际可用的入口。本次真实模型测试使用本机当前默认
 deepseek/deepseek-flash，没有修改个人模型或凭据配置。
+
+`SPARK_PUSH_ROOM_CANN_ENABLED` 是新 legacy 请求的独立开关；未设置时保留旧行为，
+正式公共 Pi/Hermes overlay 显式设为 false。关闭后配置与 `@CANN` 请求返回 503，
+已有请求不能通过重新提交再次入队；任务/请求查询、授权交接和已接受回复的发布
+仍走原权限与幂等规则，不删除工作区或旧结果。它不会取消已执行任务或处理旧
+Kafka 积压，切换运行模式前须在维护窗口核实这些状态。
+Web 根据任务 API 的 `cann_enabled` 展示能力，旧服务缺少该字段时沿用原界面。
+Docker 模式使用 [legacy overlay](cann-docker.md#legacy-cann-兼容模式)，不与公共
+Catalog overlay 叠加。
 
 网页 chatroom.html 的“CANN 协作任务”面板支持房主创建任务/授权、刷新进度、开发成员
 保存交接摘要。普通讨论照常发送，向共享 Agent 提问使用 `@CANN ...`。

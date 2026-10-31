@@ -6,6 +6,7 @@ boundary; it is deliberately not evidence of native code analysis or browser E2E
 Requires Python 3.11 and websockets. Logs and temporary secrets stay private.
 """
 import argparse
+import hashlib
 import asyncio
 from contextlib import AsyncExitStack
 import json
@@ -14,6 +15,7 @@ from pathlib import Path
 import secrets
 import socket
 import subprocess
+import sys
 import tempfile
 import time
 import urllib.error
@@ -38,7 +40,7 @@ def http(base, path, data=None, key=None, method=None):
     except urllib.error.HTTPError as error:
         return error.code, error.read()
 
-async def send(base, user, room, mentions=False, observer=None):
+async def send(base, user, room, mentions=False, observer=None, text=None, expected_code=0):
     async with AsyncExitStack() as stack:
         async def connect(account):
             return await stack.enter_async_context(websockets.connect(
@@ -55,7 +57,7 @@ async def send(base, user, room, mentions=False, observer=None):
         ws = await connect(user)
         identity = secrets.token_hex(16)
         body = {'type': 'chatroom', 'group_id': room, 'client_msg_id': identity,
-                'content': {'text': '@Pi summarize' if mentions else 'ordinary chat survives optional Agent failure'}}
+                'content': {'text': text if text is not None else '@Pi summarize' if mentions else 'ordinary chat survives optional Agent failure'}}
         if mentions:
             body['agent_mentions'] = ['public-pi']
         await ws.send(json.dumps(body))
@@ -63,6 +65,9 @@ async def send(base, user, room, mentions=False, observer=None):
             async for raw in ws:
                 event = json.loads(raw)
                 if event.get('client_msg_id') == identity and event.get('type') in ('accepted_ack', 'error'):
+                    if expected_code:
+                        assert event['type']=='error' and event.get('code')==expected_code, event
+                        return identity
                     assert event['type'] == 'accepted_ack', event.get('code')
                     message_id = event['msg_id']
                     break
@@ -84,6 +89,10 @@ def main():
     output = args.out.resolve()
     receipt = {'ok': False, 'mode': 'real Compose / MySQL / Redis / Kafka / Logic; no Agent runtime',
                'source_commit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=ROOT, text=True).strip(), 'checks': []}
+    receipt['sources']={name:hashlib.sha256((ROOT/name).read_bytes()).hexdigest() for name in (
+        'common/config.cpp','common/config.h','conf/logic.conf','logic/main.cpp',
+        'logic/services/room_agent_service.cpp','logic/services/room_agent_service.h',
+        'docker-compose.agents.yml','scripts/verify_public_agent_mode.py','tests/connector_deployment_e2e.py')}
     def check(description):
         receipt['checks'].append(description)
         print(description, flush=True)
@@ -157,7 +166,8 @@ def main():
             assert subprocess.run(['python3', str(ROOT / 'scripts/ops/export-agent-credentials.py'), str(keyfile), '--', *options],
                 cwd=ROOT, env=environment, capture_output=True).returncode != 0
             check('empty Compose keys use persisted keys; export contains only two keys and refuses overwrite')
-            users = [call('/api/register', {'account': 'connector_' + secrets.token_hex(8), 'password': secrets.token_hex(24), 'name': name}) for name in ('A', 'B', 'C')]
+            credentials = [{'account': 'connector_' + secrets.token_hex(8), 'password': secrets.token_hex(24), 'name': name} for name in ('A', 'B', 'C')]
+            users = [call('/api/register', value) for value in credentials]
             a, b, c = users
             room = call('/api/spaces/create', {'name': 'Connector acceptance'}, a)['room_id']
             def chat():
@@ -183,6 +193,29 @@ def main():
             call('/api/chatroom/workspace/set', {'room_id': room, 'project_id': 'source', 'generation': 0}, a)
             chat()
             check('Connector-offline chat is Kafka-accepted, delivered to another member and present in SQL history')
+            task=call('/api/chatroom/agent/task',{'room_id':room},a)
+            assert task['cann_enabled'] is False and task['task'] is None and not task['requests']
+            verified=subprocess.run([sys.executable,str(ROOT/'scripts/verify_public_agent_mode.py'),
+                '--origin',base,'--credentials-stdin'],input=json.dumps({k:credentials[0][k] for k in ('account','password')}),
+                capture_output=True,text=True,check=True)
+            receipt['public_mode_verification']=json.loads(verified.stdout)
+            assert receipt['public_mode_verification']['verified'] is True
+            call('/api/chatroom/agent/task',{'room_id':room},c,403)
+            call('/api/chatroom/agent/configure',{'room_id':room,'title':'unavailable legacy'},a,503)
+            def offsets(topic):
+                lines=compose('exec','-T','kafka','/opt/kafka/bin/kafka-get-offsets.sh',
+                    '--bootstrap-server','kafka:29092','--topic',topic,'--time','-1').splitlines()
+                rows=sorted(line for line in lines if line.startswith(topic+':'))
+                assert len(rows)==3
+                return rows
+            before_offsets={topic:offsets(topic) for topic in ('ai_request','persist_message')}
+            refused=asyncio.run(send(base,a,room,text='@CANN must not reach the public-only Gateway',expected_code=503))
+            assert {topic:offsets(topic) for topic in before_offsets}==before_offsets
+            assert not any(item.get('client_msg_id')==refused for item in call('/api/session/history',{'session_id':f'r_{room}'},a)['messages'])
+            assert call('/api/chatroom/agent/task',{'room_id':room},a)==task
+            receipt['cann_admission']={'task_capability':False,'configure_code':503,'websocket_code':503,
+                'broker_offsets_unchanged':before_offsets,'history_and_task_unchanged':True}
+            check('public-only deployment rejects CANN configure and WS invocation before Kafka while preserving ordinary chat and membership checks')
             identity = agent_request()
             canonical = auth(keys['SPARK_PUSH_WORKSPACE_AUTH_KEY'], identity)
             assert canonical['collaboration']['actor_user_id'] == b['user_id']

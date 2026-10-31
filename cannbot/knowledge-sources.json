@@ -497,6 +497,29 @@
       "path": "docs/benchmarks/2026-10-12-release-smoke.json",
       "authority": "snapshot",
       "topics": ["release", "distribution", "startup", "testing", "e2e"]
+    },
+    {
+      "id": "agent-deployment-modes-2026-11-01",
+      "path": "docs/benchmarks/2026-11-01-agent-deployment-modes.json",
+      "authority": "snapshot",
+      "topics": [
+        "room-agent",
+        "cann",
+        "docker",
+        "testing",
+        "recovery"
+      ]
+    },
+    {
+      "id": "verify-public-agent-mode",
+      "path": "scripts/verify_public_agent_mode.py",
+      "authority": "code",
+      "topics": [
+        "room-agent",
+        "docker",
+        "recovery",
+        "permissions"
+      ]
     }
   ]
 }

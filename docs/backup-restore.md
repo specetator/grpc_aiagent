@@ -145,14 +145,41 @@ python3 scripts/spark_team_backup.py restore \
 
 全套预检通过后，工具在新建的原 home 中立即持有原生锁，再填充和校验；未完成目录
 保留标志并拒绝 launcher 启动。全部锁持续到 IM 恢复完成。默认 `compose.json` 仍关闭
-Agent，只提供恢复后的普通 IM。核对 `team-restore.json` 的 complete、登录、历史和任务后，
-在维护窗口停止该恢复项目，**不删除数据卷**：
+Agent，只提供恢复后的普通 IM。`team-restore.json` 和 CLI 回执中的
+`requires_cann_admission_verification: true` 表示公共启用尚未验证；生成
+`compose.agents.json` 不等于可以启动公共 Runtime。
+
+核对 complete、登录、历史和任务后，先保持 Runtime/Bridge 停止，用以下脚本验证
+当前 Logic。使用已有空间成员的普通账号，密码交互输入；脚本正常登录、自动选择
+一个已授权空间，不需要 RoomID，不创建任务或启动 Agent：
+
+```bash
+python3 scripts/verify_public_agent_mode.py --origin http://127.0.0.1:9010
+```
+
+必须成功返回布尔 `cann_enabled: false`。旧镜像缺少字段、返回 true、类型错误、
+鉴权失败均返回非零，公共启用保持待处理。写入环境变量不能升级旧二进制；此时
+可继续使用恢复后的普通 IM，先另行验证升级，再重新执行这两次检查。恢复工具
+仍使用原镜像，不自动换镜像或改写旧备份。
+
+第一次检查只证明该二进制提供此契约，还需在实际启用配置下检查一次。先在维护
+窗口停止恢复项目，**不删除数据卷**：
 
 ```bash
 docker compose -p sparkpush-restored -f "$HOME/spark-restored/compose.json" down --remove-orphans
 ```
 
-再用原配置启动公共 Gateway/Native，并冷启动完整配置：
+以 `compose.agents.json` 冷启动 IM 部分，暂不启用 `agents` profile，也不启动
+Gateway/Native。清除继承的 profile 并使用空环境文件，避免提前启动 Bridge：
+
+```bash
+env -u COMPOSE_PROFILES docker compose --env-file /dev/null -p sparkpush-restored \
+  -f "$HOME/spark-restored/compose.agents.json" up -d --wait
+python3 scripts/verify_public_agent_mode.py --origin http://127.0.0.1:9010
+```
+
+第二次检查也必须成功；失败则保持公共 Runtime 和 Bridge 停止。两次均通过后，
+才用原配置启动 Gateway/Native，再给**同一份配置**增加 `agents` profile：
 
 ```bash
 docker compose -p sparkpush-restored -f "$HOME/spark-restored/compose.agents.json" \
@@ -164,6 +191,8 @@ docker compose -p sparkpush-restored -f "$HOME/spark-restored/compose.agents.jso
 `compose.agents.json` 是完整配置，不需要与 `compose.json` 合并。它和备份一样可能含
 已解析的私有环境值，文件权限为 0600。恢复后的 Logic 使用恢复目录里的 Catalog 副本；
 如果批次含公开 CANN 文档，关闭和开启 Agent 的两份配置都使用恢复后的文档副本。
+该配置显式关闭新 legacy CANN 接纳；实际生效以两次在线检查为准。脚本只检查
+Logic 接纳契约，不验证模型可用性或 Runtime 执行结果。
 日后改 Catalog 时仍须同步 Gateway 使用的对应配置。不要同时启动源项目和恢复项目，
 它们可能使用相同的外部 Runtime 和端口。
 不要对仍运行的 disabled 栈直接执行 enabled `up`。实际测试中，热替换 Logic 的

@@ -111,10 +111,11 @@ class OperatorTaskService {
 // 具体手段见 .cpp 里的 Trigger 与 BuildRequest。
 class RoomAgentService {
  public:
-    // public_cann_bot 是共享 Agent 的 bot 账号 id；enabled 为假时所有功能回 503。
+    // cann_enabled only gates new legacy work; history and accepted replies retain
+    // their original membership/publication rules. Generic Catalog routing is independent.
     RoomAgentService(RoomAgentRepository* repo, int64_t public_cann_bot,
-                     bool enabled, std::vector<AgentDefinition> catalog = {})
-        : repo_(repo), bot_(public_cann_bot), enabled_(enabled), catalog_(std::move(catalog)) {}
+                     bool enabled, std::vector<AgentDefinition> catalog = {}, bool cann_enabled = true)
+        : repo_(repo), bot_(public_cann_bot), enabled_(enabled), cann_enabled_(cann_enabled), catalog_(std::move(catalog)) {}
     using ControlTransport=std::function<nlohmann::json(const nlohmann::json&)>;
     // Startup only: an invalid optional deployment must not stop ordinary IM
     // or convert queued/in-flight work into permanent authorization denial.
@@ -178,6 +179,8 @@ class RoomAgentService {
     RoomAgentRepository* repo_;
     int64_t bot_;
     bool enabled_;
+    bool cann_enabled_;
+    bool CannEnabled() const { return enabled_ && cann_enabled_; }
     bool configuration_error_{false};
     std::vector<AgentDefinition> catalog_;
     ControlTransport control_;

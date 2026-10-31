@@ -1,0 +1,13 @@
+# Existing general Gateway + RoomPiFactory only. Do not combine this with the
+# formal public docker-compose.agents.yml or use the public-only launcher.
+services:
+  logic:
+    environment:
+      SPARK_PUSH_HERMES_ENABLED: "true"
+      SPARK_PUSH_ROOM_AGENT_ENABLED: "true"
+      SPARK_PUSH_ROOM_CANN_ENABLED: "true"
+      SPARK_PUSH_HERMES_API_KEY: ${SPARK_PUSH_HERMES_API_KEY:-}
+
+  agent-bridge:
+    environment:
+      SPARK_PUSH_HERMES_BASE_URL: ${SPARK_PUSH_AGENT_GATEWAY_ORIGIN:-http://host.docker.internal:8643}/v1

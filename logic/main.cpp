@@ -251,7 +251,7 @@ int RunLogic(Config cfg) {
         return 1;
     }
     RoomAgentService room_agent_service(&room_agent_repository, cfg.hermes_bot_user_id,
-                                       cfg.hermes_enabled && cfg.room_agent_enabled);
+                                       cfg.hermes_enabled && cfg.room_agent_enabled, {}, cfg.room_cann_enabled);
     const char* setup_stage="Connector credentials";
     bool room_configuration_ok=true;
     bool room_catalog_configured=false;
@@ -276,7 +276,7 @@ int RunLogic(Config cfg) {
         if(!catalog.empty() && !room_agent_repository.CheckCatalogSchema(&room_schema_error))
             throw std::runtime_error("missing optional schema");
         RoomAgentService candidate(&room_agent_repository,cfg.hermes_bot_user_id,
-                                   cfg.hermes_enabled && cfg.room_agent_enabled,catalog);
+                                   cfg.hermes_enabled && cfg.room_agent_enabled,catalog,cfg.room_cann_enabled);
         setup_stage="project catalog and authorization key";
         if(const char* path=std::getenv("SPARK_PUSH_ROOM_PROJECT_CATALOG");path && *path) {
             const char* key=std::getenv("SPARK_PUSH_WORKSPACE_AUTH_KEY");

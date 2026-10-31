@@ -120,7 +120,7 @@ class LegacyStack:
             SPARK_PUSH_AGENT_AUTH_BIND=host, SPARK_PUSH_AGENT_GATEWAY_ORIGIN=f'http://{host}:{self.gateway_port}')
         self.project = 'spark-legacy-' + secrets.token_hex(6)
         self.options = ['--env-file', str(self.envfile), '-p', self.project, '-f', str(ROOT / 'docker-compose.yml'),
-                        '-f', str(ROOT / 'docker-compose.agents.yml'), '-f', str(ROOT / 'docker-compose.cann.yml'), '--profile', 'agents']
+                        '-f', str(ROOT / 'docker-compose.legacy-cann.yml'), '-f', str(ROOT / 'docker-compose.cann.yml'), '--profile', 'agents']
         self.private_hashes = {p: hashlib.sha256(p.read_bytes()).hexdigest() for p in
             (Path('/home/peco/.pi-spark-agent/models.json'), Path('/home/peco/.pi-spark-agent/.env'))}
 
@@ -172,6 +172,9 @@ class LegacyStack:
         plain = json.loads(base.stdout)
         assert not any(m.get('target') == '/run/spark-cann/data' for s in plain['services'].values() for m in s.get('volumes', []))
         effective = json.loads(self.compose('config', '--format', 'json'))
+        assert effective['services']['logic']['environment']['SPARK_PUSH_ROOM_CANN_ENABLED'] == 'true'
+        assert 'SPARK_PUSH_ROOM_AGENT_CATALOG' not in effective['services']['logic']['environment']
+        assert 'agent-authority' not in effective['services']
         mounts = [m for m in effective['services']['logic']['volumes'] if m['target'] == '/run/spark-cann/data']
         # Compose may omit an explicitly false create_host_path in normalized
         # JSON. Check the source setting as well as the effective default.

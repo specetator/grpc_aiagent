@@ -80,7 +80,7 @@ ServiceStatus RoomAgentService::Configure(int64_t actor, int64_t room,
     int role=-1; std::string role_error;
     if(!repo_->Role(room,actor,&role,&role_error)) return {500,role_error};
     if(role<1) return {403,"only owner/admin can configure shared Agent"};
-    if (!enabled_) return {503, "room Agent disabled"};
+    if (!CannEnabled()) return {503, "legacy CANN is unavailable in this deployment"};
     Json existing;
     std::string error;
     if (!repo_->Load(room, &existing, &error)) return {500, error};
@@ -148,6 +148,7 @@ ServiceStatus RoomAgentService::View(int64_t actor, int64_t room, Json* result) 
     // 真正的权限判定在 Checkpoint 里会再跑一次 Developer()：
     // 前端标志只是 UX，不能当鉴权用。
     *result = {{"task", task}, {"requests", requests},
+               {"cann_enabled", CannEnabled()},
                {"can_develop", task.is_object() && Developer(task, actor)}};
     return {};
 }
@@ -184,13 +185,13 @@ ServiceStatus RoomAgentService::Trigger(int64_t actor, int64_t room,
     // 因此这里直接 403，控制类操作只能走带鉴权的 HTTP 接口
     //（Configure / Checkpoint）。
     if (question[0] == '/') return {403, "shared Agent control commands are disabled"};
+    if (!CannEnabled()) return {503, "legacy CANN is unavailable in this deployment"};
     Json task;
     std::string error;
     if (!repo_->Load(room, &task, &error)) return {500, error};
     // 409 而不是 400：房间还没配置任务不是客户端的格式错，
     // 而是一个需要先去配置的状态冲突。
     if (!task.is_object()) return {409, "configure a room operator task first"};
-    if (!enabled_) return {503, "room Agent disabled"};
     // 16000 字节上限与 spec 一致：提问会原样拼进 prompt，
     // 不钳住就能用一条消息把上下文窗口占满。
     if (question.size() > 16000) return {400, "Agent question too large"};
@@ -211,6 +212,9 @@ bool RoomAgentService::BuildRequest(const Message& current,
     // request's identity and scope after this gate; do not recreate its session.
     auto membership=CheckMember(current.sender_id,room);
     if(!membership.ok()) { if(error) *error=membership.message; return false; }
+    // Existing requests must not be re-enqueued into a public-only Gateway.
+    // Keep the stored request/result intact; completion and publication are separate.
+    if(!CannEnabled()) { if(error) *error="legacy CANN is unavailable in this deployment"; return false; }
     Json existing;
     if(!repo_->Request(current.msg_id,&existing,error)) return false;
     if(existing.is_object()) { *request=existing; return true; }

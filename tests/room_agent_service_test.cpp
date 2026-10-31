@@ -135,6 +135,30 @@ int main() {
     Check(repo.results.size()==1,"one result after replay");
     Check(repo.task["task_id"]==task_id,"handoff keeps task");
     {
+        MemoryRepository isolated=repo;
+        RoomAgentService publicOnly(&isolated,99,true,{},false);
+        const auto originalTask=isolated.task;
+        const auto originalRequests=isolated.requests, originalResults=isolated.results;
+        Check(publicOnly.View(8,1,&out).ok() && out["cann_enabled"]==false && out["task"]==originalTask &&
+            out["can_develop"]==true,"disabled CANN preserves authorized task/history metadata");
+        Check(publicOnly.Configure(7,1,config,&out).code==503,"public deployment cannot create or reconfigure CANN");
+        Check(publicOnly.Trigger(8,1,text("@CANN question"),&trigger).code==503 && !trigger,"public deployment rejects CANN before enqueue");
+        Check(publicOnly.Trigger(8,1,text("ordinary chat"),&trigger).ok() && !trigger,"CANN disabled leaves ordinary chat available");
+        Check(publicOnly.Trigger(10,1,text("@CANN question"),&trigger).code==403,"disabled capability still checks membership first");
+        Check(!publicOnly.BuildRequest(current,{},&retry,&error),"stored CANN request cannot bypass disabled admission and be re-enqueued");
+        auto fresh=current;fresh.msg_id="never-enqueued-cann";
+        Check(!publicOnly.BuildRequest(fresh,{},&retry,&error),"disabled admission creates no new request");
+        Check(isolated.task==originalTask && isolated.requests==originalRequests && isolated.results==originalResults,"admission gate changes no saved task/request/result");
+        Check(publicOnly.ValidateReply(reply,&authorized,&error) && publicOnly.Complete(reply,&error),"accepted CANN reply still validates and completes");
+        Json published;
+        Check(publicOnly.PublishReply(request,reply,prepared.message.content_json,&published,&error) && published==reply,"disabled admission preserves first publication of an accepted reply");
+        Check(publicOnly.PublishReply(request,reply,prepared.message.content_json,&published,&error) && published==reply,"disabled admission preserves publication replay");
+        isolated.removed=true;isolated.publications.clear();
+        Check(publicOnly.PublishReply(request,reply,prepared.message.content_json,&published,&error) &&
+            published["terminal_status"]=="cancelled","accepted reply still rechecks revoked membership");
+        Check(publicOnly.View(8,1,&out).code==403,"disabled CANN history remains private");
+    }
+    {
         auto first=reply;
         first["delta_count"]=29;
         first["response_metadata"]["workspace_checkpoint"]={{"code_revision","immutable"},{"tests",Json::array({{{"run_id","compile-once"},{"passed",true}}})}};
@@ -192,7 +216,7 @@ int main() {
         try {ParseRoomAgentCatalog(bad,false,true);}catch(const std::exception&){refused=true;}
         Check(refused,"public Native incomplete isolation contract refused");
     }
-    RoomAgentService generic(&repo,99,true,catalog);
+    RoomAgentService generic(&repo,99,true,catalog,false);
     Check(generic.Install(8,1,{{"agent_id","public-pi"}},true).code==403,"member cannot install");
     Check(generic.Install(7,1,{{"agent_id","public-pi"},{"runtime_url","bad"}},true).code==400,"cannot inject runtime");
     Check(generic.Install(7,1,{{"agent_id","public-pi"}},true).ok(),"owner install Pi");

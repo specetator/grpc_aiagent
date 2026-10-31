@@ -67,6 +67,9 @@ static void ApplySensitiveEnvOverrides(Config* cfg) {
         cfg->hermes_enabled = std::string(hermes_enabled) == "true" ||
                               std::string(hermes_enabled) == "1";
     }
+    if (const char* value = std::getenv("SPARK_PUSH_ROOM_CANN_ENABLED")) {
+        cfg->room_cann_enabled = std::string(value) == "true" || std::string(value) == "1";
+    }
 }
 
 // 从给定路径加载 key=value 配置文件，并回填到 Config。
@@ -303,6 +306,8 @@ Config LoadConfig(const std::string& path) {
             cfg.admin_password = value;
         } else if (key == "room_agent_enabled") {
             cfg.room_agent_enabled = (value == "true" || value == "1");
+        } else if (key == "room_cann_enabled") {
+            cfg.room_cann_enabled = (value == "true" || value == "1");
         } else if (key == "hermes_enabled") {
             cfg.hermes_enabled = (value == "true" || value == "1");
         } else if (key == "hermes_bot_user_id") {
