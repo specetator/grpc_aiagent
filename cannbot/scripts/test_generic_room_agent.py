@@ -38,6 +38,10 @@ class GenericRoomTest(unittest.TestCase):
     def make_router(self):
         router=AgentRouter(self.entries,{e['id']:self.factory for e in self.entries},AgentStore(self.root/'state'),default='public-pi',bot_user_id=101)
         router.public_room_adapter=self.factory
+        # This test isolates routing; the real HTTP authority has separate tests.
+        class Authority:
+            def authorize(self,request_id,expected):return expected
+        router.workspace_authority=Authority()
         return router
     def call(self,sc,text='hello'):
         self.router.authorize_room(f"r_{sc['room_id']}",sc,sc['request_id'])
@@ -55,6 +59,19 @@ class GenericRoomTest(unittest.TestCase):
         self.assertEqual(first['conversation_id'],second['conversation_id'])
         self.assertNotEqual(first['route_key'],second['route_key'])
         self.assertEqual(len(self.factory.sessions),3)
+    def test_workspace_and_agent_grant_changes_isolate_routes(self):
+        first={**scope(),"project_id":"sample","workspace_generation":1}
+        before=self.call(first,'project-one-secret')[1]['agent_route']
+        same={**scope(actor=8,seq=2),"project_id":"sample","workspace_generation":1}
+        self.assertIn('project-one-secret',self.call(same,'member-two')[0])
+        after={**scope(seq=3),"project_id":"other","workspace_generation":2}
+        text,meta=self.call(after,'new-project')
+        self.assertNotIn('project-one-secret',text)
+        self.assertNotEqual(before['route_key'],meta['agent_route']['route_key'])
+        rebound={**after,"request_id":scope(seq=4)['request_id'],"source_msg_id":"r_1-4","generation":3}
+        self.assertNotIn('new-project',self.call(rebound,'reinstalled')[0])
+        self.assertEqual(len(self.factory.sessions),3)
+
     def test_replay_restart_no_execution(self):
         sc=scope();self.call(sc);self.router=self.make_router()
         _,meta=self.call(sc);self.assertTrue(meta['turn_replayed']);self.assertEqual(len(self.factory.calls),1)

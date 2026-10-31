@@ -6,6 +6,7 @@
 #include "repositories/room_agent_repository.h"
 #include "repositories/room_sql.h"
 #include "services/room_service.h"
+#include "hermes_reply.h"
 using namespace sparkpush;
 void Require(bool ok,const std::string& why) { if(!ok) throw std::runtime_error(why); }
 int main() {
@@ -66,6 +67,13 @@ int main() {
     RoomAgentService multi(&agent_repo,900000000001LL,true,{{"public-pi","Pi","pi_rpc",900000000401LL,true},{"second-pi","Pi","pi_rpc",900000000402LL,true}});
     Require(multi.Install(a,room,{{"agent_id","public-pi"}},true).ok(),"install public Pi");
     Require(multi.Install(a,room,{{"agent_id","second-pi"}},true).ok(),"install second Pi");
+    multi.SetProjectCatalog({{"spark-push","Quotes ' and SQL ; --"}},std::string(48,'k'));
+    Require(multi.SetWorkspace(a,room,{{"project_id","spark-push"},{"generation",0}},&loaded).ok(),"persist owner workspace");
+    Require(loaded["workspace"]["generation"]==1,"workspace initial generation");
+    Require(multi.SetWorkspace(a,room,{{"project_id",""},{"generation",1}},&loaded).ok(),"workspace revoke tombstone");
+    Require(multi.SetWorkspace(a,room,{{"project_id","spark-push"},{"generation",2}},&loaded).ok(),"workspace regrant");
+    Require(loaded["workspace"]["generation"]==3,"workspace generation never resets");
+    Require(multi.SetWorkspace(a,room,{{"project_id",""},{"generation",1}},&loaded).code==409,"stale workspace update cannot revoke new grant");
     Message source;source.session_id="r_"+std::to_string(room);source.msg_seq=20;source.msg_id=source.session_id+"-20";source.sender_id=a;source.client_msg_id="multi-source";
     source.content_json=nlohmann::json({{"content",{{"text","summarize O'Reilly \\"}}},{"agent_mentions",nlohmann::json::array({"public-pi","second-pi"})}}).dump();
     nlohmann::json batch,pending;
@@ -89,5 +97,38 @@ int main() {
     Require(agent_repo.Pending(&pending,&error)&&pending.empty(),"cancelled intent not retried");
     Require(multi.Install(a,room,{{"agent_id","second-pi"}},true).ok()&&multi.CheckDispatch(batch[1]).code==403,"reinstall cannot revive old generation");
     Require(multi.Agents(a,room,&loaded).ok(),"catalog and request query");
+    Require(multi.AuthorizeWorkspace(std::string(48,'k'),{{"request_id",batch[0]["request_id"]}},&loaded).ok(),"real workspace authority reads immutable request");
+    {auto guard=pool.Acquire();room_sql::Query(guard.get(),"UPDATE `user` SET status=2 WHERE id=?",{std::to_string(a)});}
+    Require(multi.AuthorizeWorkspace(std::string(48,'k'),{{"request_id",batch[0]["request_id"]}},&loaded).code==403,"disabled actor loses live file authorization");
+    {auto guard=pool.Acquire();room_sql::Query(guard.get(),"UPDATE `user` SET status=1 WHERE id=?",{std::to_string(a)});}
+
+    using Json=nlohmann::json;
+    auto finalReply=[](const Json& request){
+        Json reply;
+        for(const auto* key:{"request_id","session_id","user_id","bot_user_id","collaboration"})reply[key]=request.at(key);
+        reply["ok"]=true;reply["text"]="private code ' result";reply["completed_at_ms"]=123456;
+        return reply;
+    };
+    auto final=finalReply(batch[0]);PreparedHermesReply original;
+    Require(PrepareHermesReply(final.dump(),900000000401LL,"Pi",&original,&error,&batch[0]),"prepare workspace final");
+    Json canonical,concurrent;bool publish1=false,publish2=false;std::string err1,err2;
+    std::thread p1([&]{publish1=multi.PublishReply(batch[0],final,original.message.content_json,&canonical,&err1);});
+    std::thread p2([&]{publish2=multi.PublishReply(batch[0],final,original.message.content_json,&concurrent,&err2);});
+    p1.join();p2.join();Require(publish1 && publish2 && canonical==final && concurrent==canonical,"concurrent final decisions have one canonical reply");
+    // Simulate a crash after admission and before outbox/Kafka: a fresh service
+    // must recover the original decision even after the workspace is revoked.
+    Require(multi.SetWorkspace(a,room,{{"project_id",""},{"generation",3}},&loaded).ok(),"revoke before redelivery");
+    MySqlRoomAgentRepository restarted_repo(&pool,&groups,&members);
+    RoomAgentService restarted(&restarted_repo,900000000001LL,true,{});
+    final["completed_at_ms"]=999999;
+    Require(restarted.PublishReply(batch[0],final,original.message.content_json,&concurrent,&error) && concurrent==canonical,"restart after decision before outbox retains admitted bytes despite revocation");
+    Require(!restarted.PublishReply(batch[0],final,"different canonical content",&concurrent,&error),"semantic replay conflict rejected");
+    auto revokedFinal=finalReply(batch[1]);Json denied;
+    Require(multi.PublishReply(batch[1],revokedFinal,"original rejected body",&denied,&error) && denied["terminal_status"]=="cancelled" && denied["ok"]==false && denied.dump().find("private code")==std::string::npos,"revoked unpublished final never retains private result");
+    {auto guard=pool.Acquire();const auto rows=room_sql::Query(guard.get(),"SELECT reply FROM room_agent_publication WHERE request_id=?",{batch[1]["request_id"]});
+     Require(rows.size()==1 && rows[0][0].find("private code")==std::string::npos,"denied ledger stores safe error only");}
+    Require(multi.SetWorkspace(a,room,{{"project_id","spark-push"},{"generation",4}},&loaded).ok(),"regrant after cancellation");
+    Require(multi.PublishReply(batch[1],revokedFinal,"original rejected body",&concurrent,&error) && concurrent==denied,"regrant cannot rewrite cancellation");
+
     std::cout<<"real MySQL space transactions, concurrency, SQL binding and Agent persistence passed\n";
 }

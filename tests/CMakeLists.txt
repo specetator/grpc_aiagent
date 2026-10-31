@@ -240,3 +240,7 @@ set_tests_properties(space_mysql_integration_test PROPERTIES SKIP_RETURN_CODE 77
 
 add_test(NAME generic_room_agent_test COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/cannbot/scripts/test_generic_room_agent.py)
 set_tests_properties(generic_room_agent_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 45)
+
+add_test(NAME room_project_snapshot_test COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/cannbot/scripts/test_room_workspace.py)
+add_test(NAME hermes_public_workspace_contract_test COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/cannbot/scripts/test_hermes_public_workspace.py)
+set_tests_properties(room_project_snapshot_test PROPERTIES ENVIRONMENT "PYTHONDONTWRITEBYTECODE=1" TIMEOUT 30)

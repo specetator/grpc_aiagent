@@ -1142,7 +1142,7 @@ bool MessageService::HandleHermesReply(const std::string& payload,
     (void)kafka_key;
     PreparedHermesReply reply;
     std::string err;
-    const auto envelope = nlohmann::json::parse(payload, nullptr, false);
+    auto envelope = nlohmann::json::parse(payload, nullptr, false);
     if (!envelope.is_object() || !envelope.contains("bot_user_id") ||
         !envelope["bot_user_id"].is_number_integer())
         return false;
@@ -1167,6 +1167,12 @@ bool MessageService::HandleHermesReply(const std::string& payload,
         // 与 ai_delta（直接丢）形成对比：一条最终回复丢了，用户就会
         // 永久等一个不会来的答案，因此必须留一份可人工回放的记录。
         return false;
+    }
+    if(room_reply) {
+        nlohmann::json canonical;
+        if(!room_agent_service_->PublishReply(room_request,envelope,reply.message.content_json,&canonical,&err))return false;
+        envelope=std::move(canonical);
+        if(!PrepareHermesReply(envelope.dump(),bot_user_id,bot->second,&reply,&err,&room_request))return false;
     }
     const auto& request_id = reply.request_id;
     const auto user_id = reply.user_id;
@@ -1366,6 +1372,8 @@ bool MessageService::HandleHermesDelta(const std::string& payload,
     // 所有人，不验归属就能把一个房间的中间过程泄露给另一个房间。
     if (room_delta && (!room_agent_service_ ||
         !room_agent_service_->ValidateReply(delta, &room_request, &room_error))) return true;
+    if(room_delta && room_request.contains("agent_id") &&
+       !room_agent_service_->CheckDispatch(room_request).ok())return true;
     const int64_t delta_room = room_delta ? room_request.at("collaboration").at("room_id").get<int64_t>() : 0;
     // 单聊场景下重建期望的 session_id 并强制比对（与 BuildHermesRequest
     // 里找 bot 的做法是同一套规则）。session_id 为空时允许用重建值补上

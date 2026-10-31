@@ -18,6 +18,37 @@ os.environ.update(HERMES_HOME=str(root),HOME=str(root/'home'),USERPROFILE=str(ro
 os.chdir(root/'workspace');sys.path.insert(0,str(source))
 from gateway.config import PlatformConfig
 from gateway.platforms.api_server import APIServerAdapter
+workspace_config=root/'spark-workspace.json'
+expected_tools={'todo'}
+if workspace_config.exists():
+    workspace=json.loads(workspace_config.read_text())
+    # The Windows native read tool uses Git Bash internally. WSL bash.exe
+    # cannot resolve its /f/... paths. This is operator fixture configuration,
+    # never a model-visible shell tool or a copy of the private profile's env.
+    os.environ['HERMES_GIT_BASH_PATH']=workspace['git_bash']
+    sys.path.insert(0,workspace['scripts'])
+    from room_workspace import ProjectSnapshots,WorkspaceAuthority
+    from hermes_public_workspace import public_api_adapter
+    from tools import file_tools
+    import threading
+    receipt_lock=threading.Lock()
+    native_read=file_tools.read_file_tool
+    def diagnostic_read(*args,**kwargs):
+        result=native_read(*args,**kwargs)
+        value=json.loads(result)
+        print('public_native_read',json.dumps({k:value[k] for k in ('success','error','note') if k in value}),flush=True)
+        relative=Path(args[0]).relative_to(Path(workspace['snapshots'])).parts
+        receipt={'request_id':relative[0],'path':'/'.join(relative[2:]),
+                 'ok':not value.get('error') and bool(value.get('content')),
+                 'reserve_seen':'MySqlMessageReservations::Reserve' in value.get('content','')}
+        with receipt_lock:
+            with (root/'read-receipts.jsonl').open('a') as output:output.write(json.dumps(receipt)+'\n')
+        return result
+    file_tools.read_file_tool=diagnostic_read
+    APIServerAdapter=public_api_adapter(APIServerAdapter,
+        WorkspaceAuthority(workspace['authority'],workspace['key']),
+        ProjectSnapshots({'schema':1,'projects':[]},Path(workspace['snapshots'])),workspace['agent_id'],'spark-room-test-default')
+    expected_tools.add('spark_workspace')
 async def main():
     adapter=APIServerAdapter(PlatformConfig(enabled=True,extra={'host':'127.0.0.1','port':port,
         'key':(root/'api-key').read_text().strip(),'model_name':'spark-room-test-default'}))
@@ -29,7 +60,7 @@ async def main():
         async with client.get(f'http://127.0.0.1:{port}/v1/toolsets',headers={'Authorization':'Bearer '+(root/'api-key').read_text().strip()},timeout=aiohttp.ClientTimeout(total=45)) as response:
             if response.status!=200:raise RuntimeError('tool policy preflight failed')
             catalog=await response.json()
-            if {row['name'] for row in catalog['data'] if row['enabled']}!={'todo'}:raise RuntimeError('unexpected public tools')
+            if {row['name'] for row in catalog['data'] if row['enabled']}!=expected_tools:raise RuntimeError('unexpected public tools')
     (root/'ready').write_text('ready')
     try:
         while not (root/'stop').exists():await asyncio.sleep(.2)
@@ -38,12 +69,13 @@ asyncio.run(main())
 '''
 
 class HermesRoomRuntime:
-    def __init__(self, profile=Path('/mnt/f/hermes'), source=Path('/mnt/f/hermes/hermes-agent')):
+    def __init__(self, profile=Path('/mnt/f/hermes'), source=Path('/mnt/f/hermes/hermes-agent'), workspace=None):
         self.profile,self.source=Path(profile),Path(source)
         self.python=str(self.source/'venv/Scripts/python.exe')
         self.root=self.profile.parent/('spark-room-test-'+secrets.token_hex(8))
         self.hashes={p:hashlib.sha256((self.profile/p).read_bytes()).hexdigest() for p in ('config.yaml','.env','auth.json') if (self.profile/p).exists()}
         self.proc=None;self.log=None
+        self.workspace=workspace
     @staticmethod
     def win(path):return subprocess.check_output(['wslpath','-w',str(path)],text=True).strip()
     def start(self):
@@ -65,6 +97,16 @@ class HermesRoomRuntime:
             'memory':{'memory_enabled':False,'user_profile_enabled':False},'mcp_servers':{},
             'approvals':{'mode':'manual'},'terminal':{'cwd':self.win(self.root/'workspace')},
             'gateway':{'api_server':{'max_concurrent_runs':2}},'checkpoints':{'enabled':False}}
+        if self.workspace:
+            # Public policy requires an explicit native tool surface. Do not
+            # allow the generic deferred-tool bridge to conceal that surface.
+            config['tools']={'tool_search':{'enabled':'off'}}
+            config['platform_toolsets']['api_server'].append('spark_workspace')
+            public={**self.workspace,'scripts':self.win(Path(__file__).resolve().parents[1]/'cannbot/scripts'),
+                    'git_bash':self.win(Path('/mnt/f/Git/bin/bash.exe')),
+                    'snapshots':self.win(Path(self.workspace['snapshots']))}
+            (self.root/'spark-workspace.json').write_text(json.dumps(public))
+            (self.root/'spark-workspace.json').chmod(0o600)
         (self.root/'config.yaml').write_text(yaml.safe_dump(config))
         key=secrets.token_hex(32);(self.root/'api-key').write_text(key);(self.root/'api-key').chmod(0o600)
         (self.root/'api.env').write_text('API_SERVER_KEY='+key+'\n');(self.root/'api.env').chmod(0o600)
@@ -82,6 +124,7 @@ class HermesRoomRuntime:
             'profile':'spark-room-test-default','native_interactive_approvals':False,
             'transport':'windows_stdio','windows_python':self.python,'base_url':f'http://127.0.0.1:{port}/v1',
             'expected_model':'spark-room-test-default','credential_env_file':str(self.root/'api.env'),'credential_env_key':'API_SERVER_KEY'}
+        if self.workspace:self.entry['room_workspace_contract']=1
         return self.entry
     def close(self):
         if self.proc and self.proc.poll() is None:

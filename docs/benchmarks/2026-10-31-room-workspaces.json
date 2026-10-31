@@ -1,0 +1,325 @@
+{
+  "date": "2026-10-31",
+  "phase": "v0.1.0 phase 2A: authorized read-only workspace core",
+  "release_accepted": false,
+  "source_base_commit": "96d414e266263eb5e635f13a56465070d0c57afd",
+  "working_tree": true,
+  "source_manifest": {
+    "encoding": "UTF-8 sorted relative path + NUL + file sha256 + LF",
+    "sha256": "05c51bd03802e40ce808aa1760530c1654778c3ff7c5b8e2df1a203749268d7f",
+    "files": [
+      {
+        "path": "cannbot/pi/extensions/public-workspace.ts",
+        "sha256": "b802936c6f0c2eee2171fb4b076d8a8a4a90b2cf276cbc1f45548986226cbc27"
+      },
+      {
+        "path": "cannbot/pi/room-projects.json.example",
+        "sha256": "4d2fa90f143318d8b8ca69059a181b20a1531442e099d1ccd7b3c4ea8032663c"
+      },
+      {
+        "path": "cannbot/scripts/agent_router.py",
+        "sha256": "86b789e89ab111ce0f53e4110d62d84448ca380de77c54b51b2e6829f80ea131"
+      },
+      {
+        "path": "cannbot/scripts/hermes_native_adapter.py",
+        "sha256": "f7fa1ca945b46e7f93c3bb14c9cc4cc448dce00bd97dc28114287e2075969087"
+      },
+      {
+        "path": "cannbot/scripts/hermes_public_workspace.py",
+        "sha256": "05f14ef2e271a15094176c3a1cacc24e257c9790723fc2623e623393ad3a4e4d"
+      },
+      {
+        "path": "cannbot/scripts/room_agent.py",
+        "sha256": "6b24bd595cc5bdb493ac5de3872b48da7366cac86b6fc13d56d8ef17be92df5d"
+      },
+      {
+        "path": "cannbot/scripts/room_workspace.py",
+        "sha256": "d3d6017233c6bc6d24d91a748595440f44fb5bee9f73b0083715e07ca33a3c33"
+      },
+      {
+        "path": "cannbot/scripts/sync_pi_agent.py",
+        "sha256": "e8b6b4235fae016ce5faa26a172d23ffc4d0ef681e0cf368cd0fcb65a47b7b7b"
+      },
+      {
+        "path": "cannbot/scripts/test_generic_room_agent.py",
+        "sha256": "30b6d251a5b77d2898f9cf300d34f74ac292d7eef30037ed03723745f4b7bada"
+      },
+      {
+        "path": "cannbot/scripts/test_hermes_public_workspace.py",
+        "sha256": "971fd8a95da271558bf1ae90c7976da7bfb1dce47ee1ea9079c54d41c5d543e2"
+      },
+      {
+        "path": "cannbot/scripts/test_room_workspace.py",
+        "sha256": "a690e936f9a65d409aaf41a31164d48d3ef6dd550ead1adaf15d9592bcb2c3f8"
+      },
+      {
+        "path": "common/agent_event.h",
+        "sha256": "c4a8ead3e6c5b076bedf9bc12bbae94b749d6974a66882771e22f5b321801421"
+      },
+      {
+        "path": "logic/CMakeLists.txt",
+        "sha256": "6dd42687f7eefa05c2e75f30f1d9129501674cc2d63660f40aa3937f572b14ac"
+      },
+      {
+        "path": "logic/hermes_reply.cpp",
+        "sha256": "9519447c5b7a2183b03bd17f59563657b5a47ed64b36ea3d84bf89198e327daf"
+      },
+      {
+        "path": "logic/http_server.cpp",
+        "sha256": "fda000dda2a26f72781fc48c3ed260f91d39530184195fcedde7395b4700d992"
+      },
+      {
+        "path": "logic/http_server.h",
+        "sha256": "6073e2660b856e040ea8c59e91e1d86c822dbd2457cc72e2b835b5d4c28281d7"
+      },
+      {
+        "path": "logic/main.cpp",
+        "sha256": "9213f3de687e48de66d66e369dcaf90aabad53d6546e89072c05f6a1ae8dacd4"
+      },
+      {
+        "path": "logic/repositories/room_agent_repository.cpp",
+        "sha256": "42d30077e83b5621ce042846707721b0a4f29327bb511dffca01738c43d8f1ad"
+      },
+      {
+        "path": "logic/repositories/room_agent_repository.h",
+        "sha256": "f2059b6420a4c747651bbbb665220f4c1342c8d1b66735673654c429a25529f8"
+      },
+      {
+        "path": "logic/services/message_service.cpp",
+        "sha256": "b7a9077517ac91d45c44cb44553a53e919708b07da3d899169b281601319a1e4"
+      },
+      {
+        "path": "logic/services/room_agent_catalog.cpp",
+        "sha256": "d5e900a881255d954237d60edea3d0dac241731cd4167789897df78e47aff4ba"
+      },
+      {
+        "path": "logic/services/room_agent_service.cpp",
+        "sha256": "e99cef9252ff5edcfbd68c0a8a239757e70367c14b09e6defd01c5b4760eba4f"
+      },
+      {
+        "path": "logic/services/room_agent_service.h",
+        "sha256": "3416640edc2c5898738c13146590bb59a6f2ab93e9a098e201908a25c905d542"
+      },
+      {
+        "path": "logic/services/room_workspace_service.cpp",
+        "sha256": "bacb3e0937d658ceca076b4d30e997e96e89acf1d825f100ec667609c775de1c"
+      },
+      {
+        "path": "sql/migrations/20261031_room_workspaces.sql",
+        "sha256": "765e06299d1821f14b470add60cbc013638662fc19f733a4ad3213663a55c7f7"
+      },
+      {
+        "path": "sql/schema.sql",
+        "sha256": "0f59fc22e7d92d7ebfccc7605ad4a7a8df38f694f4b1cb4417fdff8075a5ce35"
+      },
+      {
+        "path": "tests/CMakeLists.txt",
+        "sha256": "bc4a86183eb5897dbfb1d0c20de3e0b27712f74f43686e4acb6495f0550f042e"
+      },
+      {
+        "path": "tests/hermes_room_runtime_fixture.py",
+        "sha256": "d34bbcbbef82be9fcae9d70b04c2bb52d53c4dbbcb65b6c4e86a9ab508370aa0"
+      },
+      {
+        "path": "tests/public_workspace_test.cjs",
+        "sha256": "2d6f4b18cfa875acc85f5974d7cf624619843619a59cfe3f5ebc4c0f746bb25d"
+      },
+      {
+        "path": "tests/room_agent_service_test.cpp",
+        "sha256": "21f3ae22af9275c9940624c20e494a12d1cd52821cca971006dcc804b3d537e6"
+      },
+      {
+        "path": "tests/room_workspace_runtime_test.py",
+        "sha256": "71672eaa70b275a7733c870a8794565b88dab2ebf19150fc562fb2734d06e47a"
+      },
+      {
+        "path": "tests/space_mysql_integration_test.cpp",
+        "sha256": "ac4924efeae78913f53e974c8d98295a93fa387e9a1fd4cabfa4112afbc2d4a9"
+      }
+    ]
+  },
+  "validation": [
+    {
+      "command": "cmake --build build-wsl -j2",
+      "exit_code": 0
+    },
+    {
+      "command": "ctest --test-dir build-wsl --output-on-failure",
+      "exit_code": 0,
+      "registered": 58,
+      "passed": 54,
+      "skipped": 4,
+      "seconds": 91.78,
+      "skipped_tests": [
+        "route_generation_integration_test",
+        "message_reservation_integration_test",
+        "redis_sequence_integration_test",
+        "space_mysql_integration_test"
+      ]
+    },
+    {
+      "command": "python3 tests/run_mysql_review_tests.py",
+      "exit_code": 0,
+      "mode": "fresh owned real MySQL 8 container",
+      "passed": 2
+    },
+    {
+      "command": "python3 tests/run_redis_review_tests.py",
+      "exit_code": 0,
+      "mode": "fresh owned real Redis container",
+      "passed": 2
+    },
+    {
+      "command": "node tests/public_workspace_test.cjs",
+      "exit_code": 0,
+      "mode": "installed native Pi read tool, fixture HTTP authority"
+    },
+    {
+      "command": "python3 cannbot/scripts/validate_knowledge.py --strict",
+      "exit_code": 0,
+      "sources": 90
+    },
+    {
+      "command": "python3 cannbot/scripts/test_pi_citations.py",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 cannbot/scripts/sync_pi_agent.py --check",
+      "exit_code": 1,
+      "reason": "existing personal settings/skills drift preserved; no install or overwrite performed"
+    },
+    {
+      "command": "python tests/room_workspace_runtime_test.py --runtime both --out receipt.json",
+      "exit_code": 0,
+      "mode": "real models and native read tools; contract HTTP authority, not IM E2E",
+      "receipt": {
+        "ok": true,
+        "mode": "real models and native read tools; contract HTTP authority, not IM E2E",
+        "checks": [
+          "real Pi reads nonce and actual C++ reservation implementation",
+          "Pi emits actual native read progress",
+          "Pi native read receipts prove both files and Reserve implementation were returned",
+          "Pi output identifies immutable source revision",
+          "second human retains real Pi native context across new snapshot cwd and process restart",
+          "isolated Native advertises restricted workspace contract",
+          "real Hermes reads nonce and actual C++ reservation implementation",
+          "Hermes emits real native tool start/end events",
+          "Hermes native read receipts prove both files and Reserve implementation were returned",
+          "Native completed request replays without another tool execution",
+          "second human retains real Hermes native context across independent requests"
+        ],
+        "pi_read_receipts": [
+          {
+            "request_id": "ra_a21dc8b2866e597eaa59cefc24bb684e5fa5320df5df51394b215d232ac6ce96",
+            "path": "PROJECT_FILES.txt",
+            "ok": true,
+            "reserve_seen": false
+          },
+          {
+            "request_id": "ra_a21dc8b2866e597eaa59cefc24bb684e5fa5320df5df51394b215d232ac6ce96",
+            "path": "probe.cpp",
+            "ok": true,
+            "reserve_seen": false
+          },
+          {
+            "request_id": "ra_a21dc8b2866e597eaa59cefc24bb684e5fa5320df5df51394b215d232ac6ce96",
+            "path": "logic/message_reservation.cpp",
+            "ok": true,
+            "reserve_seen": true
+          },
+          {
+            "request_id": "ra_a21dc8b2866e597eaa59cefc24bb684e5fa5320df5df51394b215d232ac6ce96",
+            "path": "logic/message_reservation.cpp",
+            "ok": true,
+            "reserve_seen": false
+          },
+          {
+            "request_id": "ra_a21dc8b2866e597eaa59cefc24bb684e5fa5320df5df51394b215d232ac6ce96",
+            "path": "logic/message_reservation.cpp",
+            "ok": true,
+            "reserve_seen": true
+          },
+          {
+            "request_id": "ra_a21dc8b2866e597eaa59cefc24bb684e5fa5320df5df51394b215d232ac6ce96",
+            "path": "logic/message_reservation.cpp",
+            "ok": true,
+            "reserve_seen": false
+          },
+          {
+            "request_id": "ra_a21dc8b2866e597eaa59cefc24bb684e5fa5320df5df51394b215d232ac6ce96",
+            "path": "logic/message_reservation.cpp",
+            "ok": true,
+            "reserve_seen": false
+          },
+          {
+            "request_id": "ra_a21dc8b2866e597eaa59cefc24bb684e5fa5320df5df51394b215d232ac6ce96",
+            "path": "logic/message_reservation.cpp",
+            "ok": true,
+            "reserve_seen": false
+          },
+          {
+            "request_id": "ra_a21dc8b2866e597eaa59cefc24bb684e5fa5320df5df51394b215d232ac6ce96",
+            "path": "logic/message_reservation.cpp",
+            "ok": true,
+            "reserve_seen": false
+          },
+          {
+            "request_id": "ra_a21dc8b2866e597eaa59cefc24bb684e5fa5320df5df51394b215d232ac6ce96",
+            "path": "probe.cpp",
+            "ok": true,
+            "reserve_seen": false
+          }
+        ],
+        "hermes_read_receipts": [
+          {
+            "request_id": "ra_6d598b060eaa738c834c8f2b2f69acea39051489e6983aecb7c0199dedf92fbf",
+            "path": "PROJECT_FILES.txt",
+            "ok": true,
+            "reserve_seen": false
+          },
+          {
+            "request_id": "ra_6d598b060eaa738c834c8f2b2f69acea39051489e6983aecb7c0199dedf92fbf",
+            "path": "probe.cpp",
+            "ok": true,
+            "reserve_seen": false
+          },
+          {
+            "request_id": "ra_6d598b060eaa738c834c8f2b2f69acea39051489e6983aecb7c0199dedf92fbf",
+            "path": "logic/message_reservation.cpp",
+            "ok": true,
+            "reserve_seen": true
+          }
+        ],
+        "authority_calls": 36,
+        "source_cpp_sha256": "491468a6c3124fcfecc84e090f0ac2ccff6af5587fbdab7242d0f15589c08c53"
+      }
+    }
+  ],
+  "runtime_source": {
+    "hermes_base_commit": "67764dc0863349a384c16425e73ee8571f3a94b7",
+    "hermes_file_sha256": {
+      "gateway/platforms/api_server.py": "06a495ad16e0004b0964cd3fc092a3567ce6f4ad40e2191449091045a26dbe2d",
+      "agent/agent_init.py": "261241aee53efd9756cefca041e1e942fe9536e8dc69407fc64ef08d141bbbc0",
+      "model_tools.py": "875512e422e3e0d1502f7f7e127d47288bf1f1b350b4442ad5fc210e526b3f67",
+      "tools/file_tools.py": "17796def099601f2f786c5dcc49c743005a3a277f6c09c6e662afd2e1b2712e5",
+      "tools/file_operations.py": "6d73656f815759fd37e864481710e7dc749ad21d1c6c75689460073f0c664554",
+      "tools/tool_search.py": "1875c04284090cf9b6d9d96b0faa3072c7bbb65417815208e6e3a43b3ca2fdcb"
+    },
+    "pi_package_version": "0.84.4"
+  },
+  "reviews": {
+    "runtime": "round 1 PASS WITH NOTES",
+    "publication": "round 2 PASS WITH NOTES; result projection included in digest",
+    "tester": "PASS WITH NOTES; actual native file receipts verified"
+  },
+  "unverified": [
+    "workspace authorization through actual Logic HTTP + Kafka + browser integration",
+    "first publication racing actual member/workspace revocation",
+    "real cross-room concurrent native tools and restart recovery for the new workspace feature",
+    "optional Compose Connector and production public Hermes launcher",
+    "Web workspace selection and final three-browser release acceptance",
+    "fresh Linux install, release images and GitHub Release",
+    "ai_request replay after an allowed publication and later workspace revocation; distinct from ai_reply replay"
+  ],
+  "boundary": "Real model/native-tool evidence uses a contract HTTP authority. CTest and this receipt do not constitute full IM E2E or v0.1.0 release acceptance."
+}

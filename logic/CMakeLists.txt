@@ -22,6 +22,7 @@ add_library(spark_push_logic STATIC
   repositories/room_agent_repository.cpp
   services/room_agent_service.cpp
   services/room_agent_catalog.cpp
+  services/room_workspace_service.cpp
   services/room_task_service.cpp
   services/user_service.cpp
   services/conversation_service.cpp

@@ -124,6 +124,7 @@ bool RoomAgentService::BuildRequests(const Message& current,const std::vector<Me
     if(!status.ok()){*error=status.message;return false;}
     if(ids.empty()) { Json legacy;if(!BuildRequest(current,history,&legacy,error))return false;requests->push_back(legacy);return true; }
     Json bindings;if(!repo_->Bindings(room,&bindings,error)) return false;
+    Json workspace;if(!repo_->Workspace(room,&workspace,error))return false;
     int64_t owner=0;bool member=false;if(!repo_->Access(room,current.sender_id,&owner,&member,error)||!member)return false;
     auto ordered=history;
     ordered.erase(std::remove_if(ordered.begin(),ordered.end(),[&](const Message& m){return m.msg_seq>=current.msg_seq || m.session_id!=current.session_id;}),ordered.end());
@@ -141,7 +142,8 @@ bool RoomAgentService::BuildRequests(const Message& current,const std::vector<Me
         if(!binding.is_object() || !binding.value("installed",false))return false;
         Json scope={{"kind","room_agent_v1"},{"room_id",room},{"agent_id",id},{"owner_user_id",owner},
             {"actor_user_id",current.sender_id},{"bot_user_id",d->bot_user_id},{"generation",binding.at("generation")},
-            {"policy","read_only"},{"runtime",d->runtime},{"source_msg_id",current.msg_id},{"request_id",request_id}};
+            {"policy","read_only"},{"runtime",d->runtime},{"source_msg_id",current.msg_id},{"request_id",request_id},
+            {"project_id",workspace.at("project_id")},{"workspace_generation",workspace.at("generation")}};
         Json request={{"request_id",request_id},{"source_msg_id",current.msg_id},{"session_id",current.session_id},
             {"message_seq",current.msg_seq},{"user_id",current.sender_id},{"bot_user_id",d->bot_user_id},
             {"agent_id",id},{"agent_name",d->display_name},{"client_msg_id",current.client_msg_id},
@@ -153,12 +155,9 @@ bool RoomAgentService::BuildRequests(const Message& current,const std::vector<Me
 ServiceStatus RoomAgentService::CheckDispatch(const Json& request) {
     const auto& scope=request.at("collaboration");
     auto access=CheckMember(request.at("user_id"),scope.at("room_id"));if(!access.ok())return access;
-    const auto* d=Definition(scope.at("agent_id"));
-    if(!enabled_ || !d || !d->enabled || d->bot_user_id!=scope.at("bot_user_id") || d->runtime!=scope.at("runtime"))
-        return {403,"Agent disabled or definition changed"};
     Json bindings;std::string error;if(!repo_->Bindings(scope.at("room_id"),&bindings,&error))return {500,error};
-    for(const auto& b:bindings)if(b.at("agent_id")==scope.at("agent_id") && b.value("installed",false) && b.at("generation")==scope.at("generation"))return {};
-    return {403,"Agent binding revoked"};
+    Json workspace;if(!repo_->Workspace(scope.at("room_id"),&workspace,&error))return {500,error};
+    return CheckAuthorization(scope,{{"member",true},{"bindings",bindings},{"workspace",workspace}});
 }
 bool RoomAgentService::RejectPending(const Json& request,const std::string& reason,std::string* error) {
     // A prior broker attempt may already be executing. Keep that uncertainty

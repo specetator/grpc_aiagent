@@ -12,6 +12,24 @@ class MemoryRepository : public RoomAgentRepository {
     Json task;
     std::map<std::string, Json> requests, results;
     Json bindings=Json::array();
+    Json workspace={{"project_id",""},{"generation",0}};
+    bool Workspace(int64_t,Json* out,std::string*)override{*out=workspace;return !fail;}
+    bool SetWorkspace(int64_t,int64_t,int64_t generation,const std::string& id,std::string*)override{
+        if(workspace["generation"]!=generation)return false;
+        if(workspace["project_id"]!=id || generation==0)workspace={{"project_id",id},{"generation",generation+1}};
+        return true;
+    }
+    std::map<std::string,Json> publications;
+    bool Publication(const Json& request,const std::string& digest,const PublicationDecision& decide,Json* out,std::string*)override {
+        if(fail)return false;
+        const std::string id=request.at("request_id");
+        if(publications.count(id)) {
+            if(publications[id]["digest"]!=digest)return false;
+            *out=publications[id]["reply"];return true;
+        }
+        *out=decide({{"member",!removed},{"bindings",bindings},{"workspace",workspace}});
+        publications[id]={{"digest",digest},{"reply",*out}};return true;
+    }
     std::map<std::string,Json> tasks;
     bool fail{false};
     bool removed{false};
@@ -151,6 +169,53 @@ int main() {
     generic.SetControlTransport([](const Json& command){return Json{{"code",0},{"data",{{"status","unknown"},{"request_id",command.at("request_id")}}}};});
     Check(generic.Control(9,1,{{"request_id",many[0]["request_id"]},{"operation","stop"}},&out).code==403,"unrelated member cannot stop task");
     Check(generic.Control(8,1,{{"request_id",many[0]["request_id"]},{"operation","status"}},&out).ok()&&out["status"]=="unknown","unknown runtime remains unknown");
+    const std::string workspaceKey(48,'w');
+    const auto projects=ParseRoomProjectCatalog({{"schema",1},{"projects",Json::array({{{"id","spark-push"},{"name","Spark Push"},{"root","/private/operator/path"}}})}});
+    generic.SetProjectCatalog(projects,workspaceKey);
+    Check(generic.Workspace(8,1,&out).ok() && !out["can_manage"].get<bool>() && out.dump().find("/private/")==std::string::npos,"member sees project IDs without roots");
+    Check(generic.Workspace(10,1,&out).code==403,"outsider cannot enumerate workspace");
+    const Json selection={{"project_id","spark-push"},{"generation",0}};
+    Check(generic.SetWorkspace(8,1,selection,&out).code==403,"member cannot authorize project");
+    auto injected=selection;injected["root"]="/etc";
+    Check(generic.SetWorkspace(7,1,injected,&out).code==400,"path injection rejected");
+    injected=selection;injected["project_id"]="unknown";
+    Check(generic.SetWorkspace(7,1,injected,&out).code==403,"unlisted project rejected");
+    Check(generic.SetWorkspace(7,1,selection,&out).ok() && out["workspace"]["generation"]==1,"owner authorizes project");
+    Check(generic.SetWorkspace(7,1,selection,&out).code==409,"stale workspace update rejected");
+    current.msg_id="r_1-9";current.msg_seq=9;
+    Json scoped;
+    Check(generic.BuildRequests(current,{},&scoped,&error),"request binds current workspace");
+    const auto scopedId=scoped[0]["request_id"];
+    Check(scoped[0]["collaboration"]["project_id"]=="spark-push" && scoped[0]["collaboration"]["workspace_generation"]==1,"server-owned project scope");
+    Check(generic.AuthorizeWorkspace("wrong",{{"request_id",scopedId}},&out).code==401,"connector credential required");
+    Check(generic.AuthorizeWorkspace(workspaceKey,{{"request_id",scopedId},{"actor_user_id",7}},&out).code==400,"connector cannot submit actor identity");
+    Check(generic.AuthorizeWorkspace(workspaceKey,{{"request_id",scopedId}},&out).ok() && out["collaboration"]==scoped[0]["collaboration"],"canonical stored scope returned");
+    auto workspaceReply=scoped[0];workspaceReply["ok"]=true;workspaceReply["text"]="authorized code result";workspaceReply["completed_at_ms"]=100;
+    Json published;
+    Check(generic.PublishReply(scoped[0],workspaceReply,"canonical original",&published,&error) && published==workspaceReply,"first allowed publication decision committed");
+    auto checkpointReply=workspaceReply;checkpointReply["response_metadata"]={{"workspace_checkpoint",{{"passed",true}}}};
+    Check(generic.Complete(checkpointReply,&error) && !repo.results[scopedId].contains("workspace_checkpoint"),"read-only generic result cannot persist CANN write/test checkpoint");
+    auto provenanceReply=workspaceReply;
+    provenanceReply["response_metadata"]={{"project_snapshot",{{"project_id","spark-push"},{"revision",std::string(64,'a')},{"file_count",3},{"root","/private"}}}};
+    Check(generic.Complete(provenanceReply,&error) && repo.results[scopedId]["project_snapshot"].size()==3,"result provenance allowlist removes paths");
+    Check(!generic.PublishReply(scoped[0],provenanceReply,"canonical original",&published,&error),"durable provenance changes conflict even with same supplied message content");
+    provenanceReply["response_metadata"]["project_snapshot"]["revision"]="invalid";
+    Check(generic.Complete(provenanceReply,&error) && !repo.results[scopedId].contains("project_snapshot"),"invalid provenance rejected");
+    repo.removed=true;
+    Check(generic.PublishReply(scoped[0],workspaceReply,"canonical original",&published,&error) && published==workspaceReply,"revocation cannot change an already committed final");
+    Check(!generic.PublishReply(scoped[0],workspaceReply,"conflicting original",&published,&error),"conflicting replay cannot replace publication");
+    auto deniedRequest=scoped[0];deniedRequest["request_id"]="unpublished-final";
+    auto deniedReply=workspaceReply;deniedReply["request_id"]="unpublished-final";
+    Check(generic.PublishReply(deniedRequest,deniedReply,"unpublished original",&published,&error) && published["ok"]==false && published["terminal_status"]=="cancelled" && published.dump().find("authorized code result")==std::string::npos,"revocation before publication strips code result");
+    Check(generic.AuthorizeWorkspace(workspaceKey,{{"request_id",scopedId}},&out).code==403,"each file authorization rechecks actor membership");
+    repo.removed=false;
+    Json replayDenied;
+    Check(generic.PublishReply(deniedRequest,deniedReply,"unpublished original",&replayDenied,&error) && replayDenied==published,"regrant cannot change committed cancellation");
+    Check(generic.SetWorkspace(7,1,{{"project_id",""},{"generation",1}},&out).ok() && out["workspace"]["generation"]==2,"clear keeps revocation generation");
+    Check(generic.CheckDispatch(scoped[0]).code==403,"cleared workspace blocks queued request");
+    Check(generic.SetWorkspace(7,1,{{"project_id","spark-push"},{"generation",2}},&out).ok() && out["workspace"]["generation"]==3,"rebind does not reuse old generation");
+    Check(generic.AuthorizeWorkspace(workspaceKey,{{"request_id",scopedId}},&out).code==403,"old request cannot inherit new grant");
+    Check(generic.Control(8,1,{{"request_id",scopedId},{"operation","recover"}},&out).code==403,"revoked request recovery cannot execute tools");
     repo.removed=true;
     Check(generic.Trigger(8,1,current.content_json,&trigger).code==403,"removed member cannot invoke generic Agent");
     Check(!service.BuildRequest(current,{},&retry,&error),"removed actor cannot replay accepted request");

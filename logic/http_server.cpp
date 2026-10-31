@@ -423,6 +423,9 @@ void HttpApiServer::onRequest(const HttpRequest& req, HttpResponse* resp) {
         {"/api/chatroom/tasks/update", &HttpApiServer::handleRoomAgent},
         {"/api/chatroom/agents/control", &HttpApiServer::handleRoomAgent},
         {"/api/chatroom/agents/list", &HttpApiServer::handleRoomAgent},
+        {"/api/chatroom/workspace/list", &HttpApiServer::handleRoomAgent},
+        {"/api/chatroom/workspace/set", &HttpApiServer::handleRoomAgent},
+        {"/internal/room-agent/authorize", &HttpApiServer::handleWorkspaceAuthorization},
         {"/api/chatroom/agents/install", &HttpApiServer::handleRoomAgent},
         {"/api/chatroom/agents/uninstall", &HttpApiServer::handleRoomAgent},
 
@@ -1316,6 +1319,18 @@ void HttpApiServer::handleChatroomList(const HttpRequest& req, HttpResponse* res
 //      也收进了同一个 catch，避开了重复的错误分支。
 // 权限判定全在 service 里：Configure 只让房间拥有者过，Checkpoint 让
 // 拥有者或 developer_user_ids 里的人过，View 只要求成员。本层不重复。
+void HttpApiServer::handleWorkspaceAuthorization(const HttpRequest& req,HttpResponse* resp) {
+    if(req.method()!=HttpRequest::kPost){WriteJson(resp,405,"only POST allowed");return;}
+    if(!room_agent_service_){WriteJson(resp,503,"room Agent unavailable");return;}
+    const auto authorization=req.getHeader("Authorization");
+    const auto key=authorization.rfind("Bearer ",0)==0?authorization.substr(7):std::string();
+    nlohmann::json input,output;
+    if(!ParseJsonBody(req.body(),&input)){WriteJson(resp,400,"invalid JSON");return;}
+    const auto status=room_agent_service_->AuthorizeWorkspace(key,input,&output);
+    if(!status.ok()){WriteServiceError(resp,status);return;}
+    WriteJson(resp,0,"ok",output.dump());
+}
+
 void HttpApiServer::handleRoomAgent(const HttpRequest& req, HttpResponse* resp) {
     if (req.method() != HttpRequest::kPost) {
         WriteJson(resp, 405, "only POST allowed", "{}", HttpResponse::k400BadRequest);
@@ -1346,6 +1361,8 @@ void HttpApiServer::handleRoomAgent(const HttpRequest& req, HttpResponse* resp) 
         if(req.path()=="/api/chatroom/tasks/list")status=room_agent_service_->Tasks(actor,room,&output);
         else if(req.path()=="/api/chatroom/tasks/create")status=room_agent_service_->CreateTask(actor,room,input,&output);
         else if(req.path()=="/api/chatroom/tasks/update")status=room_agent_service_->UpdateTask(actor,room,input,&output);
+        else if(req.path()=="/api/chatroom/workspace/list")status=room_agent_service_->Workspace(actor,room,&output);
+        else if(req.path()=="/api/chatroom/workspace/set")status=room_agent_service_->SetWorkspace(actor,room,input,&output);
         else if(req.path()=="/api/chatroom/agents/control")status=room_agent_service_->Control(actor,room,input,&output);
         else if(req.path()=="/api/chatroom/agents/list") status=room_agent_service_->Agents(actor,room,&output);
         else if(req.path()=="/api/chatroom/agents/install" || req.path()=="/api/chatroom/agents/uninstall") {

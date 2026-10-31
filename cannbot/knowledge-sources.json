@@ -2,6 +2,8 @@
   "schema_version": 1,
   "description": "Curated truth sources packaged for the Kernel Agent knowledge skill.",
   "sources": [
+    {"id":"room-project-workspace-validation","path":"docs/benchmarks/2026-10-31-room-workspaces.json","authority":"snapshot","topics":["workspace","native-tools","validation","source-revision"]},
+    {"id":"room-project-workspaces","path":"docs/room-workspaces.md","authority":"canonical","topics":["room","workspace","authorization","snapshot","native-tools","publication"]},
     {"id":"collaboration-spaces","path":"docs/collaboration-spaces.md","authority":"canonical","topics":["room","membership","authorization","migration"]},
     {"id":"generic-room-agents","path":"docs/generic-room-agents.md","authority":"canonical","topics":["room","agent","catalog","session","tasks","recovery"]},
     {"id":"mvp-v1-acceptance","path":"docs/mvp-v1-acceptance.md","authority":"canonical","topics":["mvp","acceptance","e2e","limitations"]},

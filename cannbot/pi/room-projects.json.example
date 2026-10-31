@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "projects": [
+    {
+      "id": "spark-push",
+      "name": "Spark Push",
+      "root": "/srv/projects/spark-push",
+      "paths": ["logic", "comet", "job", "common", "proto", "README.md"]
+    }
+  ]
+}

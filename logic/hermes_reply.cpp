@@ -104,6 +104,10 @@ bool PrepareHermesReply(const std::string& payload, int64_t bot_user_id,
         }
         if (ok && reply.contains("response_metadata") && reply["response_metadata"].is_object()) {
             const auto& metadata = reply["response_metadata"];
+            nlohmann::json snapshot;
+            if(room && metadata.contains("project_snapshot") && NormalizeProjectSnapshot(metadata["project_snapshot"],&snapshot) &&
+               snapshot["project_id"]==authorized_room_request->at("collaboration").value("project_id",""))
+                message_content["project_snapshot"]=snapshot;
             if (metadata.contains("context_start_seq") && metadata["context_start_seq"].is_number_integer() &&
                 metadata["context_start_seq"].get<int64_t>() >= 0)
                 message_content["hermes_context_start_seq"] = metadata["context_start_seq"];

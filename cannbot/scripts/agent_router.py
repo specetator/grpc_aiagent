@@ -17,6 +17,7 @@ import time
 
 from agent_events import agent_event, canonical_route, command_card
 from agent_scheduler import SessionScheduler
+from room_workspace import execution_namespace
 
 AGENT_ID = re.compile(r"[a-z][a-z0-9_-]{0,47}")
 
@@ -449,6 +450,8 @@ class AgentRouter:
         self.room_scope = contextvars.ContextVar("room_scope", default=None)
         self.room_adapter = None
         self.public_room_adapter = None
+        self.workspace_authority = None
+        self.project_snapshots = None
         self.room_binding_lock = threading.Lock()
         self.scheduler = SessionScheduler.from_env()
         try:
@@ -530,7 +533,8 @@ class AgentRouter:
         scope=self.room_scope.get() if session.startswith("r_") else None
         generic=scope and scope.get("kind")=="room_agent_v1"
         route = canonical_route(self.tenant_id, self.channel_id, session, user_id, key,
-                                "agent:"+key if generic else "_")
+                                ("agent:"+key+":"+hashlib.sha256(self._execution_key(session).encode()).hexdigest()[:24]
+                                 if "workspace_generation" in scope else "agent:"+key) if generic else "_")
         revision = saved.get("revision", 0) if isinstance(saved, dict) else 0
         mode = "contact" if self.bot_agents else "sticky"
         backend = session
@@ -563,7 +567,7 @@ class AgentRouter:
     def _execution_key(self, session):
         scope=self.room_scope.get() if isinstance(session,str) and session.startswith("r_") else None
         if scope and scope.get("kind")=="room_agent_v1":
-            return "roomagent_"+str(scope["room_id"])+"_"+scope["agent_id"]
+            return execution_namespace(scope)
         return session
 
     def authorize_room(self, session, scope, request_id=None, *, control=False):
@@ -588,6 +592,13 @@ class AgentRouter:
                 not re.fullmatch(r"ra_[a-f0-9]{64}",scope["request_id"]) or
                 (request_id is not None and request_id!=scope["request_id"])):
                 raise ValueError("invalid public room scope")
+            if "project_id" in scope or "workspace_generation" in scope:
+                if (not isinstance(scope.get("project_id"),str) or
+                    (scope["project_id"] and not AGENT_ID.fullmatch(scope["project_id"])) or
+                    type(scope.get("workspace_generation")) is not int or
+                    not 0<=scope["workspace_generation"]<2**53 or
+                    (scope["project_id"] and scope["workspace_generation"]==0)):
+                    raise ValueError("invalid workspace grant")
             if entry["runtime"]=="pi_rpc":
                 if self.public_room_adapter is None: raise ValueError("public Pi workspace unavailable")
             elif entry["runtime"]=="hermes_native":
@@ -754,6 +765,10 @@ class AgentRouter:
         execution_key=self._execution_key(session_id)
         if room_scope and room_scope.get("kind")=="room_agent_v1" and request_id!=room_scope["request_id"]:
             raise ValueError("room request identity mismatch")
+        if room_scope and room_scope.get('project_id'):
+            if self.workspace_authority is None:
+                raise PermissionError('workspace authority is not configured')
+            self.workspace_authority.authorize(request_id,room_scope)
         started=time.monotonic()
         try:
             agent_hint,_ = self._selected(session_id)
@@ -822,6 +837,12 @@ class AgentRouter:
                     raise RuntimeError("Agent 请求先前已失败，未使用相同 request_id 重复执行")
                 self.store.append_context(execution_key, "user", message)
                 try:
+                    if room_scope and room_scope.get('project_id'):
+                        self.workspace_authority.authorize(request_id,room_scope)
+                        if self.entries[key]['runtime']=='hermes_native':
+                            if self.project_snapshots is None:
+                                raise PermissionError('project snapshots are not configured')
+                            self.project_snapshots.prepare(room_scope)
                     if on_progress:
                         on_progress(self.entries[key]["name"] + " · 正在生成")
                     if room_scope and room_scope.get("kind")=="room_agent_v1":
@@ -838,6 +859,12 @@ class AgentRouter:
                         None, None, route["backend_session_ref"], 0, retry=retry,
                         on_progress=on_progress, request_id=request_id,
                         images=images, **native_events)
+                    if room_scope and room_scope.get('project_id'):
+                        self.workspace_authority.authorize(request_id,room_scope)
+                        if self.entries[key]['runtime']=='hermes_native':
+                            snapshot=self.project_snapshots.load(room_scope)
+                            metadata['project_snapshot']={'project_id':room_scope['project_id'],
+                                'revision':snapshot.manifest['revision'],'file_count':len(snapshot.manifest['files'])}
                     context = self.store.append_context(execution_key, "assistant", text)
                     data = self._decorate(key,{"text":text})
                     metadata = {**metadata, "agent_state":data["agent_state"],
@@ -897,7 +924,13 @@ class AgentRouter:
         outcome = recover(route["backend_session_ref"], request_id, existing)
         if outcome is None:
             return None
+        if room_scope and room_scope.get('project_id'):
+            self.workspace_authority.authorize(request_id,room_scope)
         text, metadata = outcome
+        if room_scope and room_scope.get('project_id'):
+            snapshot=self.project_snapshots.load(room_scope)
+            metadata['project_snapshot']={'project_id':room_scope['project_id'],
+                'revision':snapshot.manifest['revision'],'file_count':len(snapshot.manifest['files'])}
         data = self._decorate(key, {"text": text})
         metadata = {**metadata, "agent_state": data["agent_state"], "request_id": request_id,
                     "agent_route": route, "turn_recovered": True, "turn_replayed": True}
@@ -984,4 +1017,14 @@ def load_router(path: Path, pi, state_root: Path):
     if os.environ.get("SPARK_PUSH_PUBLIC_PI_ROOT"):
         from room_agent import PublicRoomPiFactory
         router.public_room_adapter=PublicRoomPiFactory(pi,Path(os.environ["SPARK_PUSH_PUBLIC_PI_ROOT"]))
+    if os.environ.get('SPARK_PUSH_ROOM_PROJECT_CATALOG'):
+        from room_workspace import ProjectSnapshots,WorkspaceAuthority
+        router.workspace_authority=WorkspaceAuthority(os.environ.get('SPARK_WORKSPACE_AUTH_ORIGIN',''),
+            os.environ.get('SPARK_PUSH_WORKSPACE_AUTH_KEY',''))
+        if router.public_room_adapter is not None:
+            router.project_snapshots=router.public_room_adapter.snapshots
+        else:
+            router.project_snapshots=ProjectSnapshots(
+                json.loads(Path(os.environ['SPARK_PUSH_ROOM_PROJECT_CATALOG']).read_text()),
+                Path(os.environ.get('SPARK_PUSH_PUBLIC_WORKSPACE_ROOT','')))
     return router

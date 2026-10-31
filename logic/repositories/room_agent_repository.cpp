@@ -29,7 +29,7 @@ bool MySqlRoomAgentRepository::EnsureSchema(std::string* error) {
 bool MySqlRoomAgentRepository::Access(int64_t room,int64_t user,int64_t* owner,bool* member,std::string* error) {
     *owner=0; *member=false;
     return Run(pool_,error,[&](MYSQL* conn) {
-        const auto rows=Query(conn,"SELECT g.owner_id,COALESCE(m.role,-1) FROM im_group g LEFT JOIN group_member m ON m.group_id=g.id AND m.user_id=? WHERE g.id=? AND g.group_type=1",{Id(user),Id(room)});
+        const auto rows=Query(conn,"SELECT g.owner_id,CASE WHEN u.status=1 AND u.deleted_at IS NULL THEN COALESCE(m.role,-1) ELSE -1 END FROM im_group g LEFT JOIN group_member m ON m.group_id=g.id AND m.user_id=? LEFT JOIN `user` u ON u.id=m.user_id WHERE g.id=? AND g.group_type=1",{Id(user),Id(room)});
         if(rows.empty()) return false;
         *owner=std::stoll(rows[0][0]); const int role=std::stoi(rows[0][1]); *member=role>=0 && role<=2; return true;
     });
@@ -103,6 +103,8 @@ bool MySqlRoomAgentRepository::Requests(int64_t room,Json* requests,std::string*
 
 bool MySqlRoomAgentRepository::CheckCatalogSchema(std::string* error) {
     return Run(pool_,error,[&](MYSQL* conn){
+        Query(conn,"SELECT request_id,input_digest,reply FROM room_agent_publication LIMIT 0");
+        Query(conn,"SELECT room_id,project_id,generation,updated_by FROM room_workspace LIMIT 0");
         Query(conn,"SELECT task_id,room_id,revision,payload FROM room_collaboration_task LIMIT 0");
         Query(conn,"SELECT task_id,revision,payload FROM room_collaboration_task_history LIMIT 0");
         Query(conn,"SELECT room_id,agent_id,installed,generation,installed_by FROM room_agent_binding LIMIT 0");
@@ -123,6 +125,58 @@ bool MySqlRoomAgentRepository::SetBinding(int64_t room,int64_t owner,const std::
         const auto row=Query(conn,"SELECT owner_id FROM im_group WHERE id=? FOR UPDATE",{Id(room)});
         if(row.empty() || row[0][0]!=Id(owner))return false;
         Query(conn,"INSERT INTO room_agent_binding(room_id,agent_id,installed,installed_by) VALUES(?,?,?,?) ON DUPLICATE KEY UPDATE generation=generation+(installed<>VALUES(installed)),installed=VALUES(installed),installed_by=VALUES(installed_by)",{Id(room),agent,installed?"1":"0",Id(owner)});
+        transaction.Commit();return true;
+    });
+}
+bool MySqlRoomAgentRepository::Workspace(int64_t room,Json* output,std::string* error) {
+    return Run(pool_,error,[&](MYSQL* conn){
+        const auto rows=Query(conn,"SELECT project_id,generation FROM room_workspace WHERE room_id=?",{Id(room)});
+        *output=rows.empty()?Json{{"project_id",""},{"generation",0}}:
+            Json{{"project_id",rows[0][0]},{"generation",std::stoll(rows[0][1])}};
+        return true;
+    });
+}
+bool MySqlRoomAgentRepository::SetWorkspace(int64_t room,int64_t owner,int64_t generation,const std::string& project,std::string* error) {
+    return Run(pool_,error,[&](MYSQL* conn){
+        room_sql::Transaction transaction(conn);
+        const auto group=Query(conn,"SELECT owner_id FROM im_group WHERE id=? FOR UPDATE",{Id(room)});
+        if(group.empty() || group[0][0]!=Id(owner))return false;
+        const auto rows=Query(conn,"SELECT project_id,generation FROM room_workspace WHERE room_id=? FOR UPDATE",{Id(room)});
+        if((rows.empty()?0:std::stoll(rows[0][1]))!=generation)return false;
+        if(rows.empty())Query(conn,"INSERT INTO room_workspace(room_id,project_id,generation,updated_by) VALUES(?,?,1,?)",{Id(room),project,Id(owner)});
+        else if(rows[0][0]!=project)Query(conn,"UPDATE room_workspace SET project_id=?,generation=generation+1,updated_by=? WHERE room_id=?",{project,Id(owner),Id(room)});
+        transaction.Commit();return true;
+    });
+}
+bool MySqlRoomAgentRepository::Publication(const Json& request,const std::string& digest,
+    const PublicationDecision& decide,Json* output,std::string* error) {
+    return Run(pool_,error,[&](MYSQL* conn){
+        room_sql::Transaction transaction(conn);
+        const auto id=request.at("request_id").get<std::string>();
+        const auto room=Id(request.at("collaboration").at("room_id"));
+        const auto actor=Id(request.at("user_id"));
+        // All member, binding and workspace mutations lock im_group first.
+        // The user row additionally serializes disabling/deleting an account.
+        const auto group=Query(conn,"SELECT group_type FROM im_group WHERE id=? FOR UPDATE",{room});
+        const auto user=Query(conn,"SELECT status,deleted_at IS NULL FROM `user` WHERE id=? FOR UPDATE",{actor});
+        if(One(conn,"SELECT payload FROM room_agent_request WHERE request_id=? FOR UPDATE",{id})!=request)return false;
+        const auto saved=Query(conn,"SELECT input_digest,reply FROM room_agent_publication WHERE request_id=? FOR UPDATE",{id});
+        if(!saved.empty()) {
+            if(saved[0][0]!=digest){if(error)*error="conflicting Agent final payload";return false;}
+            *output=Json::parse(saved[0][1]);transaction.Commit();return true;
+        }
+        const auto member=Query(conn,"SELECT role FROM group_member WHERE group_id=? AND user_id=? FOR UPDATE",{room,actor});
+        const auto workspace=Query(conn,"SELECT project_id,generation FROM room_workspace WHERE room_id=? FOR UPDATE",{room});
+        Json bindings=Json::array();
+        for(const auto& row:Query(conn,"SELECT agent_id,installed,generation FROM room_agent_binding WHERE room_id=? FOR UPDATE",{room}))
+            bindings.push_back({{"agent_id",row[0]},{"installed",row[1]=="1"},{"generation",std::stoll(row[2])}});
+        const bool active=!group.empty() && group[0][0]=="1" && !user.empty() && user[0][0]=="1" && user[0][1]=="1" &&
+            !member.empty() && std::stoi(member[0][0])>=0 && std::stoi(member[0][0])<=2;
+        *output=decide({{"member",active},{"bindings",bindings},{"workspace",workspace.empty()?Json{{"project_id",""},{"generation",0}}:
+            Json{{"project_id",workspace[0][0]},{"generation",std::stoll(workspace[0][1])}}}});
+        Query(conn,"INSERT INTO room_agent_publication(request_id,input_digest,reply) VALUES(?,?,?)",{id,digest,output->dump()});
+        // This commit is the authorization linearization point. Kafka/outbox
+        // confirmation and request completion still occur in their usual order.
         transaction.Commit();return true;
     });
 }

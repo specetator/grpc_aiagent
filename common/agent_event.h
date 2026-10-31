@@ -309,4 +309,15 @@ inline bool NormalizeAgentEvent(const nlohmann::json& input, nlohmann::json* out
     }
     return true;
 }
+// Public source provenance contains no host paths or arbitrary tool metadata.
+inline bool NormalizeProjectSnapshot(const nlohmann::json& input,nlohmann::json* output) {
+    if(!input.is_object() || !input.contains("project_id") || !input["project_id"].is_string() ||
+       !AgentSlugValid(input["project_id"].get<std::string>()) || !input.contains("revision") ||
+       !input["revision"].is_string() || !input.contains("file_count") || !input["file_count"].is_number_integer())return false;
+    const auto revision=input["revision"].get<std::string>();
+    if(revision.size()!=64 || revision.find_first_not_of("0123456789abcdef")!=std::string::npos ||
+       input["file_count"]<0 || input["file_count"]>4096)return false;
+    *output={{"project_id",input["project_id"]},{"revision",revision},{"file_count",input["file_count"]}};
+    return true;
+}
 }  // namespace sparkpush

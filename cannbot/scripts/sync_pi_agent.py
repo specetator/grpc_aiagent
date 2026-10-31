@@ -54,7 +54,7 @@ def main() -> int:
         extension_root = REPO_ROOT / "cannbot/pi/extensions"
         extensions = {path.relative_to(extension_root): path.read_bytes()
                       for path in extension_root.rglob("*.ts")
-                      if path.name != "room-workspace.ts"}
+                      if path.name not in {"room-workspace.ts", "public-workspace.ts"}}
         extensions[Path("lib/PI-LICENSE.txt")] = (REPO_ROOT / "third_party/pi/LICENSE").read_bytes()
         settings = (REPO_ROOT / "cannbot/pi/settings.json").read_bytes()
         models_example = (REPO_ROOT / "cannbot/pi/models.json.example").read_bytes()
@@ -86,7 +86,7 @@ def main() -> int:
         for name, target in skill_targets.items():
             result = hermes_sync.install_directory(target, packages[name], args.replace)
             print(f"{name}: {result} ({target})")
-        # room-workspace is explicitly loaded only for scoped room workers.
+        # Workspace guards are explicitly loaded only for scoped room workers.
         # Keep it out of the auto-discovery root of the unrestricted CLI.
         for relative, content in sorted(extensions.items()):
             target = pi_home / "extensions" / relative

@@ -103,11 +103,19 @@ class HermesNativeAdapter(HermesHttpAdapter):
         if self.config.get('room_policy')=='read_only':
             catalog=self._json('/toolsets',timeout=min(timeout,3))
             rows=catalog.get('data') if isinstance(catalog,dict) else None
+            workspace=self.config.get('room_workspace_contract')==1
+            allowed={'todo','spark_workspace'} if workspace else {'todo'}
             # todo_list belongs to this AIAgent's own plan. No filesystem,
             # terminal, memory search, cross-session tools or delegation.
             if (not isinstance(rows,list) or any(not isinstance(row,dict) or
-                (row.get('enabled') is True and row.get('name') not in {'todo'}) for row in rows)):
+                (row.get('enabled') is True and row.get('name') not in allowed) for row in rows)):
                 raise ValueError('共享 Hermes 工具策略未经只读验证')
+            if workspace and (features.get('spark_workspace_v1') is not True or
+                    not any(row.get('name')=='spark_workspace' and row.get('enabled') is True and
+                            row.get('tools')==['workspace_read'] for row in rows) or
+                    any(row.get('enabled') is True and not set(row.get('tools',[]))<=
+                        {'todo_list','workspace_read'} for row in rows)):
+                raise ValueError('公共 Hermes 未确认受限工作区合同')
         return value
 
     def is_ready(self):
@@ -234,7 +242,8 @@ class HermesNativeAdapter(HermesHttpAdapter):
                 raise TimeoutError('Native deadline exceeded before POST')
             response = self._admit('/runs', body,
                                    {'X-Hermes-Session-Key': self._scope(session_id),
-                                    'Idempotency-Key': key}, remaining)
+                                    'Idempotency-Key': key,
+                                    **({'X-Spark-Request-ID':request_id} if self.config.get('room_workspace_contract')==1 else {})}, remaining)
             run_id = response['run_id']
             self._update_record(request_id, run_id=run_id, status='queued')
             with self.active_lock:

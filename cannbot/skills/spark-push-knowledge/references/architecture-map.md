@@ -67,6 +67,7 @@
 
 - `docs/collaboration-spaces.md`：正式成员、邀请、角色、撤销。
 - `docs/generic-room-agents.md`：Catalog、多绑定、原生 Session 隔离、任务及恢复 API。
+- `docs/room-workspaces.md`：批准项目、不可变文件快照、Pi/Hermes 原生只读工具与最终发布决定；区分真实 Runtime 和完整 IM E2E。
 - `docs/mvp-v1-acceptance.md`：M1–M6 / T01–T14 的证据类型与未覆盖边界。
 - `docs/benchmarks/2026-10-31-generic-room-agents.md`：本轮真实/受控验收回执、变更清单与源文件指纹。
 - `docs/v0.1.0-delivery.md`：v0.1.0 产品交付要求、部署/工作区/Web/发行的验收进度；未完成项不代表已交付。

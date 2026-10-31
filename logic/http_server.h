@@ -70,6 +70,7 @@ class HttpApiServer {
     void start();
 
    private:
+    void handleWorkspaceAuthorization(const muduo::net::HttpRequest&, muduo::net::HttpResponse*);
     void handleSpaces(const muduo::net::HttpRequest&, muduo::net::HttpResponse*);
     void handleAgentConnections(const muduo::net::HttpRequest& req,
                                 muduo::net::HttpResponse* resp);

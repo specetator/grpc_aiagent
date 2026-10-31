@@ -233,6 +233,13 @@ int RunLogic(Config cfg) {
         throw std::runtime_error("Apply sql/migrations/20261031_generic_room_agents.sql before enabling the catalog");
     RoomAgentService room_agent_service(&room_agent_repository, cfg.hermes_bot_user_id,
                                        cfg.hermes_enabled && cfg.room_agent_enabled, room_catalog);
+    if(const char* path=std::getenv("SPARK_PUSH_ROOM_PROJECT_CATALOG")) {
+        if(std::filesystem::is_symlink(path) || std::filesystem::file_size(path)>65536)
+            throw std::runtime_error("invalid room project catalog file");
+        std::ifstream stream(path);nlohmann::json projects;stream>>projects;
+        const char* key=std::getenv("SPARK_PUSH_WORKSPACE_AUTH_KEY");
+        room_agent_service.SetProjectCatalog(ParseRoomProjectCatalog(projects),key?key:"");
+    }
     OperatorTaskService operator_task_service(&room_agent_repository);
     SessionDao session_dao(&mysql_pool);
     MessageDao message_dao(&mysql_pool);

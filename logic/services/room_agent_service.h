@@ -12,6 +12,8 @@ struct AgentDefinition {
     int64_t bot_user_id{0};
     bool enabled{false};
 };
+struct ProjectDefinition { std::string project_id, display_name; };
+std::vector<ProjectDefinition> ParseRoomProjectCatalog(const nlohmann::json&);
 // Only administrator-owned registry files feed this catalog. No HTTP write API.
 std::vector<AgentDefinition> ParseRoomAgentCatalog(const nlohmann::json& registry,
                                                  bool hermes_test = false);
@@ -56,6 +58,15 @@ class RoomAgentRepository {
     virtual bool SaveTask(int64_t,int64_t,const nlohmann::json&,std::string*) { return false; }
     virtual bool Bindings(int64_t, nlohmann::json*, std::string*) { return false; }
     virtual bool SetBinding(int64_t, int64_t, const std::string&, bool, std::string*) { return false; }
+    virtual bool Workspace(int64_t, nlohmann::json* out, std::string*) {
+        *out={{"project_id",""},{"generation",0}}; return true;
+    }
+    virtual bool SetWorkspace(int64_t,int64_t,int64_t,const std::string&,std::string*) { return false; }
+    // Persist the first publication decision while holding the room, actor and
+    // request locks. The callback owns policy and must not perform database I/O.
+    using PublicationDecision=std::function<nlohmann::json(const nlohmann::json&)>;
+    virtual bool Publication(const nlohmann::json&,const std::string&,
+                             const PublicationDecision&,nlohmann::json*,std::string*) { return false; }
     virtual bool Pending(nlohmann::json*, std::string*) { return false; }
     virtual bool Dispatched(const std::string&, std::string*) { return false; }
     virtual bool MarkAttempt(const std::string&, std::string*) { return false; }
@@ -104,6 +115,10 @@ class RoomAgentService {
         : repo_(repo), bot_(public_cann_bot), enabled_(enabled), catalog_(std::move(catalog)) {}
     using ControlTransport=std::function<nlohmann::json(const nlohmann::json&)>;
     void SetControlTransport(ControlTransport transport) { control_=std::move(transport); }
+    void SetProjectCatalog(std::vector<ProjectDefinition>, std::string authorization_key);
+    ServiceStatus Workspace(int64_t actor,int64_t room,nlohmann::json*);
+    ServiceStatus SetWorkspace(int64_t actor,int64_t room,const nlohmann::json&,nlohmann::json*);
+    ServiceStatus AuthorizeWorkspace(const std::string& key,const nlohmann::json&,nlohmann::json*);
     ServiceStatus Control(int64_t,int64_t,const nlohmann::json&,nlohmann::json*);
     ServiceStatus Tasks(int64_t,int64_t,nlohmann::json*);
     ServiceStatus CreateTask(int64_t,int64_t,const nlohmann::json&,nlohmann::json*);
@@ -111,6 +126,8 @@ class RoomAgentService {
     ServiceStatus Agents(int64_t actor, int64_t room, nlohmann::json* result);
     ServiceStatus Install(int64_t actor, int64_t room, const nlohmann::json& input, bool installed);
     ServiceStatus CheckDispatch(const nlohmann::json& request);
+    bool PublishReply(const nlohmann::json& request,const nlohmann::json& reply,
+                      const std::string& canonical_content,nlohmann::json*,std::string*);
     bool BuildRequests(const Message&, const std::vector<Message>&, nlohmann::json*, std::string*);
     bool MarkAttempt(const std::string& id,std::string* error) { return repo_->MarkAttempt(id,error); }
     bool Pending(nlohmann::json* requests, std::string* error) { return repo_->Pending(requests,error); }
@@ -155,6 +172,10 @@ class RoomAgentService {
     bool enabled_;
     std::vector<AgentDefinition> catalog_;
     ControlTransport control_;
+    std::vector<ProjectDefinition> projects_;
+    std::string workspace_key_;
+    ServiceStatus CheckAuthorization(const nlohmann::json& scope,const nlohmann::json& state) const;
+    static nlohmann::json ResultFromReply(const nlohmann::json& request,const nlohmann::json& reply);
     ServiceStatus Mentions(int64_t, int64_t, const nlohmann::json&, std::vector<std::string>*);
     const AgentDefinition* Definition(const std::string&) const;
 };

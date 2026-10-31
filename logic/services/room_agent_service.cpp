@@ -1,6 +1,7 @@
 #include "services/room_agent_service.h"
 #include <algorithm>
 #include "security.h"
+#include "agent_event.h"
 
 namespace sparkpush {
 namespace {
@@ -287,6 +288,9 @@ bool RoomAgentService::Complete(const Json& reply, std::string* error) {
     Json request;
     // 先过归属校验再写：不合法的回复宁可丢掉也不能落库。
     if (!ValidateReply(reply, &request, error)) return false;
+    return repo_->Finish(reply["request_id"], ResultFromReply(request,reply), error);
+}
+Json RoomAgentService::ResultFromReply(const Json& request,const Json& reply) {
     // 只取固定几个字段重建 result，而不是把整个 reply 存下来。
     // 这是「重建而非过滤」的典型做法：reply 里多余的、未知的字段
     // 直接消失，不需要逐个判断它们是否危险。
@@ -294,9 +298,15 @@ bool RoomAgentService::Complete(const Json& reply, std::string* error) {
                    {"completed_at_ms", reply.at("completed_at_ms")}};
     if (!reply.value("ok",false) && reply.value("terminal_status",Json())=="cancelled") result["terminal_status"]="cancelled";
     const auto metadata = reply.value("response_metadata", Json::object());
-    if (metadata.is_object() && metadata.contains("workspace_checkpoint"))
+    // Checkpoints belong to the original CANN developer workflow. A generic
+    // read-only Agent cannot manufacture a write/test receipt in this field.
+    if (!request.contains("agent_id") && metadata.is_object() && metadata.contains("workspace_checkpoint"))
         result["workspace_checkpoint"] = metadata["workspace_checkpoint"];
-    return repo_->Finish(reply["request_id"], result, error);
+    Json snapshot;
+    if(reply.value("ok",false) && metadata.is_object() && metadata.contains("project_snapshot") &&
+       NormalizeProjectSnapshot(metadata["project_snapshot"],&snapshot) &&
+       snapshot["project_id"]==request.at("collaboration").value("project_id",""))result["project_snapshot"]=snapshot;
+    return result;
 }
 // 推进任务进度。权限比 Configure 宽（拥有者或开发者都行），
 // 但可改字段被严格限定，两者合起来才是完整的权限模型。
