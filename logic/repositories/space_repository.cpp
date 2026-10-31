@@ -107,4 +107,14 @@ ServiceStatus MySqlSpaceRepository::Invitations(int64_t user, std::vector<SpaceI
         return {};
     } catch (const std::exception& e) { return {500,e.what()}; }
 }
+ServiceStatus MySqlSpaceRepository::Discover(int offset,int limit,std::vector<ImGroup>* rooms) {
+    if(!pool_ || !rooms)return {503,"public directory unavailable"};
+    rooms->clear();
+    try {
+        auto guard=pool_->Acquire();
+        for(const auto& row:Query(guard.get(),"SELECT id,name,owner_id,group_type,description,visibility FROM im_group WHERE group_type=1 AND visibility='public' ORDER BY id DESC LIMIT ? OFFSET ?",{Id(limit),Id(offset)}))
+            rooms->push_back(Group(row));
+        return {};
+    } catch(const std::exception& e){return {500,e.what()};}
+}
 }

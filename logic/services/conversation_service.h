@@ -4,6 +4,12 @@
 #include "services/service_status.h"
 
 namespace sparkpush {
+class UserService;
+struct SingleConversationSummary {
+    Session session;
+    int64_t peer_user_id{0}, unread_count{0};
+    std::string peer_name;
+};
 // 一次同步的返回页。next_seq 与 safe_seq 是两个不同用途的游标，
 // 客户端必须分清，否则会在 SQL 落库滑后时把未持久化的消息当成已安全。
 struct MessagePage {
@@ -34,8 +40,8 @@ struct DeliveryCursor {
 // 本类不发消息、不分配序号，只管「读」与「游标」。发消息在 MessageService。
 class ConversationService {
    public:
-    explicit ConversationService(ConversationRepository* repository)
-        : repository_(repository) {}
+    explicit ConversationService(ConversationRepository* repository, UserService* users = nullptr)
+        : repository_(repository), users_(users) {}
     bool Available() const;
     // Shared object-level authorization for history, sync and attachments.
     // Only image upload may lazily create a canonical single-chat session.
@@ -79,9 +85,12 @@ class ConversationService {
                          int64_t* count);
     ServiceStatus ListSingles(int64_t actor, int64_t user_id,
                               std::vector<Session>* sessions);
+    ServiceStatus ListSingleSummaries(int64_t actor,int64_t user_id,
+                                      std::vector<SingleConversationSummary>* summaries);
 
    private:
     bool MembersAvailable() const;
     ConversationRepository* repository_;
+    UserService* users_;
 };
 }  // namespace sparkpush

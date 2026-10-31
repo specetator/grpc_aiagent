@@ -30,6 +30,7 @@ class SpaceRepository {
                                  const std::string& visibility, int64_t* room) = 0;
     virtual ServiceStatus WithRoom(int64_t room, const std::function<ServiceStatus(SpaceTransaction&)>& operation) = 0;
     virtual ServiceStatus List(int64_t user, int offset, int limit, std::vector<SpaceSummary>* rooms) = 0;
+    virtual ServiceStatus Discover(int,int,std::vector<ImGroup>*) { return {503,"public directory unavailable"}; }
     virtual ServiceStatus Invitations(int64_t user, std::vector<SpaceInvitation>* invitations) = 0;
 };
 }

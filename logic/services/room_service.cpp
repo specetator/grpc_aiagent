@@ -236,6 +236,11 @@ ServiceStatus RoomService::ListSpaces(int64_t actor,int offset,int limit,std::ve
     if(!spaces_) return {500,"space repository unavailable"};
     return spaces_->List(actor,std::max(0,offset),std::clamp(limit,1,200),rooms);
 }
+ServiceStatus RoomService::DiscoverSpaces(int64_t actor,int offset,int limit,std::vector<ImGroup>* rooms) {
+    if(actor<=0 || actor==kAdminUserId)return {403,"user account required"};
+    if(!spaces_)return {503,"space repository unavailable"};
+    return spaces_->Discover(std::max(0,offset),std::clamp(limit,1,100),rooms);
+}
 ServiceStatus RoomService::UpdateSpace(int64_t actor,int64_t room,const std::string& name,const std::string& description,const std::string& visibility) {
     auto status=SpaceFields(name,description,visibility); if(!status.ok()) return status;
     if(!spaces_) return {500,"space repository unavailable"};

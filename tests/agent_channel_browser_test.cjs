@@ -15,7 +15,7 @@ const {chromium} = require(process.env.SPARK_PLAYWRIGHT_MODULE || 'playwright');
     await page.route('**/*', async route => {
       const url = new URL(route.request().url());
       const name = url.pathname === '/' ? 'index.html' : url.pathname.slice(1);
-      if (url.origin === 'http://spark.test' && ['index.html', 'runtime-config.js', 'endpoints.js', 'auth.js', 'theme.js', 'auth_style.css', 'safe_markdown.js', 'agent_channel.js', 'agent_channel.css', 'agent_connections.js', 'agent_connections.css'].includes(name)) {
+      if (url.origin === 'http://spark.test' && ['index.html', 'runtime-config.js', 'endpoints.js', 'auth.js', 'theme.js', 'themes.css', 'auth_style.css', 'safe_markdown.js', 'agent_channel.js', 'agent_channel.css', 'agent_connections.js', 'agent_connections.css', 'spaces.js', 'room_agents.js', 'room_agent_channel.js', 'collaboration_ui.js', 'collaboration_ui.css'].includes(name)) {
         await route.fulfill({body: await fs.readFile(path.join(assets, name)),
           contentType: name.endsWith('.js') ? 'text/javascript' : name.endsWith('.css') ? 'text/css' : 'text/html'});
       } else if (url.pathname === '/api/session/history') {
@@ -29,7 +29,7 @@ const {chromium} = require(process.env.SPARK_PLAYWRIGHT_MODULE || 'playwright');
       historyReady = true;
       window.sentActions = [];
       ws = {readyState: WebSocket.OPEN, bufferedAmount: 0,
-        send: payload => window.sentActions.push(JSON.parse(payload))};
+        send: payload => {const message=JSON.parse(payload);if(message.type==='single_chat')window.sentActions.push(message);}};
       updateUIState();
       document.getElementById('empty-state').classList.add('hidden');
       document.getElementById('chat-window').classList.remove('hidden');
@@ -255,6 +255,22 @@ const {chromium} = require(process.env.SPARK_PLAYWRIGHT_MODULE || 'playwright');
       await page.getByRole('button', {name:'重新选择模型'}).click();
       assert.equal(await page.evaluate(() => sentActions.at(-1).content.text), '/model');
     }
+    // A missed final WS frame must settle a parked private stream from HTTP
+    // history alone, including the pending animation-frame callback.
+    await page.evaluate(()=>{
+      document.getElementById('messages').replaceChildren();renderedMessageRows.clear();hermesStreamStates.clear();hermesCompletedRequests.clear();
+      const state=createHermesStreamState('history-only-final',false);
+      state.pendingText='obsolete delta';scheduleHermesStreamFlush('history-only-final',state);
+      historyLoading=false;historyAnchorSeq=0;historyHasMore=true;
+    });
+    historyData=[{msg_id:'earlier-history',msg_seq:1,sender_id:7,client_msg_id:'human-before',content:{text:'original question'}},
+      {msg_id:'history-final',msg_seq:2,sender_id:900000000101,client_msg_id:'hermes:history-only-final',content:{text:'durable final'}}];
+    await page.evaluate(()=>loadHistory(true));
+    assert.deepEqual(await page.locator('#messages .msg-bubble').allTextContents(),['original question','durable final']);
+    assert.equal(await page.locator('.hermes-streaming').count(),0);
+    assert.equal(await page.evaluate(()=>hermesStreamStates.size),0);
+    await page.evaluate(()=>loadHistory(true));
+    assert.equal(await page.locator('#messages .msg-row').count(),2,'history replay duplicated a recovered terminal');
     assert.deepEqual(errors, []);
     await page.screenshot({path: '/tmp/spark-model-picker.png', fullPage: true});
     console.log('Agent command cards and model picker browser interaction tests passed');

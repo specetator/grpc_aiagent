@@ -7,7 +7,7 @@
     header X-Content-Type-Options nosniff
     header Referrer-Policy same-origin
     @home path /
-    redir @home /chatroom.html 302
+    redir @home /index.html 302
     handle /health {
         respond "ready" 200
     }

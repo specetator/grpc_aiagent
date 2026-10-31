@@ -5,7 +5,10 @@
 class Users final:public sparkpush::UserRepository {
  bool UsersAvailable()const override{return true;}bool TokensAvailable()const override{return true;}
  bool FindById(int64_t id,sparkpush::User* u,std::string*)override{u->id=id;u->status=sparkpush::kUserStatusActive;return true;}
- bool FindByAccount(const std::string&,sparkpush::User*,std::string*)override{return false;}
+ bool FindByAccount(const std::string& account,sparkpush::User* u,std::string*)override{
+   if(account!="peer'quoted")return false;
+   u->id=8;u->account=account;u->name="Peer \"quoted\"";u->password_hash="never-export-secret";return true;
+ }
  bool Create(const std::string&,const std::string&,const std::string&,int64_t*,std::string*)override{return false;}
  bool UpdatePassword(int64_t,const std::string&,std::string*)override{return false;}
  bool ResolveToken(const std::string& s,int64_t* id)override{if(s!="probe")return false;*id=7;return true;}

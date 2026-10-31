@@ -27,14 +27,14 @@ catch { console.log('SKIP: set SPARK_PLAYWRIGHT_MODULE to an installed Playwrigh
     });
     await page.goto('http://kernel.test/');
     assert.equal((await page.locator('#start-hermes-btn').innerText()).replace(/\s+/g, ' ').trim(),
-      '✨ 与 Kernel Agent 对话（ID 900000000001）');
+      '✨ Kernel Agent');
     assert.equal(await page.evaluate(() => agentName(900000000001)), 'Kernel Agent');
     assert.equal(await page.evaluate(() => agentName(900000000101)), 'Hermes · technical');
     await page.evaluate(() => {
       currentUserId = 7;
       showChatWindow(hermesBotUserId, 's_7_' + hermesBotUserId);
     });
-    assert.equal(await page.locator('#chat-title').innerText(), '与 Kernel Agent 对话中');
+    assert.equal(await page.locator('#chat-title').innerText(), 'Kernel Agent');
     assert.equal(await page.evaluate(() => currentSessionId), 's_7_900000000001');
     assert.deepEqual(errors, []);
     if (process.env.KERNEL_AGENT_SCREENSHOT)

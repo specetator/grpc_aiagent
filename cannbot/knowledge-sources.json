@@ -12,6 +12,8 @@
     {"id":"room-project-workspaces","path":"docs/room-workspaces.md","authority":"canonical","topics":["room","workspace","authorization","snapshot","native-tools","publication"]},
     {"id":"collaboration-spaces","path":"docs/collaboration-spaces.md","authority":"canonical","topics":["room","membership","authorization","migration"]},
     {"id":"generic-room-agents","path":"docs/generic-room-agents.md","authority":"canonical","topics":["room","agent","catalog","session","tasks","recovery"]},
+    {"id":"web-collaboration-validation","path":"docs/benchmarks/2026-11-01-web-collaboration.json","authority":"snapshot","topics":["web","browser","recovery","pi","hermes","validation"]},
+    {"id":"web-collaboration-client","path":"docs/web-collaboration-client.md","authority":"canonical","topics":["web","room","members","agent","tasks","recovery","deployment"]},
     {"id":"mvp-v1-acceptance","path":"docs/mvp-v1-acceptance.md","authority":"canonical","topics":["mvp","acceptance","e2e","limitations"]},
     {"id":"kernel-agent-validation","path":"docs/benchmarks/2026-10-30-kernel-agent/validation.json","authority":"snapshot","topics":["kernel","subagents","validation","source-revision"]},
     {"id":"kernel-agent","path":"docs/kernel-agent.md","authority":"canonical","topics":["kernel","agent","subagents","permissions","configuration"]},

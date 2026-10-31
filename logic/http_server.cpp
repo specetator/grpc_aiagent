@@ -390,6 +390,8 @@ void HttpApiServer::onRequest(const HttpRequest& req, HttpResponse* resp) {
     static const std::unordered_map<std::string, Handler> kRouteTable = {
         {"/api/spaces/create", &HttpApiServer::handleSpaces},
         {"/api/spaces/list", &HttpApiServer::handleSpaces},
+        {"/api/spaces/discover", &HttpApiServer::handleSpaces},
+        {"/api/users/lookup", &HttpApiServer::handleContactLookup},
         {"/api/spaces/update", &HttpApiServer::handleSpaces},
         {"/api/spaces/members", &HttpApiServer::handleSpaces},
         {"/api/spaces/invite", &HttpApiServer::handleSpaces},
@@ -1115,27 +1117,20 @@ void HttpApiServer::handleSingleSessionList(const HttpRequest& req,
                   HttpResponse::k400BadRequest);
         return;
     }
-    std::vector<Session> sessions;
+    std::vector<SingleConversationSummary> sessions;
     const auto status =
-        conversation_service_->ListSingles(authenticated_id, user_id, &sessions);
+        conversation_service_->ListSingleSummaries(authenticated_id, user_id, &sessions);
     if (!status.ok()) {
         WriteServiceError(resp, status);
         return;
     }
-    std::ostringstream data;
-    data << "{\"sessions\":[";
-    bool first = true;
+    nlohmann::json data={{"sessions",nlohmann::json::array()}};
     for (const auto& s : sessions) {
-        int64_t peer_id = (s.user1_id == user_id) ? s.user2_id : s.user1_id;
-        if (peer_id <= 0) continue;
-        if (!first) data << ",";
-        first = false;
-        data << "{" << "\"session_id\":\"" << s.id << "\","
-             << "\"peer_user_id\":" << peer_id << ","
-             << "\"last_msg_seq\":" << s.last_msg_seq << "}";
+        data["sessions"].push_back({{"session_id",s.session.id},
+            {"peer_user_id",s.peer_user_id},{"peer_name",s.peer_name},
+            {"last_msg_seq",s.session.last_msg_seq},{"unread_count",s.unread_count}});
     }
-    data << "]}";
-    WriteJson(resp, 0, "ok", data.str());
+    WriteJson(resp, 0, "ok", data.dump());
 }
 
 // 拉取弹幕列表
@@ -2180,6 +2175,22 @@ void HttpApiServer::handleChatroomOnlineCount(const HttpRequest& req,
 }
 
 
+void HttpApiServer::handleContactLookup(const HttpRequest& req, HttpResponse* resp) {
+    if(req.method()!=HttpRequest::kPost) { WriteServiceError(resp,{400,"only POST allowed"}); return; }
+    int64_t actor=0;
+    if(!requireUser(req,resp,&actor))return;
+    nlohmann::json body;
+    if(!ParseJsonBody(req.body(),&body) || !body.is_object() || body.size()!=1 ||
+       !body.contains("account") || !body["account"].is_string()) {
+        WriteServiceError(resp,{400,"complete account required"}); return;
+    }
+    ContactSummary contact;
+    auto status=user_service_->LookupContact(actor,body["account"].get<std::string>(),&contact);
+    if(!status.ok()) { WriteServiceError(resp,status); return; }
+    WriteJson(resp,0,"ok",nlohmann::json{{"user_id",contact.user_id},
+        {"account",contact.account},{"name",contact.name}}.dump());
+}
+
 void HttpApiServer::handleSpaces(const HttpRequest& req, HttpResponse* resp) {
     if (req.method()!=HttpRequest::kPost) { WriteServiceError(resp,{400,"only POST allowed"}); return; }
     int64_t actor=0;
@@ -2203,6 +2214,11 @@ void HttpApiServer::handleSpaces(const HttpRequest& req, HttpResponse* resp) {
             status=room_service_->ListSpaces(actor,body.value("offset",0),body.value("limit",100),&rooms);
             data["spaces"]=Json::array();
             for(const auto& item:rooms) { auto row=groupJson(item.group); row["role"]=roleName(item.role); data["spaces"].push_back(row); }
+        } else if(path=="/api/spaces/discover") {
+            std::vector<ImGroup> rooms;
+            status=room_service_->DiscoverSpaces(actor,body.value("offset",0),body.value("limit",50),&rooms);
+            data["spaces"]=Json::array();
+            for(const auto& room:rooms)data["spaces"].push_back(groupJson(room));
         } else if(path=="/api/spaces/invitations") {
             std::vector<SpaceInvitation> invitations;
             status=room_service_->Invitations(actor,&invitations); data["invitations"]=Json::array();

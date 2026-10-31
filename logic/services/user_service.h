@@ -19,6 +19,7 @@ struct LoginResult {
     std::string name;
     bool administrator{false};
 };
+struct ContactSummary { int64_t user_id{0}; std::string account, name; };
 
 // 账号、密码、token 与活跃状态的业务层。
 //
@@ -87,6 +88,9 @@ class UserService {
     // 另外缓存**只存成功结果**：查不到或已禁用的用户不会被缓存，
     // 因此解禁/新建账号立即生效，不会被旧的否定结果卡住。
     bool GetActiveUser(int64_t user_id, User* user, std::string* error);
+    // Exact registered account only; no prefix search or credential fields.
+    ServiceStatus LookupContact(int64_t actor, const std::string& account,
+                                ContactSummary* contact);
 
    private:
     // 生成随机 token 并存进 Redis，TTL 24 小时。

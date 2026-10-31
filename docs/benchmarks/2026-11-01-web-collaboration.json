@@ -1,0 +1,951 @@
+{
+  "date": "2026-11-01",
+  "recorded_at_utc": "2026-10-31T16:02:04.079007+00:00",
+  "stage": "v0.1.0 phase 3: unified Web and durable recovery",
+  "stage_accepted": true,
+  "release_accepted": false,
+  "source_base_commit": "69e29a24b5eb6a914aa1a52144760c2545657556",
+  "working_tree": true,
+  "implementation": [
+    "unified native Web spaces, private conversations, Agent catalog/mentions, members, workspace and durable task handoff",
+    "exact-account contact lookup and safe public discovery in existing Service/Repository layers; no new migration",
+    "room/account scoped caches, bounded background buffering, ordered deduplication, history-only final settlement and original-ID manual retry",
+    "current visible conversation reconciles via existing WS sync; empty SQL tail remains recoverable, expired sync pages cannot clear newer requests",
+    "new private conversations discovered through authorized session directory without advancing cursors; timeout and old-account cancellation"
+  ],
+  "validation": {
+    "build": {
+      "command": "cmake --build build-wsl -j2",
+      "exit_code": 0,
+      "mode": "actual C++ build",
+      "log_sha256": "d812a7fed873753705efddbc2c733bdc4583239ce4be38a41ff5ead5361339b4"
+    },
+    "docker_build": {
+      "command": "docker build -t spark-push:web-collaboration .",
+      "exit_code": 0,
+      "mode": "multi-stage production image",
+      "log_sha256": "78b57c5509b56b0876d589722e735343c40c878bdf31177749915b690271d753"
+    },
+    "ctest": {
+      "command": "SPARK_PLAYWRIGHT_MODULE=/path/to/playwright ctest --test-dir build-wsl --output-on-failure",
+      "exit_code": 0,
+      "mode": "60 registered, 4 opt-in database skips",
+      "log_sha256": "5991ce185aa8d6a31a35242ed135224887cf305102779f001f6ac0950f26214b",
+      "passed": 56,
+      "registered": 60,
+      "skipped": 4,
+      "failed": 0,
+      "seconds": 114.48
+    },
+    "mysql": {
+      "command": "python3 tests/run_mysql_review_tests.py build-wsl",
+      "exit_code": 0,
+      "mode": "real owned MySQL; backend code unchanged after this run",
+      "log_sha256": "25574cc2fe12dc78de860181a24218275a28434e813cf8606c1ecf5e25aa8e24",
+      "passed": 2
+    },
+    "redis": {
+      "command": "python3 tests/run_redis_review_tests.py build-wsl",
+      "exit_code": 0,
+      "mode": "real owned Redis; backend code unchanged after this run",
+      "log_sha256": "4cef99c096ce65bf1166ba708841520c9238353afb60efc81122639f5449bbf9",
+      "passed": 2
+    },
+    "web_contract": {
+      "command": "node tests/collaboration_browser_test.cjs",
+      "exit_code": 0,
+      "mode": "Mock HTTP/WS browser contract, not real E2E",
+      "log_sha256": "4d6b812386eaf4de7e12251b4999ea8c011ea764f976925d4e40fe2250484012",
+      "passed": 20
+    },
+    "private_ui": {
+      "command": "node tests/agent_channel_browser_test.cjs",
+      "exit_code": 0,
+      "mode": "Mock browser; private command/model/history-only-final behavior",
+      "log_sha256": "c6251fccb58e958bd41d9b8c9640c190251615054e4f94c33e3dd80f1ca5f27d"
+    },
+    "room_ui": {
+      "command": "node tests/room_agents_browser_test.cjs",
+      "exit_code": 0,
+      "mode": "Mock browser component",
+      "log_sha256": "e59961037d35184b32eed2170b1e48da34d1433e7e4cfcd59f0627dbac3c10ee"
+    },
+    "spaces_ui": {
+      "command": "node tests/spaces_browser_test.cjs",
+      "exit_code": 0,
+      "mode": "Mock browser component",
+      "log_sha256": "492de98295bbc432fc93e3b708d1cb48262677211e953f2acc4b8cfb318f1860"
+    },
+    "identity_ui": {
+      "command": "node tests/kernel_agent_identity_browser_test.cjs",
+      "exit_code": 0,
+      "mode": "Mock browser component",
+      "log_sha256": "6804d4712aaaf727f7e6073926447c68ad36d7c015269d43eae142f548424719"
+    },
+    "citations": {
+      "command": "python3 cannbot/scripts/test_pi_citations.py",
+      "exit_code": 0,
+      "mode": "local citation contract",
+      "log_sha256": "01a43506d267a7a8c1fa33c62440e0f358f234ab91c15370875742cf02a9f8d4"
+    },
+    "real_im": {
+      "command": "SPARK_PLAYWRIGHT_MODULE=/path/to/playwright python3.11 tests/collaboration_web_e2e.py --image spark-push:web-collaboration --out /tmp/web-im9.json",
+      "exit_code": 0,
+      "receipt_sha256": "cbd5ed29abf86106f38e7ccdf6b3275f62d11ecea8b029860b543bd74fd282f7",
+      "passed": 11,
+      "result": {
+        "ok": true,
+        "mode": "real Compose, three independent Chromium processes; Agents disabled",
+        "source_commit": "69e29a24b5eb6a914aa1a52144760c2545657556",
+        "checks": [
+          "fresh owned full Compose started with healthy services",
+          "full Compose down/up preserves owned volumes"
+        ],
+        "image_id": "sha256:006d0f756fe323e6558f658198c999076f32bbd380aab8697d87455b5ff3e007",
+        "sources": {
+          "web_demo/static/themes.css": "4d2730529a1fe89b289ac0a9d19450e5703b1c2b3889aebfff925dd5f1c1e001",
+          "web_demo/static/chatroom.html": "b8529db625bb35e78346c0b4785f85a88ed3d86be93db05063e5272c42b01720",
+          "web_demo/static/spaces.js": "235369aa839b8b92f4697a4b061e5615ad952f011b25087977580c733744288e",
+          "web_demo/static/endpoints.js": "4a6928492968606215e1a9b533a1698a31c408058e588c144de7967afb75b5aa",
+          "web_demo/static/theme.js": "799b5db56a2caa57f322b27e38a6f9522e017fce3df6463b53b1de7898704ead",
+          "web_demo/static/agent_channel.js": "085e66bd1ee1d12863ac1eadc421f310695e53098ed605a68254b97e69ce6815",
+          "web_demo/static/admin_style.css": "240d76b2378f5f92b6796ba18346257861d06f5fc4176a25b84c11ccf3f7ae7d",
+          "web_demo/static/room_agents.js": "90c6af17350e96874e08c5c4881766621a90eb2dd468a54552115d11f8d1dc65",
+          "web_demo/static/agent_channel.css": "4e677b80655ca56c6143c88d44f39b9da9634c6f602887236c46ee42179c174c",
+          "web_demo/static/agent_connections.js": "e9dae06dbccff36572f7cb13d3b0663b7607113ed24d13148b8d780c6c009982",
+          "web_demo/static/collaboration_ui.js": "c75896c1b9bf41b55fc4b1f1e312ccc46c8d5faae42a5f4caba375184a73b8f4",
+          "web_demo/static/knowledge.html": "783fdb8fa6a47a7b44398a4a25d7bed86ad2e0c4a0477293c459ebed9408f231",
+          "web_demo/static/danmaku.html": "7e804048b311b9cf52a7df96030f611c028895310ea681b32ffee118d4bf787f",
+          "web_demo/static/index.html": "6c3a3a6a38ce2395e86dbdfd84d7a874658bc14aeb53c5b5e74c96f1bc4c155a",
+          "web_demo/static/runtime-config.js": "013483c52ed8fdffe37fb0762d2f7555b03a982f0aeff4479b56d0284b2b0e8a",
+          "web_demo/static/agent_connections.css": "1e8e23bdde968bece62c5df330ceed454f1e41a8dfae91989d10ade435f7b24d",
+          "web_demo/static/room_agent_channel.js": "8c58100deb17f31a29a6fbd34317c756e9dc35d8a6af70e15628730fe93be516",
+          "web_demo/static/admin_chatroom.html": "5a2b120984d046b1eebcef0b0b28855c6a316d17c1eddb971fefb81b1cdef612",
+          "web_demo/static/collaboration_ui.css": "977ef7f8fc7356430759bb27dd5093dc929685605cccea59d8b6c8a13ff50c3a",
+          "web_demo/static/safe_markdown.js": "cff2b04bac022f72823d29143b704fb5befa2716a0d7a27c301100882a23e7e7",
+          "web_demo/static/auth_style.css": "d4e7132cfb5098117baaaee32f968d48839dd09da0956a2746973696f25edd33",
+          "web_demo/static/auth.js": "181e382067a60b4cf5386d0eb0275ddf427812142f4f534568efe8485d07327e",
+          "logic/services/knowledge_service.h": "1bc5a24607800478f037ab3900d1543b0e401a6473fa9784f2bd39ef72e94886",
+          "logic/services/admin_service.cpp": "3081a77c7725607850e8a0095a4ed4fcd960daea1521f683ab80e49e32a201ba",
+          "logic/services/room_service.h": "e5202de85190f6c2ec38373b23ab43c5b4bbeaac2bc8a89ded1d10185ad0d04a",
+          "logic/services/attachment_service.cpp": "40d144205a380acd02ea6c0c84e9a7e044831b753b12d7deb1918ee4f5b418cf",
+          "logic/services/agent_connection_service.h": "6581e03928b4e59805185a2ffdd709b08fd3b6b3cc48dacfe0e165175b94960b",
+          "logic/services/business_rules.h": "38c346037ac55d191153a30d2225baa7023122b32decc44562d2d89fcbfb0f42",
+          "logic/services/conversation_service.h": "c29e0740aec7ab7558509528e52125b45913a514f401b28002eb3b8f4cac0f45",
+          "logic/services/danmaku_service.h": "838a01a0018c0ea53a7f7aff02bd331483a17702d139a78c52011515b62064dd",
+          "logic/services/room_workspace_service.cpp": "2fcae161711c6851e525ff845f59efeabc2c0fbcb8a1a1a1a71dd6169eebf965",
+          "logic/services/service_status.h": "490c19a996f95164eda3ea104ccf2f4cdc15ff8878f8da522f20e6dee47a755a",
+          "logic/services/user_service.cpp": "ed67ee40573be880fbd4ad888d8ee276974c51864cc35e9ce7f5ae900b38c1f1",
+          "logic/services/danmaku_service.cpp": "52551eef119599aff9fd0c09f65187b3b1bdc6a787382833957fa563660a1371",
+          "logic/services/room_agent_service.cpp": "e99cef9252ff5edcfbd68c0a8a239757e70367c14b09e6defd01c5b4760eba4f",
+          "logic/services/room_agent_catalog.cpp": "136913701e260acc99956d4df3d933d29af0603d40e0f64c340816a547fedef2",
+          "logic/services/admin_service.h": "89f9439b93257746f5574bdbfaa81c2ec36714ccd3c8c9f38fff96ed0252dcfc",
+          "logic/services/knowledge_service.cpp": "34e0f8c0d2a165b5dd14a25145636e2bfd37f4a59bccb6d756e24bad8ed834fb",
+          "logic/services/room_agent_service.h": "224110e044cf71004a486d2f9e277ae33ccf29156df094127de9bef49c65a328",
+          "logic/services/attachment_service.h": "64fca446952c39f1460e6f571f1c596db3779370d99304e6860bcdcad0390a47",
+          "logic/services/space_repository.h": "bd930b82bfc0733cff12674c327132ebc0953beb26e74db95b55111d69d7d3a6",
+          "logic/services/room_service.cpp": "011540ab554a36de582c6fbeba4860f0e8c1b0677e437016b621ccfd339d49b9",
+          "logic/services/repositories.h": "fc4620b33b19bb76f4cc1eaca5e6e313c23ca261498a14838964e3cec9309b70",
+          "logic/services/conversation_service.cpp": "068960d91e42625bc69f0a704feadce57def51f092a1aba8fec54dd2889040c7",
+          "logic/services/message_service.h": "566faaf88275671ba38a01b151af4ecc83d8d4872873461b0c6d42eac931ae74",
+          "logic/services/agent_connection_service.cpp": "f9c6a2fe0bebea11f832fe43a6294abab0b4ad04d4da7aa90f29d7b60b89d7a7",
+          "logic/services/room_task_service.cpp": "d40be78bc77d1357873e424dc41d4ab1e1ab67660fba5a94946fdab112109ec5",
+          "logic/services/user_service.h": "9c1f2cfe0ba3c5d6d04a0d802f4daac415fda9df45e7dfef0c30673cb724adad",
+          "logic/services/message_service.cpp": "b7a9077517ac91d45c44cb44553a53e919708b07da3d899169b281601319a1e4",
+          "logic/repositories/dao_repositories.h": "354b7b2101dd9eeeb8c5e6ac4b67c320b32c81570f6417b33ebdb7bd8b61b566",
+          "logic/repositories/room_agent_repository.cpp": "cc5e8749e64cec17981f9a3ff955f427fa151b57334199fb286737514201ec1f",
+          "logic/repositories/dao_repositories.cpp": "ee2dd9756a6036d305cbdaed631d2117d9cc66102102b8e47260d00f59ec1162",
+          "logic/repositories/room_agent_repository.h": "0a28a8ced801f3dc525e964778b2e88836c7a81f8a761480405d5303e2649fae",
+          "logic/repositories/space_repository.h": "293b6fd7874f4677b2d961e5d55a14ba00c5f77852c304971d3b97bae52ca7c1",
+          "logic/repositories/space_repository.cpp": "f4bd2dd7249a585699fac1d35ea04bcc576d7f38292ba4119c808b96ca149730",
+          "logic/repositories/room_sql.h": "0117e852143eee0c8aefb5881139151e6530523496328fb417a887f5b29dd9fd",
+          "logic/http_server.cpp": "0c02a05e233918876ea09d6cb77ae35de2c1f98e6ea680831ac1c14b46be3f2e",
+          "logic/http_server.h": "f8d0315b20f5af697f6950bf6efc4ee72fe7df14fedb906b051c6a8b08a9c79f",
+          "logic/main.cpp": "cff740c0f8da1f74d1d5531b32dfb614b4b47606166b1d84a22c42e7def0ad94",
+          "deploy/Caddyfile": "be768e9710080d1a7f2fdf88da536136d09c97f53173f95911bc1294f3a40545",
+          "Dockerfile": "ecbc616c0256ae4137e0d06f6358fab7d86b8338d24442edfa18a0a0d23f423c",
+          "tests/collaboration_web_e2e.py": "bb5740c8dc810e8f5c78e0a2bd207bba351120a485d2a14ca5f3fbee8c52903b",
+          "tests/collaboration_web_live_browser_test.cjs": "2068be27e09ad46a7fe14ecdfb0d591401d5b35729307bc3c412e33788250c2e"
+        },
+        "served_assets": {
+          "index.html": "6c3a3a6a38ce2395e86dbdfd84d7a874658bc14aeb53c5b5e74c96f1bc4c155a",
+          "collaboration_ui.js": "c75896c1b9bf41b55fc4b1f1e312ccc46c8d5faae42a5f4caba375184a73b8f4",
+          "collaboration_ui.css": "977ef7f8fc7356430759bb27dd5093dc929685605cccea59d8b6c8a13ff50c3a",
+          "spaces.js": "235369aa839b8b92f4697a4b061e5615ad952f011b25087977580c733744288e",
+          "room_agents.js": "90c6af17350e96874e08c5c4881766621a90eb2dd468a54552115d11f8d1dc65",
+          "room_agent_channel.js": "8c58100deb17f31a29a6fbd34317c756e9dc35d8a6af70e15628730fe93be516"
+        },
+        "browser": {
+          "ok": true,
+          "mode": "real three-browser Web UI with Agents disabled",
+          "checks": [
+            "three independent browser processes register and log in through the UI",
+            "Alice creates a private space, invites Bob and Carol by account, both accept without numeric IDs",
+            "public discovery and join work through the UI, public and private timelines remain isolated",
+            "three users send concurrently and see the same ordered, deduplicated message timeline",
+            "account lookup opens real direct messages; switching preserves the room timeline",
+            "paused real Job proves room empty reconnect sync and absent first-DM directory; later SQL tails recover automatically with one ordered copy",
+            "closing Alice and taking Bob offline does not block Carol; Bob recovers the persisted message",
+            "full Compose restart and fresh browser logins preserve timeline, membership and task handoff",
+            "direct and public conversations recover from server history in fresh browser profiles",
+            "revocation clears Bob cache, denies real history/member APIs, blocks live delivery and survives reload",
+            "desktop and mobile layouts are usable without uncaught JavaScript errors"
+          ],
+          "tail_recovery": [
+            {
+              "kind": "room",
+              "session_id": "r_1",
+              "old_cursor": 3,
+              "message_id": "r_1-4",
+              "sql_before": [
+                {
+                  "id": "r_1-1",
+                  "seq": 1
+                },
+                {
+                  "id": "r_1-2",
+                  "seq": 2
+                },
+                {
+                  "id": "r_1-3",
+                  "seq": 3
+                }
+              ],
+              "sql_after": [
+                {
+                  "id": "r_1-1",
+                  "seq": 1
+                },
+                {
+                  "id": "r_1-2",
+                  "seq": 2
+                },
+                {
+                  "id": "r_1-3",
+                  "seq": 3
+                },
+                {
+                  "id": "r_1-4",
+                  "seq": 4
+                }
+              ],
+              "recovery_sync": [
+                {
+                  "direction": "framesent",
+                  "type": "sync",
+                  "after_seq": 3,
+                  "session_id": "r_1"
+                },
+                {
+                  "direction": "framereceived",
+                  "type": "sync_end",
+                  "after_seq": 3,
+                  "next_seq": 4,
+                  "safe_seq": 4,
+                  "session_id": "r_1"
+                }
+              ],
+              "directory_absent_before": false
+            },
+            {
+              "kind": "direct",
+              "session_id": "s_900000000213_900000000214",
+              "old_cursor": 0,
+              "message_id": "s_900000000213_900000000214-1",
+              "sql_before": [],
+              "sql_after": [
+                {
+                  "id": "s_900000000213_900000000214-1",
+                  "seq": 1
+                }
+              ],
+              "recovery_sync": [
+                {
+                  "direction": "framesent",
+                  "type": "sync",
+                  "after_seq": 0,
+                  "session_id": "s_900000000213_900000000214"
+                },
+                {
+                  "direction": "framereceived",
+                  "type": "sync_end",
+                  "after_seq": 0,
+                  "next_seq": 1,
+                  "safe_seq": 1,
+                  "session_id": "s_900000000213_900000000214"
+                }
+              ],
+              "directory_absent_before": true
+            }
+          ],
+          "revoked_api_codes": {
+            "/api/session/history": 403,
+            "/api/spaces/members": 403,
+            "/api/chatroom/agents/list": 403,
+            "/api/chatroom/tasks/list": 403
+          }
+        },
+        "limitations": [
+          "browser test is one-machine acceptance, not production HA or fresh-Linux-host proof",
+          "real CANN/private Agent and Kafka injection remain separate regressions"
+        ]
+      }
+    },
+    "real_agents": {
+      "command": "SPARK_PLAYWRIGHT_MODULE=/path/to/playwright python3.11 tests/collaboration_web_e2e.py --image spark-push:web-collaboration --agents --out /tmp/web-agents6.json",
+      "exit_code": 0,
+      "receipt_sha256": "e68902456b59a04cc419ead278d7bab7206104d7d76f2d9d1c227218cb3faf09",
+      "passed": 12,
+      "result": {
+        "ok": true,
+        "mode": "real Compose, three independent Chromium processes; actual public Pi/Hermes",
+        "source_commit": "69e29a24b5eb6a914aa1a52144760c2545657556",
+        "checks": [
+          "fresh owned full Compose started with healthy services",
+          "full Compose down/up preserves owned volumes",
+          "actual completed Router turns use distinct Runtime sessions; Native tool outputs contain the source nonce and C++ function"
+        ],
+        "image_id": "sha256:006d0f756fe323e6558f658198c999076f32bbd380aab8697d87455b5ff3e007",
+        "sources": {
+          "web_demo/static/themes.css": "4d2730529a1fe89b289ac0a9d19450e5703b1c2b3889aebfff925dd5f1c1e001",
+          "web_demo/static/chatroom.html": "b8529db625bb35e78346c0b4785f85a88ed3d86be93db05063e5272c42b01720",
+          "web_demo/static/spaces.js": "235369aa839b8b92f4697a4b061e5615ad952f011b25087977580c733744288e",
+          "web_demo/static/endpoints.js": "4a6928492968606215e1a9b533a1698a31c408058e588c144de7967afb75b5aa",
+          "web_demo/static/theme.js": "799b5db56a2caa57f322b27e38a6f9522e017fce3df6463b53b1de7898704ead",
+          "web_demo/static/agent_channel.js": "085e66bd1ee1d12863ac1eadc421f310695e53098ed605a68254b97e69ce6815",
+          "web_demo/static/admin_style.css": "240d76b2378f5f92b6796ba18346257861d06f5fc4176a25b84c11ccf3f7ae7d",
+          "web_demo/static/room_agents.js": "90c6af17350e96874e08c5c4881766621a90eb2dd468a54552115d11f8d1dc65",
+          "web_demo/static/agent_channel.css": "4e677b80655ca56c6143c88d44f39b9da9634c6f602887236c46ee42179c174c",
+          "web_demo/static/agent_connections.js": "e9dae06dbccff36572f7cb13d3b0663b7607113ed24d13148b8d780c6c009982",
+          "web_demo/static/collaboration_ui.js": "c75896c1b9bf41b55fc4b1f1e312ccc46c8d5faae42a5f4caba375184a73b8f4",
+          "web_demo/static/knowledge.html": "783fdb8fa6a47a7b44398a4a25d7bed86ad2e0c4a0477293c459ebed9408f231",
+          "web_demo/static/danmaku.html": "7e804048b311b9cf52a7df96030f611c028895310ea681b32ffee118d4bf787f",
+          "web_demo/static/index.html": "6c3a3a6a38ce2395e86dbdfd84d7a874658bc14aeb53c5b5e74c96f1bc4c155a",
+          "web_demo/static/runtime-config.js": "013483c52ed8fdffe37fb0762d2f7555b03a982f0aeff4479b56d0284b2b0e8a",
+          "web_demo/static/agent_connections.css": "1e8e23bdde968bece62c5df330ceed454f1e41a8dfae91989d10ade435f7b24d",
+          "web_demo/static/room_agent_channel.js": "8c58100deb17f31a29a6fbd34317c756e9dc35d8a6af70e15628730fe93be516",
+          "web_demo/static/admin_chatroom.html": "5a2b120984d046b1eebcef0b0b28855c6a316d17c1eddb971fefb81b1cdef612",
+          "web_demo/static/collaboration_ui.css": "977ef7f8fc7356430759bb27dd5093dc929685605cccea59d8b6c8a13ff50c3a",
+          "web_demo/static/safe_markdown.js": "cff2b04bac022f72823d29143b704fb5befa2716a0d7a27c301100882a23e7e7",
+          "web_demo/static/auth_style.css": "d4e7132cfb5098117baaaee32f968d48839dd09da0956a2746973696f25edd33",
+          "web_demo/static/auth.js": "181e382067a60b4cf5386d0eb0275ddf427812142f4f534568efe8485d07327e",
+          "logic/services/knowledge_service.h": "1bc5a24607800478f037ab3900d1543b0e401a6473fa9784f2bd39ef72e94886",
+          "logic/services/admin_service.cpp": "3081a77c7725607850e8a0095a4ed4fcd960daea1521f683ab80e49e32a201ba",
+          "logic/services/room_service.h": "e5202de85190f6c2ec38373b23ab43c5b4bbeaac2bc8a89ded1d10185ad0d04a",
+          "logic/services/attachment_service.cpp": "40d144205a380acd02ea6c0c84e9a7e044831b753b12d7deb1918ee4f5b418cf",
+          "logic/services/agent_connection_service.h": "6581e03928b4e59805185a2ffdd709b08fd3b6b3cc48dacfe0e165175b94960b",
+          "logic/services/business_rules.h": "38c346037ac55d191153a30d2225baa7023122b32decc44562d2d89fcbfb0f42",
+          "logic/services/conversation_service.h": "c29e0740aec7ab7558509528e52125b45913a514f401b28002eb3b8f4cac0f45",
+          "logic/services/danmaku_service.h": "838a01a0018c0ea53a7f7aff02bd331483a17702d139a78c52011515b62064dd",
+          "logic/services/room_workspace_service.cpp": "2fcae161711c6851e525ff845f59efeabc2c0fbcb8a1a1a1a71dd6169eebf965",
+          "logic/services/service_status.h": "490c19a996f95164eda3ea104ccf2f4cdc15ff8878f8da522f20e6dee47a755a",
+          "logic/services/user_service.cpp": "ed67ee40573be880fbd4ad888d8ee276974c51864cc35e9ce7f5ae900b38c1f1",
+          "logic/services/danmaku_service.cpp": "52551eef119599aff9fd0c09f65187b3b1bdc6a787382833957fa563660a1371",
+          "logic/services/room_agent_service.cpp": "e99cef9252ff5edcfbd68c0a8a239757e70367c14b09e6defd01c5b4760eba4f",
+          "logic/services/room_agent_catalog.cpp": "136913701e260acc99956d4df3d933d29af0603d40e0f64c340816a547fedef2",
+          "logic/services/admin_service.h": "89f9439b93257746f5574bdbfaa81c2ec36714ccd3c8c9f38fff96ed0252dcfc",
+          "logic/services/knowledge_service.cpp": "34e0f8c0d2a165b5dd14a25145636e2bfd37f4a59bccb6d756e24bad8ed834fb",
+          "logic/services/room_agent_service.h": "224110e044cf71004a486d2f9e277ae33ccf29156df094127de9bef49c65a328",
+          "logic/services/attachment_service.h": "64fca446952c39f1460e6f571f1c596db3779370d99304e6860bcdcad0390a47",
+          "logic/services/space_repository.h": "bd930b82bfc0733cff12674c327132ebc0953beb26e74db95b55111d69d7d3a6",
+          "logic/services/room_service.cpp": "011540ab554a36de582c6fbeba4860f0e8c1b0677e437016b621ccfd339d49b9",
+          "logic/services/repositories.h": "fc4620b33b19bb76f4cc1eaca5e6e313c23ca261498a14838964e3cec9309b70",
+          "logic/services/conversation_service.cpp": "068960d91e42625bc69f0a704feadce57def51f092a1aba8fec54dd2889040c7",
+          "logic/services/message_service.h": "566faaf88275671ba38a01b151af4ecc83d8d4872873461b0c6d42eac931ae74",
+          "logic/services/agent_connection_service.cpp": "f9c6a2fe0bebea11f832fe43a6294abab0b4ad04d4da7aa90f29d7b60b89d7a7",
+          "logic/services/room_task_service.cpp": "d40be78bc77d1357873e424dc41d4ab1e1ab67660fba5a94946fdab112109ec5",
+          "logic/services/user_service.h": "9c1f2cfe0ba3c5d6d04a0d802f4daac415fda9df45e7dfef0c30673cb724adad",
+          "logic/services/message_service.cpp": "b7a9077517ac91d45c44cb44553a53e919708b07da3d899169b281601319a1e4",
+          "logic/repositories/dao_repositories.h": "354b7b2101dd9eeeb8c5e6ac4b67c320b32c81570f6417b33ebdb7bd8b61b566",
+          "logic/repositories/room_agent_repository.cpp": "cc5e8749e64cec17981f9a3ff955f427fa151b57334199fb286737514201ec1f",
+          "logic/repositories/dao_repositories.cpp": "ee2dd9756a6036d305cbdaed631d2117d9cc66102102b8e47260d00f59ec1162",
+          "logic/repositories/room_agent_repository.h": "0a28a8ced801f3dc525e964778b2e88836c7a81f8a761480405d5303e2649fae",
+          "logic/repositories/space_repository.h": "293b6fd7874f4677b2d961e5d55a14ba00c5f77852c304971d3b97bae52ca7c1",
+          "logic/repositories/space_repository.cpp": "f4bd2dd7249a585699fac1d35ea04bcc576d7f38292ba4119c808b96ca149730",
+          "logic/repositories/room_sql.h": "0117e852143eee0c8aefb5881139151e6530523496328fb417a887f5b29dd9fd",
+          "logic/http_server.cpp": "0c02a05e233918876ea09d6cb77ae35de2c1f98e6ea680831ac1c14b46be3f2e",
+          "logic/http_server.h": "f8d0315b20f5af697f6950bf6efc4ee72fe7df14fedb906b051c6a8b08a9c79f",
+          "logic/main.cpp": "cff740c0f8da1f74d1d5531b32dfb614b4b47606166b1d84a22c42e7def0ad94",
+          "deploy/Caddyfile": "be768e9710080d1a7f2fdf88da536136d09c97f53173f95911bc1294f3a40545",
+          "Dockerfile": "ecbc616c0256ae4137e0d06f6358fab7d86b8338d24442edfa18a0a0d23f423c",
+          "tests/collaboration_web_e2e.py": "bb5740c8dc810e8f5c78e0a2bd207bba351120a485d2a14ca5f3fbee8c52903b",
+          "tests/collaboration_web_live_browser_test.cjs": "c2f45575a91a05e39c756b1108ccca12f5b5293038ef1841e42c0a8b678346dc"
+        },
+        "served_assets": {
+          "index.html": "6c3a3a6a38ce2395e86dbdfd84d7a874658bc14aeb53c5b5e74c96f1bc4c155a",
+          "collaboration_ui.js": "c75896c1b9bf41b55fc4b1f1e312ccc46c8d5faae42a5f4caba375184a73b8f4",
+          "collaboration_ui.css": "977ef7f8fc7356430759bb27dd5093dc929685605cccea59d8b6c8a13ff50c3a",
+          "spaces.js": "235369aa839b8b92f4697a4b061e5615ad952f011b25087977580c733744288e",
+          "room_agents.js": "90c6af17350e96874e08c5c4881766621a90eb2dd468a54552115d11f8d1dc65",
+          "room_agent_channel.js": "8c58100deb17f31a29a6fbd34317c756e9dc35d8a6af70e15628730fe93be516"
+        },
+        "browser": {
+          "ok": true,
+          "mode": "real three-browser Web UI with actual public Pi/Hermes",
+          "checks": [
+            "three independent browser processes register and log in through the UI",
+            "Alice creates a private space, invites Bob and Carol by account, both accept without numeric IDs",
+            "public discovery and join work through the UI, public and private timelines remain isolated",
+            "three users send concurrently and see the same ordered, deduplicated message timeline",
+            "account lookup opens real direct messages; switching preserves the room timeline",
+            "actual Pi creates a structured task; isolated Hermes reads authorized C++ files; Carol claims and persists handoff",
+            "paused real Job proves room empty reconnect sync and absent first-DM directory; later SQL tails recover automatically with one ordered copy",
+            "closing Alice and taking Bob offline does not block Carol; Bob recovers the persisted message",
+            "full Compose restart and fresh browser logins preserve timeline, membership and task handoff",
+            "direct and public conversations recover from server history in fresh browser profiles",
+            "revocation clears Bob cache, denies real history/member APIs, blocks live delivery and survives reload",
+            "desktop and mobile layouts are usable without uncaught JavaScript errors"
+          ],
+          "agent_requests": [
+            {
+              "request_id": "ra_bec31a54c41706318f3a2f5f8d001cbdc5a2a1bc4b78888b5172936a2550a481",
+              "agent_id": "public-pi",
+              "actor_user_id": 900000000403,
+              "source_msg_id": "r_1-4",
+              "session_id": "r_1"
+            },
+            {
+              "request_id": "ra_4e79877635a3aa016bddd46ec0d974edcca52f8b6515ca86493815e2120c8b2f",
+              "agent_id": "public-hermes",
+              "actor_user_id": 900000000404,
+              "source_msg_id": "r_1-6",
+              "session_id": "r_1"
+            }
+          ],
+          "tail_recovery": [
+            {
+              "kind": "room",
+              "session_id": "r_1",
+              "old_cursor": 7,
+              "message_id": "r_1-8",
+              "sql_before": [
+                {
+                  "id": "r_1-1",
+                  "seq": 1
+                },
+                {
+                  "id": "r_1-2",
+                  "seq": 2
+                },
+                {
+                  "id": "r_1-3",
+                  "seq": 3
+                },
+                {
+                  "id": "r_1-4",
+                  "seq": 4
+                },
+                {
+                  "id": "r_1-5",
+                  "seq": 5
+                },
+                {
+                  "id": "r_1-6",
+                  "seq": 6
+                },
+                {
+                  "id": "r_1-7",
+                  "seq": 7
+                }
+              ],
+              "sql_after": [
+                {
+                  "id": "r_1-1",
+                  "seq": 1
+                },
+                {
+                  "id": "r_1-2",
+                  "seq": 2
+                },
+                {
+                  "id": "r_1-3",
+                  "seq": 3
+                },
+                {
+                  "id": "r_1-4",
+                  "seq": 4
+                },
+                {
+                  "id": "r_1-5",
+                  "seq": 5
+                },
+                {
+                  "id": "r_1-6",
+                  "seq": 6
+                },
+                {
+                  "id": "r_1-7",
+                  "seq": 7
+                },
+                {
+                  "id": "r_1-8",
+                  "seq": 8
+                }
+              ],
+              "recovery_sync": [
+                {
+                  "direction": "framesent",
+                  "type": "sync",
+                  "after_seq": 7,
+                  "session_id": "r_1"
+                },
+                {
+                  "direction": "framereceived",
+                  "type": "sync_end",
+                  "after_seq": 7,
+                  "next_seq": 7,
+                  "safe_seq": 7,
+                  "session_id": "r_1"
+                },
+                {
+                  "direction": "framesent",
+                  "type": "sync",
+                  "after_seq": 7,
+                  "session_id": "r_1"
+                },
+                {
+                  "direction": "framereceived",
+                  "type": "sync_end",
+                  "after_seq": 7,
+                  "next_seq": 8,
+                  "safe_seq": 8,
+                  "session_id": "r_1"
+                }
+              ],
+              "directory_absent_before": false
+            },
+            {
+              "kind": "direct",
+              "session_id": "s_900000000404_900000000405",
+              "old_cursor": 0,
+              "message_id": "s_900000000404_900000000405-1",
+              "sql_before": [],
+              "sql_after": [
+                {
+                  "id": "s_900000000404_900000000405-1",
+                  "seq": 1
+                }
+              ],
+              "recovery_sync": [
+                {
+                  "direction": "framesent",
+                  "type": "sync",
+                  "after_seq": 0,
+                  "session_id": "s_900000000404_900000000405"
+                },
+                {
+                  "direction": "framereceived",
+                  "type": "sync_end",
+                  "after_seq": 0,
+                  "next_seq": 1,
+                  "safe_seq": 1,
+                  "session_id": "s_900000000404_900000000405"
+                }
+              ],
+              "directory_absent_before": true
+            }
+          ],
+          "revoked_api_codes": {
+            "/api/session/history": 403,
+            "/api/spaces/members": 403,
+            "/api/chatroom/agents/list": 403,
+            "/api/chatroom/tasks/list": 403
+          }
+        },
+        "native_tool_receipts": {
+          "count": 6,
+          "sha256": "240b4421f0045f1ba3b65a84e486083ec76d8239d76988bedaf0a043119e987e",
+          "source_sha256": "491468a6c3124fcfecc84e090f0ac2ccff6af5587fbdab7242d0f15589c08c53"
+        },
+        "limitations": [
+          "browser test is one-machine acceptance, not production HA or fresh-Linux-host proof",
+          "real CANN/private Agent and Kafka injection remain separate regressions"
+        ]
+      }
+    },
+    "private_skill_sync": {
+      "command": "python3 cannbot/scripts/sync_pi_agent.py --check",
+      "exit_code": 1,
+      "result": "existing installed Skill/settings drift, preserved per user instruction",
+      "log_sha256": "6bce1a61aea5c376aa689eb08e2cd56882849e14966824610c6a729a63dcc11c"
+    },
+    "knowledge": {
+      "command": "python3 cannbot/scripts/validate_knowledge.py --strict",
+      "exit_code": 0,
+      "log_sha256": "664bca50bdfae20bf61e6375d10c6303856369341835de6f175d61f0f7aa1ba9"
+    }
+  },
+  "limitations": [
+    "stage pass does not certify the complete v0.1.0 release",
+    "real CANN LLM/RAG and private Pi/Hermes conversation model regressions remain separate outstanding release checks",
+    "no fresh-Linux-host, cold backup/restore, GHCR artifact or release installation acceptance in this phase",
+    "public runtime cross-room concurrency and unknown execution remain separate scoped checks; no arbitrary shell or public write tools enabled",
+    "private installed Skill/settings drift is preserved, not overwritten"
+  ],
+  "review": {
+    "web_code": "independent Reviewer passed the bounded UI implementation; separate tail and first-DM fixes reviewed and passed",
+    "tests": "independent Tester accepted final IM9 and Agents6 with actual source/image/served-asset evidence",
+    "private_configuration": "no reset or private Skill installation; test runtime uses separate owned homes and authorized model access only"
+  },
+  "image_id": "sha256:006d0f756fe323e6558f658198c999076f32bbd380aab8697d87455b5ff3e007",
+  "intermediate_failures": [
+    {
+      "run": "IM1",
+      "result": "failed",
+      "reason": "root entry still opened old chatroom; Caddy root changed to unified client"
+    },
+    {
+      "run": "IM3 / Agents1",
+      "result": "failed",
+      "reason": "public join used wrong body field; corrected room_id and added contract assertion"
+    },
+    {
+      "run": "IM4 / Agents4",
+      "result": "failed",
+      "reason": "empty reconnect sync preceded SQL tail persistence; continuous authorized reconciliation fixes actual loss",
+      "confirmed_before_fix": {
+        "ok": false,
+        "mode": "real three-browser Web UI with actual public Pi/Hermes",
+        "checks": [
+          "three independent browser processes register and log in through the UI",
+          "Alice creates a private space, invites Bob and Carol by account, both accept without numeric IDs",
+          "public discovery and join work through the UI, public and private timelines remain isolated",
+          "three users send concurrently and see the same ordered, deduplicated message timeline",
+          "account lookup opens real direct messages; switching preserves the room timeline",
+          "actual Pi creates a structured task; isolated Hermes reads authorized C++ files; Carol claims and persists handoff"
+        ],
+        "agent_requests": [
+          {
+            "request_id": "ra_bec31a54c41706318f3a2f5f8d001cbdc5a2a1bc4b78888b5172936a2550a481",
+            "agent_id": "public-pi",
+            "actor_user_id": 900000000403,
+            "source_msg_id": "r_1-4",
+            "session_id": "r_1"
+          },
+          {
+            "request_id": "ra_4e79877635a3aa016bddd46ec0d974edcca52f8b6515ca86493815e2120c8b2f",
+            "agent_id": "public-hermes",
+            "actor_user_id": 900000000404,
+            "source_msg_id": "r_1-6",
+            "session_id": "r_1"
+          }
+        ],
+        "errors": [],
+        "failure": "acceptance condition timed out",
+        "failure_state": [
+          {
+            "session": "r_1",
+            "cursors": {
+              "r_1": 7,
+              "r_2": 1,
+              "s_900000000403_900000000404": 1
+            },
+            "pending": [],
+            "seen": {
+              "r_2": [],
+              "r_1": [],
+              "s_900000000403_900000000404": []
+            },
+            "historyReady": true,
+            "ws": 1,
+            "history": {
+              "code": 0,
+              "messages": [
+                {
+                  "id": "r_1-1",
+                  "seq": 1
+                },
+                {
+                  "id": "r_1-2",
+                  "seq": 2
+                },
+                {
+                  "id": "r_1-3",
+                  "seq": 3
+                },
+                {
+                  "id": "r_1-4",
+                  "seq": 4
+                },
+                {
+                  "id": "r_1-5",
+                  "seq": 5
+                },
+                {
+                  "id": "r_1-6",
+                  "seq": 6
+                },
+                {
+                  "id": "r_1-7",
+                  "seq": 7
+                },
+                {
+                  "id": "r_1-8",
+                  "seq": 8
+                }
+              ]
+            }
+          },
+          {
+            "session": "r_1",
+            "cursors": {
+              "r_1": 8,
+              "r_2": 1
+            },
+            "pending": [],
+            "seen": {
+              "r_2": [],
+              "r_1": []
+            },
+            "historyReady": true,
+            "ws": 1,
+            "history": {
+              "code": 0,
+              "messages": [
+                {
+                  "id": "r_1-1",
+                  "seq": 1
+                },
+                {
+                  "id": "r_1-2",
+                  "seq": 2
+                },
+                {
+                  "id": "r_1-3",
+                  "seq": 3
+                },
+                {
+                  "id": "r_1-4",
+                  "seq": 4
+                },
+                {
+                  "id": "r_1-5",
+                  "seq": 5
+                },
+                {
+                  "id": "r_1-6",
+                  "seq": 6
+                },
+                {
+                  "id": "r_1-7",
+                  "seq": 7
+                },
+                {
+                  "id": "r_1-8",
+                  "seq": 8
+                }
+              ]
+            }
+          }
+        ],
+        "bob_recent_frames": [
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "hermes_delta",
+            "session_id": "r_1",
+            "msg_seq": 0
+          },
+          {
+            "type": "chatroom",
+            "session_id": "r_1",
+            "msg_seq": 7
+          },
+          {
+            "type": "sync_end",
+            "session_id": "r_1",
+            "after_seq": 7,
+            "next_seq": 7,
+            "safe_seq": 7
+          },
+          {
+            "type": "ack"
+          }
+        ]
+      }
+    },
+    {
+      "run": "IM6 / Agents3",
+      "result": "failed before browser startup",
+      "reason": "invocation used wrong Playwright environment variable; corrected invocation and added dependency preflight"
+    },
+    {
+      "run": "Agents2",
+      "result": "failed",
+      "reason": "test openRoom wait matched previous room; exact target title and initialized history now required"
+    },
+    {
+      "run": "Agents5",
+      "result": "failed",
+      "reason": "task handoff text appeared in body and history; test now checks the actual history element, product image unchanged",
+      "receipt_sha256": "ba045c4d300bf02239fca16f9c9b12999b7cf4fa89f1accb306c73e62bfbd6d6"
+    }
+  ],
+  "source_files_sha256": {
+    "README.md": "a11753a93e5f5c332cea68ae0376734ef46ff9fb53a98b22856e2c02a8fb9c2f",
+    "cannbot/knowledge-sources.json": "7236d976e04ccc71ba87bc9c8d4e63fc73d56567042dd9502d072ffb9c247935",
+    "cannbot/skills/spark-push-knowledge/references/architecture-map.md": "8bd31fe59702244f6f7764bfd4b9a04392512531b98d1150e2105c07f88f7067",
+    "deploy/Caddyfile": "be768e9710080d1a7f2fdf88da536136d09c97f53173f95911bc1294f3a40545",
+    "docs/images/collaboration-desktop.png": "179bebeee34fbd413f1cb9f742f0fb6eefdde601e0877bfe1ed26cc6fdc9eeca",
+    "docs/images/collaboration-mobile.png": "18cebb7b5e1e3f7d6f506d61c6139f9ff01bf68112eebaf1e936146aa954a4df",
+    "docs/v0.1.0-delivery.md": "d9cb041d6f7c9d0f5fa3a57dbb23420e9323443bf785576d84edfcefa508967b",
+    "docs/web-collaboration-client.md": "9c205b763b2a52e3aefae8c3a3c0faec7c3c6795089caefff924bf4fc9dceacf",
+    "logic/http_server.cpp": "0c02a05e233918876ea09d6cb77ae35de2c1f98e6ea680831ac1c14b46be3f2e",
+    "logic/http_server.h": "f8d0315b20f5af697f6950bf6efc4ee72fe7df14fedb906b051c6a8b08a9c79f",
+    "logic/main.cpp": "cff740c0f8da1f74d1d5531b32dfb614b4b47606166b1d84a22c42e7def0ad94",
+    "logic/repositories/space_repository.cpp": "f4bd2dd7249a585699fac1d35ea04bcc576d7f38292ba4119c808b96ca149730",
+    "logic/repositories/space_repository.h": "293b6fd7874f4677b2d961e5d55a14ba00c5f77852c304971d3b97bae52ca7c1",
+    "logic/services/conversation_service.cpp": "068960d91e42625bc69f0a704feadce57def51f092a1aba8fec54dd2889040c7",
+    "logic/services/conversation_service.h": "c29e0740aec7ab7558509528e52125b45913a514f401b28002eb3b8f4cac0f45",
+    "logic/services/room_service.cpp": "011540ab554a36de582c6fbeba4860f0e8c1b0677e437016b621ccfd339d49b9",
+    "logic/services/room_service.h": "e5202de85190f6c2ec38373b23ab43c5b4bbeaac2bc8a89ded1d10185ad0d04a",
+    "logic/services/space_repository.h": "bd930b82bfc0733cff12674c327132ebc0953beb26e74db95b55111d69d7d3a6",
+    "logic/services/user_service.cpp": "ed67ee40573be880fbd4ad888d8ee276974c51864cc35e9ce7f5ae900b38c1f1",
+    "logic/services/user_service.h": "9c1f2cfe0ba3c5d6d04a0d802f4daac415fda9df45e7dfef0c30673cb724adad",
+    "tests/CMakeLists.txt": "2841d6fa181df3353084339dc33cefba7679bcd4ca81a29878e65c0683e92a07",
+    "tests/agent_channel_browser_test.cjs": "2eabe4cd76a1151390366d855c3b5eec7d0b6a0828f111afde6daedb8c19e9fe",
+    "tests/collaboration_browser_test.cjs": "6790eea88c46440c8e6a68d4048cb864c39213c47404da406866645561b94648",
+    "tests/collaboration_web_e2e.py": "bb5740c8dc810e8f5c78e0a2bd207bba351120a485d2a14ca5f3fbee8c52903b",
+    "tests/collaboration_web_live_browser_test.cjs": "c2f45575a91a05e39c756b1108ccca12f5b5293038ef1841e42c0a8b678346dc",
+    "tests/cursor_recovery_test.cjs": "37e6ba8c4d59283ec498ccda1a43f1480d2b122eaeffe749fc1c71214ff37b48",
+    "tests/http_api_integration_test.py": "f6eebef608a8042fdef46538c0fdd022edf5efbe7c66827e176bd79ec36f2ca0",
+    "tests/http_api_probe.cpp": "fa5900ed76335bcce8c9776b7b3f0772baa70b2cf3cb01ede2f7fa05cfc718c1",
+    "tests/kernel_agent_identity_browser_test.cjs": "5ac15a7e5e8b75682b3c55b9c97574b93b023be38864673d6464bc3a300ba5c1",
+    "tests/logic_business_service_test.cpp": "6dffe48adfa767e150fcb4cf1f57a0d6150bcc22a6699e2da82a73e8feb7b3ce",
+    "tests/space_mysql_integration_test.cpp": "cfe6986955da25bad7e9cdc3aadefd7a7cc9045641d3c4a10fd30e74af0ea6d5",
+    "tests/spaces_browser_test.cjs": "27656f1efdb75522022d53d929c9cf7a335d73882add8deec22abd758946ee11",
+    "web_demo/static/collaboration_ui.css": "977ef7f8fc7356430759bb27dd5093dc929685605cccea59d8b6c8a13ff50c3a",
+    "web_demo/static/collaboration_ui.js": "c75896c1b9bf41b55fc4b1f1e312ccc46c8d5faae42a5f4caba375184a73b8f4",
+    "web_demo/static/index.html": "6c3a3a6a38ce2395e86dbdfd84d7a874658bc14aeb53c5b5e74c96f1bc4c155a",
+    "web_demo/static/room_agents.js": "90c6af17350e96874e08c5c4881766621a90eb2dd468a54552115d11f8d1dc65",
+    "web_demo/static/spaces.js": "235369aa839b8b92f4697a4b061e5615ad952f011b25087977580c733744288e"
+  }
+}

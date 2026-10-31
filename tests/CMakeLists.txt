@@ -144,6 +144,9 @@ if(SPARK_NODE_EXECUTABLE)
     ${PROJECT_SOURCE_DIR}/tests/cursor_recovery_test.cjs)
   add_test(NAME room_agent_channel_test
     COMMAND ${SPARK_NODE_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/room_agent_channel_test.cjs)
+  add_test(NAME collaboration_browser_test
+    COMMAND ${SPARK_NODE_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/collaboration_browser_test.cjs)
+  set_tests_properties(collaboration_browser_test PROPERTIES TIMEOUT 120 SKIP_RETURN_CODE 77)
 endif()
 add_test(NAME logic_layer_contract_test
   COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tests/logic_layer_contract_test.py)

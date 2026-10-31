@@ -37,6 +37,20 @@ try:
     message = {"from_user_id": 7, "to_user_id": 8, "content": "hello"}
     assert post("/api/message/send", message, False) == 401
     assert post("/api/message/send", dict(message, from_user_id=8)) == 403
+    assert post("/api/users/lookup", {"account":"peer'quoted"}, False) == 401
+    assert post("/api/users/lookup", {"account":"peer'quoted", "actor_user_id":8}) == 400
+    assert post("/api/users/lookup", {"account":"peer"}) == 404
+    for value in (123, None, [], {}):
+        assert post("/api/users/lookup", {"account":value}) == 400
+    conn = http.client.HTTPConnection("127.0.0.1", port, timeout=2)
+    conn.request("POST", "/api/users/lookup", json.dumps({"account":"peer'quoted"}),
+                 {"Authorization":"Bearer probe", "Content-Type":"application/json"})
+    contact = json.loads(conn.getresponse().read())
+    conn.close()
+    assert contact["code"] == 0 and contact["data"] == {
+        "user_id":8, "account":"peer'quoted", "name":'Peer "quoted"'}
+    assert post("/api/spaces/discover", {}, False) == 401
+    assert post("/api/spaces/discover", {"limit":[]}) == 400
     for path, fields in {
         "/api/knowledge/document": ["doc_id", "chunk_id"],
         "/api/attachment/upload": ["session_id", "name", "data"],

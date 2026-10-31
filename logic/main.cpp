@@ -357,7 +357,7 @@ int RunLogic(Config cfg) {
     for (const auto& bot : cfg.agent_bot_users)
         user_options.bot_users.insert(bot.first);
     UserService user_service(&users, std::move(user_options));
-    ConversationService conversation_service(&conversations);
+    ConversationService conversation_service(&conversations,&user_service);
     AttachmentService attachment_service(&attachments, &conversation_service);
     MessageService message_service(
         &conversation_store, &group_member_dao, &user_service, &single_producer,

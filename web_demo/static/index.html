@@ -2,7 +2,8 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <title>Spark Chat - 消息中心</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Spark Push · 协作空间</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>⚡</text></svg>">
   <link rel="stylesheet" href="auth_style.css">
   <style>
@@ -774,6 +775,11 @@
   <script src="agent_connections.js"></script>
   <link rel="stylesheet" href="agent_connections.css">
   <link rel="stylesheet" href="agent_channel.css">
+  <script src="spaces.js"></script>
+  <script src="room_agents.js"></script>
+  <script src="room_agent_channel.js"></script>
+  <script src="collaboration_ui.js"></script>
+  <link rel="stylesheet" href="collaboration_ui.css">
 </head>
 <body>
   <div id="toast-container"></div>
@@ -781,28 +787,28 @@
   <div id="sidebar">
     <div class="sidebar-header">
       <h2><span class="brand-icon">⚡</span> Spark Push</h2>
-      <div class="sidebar-subtitle">分布式实时推送系统 · Single Chat</div>
+      <div class="sidebar-subtitle">一起讨论，让 Agent 参与协作</div>
     </div>
 
     <!-- 1. 未登录状态：显示登录/注册 -->
     <div id="auth-panel">
       <div class="auth-intro">
-        <div class="eyebrow">REAL-TIME MESSAGING</div>
+        <div class="eyebrow">YOUR TEAM, TOGETHER</div>
         <h3>欢迎回来</h3>
-        <p>登录后体验长连接推送、离线补推和消息状态回执。</p>
+        <p>和队友交流、共享任务，在同一个空间里与 Agent 一起工作。</p>
       </div>
       <div class="auth-tabs">
         <button type="button" class="auth-tab active" data-mode="login">登录</button>
         <button type="button" class="auth-tab" data-mode="register">注册</button>
       </div>
       <div class="form-group">
-        <input id="account" class="form-control" placeholder="账号 / 手机 / 邮箱" />
+        <input id="account" class="form-control" placeholder="账号" autocomplete="username" aria-label="账号" />
       </div>
       <div class="form-group hidden" id="nickname-group">
         <input id="nickname" class="form-control" placeholder="昵称 (注册时可选)" />
       </div>
       <div class="form-group">
-        <input id="password" type="password" class="form-control" placeholder="密码 (6位+)" />
+        <input id="password" type="password" class="form-control" placeholder="密码 (6位+)" autocomplete="current-password" aria-label="密码" />
       </div>
       <button id="login-btn" class="btn-primary btn-block">立即登录</button>
       <button id="register-btn" class="btn-primary btn-block hidden">注册并自动登录</button>
@@ -827,30 +833,29 @@
     <div id="nav-panel" class="hidden">
       <!-- 搜索/新建会话区域 -->
       <div class="nav-search-box">
-        <div class="tip-banner">
-          <b>快速开始：</b>开两个浏览器窗口分别登录两个账号，查看左下方 ID，输入对方的<b>数字 ID</b>点「私聊」即可。
-        </div>
         <div style="display:flex; gap:6px;">
-          <input id="to-user" class="form-control" placeholder="对方数字 UserID，如 4" />
+          <input id="to-user" class="form-control" placeholder="对方完整账号" aria-label="私聊账号" />
           <button id="start-chat-btn" class="btn-primary" style="padding:0 14px; white-space:nowrap;">私聊</button>
         </div>
         <button id="start-hermes-btn" type="button" class="hermes-trigger-btn">
-          <span>✨</span> 与 Kernel Agent 对话（ID 900000000001）
+          <span>✨</span> Kernel Agent
         </button>
-        <button id="agent-directory-btn" type="button" class="hermes-trigger-btn">🤖 打开其他 Agent 对话</button>
+        <button id="agent-directory-btn" type="button" class="hermes-trigger-btn">🤖 个人 Agent</button>
         <button id="my-agents-btn" type="button" class="hermes-trigger-btn">连接我的 Agent</button>
       </div>
 
+      <div class="session-list-header"><span>协作空间</span><button id="manage-spaces-btn" type="button" class="refresh-link">创建 / 加入</button></div>
+      <div id="space-list" aria-label="我的协作空间"></div>
       <!-- 按钮组 -->
       <div class="session-list-header">
-         <span>最近会话</span>
+         <span>私聊与个人 Agent</span>
          <button id="refresh-sessions-btn" class="refresh-link">刷新</button>
       </div>
 
       <!-- 列表容器 -->
       <div id="session-list" class="session-list-container">
         <div style="text-align:center; color:var(--muted-color); font-size:12px; margin-top:28px; line-height: 1.6;">
-            暂无历史会话<br>在上方输入对方 ID 开启畅聊
+            暂无私聊<br>输入队友的账号开始交流
         </div>
       </div>
 
@@ -860,7 +865,7 @@
           <div class="avatar-placeholder" style="background:var(--accent-sage-light); color:var(--accent-sage); border-color:rgba(79,115,92,0.2);">Me</div>
           <div class="flex-col">
             <span id="my-user-name" class="user-info">当前用户</span>
-            <span id="my-user-id" class="user-id-badge">ID: -</span>
+            <span id="my-user-id" class="user-id-badge" hidden></span>
           </div>
         </div>
         <button class="logout-btn" onclick="doLogout()">退出</button>
@@ -870,11 +875,12 @@
 
   <!-- 右侧主区域 -->
   <div id="main">
+    <div class="connection-bar"><button id="sidebar-toggle" type="button" aria-label="打开会话列表">☰</button><span id="connection-status" role="status">尚未登录</span><button id="reconnect-btn" type="button" hidden>重新连接</button></div>
     <!-- 状态 A: 未选择会话 -->
     <div id="empty-state">
-      <div class="empty-icon">☕</div>
-      <h3>开始使用 Spark Push</h3>
-      <p>从左侧选择联系人，或输入 UserID 发起即时单聊</p>
+      <div class="empty-icon">✦</div>
+      <h3>给想法一个共同的空间</h3>
+      <p>创建协作空间，邀请队友。讨论、Agent 回复与任务，都在这里。</p>
     </div>
 
     <!-- 状态 B: 聊天窗口 -->
@@ -882,12 +888,13 @@
       <div class="chat-header">
         <div class="flex-col">
            <span class="chat-title" id="chat-title">与 User ... 聊天中</span>
-           <span class="chat-session-badge">Session: <span id="session-id-disp">-</span></span>
+           <span class="chat-session-badge" id="conversation-subtitle">私聊</span><span id="session-id-disp" hidden></span>
         </div>
         <div class="chat-actions">
           <span style="font-size:12px; margin-right:6px; color:var(--muted-color);">未读: <span id="unread-count" style="font-weight:600; color:var(--primary-color);">0</span></span>
           <button id="mark-read-btn">标记已读</button>
-          <button id="load-more-btn">拉取更多历史</button>
+          <button id="load-more-btn">历史消息</button>
+          <button id="collaboration-details-btn" type="button" hidden>协作详情</button>
         </div>
       </div>
 
@@ -916,6 +923,16 @@
     let token = null;
     let currentSessionId = null; // 当前选中的会话ID
     let currentPeerId = null;    // 当前聊天的对象ID
+    let currentConversation = null;
+    let collaboration = null;
+    let authEpoch = 0;
+    let loginRequest=0;
+    const contactNames = new Map();
+    const revokedRooms = new Set();
+    const roomAccessEpoch = new Map();
+    const sentMessages = new Map();
+    let uploadingMessage=false;
+    let uploadController=null;
     const hermesBotUserId = 900000000001;
     const agentContacts = new Map([[hermesBotUserId, 'Kernel Agent'], [900000000101, 'Hermes · technical']]);
     ['DeepSeek Harness', 'Codex', 'Claude Code', 'Hermes', 'OpenClaw'].forEach((name, i) =>
@@ -936,6 +953,8 @@
     const sessionCursors = Object.create(null);
     const seenSessionSequences = Object.create(null);
     const pendingCursorSync = new Set();
+    const cursorSyncStarted = new Map();
+    let pendingConversationDiscovery=null;
     // 历史、实时和乐观消息共用一套身份索引，避免同一条消息被渲染两次。
     // key 可能是服务端 msg_id，也可能是客户端 client_msg_id；两者都登记。
     const renderedMessageRows = new Map();
@@ -961,6 +980,37 @@
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const cometWsUrl = window.SparkEndpoints?.websocket ?? (wsProtocol + '//' + location.hostname + ':9000/ws');
 
+    async function clientApi(path,body) {
+      const epoch=authEpoch,credential=token,room=Number(body.room_id||0),access=roomAccessEpoch.get(room)||0;
+      const response=await fetch(logicBase+path,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+credential},body:JSON.stringify(body)});
+      const result=await response.json();
+      if(epoch!==authEpoch || credential!==token || access!==(roomAccessEpoch.get(room)||0))throw Object.assign(new Error('操作所属会话已结束'),{code:499});
+      if(result.code!==0){if(result.code===401)doLogout('登录已失效，请重新登录');throw Object.assign(new Error(result.message||'操作失败'),{code:result.code});}
+      return result.data||{};
+    }
+    function setConnectionStatus(text,retry=false){document.getElementById('connection-status').textContent=text;document.getElementById('reconnect-btn').hidden=!retry;}
+    function cancelPendingUpload(){const controller=uploadController;uploadController=null;uploadingMessage=false;controller?.abort();}
+    function sendRoomPresence(type,room){if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify({type,group_id:Number(room)}));}
+    function invalidateSpace(room){
+      room=Number(room);const sid='r_'+room;revokedRooms.add(room);roomAccessEpoch.set(room,(roomAccessEpoch.get(room)||0)+1);
+      sessionWorkspaces.delete(sid);conversationDrafts.delete(sid);conversationPendingImages.delete(sid);
+      for(const key of sentMessages.keys())if(key.startsWith(sid+':'))sentMessages.delete(key);
+      for(const key of messageDeliveryStates.keys())if(key.startsWith(sid+':'))messageDeliveryStates.delete(key);
+      delete sessionCursors[sid];delete seenSessionSequences[sid];
+      for(const key of attachmentObjectUrls.keys())if(key.startsWith(sid+':'))attachmentObjectUrls.delete(key);
+      clearCursorSync(sid);
+      if(currentSessionId===sid){
+        cancelPendingUpload();
+        ++chatViewGeneration;historyRequestController?.abort();sendRoomPresence('chatroom_leave',room);
+        currentSessionId=null;currentPeerId=null;currentConversation=null;pendingLiveMessages=[];
+        renderedMessageRows.clear();hermesStreamStates.clear();hermesCompletedRequests.clear();pendingImages=[];renderPendingImages();
+        document.getElementById('messages').replaceChildren();document.getElementById('msg-text').value='';
+        document.getElementById('chat-window').classList.add('hidden');document.getElementById('empty-state').classList.remove('hidden');
+        collaboration?.opened(null);collaboration?.togglePanel(false);
+      }
+      collaboration?.refresh();
+    }
+
     // --- 界面切换逻辑 ---
     function updateUIState() {
       const authPanel = document.getElementById('auth-panel');
@@ -972,9 +1022,9 @@
         // 已登录
         authPanel.classList.add('hidden');
         navPanel.classList.remove('hidden');
-        document.getElementById('my-user-id').textContent = 'ID: ' + currentUserId;
-        document.getElementById('my-user-name').textContent = currentUserName || ('用户 ' + currentUserId);
+        document.getElementById('my-user-name').textContent = currentUserName || '我';
         loadSingleSessionList(); // 自动刷新列表
+        collaboration?.refresh();
       } else {
         // 未登录
         authPanel.classList.remove('hidden');
@@ -985,6 +1035,9 @@
     }
 
     function doLogout(statusMessage) {
+      ++authEpoch;++sessionListRequestId;
+      cancelPendingUpload();
+      pendingConversationDiscovery?.controller.abort();pendingConversationDiscovery=null;
       Auth.clear(); // 清除本地缓存
       // 先让旧连接回调失效，再关闭连接，避免 onclose 再次安排重连。
       ++wsGeneration;
@@ -1003,15 +1056,23 @@
       token = null;
       currentSessionId = null;
       currentPeerId = null;
+      currentConversation = null;
       ws = null;
       wasConnected = false;
       reconnectAttempt = 0;
       pendingCursorSync.clear();
+      cursorSyncStarted.clear();
       document.getElementById('messages').innerHTML = '';
       renderedMessageRows.clear();
       agentModelActions.clear(); agentModelResults.clear();
       messageDeliveryStates.clear();
       hermesStreamStates.clear();
+      hermesCompletedRequests.clear();sessionWorkspaces.clear();conversationDrafts.clear();sentMessages.clear();
+      conversationPendingImages.clear();attachmentObjectUrls.clear();contactNames.clear();revokedRooms.clear();
+      for(const key of Object.keys(sessionCursors))delete sessionCursors[key];
+      for(const key of Object.keys(seenSessionSequences))delete seenSessionSequences[key];
+      pendingImages=[];renderPendingImages();document.getElementById('msg-text').value='';
+      collaboration?.reset();setConnectionStatus('尚未登录');
       pendingLiveMessages = [];
       historyReady = false;
       document.getElementById('login-status').textContent = statusMessage || '';
@@ -1024,6 +1085,7 @@
     async function validateSavedSession(savedSession) {
       if (authValidationInFlight) return authValidationInFlight;
 
+      const epoch=authEpoch;
       authValidationInFlight = (async () => {
         const userId = Number(savedSession && savedSession.user_id);
         const savedToken = savedSession && savedSession.token;
@@ -1043,6 +1105,7 @@
           });
           let data = null;
           try { data = await resp.json(); } catch (_) {}
+          if(epoch!==authEpoch)return false;
 
           if (!resp.ok || !data || data.code !== 0) {
             const authFailed = resp.status === 401 || resp.status === 403 ||
@@ -1068,6 +1131,7 @@
           updateUIState();
           return true;
         } catch (e) {
+          if(epoch!==authEpoch)return false;
           document.getElementById('login-status').textContent =
             '无法连接 Logic 服务，已保留登录状态。请确认服务已启动后刷新或重试。';
           currentUserId = userId;
@@ -1100,6 +1164,7 @@
           historyReady: false,
           lastHistorySeq: 0,
           task: { state: 'idle', text: '' }
+          ,pending: [], bufferStart: null, recoveryFrom: null
         });
       }
       return sessionWorkspaces.get(key);
@@ -1148,7 +1213,9 @@
       if (state && state !== 'idle') item.textContent = text || state;
     }
 
-    function showChatWindow(peerId, sessionId) {
+    function showChatWindow(peerId, sessionId, descriptor) {
+      cancelPendingUpload();
+      const previous=currentConversation;
       if (currentSessionId) {
         conversationDrafts.set(String(currentSessionId), document.getElementById('msg-text').value);
         conversationPendingImages.set(String(currentSessionId), pendingImages.slice());
@@ -1161,31 +1228,39 @@
       const viewGeneration = ++chatViewGeneration;
       currentPeerId = peerId;
       currentSessionId = sessionId;
+      currentConversation=descriptor||{kind:'single',session_id:sessionId,name:isAgentPeer(peerId)?agentName(peerId):(contactNames.get(Number(peerId))||'私聊'),peer_user_id:peerId};
+      if(currentConversation.kind==='room')revokedRooms.delete(Number(currentConversation.room_id));
+      if(previous?.kind==='room' && previous.session_id!==sessionId)sendRoomPresence('chatroom_leave',previous.room_id);
       if (historyRequestController) historyRequestController.abort();
-      pendingLiveMessages = [];
+      pendingLiveMessages = workspaceFor(sessionId).pending;
 
       document.getElementById('empty-state').classList.add('hidden');
       document.getElementById('chat-window').classList.remove('hidden');
 
-      document.getElementById('chat-title').textContent = isAgentPeer(peerId)
-        ? '与 ' + agentName(peerId) + ' 对话中'
-        : '与用户 ' + peerId + ' 聊天中';
+      document.getElementById('chat-title').textContent = currentConversation.name;
+      document.getElementById('conversation-subtitle').textContent=currentConversation.kind==='room'?(currentConversation.visibility==='private'?'私有协作空间':'公开协作空间'):(isAgentPeer(peerId)?'个人 Agent 会话':'私聊');
       document.getElementById('session-id-disp').textContent = sessionId;
       const messageInput = document.getElementById('msg-text');
       if (isAgentPeer(peerId)) {
-        messageInput.placeholder = '输入 CANN 问题，或使用 /cann、/kb';
+        messageInput.placeholder = '与 '+agentName(peerId)+' 交流';
         messageInput.title = '/agent · /cann · /kb · /kb status · /new · /retry · /model · /help';
       } else {
-        messageInput.placeholder = '输入消息... (Enter 发送)';
+        messageInput.placeholder = currentConversation.kind==='room'?'发送消息，输入 @ 选择 Agent':'输入消息... (Enter 发送)';
         messageInput.title = '';
       }
 
       restoreWorkspace(sessionId);
+      collaboration?.opened(currentConversation);
+      document.getElementById('agent-commands-btn').hidden=!isAgentPeer(peerId);
+      document.body.classList.remove('show-navigation');
+      if(currentConversation.kind==='room')sendRoomPresence('chatroom_join',currentConversation.room_id);
       historyLoading = false;
-      if (!existing || !existing.historyReady) {
+      if (!existing || !existing.historyReady || existing.retryHistory) {
         loadHistory(true, viewGeneration, sessionId);
       } else {
         historyReady = true;
+        flushPendingLiveMessages();
+        sendCursorSync(sessionId,sessionCursors[sessionId]||0);
       }
 
       // 刷新未读数
@@ -1230,8 +1305,9 @@
     }
 
     async function loadAttachmentPreview(id, img) {
-      if (attachmentObjectUrls.has(id)) {
-        img.src = attachmentObjectUrls.get(id);
+      const epoch=authEpoch,sid=currentSessionId,room=Number(currentConversation?.room_id||0),access=roomAccessEpoch.get(room)||0,key=sid+':'+id;
+      if (attachmentObjectUrls.has(key)) {
+        img.src = attachmentObjectUrls.get(key);
         return;
       }
       try {
@@ -1244,9 +1320,10 @@
           body: JSON.stringify({ id })
         });
         const data = await resp.json();
+        if(epoch!==authEpoch || access!==(roomAccessEpoch.get(room)||0))return;
         if (data.code !== 0 || !data.data || !data.data.data) return;
         const url = 'data:' + (data.data.mime || 'image/png') + ';base64,' + data.data.data;
-        attachmentObjectUrls.set(id, url);
+        attachmentObjectUrls.set(key, url);
         img.src = url;
       } catch (_) {}
     }
@@ -1275,6 +1352,7 @@
     }
 
     function fileToPending(file) {
+      const generation=chatViewGeneration,epoch=authEpoch;
       if (!file || !file.type.startsWith('image/')) {
         showToast('只支持 jpeg/png/gif/webp 图片');
         return;
@@ -1289,6 +1367,7 @@
       }
       const reader = new FileReader();
       reader.onload = () => {
+        if(generation!==chatViewGeneration||epoch!==authEpoch)return;
         const dataUrl = String(reader.result || '');
         const comma = dataUrl.indexOf(',');
         pendingImages.push({
@@ -1302,19 +1381,20 @@
       reader.readAsDataURL(file);
     }
 
-    async function uploadPendingImages() {
-      if (!pendingImages.length) return [];
-      if (!currentSessionId) throw new Error('未选择会话');
+    async function uploadPendingImages(sessionId=currentSessionId,images=pendingImages.slice(),credential=token,signal) {
+      if (!images.length) return [];
+      if (!sessionId) throw new Error('未选择会话');
       const uploaded = [];
-      for (const item of pendingImages) {
+      for (const item of images) {
         const resp = await fetch(logicBase + '/api/attachment/upload', {
           method: 'POST',
+          signal,
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
+            'Authorization': 'Bearer ' + credential
           },
           body: JSON.stringify({
-            session_id: currentSessionId,
+            session_id: sessionId,
             name: item.name,
             data: item.data
           })
@@ -1351,7 +1431,7 @@
       // 头像
       const avatar = document.createElement('div');
       avatar.className = 'msg-avatar';
-      avatar.textContent = isMe ? 'Me' : 'Ta';
+      avatar.textContent = String(senderId||(isMe?currentUserName:'友')).slice(0,1);
       if (isMe) avatar.style.background = '#4caf50';
 
       // 内容包裹
@@ -1363,12 +1443,13 @@
       name.className = 'msg-name';
       // 如果没有传入时间，就用当前时间
       const displayTime = timeStr || new Date().toLocaleTimeString();
+      row.dataset.displayTime=displayTime;
       name.textContent = (senderId || (isMe ? currentUserId : '未知')) +
         ' ' + displayTime;
 
       // 气泡
       const bubble = document.createElement('div');
-      bubble.className = 'msg-bubble';
+      bubble.className = 'msg-bubble msg-body';
       renderBubbleContent(bubble, text, opts.format);
       renderMessageImages(bubble, opts.attachments);
 
@@ -1433,8 +1514,9 @@
       if (!message || !row) return;
       let state = '';
       for (const key of messageIdentityKeys(message)) {
-        if (messageDeliveryStates.has(key)) {
-          state = messageDeliveryStates.get(key);
+        const scoped=String(message.session_id||currentSessionId||'')+':'+key;
+        if (messageDeliveryStates.has(scoped)) {
+          state = messageDeliveryStates.get(scoped);
           break;
         }
       }
@@ -1444,14 +1526,30 @@
 
     function setMessageDeliveryState(message, state) {
       if (!message || !state) return;
+      const sid=String(message.session_id||currentSessionId||'');
       for (const key of messageIdentityKeys(message)) {
-        messageDeliveryStates.set(key, state);
+        messageDeliveryStates.set(sid+':'+key, state);
       }
-      const row = findRenderedMessageRow(message);
+      const rows=sid===currentSessionId?renderedMessageRows:sessionWorkspaces.get(sid)?.rendered;
+      const row=messageIdentityKeys(message).map(key=>rows?.get(key)).find(Boolean);
       if (row) {
         const status = row.querySelector('.msg-status');
         if (status) status.textContent = state;
+        if(state==='已接收'||state==='已送达')row.querySelector('.message-retry')?.remove();
       }
+      if(state==='已接收'||state==='已送达')sentMessages.delete(sid+':'+message.client_msg_id);
+    }
+
+    function offerMessageRetry(record){
+      if(!record || record.epoch!==authEpoch)return;const row=record.row;
+      if(row.querySelector('.message-retry'))return;
+      const button=document.createElement('button');button.type='button';button.className='message-retry';button.textContent='重发此消息';
+      button.onclick=()=>{
+        if(record.epoch!==authEpoch || record.sessionId!==currentSessionId)return;
+        if(!ws||ws.readyState!==WebSocket.OPEN){showToast('连接恢复后可重试');return;}
+        ws.send(JSON.stringify(record.payload));setMessageDeliveryState({...record.payload,session_id:record.sessionId},'正在确认');
+        button.remove();
+      };row.querySelector('.msg-content-wrapper').append(button);
     }
 
     function updateExistingMessageRow(row, text, isMe, senderId, timeStr, options) {
@@ -1460,7 +1558,7 @@
       row.classList.toggle('other', !isMe);
       const avatar = row.querySelector('.msg-avatar');
       if (avatar) {
-        avatar.textContent = isMe ? 'Me' : 'Ta';
+        avatar.textContent = String(senderId||(isMe?currentUserName:'友')).slice(0,1);
         avatar.style.background = isMe ? '#4caf50' : '';
       }
       const bubble = row.querySelector('.msg-bubble');
@@ -1471,6 +1569,7 @@
       const name = row.querySelector('.msg-name');
       if (name) {
         const displayTime = timeStr || new Date().toLocaleTimeString();
+        row.dataset.displayTime=displayTime;
         name.textContent = (senderId || (isMe ? currentUserId : '未知')) +
           ' ' + displayTime;
       }
@@ -1478,6 +1577,15 @@
     }
 
     function renderMessageOnce(message, text, isMe, senderId, timeStr, options) {
+      // A terminal result may arrive only through HTTP history after a restart.
+      // Reuse and settle its temporary private-Agent row before deduplication.
+      const sender=Number(message.sender_id??message.from_user_id),clientId=String(message.client_msg_id||'');
+      if(String(message.session_id||'').startsWith('s_')&&isAgentPeer(sender)&&clientId.startsWith('hermes:')){
+        const requestId=clientId.slice(7);hermesCompletedRequests.add(requestId);
+        if(hermesCompletedRequests.size>10000)hermesCompletedRequests.delete(hermesCompletedRequests.values().next().value);
+        const stream=hermesStreamStates.get(requestId);
+        if(stream){stream.pendingText='';stream.row.classList.remove('hermes-streaming','hermes-thinking');stream.progressNode?.remove();rememberRenderedMessage(message,stream.row);hermesStreamStates.delete(requestId);}
+      }
       const existing = findRenderedMessageRow(message);
       if (existing) {
         // 服务端消息到达时，用权威内容替换乐观气泡，并把 msg_id 也登记起来。
@@ -1488,6 +1596,7 @@
         rememberRenderedMessage(message, existing);
         applyMessageDeliveryState(message, existing);
         renderAgentPresentation(existing, message);
+        orderMessageRow(existing,message);decorateSenderName(existing,message);decorateRoomMessage(existing,message);
         return existing;
       }
       const opts = options || {};
@@ -1506,7 +1615,48 @@
       rememberRenderedMessage(message, row);
       applyMessageDeliveryState(message, row);
       renderAgentPresentation(row, message);
+      orderMessageRow(row,message);decorateSenderName(row,message);decorateRoomMessage(row,message);
       return row;
+    }
+
+    function orderMessageRow(row,message){
+      if(message.msg_id)row.dataset.messageId=String(message.msg_id);
+      if(message.client_msg_id)row.dataset.clientMsgId=String(message.client_msg_id);
+      const seq=Number(message.msg_seq||0);if(seq<=0)return;row.dataset.messageSeq=String(seq);
+      const container=document.getElementById('messages');
+      const next=[...container.children].find(other=>other!==row && other.classList.contains('msg-row') &&
+        (Number(other.dataset.messageSeq||0)>seq || Number(other.dataset.messageSeq||0)<=0));
+      if(next)container.insertBefore(row,next);else container.append(row);
+      lastHistorySeq=Math.max(lastHistorySeq,seq);
+    }
+    function roomEnvelope(message){
+      let outer={};try{outer=typeof message.content==='string'?JSON.parse(message.content):message.content||{};}catch(_){}
+      const wrapped=outer.type==='chatroom' && outer.session_id===message.session_id && outer.content && typeof outer.content==='object';
+      return {...(wrapped?outer:{}),...message,from_user_id:message.sender_id??message.from_user_id??(wrapped?outer.from_user_id:0)};
+    }
+    function decorateRoomMessage(row,message){
+      row._sparkMessage=message;if(!String(message.session_id||'').startsWith('r_'))return;
+      const envelope=roomEnvelope(message),agent=collaboration?.agents.identity(envelope);
+      const cann=!envelope.agent_id && envelope.request_id && Number(envelope.from_user_id)===hermesBotUserId;
+      if(!agent&&!cann)return;
+      row.dataset.agentIdentity=agent?.agent_id||'cann';row.dataset.agentRequest=envelope.request_id||'';row.dataset.sourceMessage=envelope.source_msg_id||'';
+      row.querySelector('.msg-avatar').textContent=agent?.runtime==='hermes_native'?'H':'π';
+      row.querySelector('.msg-name').textContent=(agent?.name||'Kernel Agent')+' · '+(collaboration?.memberName(envelope.actor_user_id)||'成员')+' 发起';
+      const meta=getMsgContentMeta(message);
+      if(meta.format==='markdown')renderBubbleContent(row.querySelector('.msg-bubble'),getMsgText(message),'markdown');
+      if(envelope.agent_status==='failed'||envelope.agent_status==='cancelled')row.querySelector('.msg-status').textContent=envelope.agent_status==='failed'?'执行失败 · 在协作详情中查看和恢复':'已取消';
+      if(envelope.source_msg_id&&!row.querySelector('.source-message-link')){
+        const button=document.createElement('button');button.type='button';button.className='source-message-link';button.textContent='查看提问';
+        button.onclick=()=>{const source=[...document.querySelectorAll('#messages [data-message-id]')].find(node=>node.dataset.messageId===row.dataset.sourceMessage);if(source)source.scrollIntoView({block:'center',behavior:'smooth'});else showToast('提问在更早的历史消息中');};
+        row.querySelector('.msg-content-wrapper').append(button);
+      }
+    }
+    function decorateSenderName(row,message){
+      const envelope=String(message.session_id||'').startsWith('r_')?roomEnvelope(message):message;
+      const sender=Number(envelope.sender_id??envelope.from_user_id);
+      if(isAgentPeer(sender)||envelope.agent_id)return;
+      const name=sender===Number(currentUserId)?currentUserName:(String(message.session_id||'').startsWith('r_')?collaboration?.memberName(sender):contactNames.get(sender));
+      if(name){row.querySelector('.msg-name').textContent=name+' '+(row.dataset.displayTime||'');row.querySelector('.msg-avatar').textContent=name.slice(0,1);}
     }
 
     function updateAgentModelCards() {
@@ -1596,6 +1746,7 @@
 
     // 1. 登录/注册
     async function doLoginOrRegister(mode) {
+      const epoch=authEpoch,request=++loginRequest;
       const account = document.getElementById('account').value.trim();
       const passwordRaw = document.getElementById('password').value;
       const nickname = document.getElementById('nickname').value.trim();
@@ -1625,6 +1776,7 @@
           body: JSON.stringify(body)
         });
         const data = await resp.json();
+        if(epoch!==authEpoch || request!==loginRequest)return;
 
         if (data.code !== 0) {
           statusEl.textContent = data.message;
@@ -1632,6 +1784,7 @@
         }
 
         // 成功
+        ++authEpoch;
         currentUserId = data.data.user_id;
         token = data.data.token;
         currentUserName = data.data.name || nickname || ('用户 ' + currentUserId);
@@ -1650,19 +1803,59 @@
       }
     }
 
+    function clearCursorSync(sessionId) {
+      for(const key of pendingCursorSync)if(key.startsWith(String(sessionId)+':'))pendingCursorSync.delete(key);
+      cursorSyncStarted.delete(String(sessionId));
+    }
+
+    function reconcileCurrentConversation() {
+      if(document.hidden || !token || !currentSessionId || !historyReady || ws?.readyState!==WebSocket.OPEN)return;
+      const sid=String(currentSessionId);
+      if(sid.startsWith('s_') && sessionWorkspaces.get(sid)?.exists===false){
+        // A first message may create its SQL session only after reconnect.
+        // Discover that object via the existing authenticated directory; all
+        // message bodies still arrive through cursor sync.
+        if(pendingConversationDiscovery)return;
+        const epoch=authEpoch,controller=new AbortController();
+        const operation={controller,promise:loadSingleSessionList({signal:controller.signal})};
+        pendingConversationDiscovery=operation;
+        const deadline=setTimeout(()=>controller.abort(),10000);
+        operation.promise.finally(()=>{
+          clearTimeout(deadline);
+          if(pendingConversationDiscovery===operation)pendingConversationDiscovery=null;
+          if(epoch===authEpoch && currentSessionId===sid && sessionWorkspaces.get(sid)?.exists===true)reconcileCurrentConversation();
+        });
+        return;
+      }
+      sendCursorSync(currentSessionId,sessionCursors[currentSessionId]||0);
+    }
+    // Kafka acceptance may precede SQL persistence. An empty reconnect sync
+    // cannot prove that its tail will stay empty; keep checking the visible
+    // conversation through the same authorized, idempotent recovery path.
+    setInterval(reconcileCurrentConversation,5000);
+    document.addEventListener('visibilitychange',reconcileCurrentConversation);
+
     function sendCursorSync(sessionId, afterSeq) {
       if (!sessionId || !ws || ws.readyState !== WebSocket.OPEN) return;
+      if(sessionWorkspaces.get(String(sessionId))?.exists===false)return;
+      if(String(sessionId).startsWith('r_')&&revokedRooms.has(Number(String(sessionId).slice(2))))return;
+      const sid=String(sessionId),active=cursorSyncStarted.get(sid);
+      if(active){
+        if(Date.now()-active.started<15000)return;
+        // A lost sync_end must not leave reconciliation blocked forever.
+        clearCursorSync(sid);
+      }
       const cursor = Number.isFinite(Number(afterSeq)) ? Number(afterSeq) : 0;
       const requestKey = String(sessionId) + ':' + cursor;
-      if (pendingCursorSync.has(requestKey)) return;
       pendingCursorSync.add(requestKey);
+      cursorSyncStarted.set(sid,{started:Date.now(),after:cursor});
       try {
         ws.send(JSON.stringify({
           type: 'sync', session_id: String(sessionId), after_seq: cursor,
           limit: 100
         }));
       } catch (e) {
-        pendingCursorSync.delete(requestKey);
+        clearCursorSync(sid);
       }
     }
 
@@ -1691,14 +1884,16 @@
     function handleSyncEnd(obj) {
       const sid = String(obj.session_id || '');
       if (!sid) return;
-      for (const key of Array.from(pendingCursorSync)) {
-        if (key.startsWith(sid + ':')) pendingCursorSync.delete(key);
-      }
+      if(sid.startsWith('r_')&&revokedRooms.has(Number(sid.slice(2))))return;
+      const after = Number(obj.after_seq || 0),active=cursorSyncStarted.get(sid);
+      // A response to an expired, different page cannot release a newer
+      // request or resume its old pagination. Same-page retries are idempotent.
+      if(active && active.after!==after)return;
+      clearCursorSync(sid);
       const seen = seenSessionSequences[sid] || new Set();
       let cursor = Number(sessionCursors[sid] || 0);
       const next = Number(obj.next_seq);
       const safe = Number(obj.safe_seq);
-      const after = Number(obj.after_seq || 0);
       if (after <= cursor && Number.isFinite(safe) && safe > cursor) cursor = safe;
       for (const value of seen) if (value <= cursor) seen.delete(value);
       while (seen.has(cursor + 1)) {
@@ -1709,13 +1904,24 @@
       if (obj.has_more && Number.isFinite(next) && next > after) {
         sendCursorSync(sid, next);
       } else if (seen.size && Math.max(...seen) > cursor + 1) {
-        setTimeout(() => sendCursorSync(sid, sessionCursors[sid] || 0), 1000);
+        const epoch=authEpoch,generation=wsGeneration,room=sid.startsWith('r_')?Number(sid.slice(2)):0,access=roomAccessEpoch.get(room)||0;
+        setTimeout(() => {if(epoch===authEpoch&&generation===wsGeneration&&access===(roomAccessEpoch.get(room)||0))sendCursorSync(sid,sessionCursors[sid]||0);},1000);
       }
     }
 
     function renderSingleChatMessage(obj) {
       const sid = String(obj.session_id || '');
       const clientMsgId = String(obj.client_msg_id || '');
+      if(sid.startsWith('r_')){
+        if(sid!==currentSessionId)return;
+        const envelope=roomEnvelope(obj),sender=Number(envelope.from_user_id);
+        const row=renderMessageOnce(obj,getMsgText(obj),sender===Number(currentUserId),
+          envelope.sender?.name||collaboration?.memberName(sender)||'成员',
+          obj.timestamp_ms?new Date(obj.timestamp_ms).toLocaleTimeString():'');
+        if(envelope.agent_id)collaboration?.agents.final(envelope);
+        else if(envelope.request_id && sender===hermesBotUserId)collaboration?.cann.final(envelope.request_id);
+        if(sender===Number(currentUserId))setMessageDeliveryState(obj,'已送达');return row;
+      }
       if (isAgentPeer(obj.from_user_id) && clientMsgId.startsWith('hermes:')) {
         setSessionTask(sid, 'completed', '已完成');
       }
@@ -1761,6 +1967,7 @@
           hermesStreamStates.delete(requestId);
           rememberRenderedMessage(obj, state.row);
           renderAgentPresentation(state.row, obj);
+          orderMessageRow(state.row,obj);
           return;
         }
       }
@@ -1773,14 +1980,37 @@
     }
 
     function flushPendingLiveMessages() {
-      if (!historyReady || !currentSessionId || !pendingLiveMessages.length) return;
+      if (!historyReady || !currentSessionId) return;
       const queued = pendingLiveMessages.splice(0);
       queued.sort((a, b) => Number(a.msg_seq || 0) - Number(b.msg_seq || 0));
-      queued.forEach(renderSingleChatMessage);
+      queued.forEach(message=>{renderSingleChatMessage(message);advanceSessionCursor(currentSessionId,message.msg_seq);});
+      const state=workspaceFor(currentSessionId);state.bufferStart=null;
+      if(state.recoveryFrom!==null){
+        const after=state.recoveryFrom;state.recoveryFrom=null;
+        sessionCursors[currentSessionId]=Math.min(Number(sessionCursors[currentSessionId]||0),after);
+        delete seenSessionSequences[currentSessionId];
+        clearCursorSync(currentSessionId);
+        sendCursorSync(currentSessionId,after);
+      }
+    }
+
+    function receiveConversationMessage(obj){
+      const sid=String(obj.session_id||'');if(!sid || (sid.startsWith('r_')&&revokedRooms.has(Number(sid.slice(2)))))return;
+      const state=workspaceFor(sid),before=Number(sessionCursors[sid]||0);
+      state.exists=true;
+      if(sid!==currentSessionId || !historyReady){
+        if(state.bufferStart===null)state.bufferStart=before;
+        if(state.pending.length<2000)state.pending.push(obj);
+        else state.recoveryFrom=state.recoveryFrom===null?state.bufferStart:Math.min(state.recoveryFrom,state.bufferStart);
+      }else renderSingleChatMessage(obj);
+      if(sid!==currentSessionId || historyReady)advanceSessionCursor(sid,obj.msg_seq);
     }
 
     function handleWebSocketMessage(obj) {
+      if(obj.type==='room_revoked'){invalidateSpace(obj.room_id);showToast('空间成员资格已撤销');return;}
+      if(String(obj.session_id||'').startsWith('r_')&&revokedRooms.has(Number(obj.session_id.slice(2))))return;
       if (obj.type === 'accepted_ack') {
+        if(obj.session_id)workspaceFor(obj.session_id).exists=true;
         setMessageDeliveryState(obj, '已接收');
         if (isAgentPeer(currentPeerId) &&
             String(obj.session_id || '') === String(currentSessionId || '')) {
@@ -1795,6 +2025,7 @@
       } else if (obj.type === 'error') {
         if (obj.client_msg_id) {
           setMessageDeliveryState(obj, '发送失败');
+          offerMessageRetry(sentMessages.get(String(obj.session_id||currentSessionId||'')+':'+obj.client_msg_id));
           const key = String(obj.session_id || currentSessionId || '') + ':' + obj.client_msg_id;
           if (agentModelActions.has(key)) {
             agentModelResults.set(key, {ok: false});
@@ -1802,22 +2033,15 @@
           }
         }
         showToast('发送失败: ' + (obj.message || 'unknown'));
-        if (currentSessionId) {
+        if (currentSessionId && (!obj.session_id||obj.session_id===currentSessionId)) {
           appendSystemMsg('服务端错误: ' + (obj.message || '请求失败'));
         }
       } else if (obj.type === 'hermes_delta') {
-        handleHermesDelta(obj);
-      } else if (obj.type === 'single_chat') {
-        const sid = String(obj.session_id || '');
-        if (sid && Number.isFinite(Number(obj.msg_seq))) {
-          advanceSessionCursor(sid, Number(obj.msg_seq));
-        }
-        if (!currentSessionId || sid !== String(currentSessionId)) return;
-        if (!historyReady) {
-          pendingLiveMessages.push(obj);
-          return;
-        }
-        renderSingleChatMessage(obj);
+        if(String(obj.session_id||'').startsWith('r_')){
+          if(obj.agent_id)collaboration?.agents.delta(obj);else collaboration?.cann.delta(obj);
+        }else handleHermesDelta(obj);
+      } else if (obj.type === 'single_chat' || obj.type === 'chatroom') {
+        receiveConversationMessage(obj);
       } else if (obj.type === 'system_broadcast') {
         const scope = obj.scope || 'all';
         if (scope === 'group') return;
@@ -1843,11 +2067,14 @@
     // 当前会话再走 cursor sync，前端按 msg_seq 去重。
     function connectWebSocket() {
       if (!token) return;
+      setConnectionStatus('正在连接…');
       if (ws) {
         ws.onclose = null;
         ws.close();
       }
       const socketGeneration = ++wsGeneration;
+      pendingCursorSync.clear();
+      cursorSyncStarted.clear();
       const socket = new WebSocket(cometWsUrl + '?token=' + encodeURIComponent(token));
       ws = socket;
 
@@ -1858,10 +2085,18 @@
           appendSystemMsg('连接已恢复，正在补齐消息');
         }
         wasConnected = true;
-        if (currentSessionId) {
+        setConnectionStatus('已连接');
+        if(currentConversation?.kind==='room'){
+          const room=currentConversation.room_id,epoch=chatViewGeneration;
+          clientApi('/api/spaces/members',{room_id:room}).then(()=>{
+            if(epoch===chatViewGeneration){sendRoomPresence('chatroom_join',room);collaboration?.agents.refresh();}
+          }).catch(error=>{if(epoch===chatViewGeneration && (error.code===403||error.code===404))invalidateSpace(room);});
+        }
+        if (currentSessionId && historyReady) {
           sendCursorSync(currentSessionId, sessionCursors[currentSessionId] || 0);
         }
         loadSingleSessionList();
+        collaboration?.refresh();
       };
 
       socket.onmessage = (ev) => {
@@ -1879,6 +2114,8 @@
       socket.onclose = () => {
         if (socketGeneration !== wsGeneration) return;
         ws = null;
+        setConnectionStatus('连接已断开，正在重连…',true);
+        for(const record of sentMessages.values()){setMessageDeliveryState({...record.payload,session_id:record.sessionId},'连接中断，结果待确认');offerMessageRetry(record);}
         // 握手阶段被 Logic 拒绝时，浏览器只暴露 close，不暴露服务端的 401
         // 原因。连续失败后主动验证 HTTP Token，失效就清理本地会话并显示登录框。
         if (reconnectAttempt >= 2) {
@@ -1893,12 +2130,14 @@
     }
 
     // 3. 获取会话列表
-    async function loadSingleSessionList() {
+    async function loadSingleSessionList(options={}) {
       if (!currentUserId) return;
       const requestId = ++sessionListRequestId;
+      const epoch=authEpoch;
       try {
         const resp = await fetch(logicBase + '/api/session/list_single', {
           method: 'POST',
+          signal:options.signal,
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { 'Authorization': 'Bearer ' + token } : {})
@@ -1906,7 +2145,7 @@
           body: JSON.stringify({ user_id: currentUserId })
         });
         const data = await resp.json();
-        if (requestId === sessionListRequestId && data.code === 0 &&
+        if (epoch===authEpoch && requestId === sessionListRequestId && data.code === 0 &&
             currentUserId) {
           renderSessionList(data.data.sessions || []);
         }
@@ -1929,6 +2168,8 @@
       }
 
       list.forEach(s => {
+        if(String(s.session_id)===String(currentSessionId))workspaceFor(s.session_id).exists=true;
+        contactNames.set(Number(s.peer_user_id),s.peer_name||'私聊');
         const div = document.createElement('div');
         div.className = 'session-item';
         if (String(s.session_id) === String(currentSessionId)) div.classList.add('active');
@@ -1940,13 +2181,12 @@
         avatar.style.background = isHermes ? '#7c3aed' : '#90caf9';
         const rawUid = String(s.peer_user_id || '');
         // 若 UserID 较长（如 9000000010），取后 4 位或短字符展示，防止圆形头像数字溢出
-        avatar.textContent = isHermes ? '🤖' : (rawUid.length > 4 ? rawUid.slice(-4) : rawUid);
-        avatar.title = rawUid;
+        avatar.textContent = isHermes ? '✦' : (s.peer_name||'友').slice(0,1);
         const info = document.createElement('div');
         info.className = 'session-info';
         const name = document.createElement('div');
         name.className = 'session-name';
-        name.textContent = isHermes ? agentName(s.peer_user_id) : '用户 ' + s.peer_user_id;
+        name.textContent = isHermes ? agentName(s.peer_user_id) : (s.peer_name||'私聊');
         const preview = document.createElement('div');
         preview.className = 'session-preview';
         const task = workspaceFor(s.session_id) && workspaceFor(s.session_id).task;
@@ -1954,7 +2194,7 @@
           preview.classList.add('task-active');
           preview.textContent = task.text || task.state;
         } else {
-          preview.textContent = '会话 ID: ' + String(s.session_id || '');
+          preview.textContent = s.unread_count>0?s.unread_count+' 条未读':'继续交流';
         }
         info.appendChild(name);
         info.appendChild(preview);
@@ -2135,6 +2375,7 @@
        if (!isInitial && (!historyHasMore || !historyAnchorSeq)) return;
 
        historyLoading = true;
+       let succeeded=false;
        const pageSize = 50;
        const anchor = isInitial ? 0 : historyAnchorSeq;
        const controller = new AbortController();
@@ -2159,21 +2400,30 @@
          if (viewGeneration !== chatViewGeneration ||
              currentSessionId !== requestedSessionId) return;
          if (data.code !== 0 && !(isInitial && data.code === 404)) {
+           if(data.code===403 && requestedSessionId.startsWith('r_')){invalidateSpace(Number(requestedSessionId.slice(2)));showToast('无法访问该空间');return;}
            appendSystemMsg('加载历史失败: ' + data.message);
            return;
          }
+         succeeded=true;
+         const workspace=workspaceFor(requestedSessionId);
+         workspace.exists=data.code!==404 || workspace.exists===true;
 
          const msgs = data.code === 404 ? [] : ((data.data && data.data.messages) || []);
+         // A recent history page is a display window, not proof that SQL has
+         // persisted every sequence up to its maximum. Start at its lower edge
+         // on the first visit, then reuse contiguous/gap recovery for the page.
+         if(isInitial && !sessionCursors[requestedSessionId] && msgs.length){
+           const sequences=[...msgs,...pendingLiveMessages].map(m=>Number(m.msg_seq)).filter(n=>n>0);
+           const seen=seenSessionSequences[requestedSessionId];if(seen)sequences.push(...seen);
+           sessionCursors[requestedSessionId]=Math.max(0,Math.min(...sequences)-1);
+         }
          const container = document.getElementById('messages');
-         // 历史请求期间可能已经出现乐观消息或 Hermes 临时气泡；先暂存这些
-         // 非历史节点，历史完成后再放回底部，避免新消息被旧历史“盖”到后面。
-         const transientNodes = isInitial ? Array.from(container.children) : [];
-         transientNodes.forEach(node => node.remove());
+         // The shared renderer orders durable rows by msg_seq and keeps
+         // optimistic/streaming rows last, including a history-only final.
          if (msgs.length === 0) {
            if (isInitial && pendingLiveMessages.length === 0) {
              appendSystemMsg('暂无历史消息');
            }
-           transientNodes.forEach(node => container.appendChild(node));
            historyHasMore = false;
            return;
          }
@@ -2181,12 +2431,13 @@
          const oldScrollHeight = container.scrollHeight;
 
          msgs.forEach(m => {
+           advanceSessionCursor(requestedSessionId,m.msg_seq);
            lastHistorySeq = Math.max(lastHistorySeq, m.msg_seq || 0);
            const isMe = Number(m.sender_id) === Number(currentUserId);
            const text = getMsgText(m);
 
            // 尝试解析 sender name
-           let displayName = 'User ' + m.sender_id;
+           let displayName = Number(m.sender_id)===Number(currentUserId)?currentUserName:(requestedSessionId.startsWith('r_')?collaboration?.memberName(m.sender_id):(contactNames.get(Number(m.sender_id))||'成员'));
            try {
               const contentObj = (typeof m.content === 'string') ? JSON.parse(m.content) : m.content;
               if (contentObj && contentObj.sender && contentObj.sender.name) {
@@ -2206,7 +2457,6 @@
                getMsgContentMeta(m).format === 'markdown' ? 'markdown' : undefined
            });
          });
-         transientNodes.forEach(node => container.appendChild(node));
 
          // 更新 anchor_seq：使用本次批次中最早一条的 msg_seq
          const first = msgs[0];
@@ -2216,8 +2466,6 @@
              historyAnchorSeq = firstSeq;
            }
          }
-         sessionCursors[requestedSessionId] = Math.max(
-           sessionCursors[requestedSessionId] || 0, lastHistorySeq);
          historyHasMore = msgs.length >= pageSize && historyAnchorSeq > 1;
 
          if (!isInitial) {
@@ -2239,9 +2487,12 @@
          if (viewGeneration === chatViewGeneration &&
              currentSessionId === requestedSessionId) {
            historyLoading = false;
+           workspaceFor(requestedSessionId).retryHistory=!succeeded;
+           document.getElementById('load-more-btn').textContent=succeeded?'历史消息':'重试加载历史';
            if (isInitial) {
              historyReady = true;
              flushPendingLiveMessages();
+             sendCursorSync(requestedSessionId,sessionCursors[requestedSessionId]||0);
            }
          }
        }
@@ -2249,16 +2500,19 @@
 
     // 6. 发送消息
     async function sendMsg(commandText, agentAction) {
+       if(uploadingMessage)return;
+       const sessionId=currentSessionId,generation=chatViewGeneration,epoch=authEpoch,credential=token;
+       const room=currentConversation?.kind==='room'?Number(currentConversation.room_id):0;
        const fromAction = typeof commandText === 'string';
-       const text = fromAction ? commandText : document.getElementById('msg-text').value.trim();
+       const draftValue=document.getElementById('msg-text').value,images=pendingImages.slice();
+       const text = fromAction ? commandText : draftValue.trim();
        const hasImages = !fromAction && pendingImages.length > 0;
        if (!text && !hasImages) return;
 
        const peerId = Number(currentPeerId);
        // 未点「私聊」或填了账号名时，Number 会得到 NaN，JSON 会序列化成 null，服务端直接拒绝
-       if (!Number.isFinite(peerId) || peerId <= 0) {
-         showToast('请先在左侧输入对方的数字 UserID 并点击「私聊」');
-         appendSystemMsg('发送失败：未选择有效聊天对象（需要对方数字 ID，不是账号名）');
+       if (!sessionId || (!room && (!Number.isFinite(peerId) || peerId <= 0))) {
+         showToast('请先选择一个会话');
          return;
        }
 
@@ -2268,23 +2522,28 @@
        }
 
        let attachments = [];
+       const mentions=room?collaboration.agents.mentions():[];
        if (hasImages) {
+         const controller=new AbortController();uploadController=controller;
+         uploadingMessage=true;
          try {
-           attachments = await uploadPendingImages();
+           attachments = await uploadPendingImages(sessionId,images,credential,controller.signal);
          } catch (e) {
-           appendSystemMsg('图片上传失败: ' + (e.message || e));
+           if(generation===chatViewGeneration && epoch===authEpoch)appendSystemMsg('图片上传失败: ' + (e.message || e));
            return;
-         }
+         }finally{if(uploadController===controller){uploadingMessage=false;uploadController=null;}}
        }
+       if(epoch!==authEpoch || generation!==chatViewGeneration || sessionId!==currentSessionId){showToast('会话已切换，消息保留在原草稿中');return;}
 
        const payload = {
-         type: 'single_chat',
-         to_user_id: peerId,
+         type: room?'chatroom':'single_chat',
+         ...(room?{group_id:room}:{to_user_id:peerId}),
          client_msg_id: Date.now().toString() + '-' +
            Math.random().toString(36).slice(2, 8),
          content: { text: text || (attachments.length ? '请查看这张图片。' : '') }
        };
        if (attachments.length) payload.content.attachments = attachments;
+       if(mentions.length)payload.agent_mentions=mentions;
        if (agentAction && isAgentPeer(peerId) &&
            SparkAgentChannel.commandForAction(agentAction) === text) {
          const {kind, value, provider, modelId, source_card} = agentAction;
@@ -2305,15 +2564,19 @@
        }
 
        // 乐观更新 UI
-       renderMessageOnce({...payload, session_id: currentSessionId, from_user_id: currentUserId}, SparkAgentChannel.displayAction(payload.content) || payload.content.text, true, currentUserId, '', {
+       const row=renderMessageOnce({...payload, session_id: sessionId, from_user_id: currentUserId}, SparkAgentChannel.displayAction(payload.content) || payload.content.text, true, currentUserName||'我', '', {
          optimistic: true,
          statusText: '发送中',
          attachments
        });
+       sentMessages.set(sessionId+':'+payload.client_msg_id,{sessionId,payload,row,epoch});
        if (!fromAction) {
-         document.getElementById('msg-text').value = '';
-         pendingImages = [];
+         const input=document.getElementById('msg-text'),unchanged=input.value===draftValue;
+         if(unchanged)input.value='';
+         pendingImages = pendingImages.filter(image=>!images.includes(image));
          renderPendingImages();
+         conversationDrafts.set(String(sessionId),input.value);conversationPendingImages.set(String(sessionId),pendingImages.slice());
+         if(room&&unchanged&&JSON.stringify(mentions)===JSON.stringify(collaboration.agents.mentions()))collaboration.agents.sent();
        }
        return true;
     }
@@ -2375,6 +2638,7 @@
     // 辅助：刷新未读 / 标记已读
     async function refreshUnread() {
       if(!currentSessionId || !currentUserId || !token) return;
+      const generation=chatViewGeneration,epoch=authEpoch;
       try {
         const resp = await fetch(logicBase + '/api/session/unread', {
           method: 'POST',
@@ -2387,7 +2651,7 @@
           })
         });
         const data = await resp.json();
-        if (String(currentSessionId) && data.code === 0) {
+        if (generation===chatViewGeneration && epoch===authEpoch && String(currentSessionId) && data.code === 0) {
           document.getElementById('unread-count').textContent =
             String((data.data && data.data.unread) || 0);
         }
@@ -2397,6 +2661,7 @@
     }
     document.getElementById('mark-read-btn').onclick = async () => {
       if(!currentSessionId || !lastHistorySeq || !currentUserId || !token) return;
+      const generation=chatViewGeneration,epoch=authEpoch;
       try {
         const resp = await fetch(logicBase + '/api/session/mark_read', {
           method: 'POST',
@@ -2410,6 +2675,7 @@
           })
         });
         const data = await resp.json();
+        if(generation!==chatViewGeneration||epoch!==authEpoch)return;
         if (data.code !== 0) {
           appendSystemMsg('标记已读失败: ' + (data.message || 'unknown'));
           return;
@@ -2417,7 +2683,7 @@
         document.getElementById('unread-count').textContent = '0';
         showToast('已标记已读');
       } catch (e) {
-        appendSystemMsg('标记已读失败，请稍后重试');
+        if(generation===chatViewGeneration&&epoch===authEpoch)appendSystemMsg('标记已读失败，请稍后重试');
       }
     };
 
@@ -2469,21 +2735,14 @@
        }
     };
 
-    document.getElementById('start-chat-btn').onclick = () => {
-       const peerRaw = document.getElementById('to-user').value.trim();
-       if(!peerRaw) return alert('请输入对方的数字 UserID（登录后左侧显示的 ID: 数字）');
-       if(!currentUserId) return alert('请先登录');
-       // 只接受正整数 ID；账号名会导致 to_user_id 变成 null，消息发不出去
-       if (!/^\d+$/.test(peerRaw) || Number(peerRaw) <= 0) {
-         return alert('对方 ID 必须是正整数数字（例如 4），不能填账号名');
-       }
-       const peer = Number(peerRaw);
-       if (peer === Number(currentUserId)) {
-         return alert('不能和自己私聊，请填另一个账号的数字 ID');
-       }
-       const sid = buildSingleSessionId(currentUserId, peer);
-       if (!sid) return alert('无法构造会话，请检查双方 UserID');
-       showChatWindow(peer, sid);
+    document.getElementById('start-chat-btn').onclick = async () => {
+       const account=document.getElementById('to-user').value;if(!account||!currentUserId)return;
+       const generation=chatViewGeneration;
+       try{const contact=await clientApi('/api/users/lookup',{account});if(generation!==chatViewGeneration)return;
+         if(Number(contact.user_id)===Number(currentUserId)){showToast('请选择其他成员');return;}
+         contactNames.set(Number(contact.user_id),contact.name||contact.account);
+         showChatWindow(contact.user_id,buildSingleSessionId(currentUserId,contact.user_id));
+       }catch(error){showToast(error.message);}
     };
 
     document.getElementById('refresh-sessions-btn').onclick = loadSingleSessionList;
@@ -2520,7 +2779,7 @@
 
     // 点击“拉取更多历史”按钮时，向前分页加载
     document.getElementById('load-more-btn').onclick = () => {
-      loadHistory(false);
+      loadHistory(!historyAnchorSeq || workspaceFor(currentSessionId)?.retryHistory);
     };
 
     // 上滑到顶部时自动加载更多历史；远离底部时显示「回到最新」
@@ -2544,6 +2803,14 @@
         const sid='s_'+Math.min(currentUserId,peer)+'_'+Math.max(currentUserId,peer);
         showChatWindow(peer,sid);
       }});
+
+    collaboration=new SparkCollaborationUI({api:clientApi,user:()=>currentUserId,active:()=>currentSessionId,
+      access:room=>roomAccessEpoch.get(Number(room))||0,
+      open:showChatWindow,invalidate:invalidateSpace,notice:showToast,
+      append:(text,isMe,name,_system,time,options)=>appendMsgRow(text,isMe,name,time,options),
+      agentsLoaded:()=>document.querySelectorAll('#messages .msg-row').forEach(row=>{if(row._sparkMessage)decorateRoomMessage(row,row._sparkMessage);})});
+    collaboration.client.membersLoaded=()=>document.querySelectorAll('#messages .msg-row').forEach(row=>{if(row._sparkMessage){decorateSenderName(row,row._sparkMessage);decorateRoomMessage(row,row._sparkMessage);}});
+    document.getElementById('reconnect-btn').onclick=()=>{if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null;}connectWebSocket();};
 
     // 初始化：不要直接相信 localStorage 中的身份；先通过 Logic 校验 Token。
     const savedSession = Auth.get();

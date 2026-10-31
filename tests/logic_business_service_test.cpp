@@ -252,6 +252,28 @@ void TestUsers() {
     Require(service.Login("alice", "123456", &login).ok() && login.user_id == id,
             "login");
     Require(login.name == "Alice \"quoted\"", "domain DTO preserves name");
+    ContactSummary contact;
+    Require(service.LookupContact(id,"alice",&contact).ok() && contact.user_id==id &&
+            contact.account=="alice" && contact.name==login.name,"contact exact account and safe DTO");
+    Require(service.LookupContact(id,"ali",&contact).code==404 && contact.user_id==0,"no prefix discovery");
+    Require(service.LookupContact(id,"alice' OR 1=1 --",&contact).code==404,"lookup literal account");
+    Require(service.LookupContact(id,"",&contact).code==400 &&
+            service.LookupContact(id,std::string(257,'a'),&contact).code==400,"bounded complete account");
+    Require(service.LookupContact(kAdminUserId,"alice",&contact).code==403 &&
+            service.LookupContact(kHermesBotUserId,"alice",&contact).code==403,"contact caller audience");
+    User excluded;excluded.id=88;excluded.account="hidden";excluded.status=kUserStatusDisabled;
+    storage.users[excluded.id]=excluded;
+    Require(service.LookupContact(id,"hidden",&contact).code==404,"disabled contact hidden");
+    storage.users[88].status=kUserStatusActive;storage.users[88].deleted_at="2026-01-01";
+    Require(service.LookupContact(id,"hidden",&contact).code==404,"soft deleted contact hidden");
+    storage.users[88].deleted_at.clear();storage.users[88].account="administrator";
+    Require(service.LookupContact(id,"administrator",&contact).code==404,"system administrator hidden");
+    storage.users[88].account=kHermesBotAccount;
+    Require(service.LookupContact(id,kHermesBotAccount,&contact).code==404,"reserved bot account hidden");
+    storage.users.erase(88);
+    storage.query_error=true;
+    Require(service.LookupContact(id,"alice",&contact).code==503,"lookup outage is not a missing account");
+    storage.query_error=false;
     Require(service.Login(kHermesBotAccount, "123456", &login).code == 403,
             "bot login denied");
     Require(service.Login("missing", "123456", &login).code == 404, "missing user");
@@ -273,6 +295,7 @@ void TestUsers() {
     Require(service.GetActiveUser(id, &user, &error) && storage.reads == reads,
             "shared hot cache");
     storage.users.at(id).status = kUserStatusDisabled;
+    Require(service.LookupContact(id,"alice",&contact).code==403,"contact caller freshly checked after disable");
     Require(
         service.Authenticate(token, UserService::TokenAudience::kHttpUser, &resolved)
                     .code == 403 &&
@@ -446,6 +469,17 @@ void TestConversationsAndImages() {
             "unread identity rule");
     std::vector<Session> sessions;
     Require(service.ListSingles(1, 2, &sessions).code == 403, "list identity rule");
+    MemoryUsers contacts;
+    User peer;peer.id=2;peer.account="peer";peer.name="Peer \"quoted\"";contacts.users[2]=peer;
+    UserService directory(&contacts,{});
+    ConversationService summaries_service(&storage,&directory);
+    std::vector<SingleConversationSummary> summaries;
+    Require(summaries_service.ListSingleSummaries(1,2,&summaries).code==403,"summary list identity rule");
+    Require(summaries_service.ListSingleSummaries(1,1,&summaries).ok() && summaries.size()==1 &&
+            summaries[0].peer_user_id==2 && summaries[0].peer_name==peer.name &&
+            summaries[0].unread_count==std::max<int64_t>(0,storage.sessions[single.id].last_msg_seq-5),
+            "summary display name and persisted read cursor");
+    Require(service.ListSingleSummaries(1,1,&summaries).code==503,"directory outage cannot masquerade as numeric name");
     storage.membership_failure = true;
     Require(service.CheckAccess(1, room.id, &session).code == 500,
             "membership failure does not grant access");

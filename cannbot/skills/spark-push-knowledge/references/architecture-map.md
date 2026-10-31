@@ -67,6 +67,8 @@
 
 - `docs/collaboration-spaces.md`：正式成员、邀请、角色、撤销。
 - `docs/generic-room-agents.md`：Catalog、多绑定、原生 Session 隔离、任务及恢复 API。
+- `docs/web-collaboration-client.md`：统一 Web 入口、按账号邀请、任务/工作区表单、消息缓存恢复与三浏览器验收。
+- `docs/benchmarks/2026-11-01-web-collaboration.json`：真实三浏览器、Pi/Hermes 只读代码、Job 延迟持久化、断网/重启与未覆盖项。
 - `docs/room-workspaces.md`：批准项目、不可变文件快照、Pi/Hermes 原生只读工具与最终发布决定；区分真实 Runtime 和完整 IM E2E。
 - `docs/mvp-v1-acceptance.md`：M1–M6 / T01–T14 的证据类型与未覆盖边界。
 - `docs/benchmarks/2026-10-31-generic-room-agents.md`：本轮真实/受控验收回执、变更清单与源文件指纹。

@@ -1,4 +1,5 @@
 #include "services/conversation_service.h"
+#include "services/user_service.h"
 
 #include <algorithm>
 
@@ -298,6 +299,24 @@ ServiceStatus ConversationService::ListSingles(int64_t actor, int64_t user,
     std::string error;
     if (!sessions || !repository_->Singles(user, sessions, &error))
         return {500, "list sessions failed: " + error};
+    return {};
+}
+ServiceStatus ConversationService::ListSingleSummaries(int64_t actor,int64_t user,
+    std::vector<SingleConversationSummary>* summaries) {
+    if(!summaries)return {500,"conversation output unavailable"};
+    summaries->clear();
+    std::vector<Session> sessions;
+    auto status=ListSingles(actor,user,&sessions);if(!status.ok())return status;
+    if(!users_)return {503,"user directory unavailable"};
+    for(const auto& session:sessions) {
+        const auto peer=session.user1_id==user?session.user2_id:session.user1_id;
+        if(peer<=0)continue;
+        User profile;std::string error;int64_t unread=0;
+        const bool active=users_->GetActiveUser(peer,&profile,&error);
+        if(!active && !error.empty() && error!="user not found")return {503,"user directory unavailable"};
+        if(!repository_->Unread(user,session.id,&unread,&error))return {503,"unread state unavailable"};
+        summaries->push_back({session,peer,unread,active?(profile.name.empty()?profile.account:profile.name):"用户不可用"});
+    }
     return {};
 }
 }  // namespace sparkpush

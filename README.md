@@ -32,6 +32,10 @@ docker compose up -d     # 恢复
 Agent 是可选模块；当前能力和验收边界见 [Room Agent](docs/generic-room-agents.md)。
 **v0.1.0 正在交付，尚未发布完整验收版本**，进度见 [交付跟踪](docs/v0.1.0-delivery.md)。
 
+真实三人协作验收截图：Hermes 读取授权 C++ 文件，Carol 接手 Pi 整理的任务。
+
+![协作空间、Hermes 代码分析与任务交接](docs/images/collaboration-desktop.png)
+
 ## 架构与目录
 
 ```text
@@ -73,7 +77,8 @@ Client ──WebSocket──► Comet ──MessageStream──► Logic
 默认关闭，Pi 与 `hermes_http` Legacy 保留。正式公共启动器已通过真实 Compose、
 Pi/Hermes 授权代码读取、三 HTTP/WS 用户、Kafka 重投与整栈重启验收，见
 [公共 Runtime 回执](docs/benchmarks/2026-10-31-public-runtime.json)。
-三独立浏览器、统一 Web 与整版 v0.1.0 发行验收仍在进行。
+统一 Web 已通过真实三独立浏览器、Pi/Hermes、任务交接、Job 延迟落库、断网和整栈重启验收，见
+[Web 阶段回执](docs/benchmarks/2026-11-01-web-collaboration.json)。整版 v0.1.0 发行验收仍在进行。
 配置和回滚步骤见该文档，勿直接替换正在使用的联系人或 Profile。
 
 - `accepted_ack`：持久化事件已获 Kafka broker 确认；不等于历史已入 SQL或接收者已收到。
@@ -101,7 +106,7 @@ python3 tests/run_redis_review_tests.py build
 python3 tests/run_kafka_volume_test.py build
 ```
 
-2026-10-31 公共 Runtime 阶段 CTest 注册 59 项：55 项通过，4 项 SQL/Redis 集成测试默认跳过，并已在独立真实数据库容器补跑通过。命令、边界与源文件指纹见 [公共 Runtime 回执](docs/benchmarks/2026-10-31-public-runtime.json)。
+2026-11-01 Web 阶段 CTest 注册 60 项：56 项通过，4 项 SQL/Redis 集成测试默认跳过；后者已在本阶段真实独立数据库补跑通过。真实三浏览器基础 IM 11 项、Pi/Hermes 模式 12 项通过，彼此包含重复覆盖；Mock 浏览器 20 项单列。见 [Web 阶段回执](docs/benchmarks/2026-11-01-web-collaboration.json)。
 2026-10-28 本地回归 44 项通过，3 项数据库测试在隔离容器补跑通过；详见 [Native 测试回执](docs/benchmarks/2026-10-28-hermes-native.json)。
 可用标准库 harness 启动隔离三服务并做实际 ACK/接收/SQL 校验，不使用个人 `.env.local`：
 
@@ -121,8 +126,12 @@ python3 tests/run_release_smoke.py --out /tmp/spark-release-smoke.json --jobs 2
 
 ## 协作空间
 
-普通用户可在 `chatroom.html` 创建默认私有空间，邀请已有用户并等待接受；支持 owner/admin/member、
-成员管理和退出。旧公开聊天室保留主动加入行为，空间权限来自服务端正式成员关系。
+打开首页即可在同一页面使用协作空间、私聊和个人 Agent。点击「创建 / 加入」创建默认私有空间，
+在「协作详情 → 成员」输入队友的完整账号发送邀请；队友接受后即可交流。
+公开空间可直接从发现列表加入，支持 owner/admin/member、成员管理和退出。
+消息框输入 `@` 可选择已安装 Agent；右侧面板管理任务与只读工作区。
+旧 `chatroom.html` 仍可使用，空间权限始终来自服务端正式成员关系。
+操作流程、浏览器恢复边界和可重复验收命令见 [Web 协作客户端](docs/web-collaboration-client.md)。
 已有数据库须先执行 `sql/migrations/20261031_collaboration_spaces.sql`，再同步升级 Logic、Job、Comet。
 迁移不清理消息、共享任务或 Agent Session。权限矩阵、API、撤销边界及验证命令见
 [协作空间第一阶段](docs/collaboration-spaces.md)。

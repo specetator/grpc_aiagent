@@ -38,6 +38,7 @@ class RoomService {
     ServiceStatus CreateSpace(int64_t actor, const std::string& name, const std::string& description,
                                const std::string& visibility, int64_t* room);
     ServiceStatus ListSpaces(int64_t actor, int offset, int limit, std::vector<SpaceSummary>* rooms);
+    ServiceStatus DiscoverSpaces(int64_t actor,int offset,int limit,std::vector<ImGroup>* rooms);
     ServiceStatus UpdateSpace(int64_t actor, int64_t room, const std::string& name,
                                const std::string& description, const std::string& visibility);
     ServiceStatus Members(int64_t actor, int64_t room, std::vector<SpaceMember>* members);

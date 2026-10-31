@@ -9,6 +9,7 @@ class MySqlSpaceRepository final : public SpaceRepository {
     ServiceStatus Create(int64_t, const std::string&, const std::string&, const std::string&, int64_t*) override;
     ServiceStatus WithRoom(int64_t, const std::function<ServiceStatus(SpaceTransaction&)>&) override;
     ServiceStatus List(int64_t, int, int, std::vector<SpaceSummary>*) override;
+    ServiceStatus Discover(int,int,std::vector<ImGroup>*) override;
     ServiceStatus Invitations(int64_t, std::vector<SpaceInvitation>*) override;
  private:
     MySqlConnectionPool* pool_;

@@ -44,6 +44,16 @@ int main() {
     Require(remove.ok() && (accept.ok() || accept.code==403) && service.CheckMember(b,room).code==403,"accept/remove serialized");
     int64_t public_room=0;Require(groups.CreateChatroom(name,a,&public_room,&error),error);
     Require(service.Join(c,c,public_room).ok(),"legacy public creation and join");
+    std::vector<ImGroup> directory;
+    Require(service.DiscoverSpaces(b,0,100,&directory).ok(),"public directory available to authenticated nonmember");
+    bool public_found=false;
+    for(const auto& found:directory) {
+        Require(found.id!=room && found.visibility=="public","private space never disclosed by directory");
+        public_found=public_found || found.id==public_room;
+    }
+    Require(public_found,"legacy public room discoverable");
+    Require(service.DiscoverSpaces(b,0,1,&directory).ok() && directory.size()==1 && directory[0].id==public_room,"directory deterministic pagination");
+    Require(service.DiscoverSpaces(0,0,100,&directory).code==403,"directory authentication required");
     // Prepared statements must work even when backslash escaping is disabled.
     {
         auto guard=pool.Acquire();room_sql::Query(guard.get(),"SET SESSION sql_mode='STRICT_TRANS_TABLES,NO_BACKSLASH_ESCAPES'");

@@ -19,6 +19,23 @@ bool IsActive(const User& user) {
 bool UserService::UsersAvailable() const {
     return repository_ && repository_->UsersAvailable();
 }
+ServiceStatus UserService::LookupContact(int64_t actor,const std::string& account,
+                                       ContactSummary* contact) {
+    if(!contact)return {500,"contact output unavailable"};
+    *contact={};
+    if(actor<=0 || actor==kAdminUserId || actor==kHermesBotUserId || options_.bot_users.count(actor))return {403,"user account required"};
+    if(account.empty() || account.size()>256)return {400,"complete account required"};
+    if(!UsersAvailable())return {503,"user directory unavailable"};
+    User caller,target;std::string error;
+    if(!repository_->FindById(actor,&caller,&error) || !IsActive(caller))return {403,"active user required"};
+    if(!repository_->FindByAccount(account,&target,&error))
+        return error.empty() || error=="user not found" ? ServiceStatus{404,"account not found"} : ServiceStatus{503,"user directory unavailable"};
+    if(!IsActive(target) || target.id==kAdminUserId || target.id==kHermesBotUserId ||
+       options_.bot_users.count(target.id) || target.account==kHermesBotAccount || target.account==options_.admin_account)
+        return {404,"account not found"};
+    *contact={target.id,target.account,target.name.empty()?target.account:target.name};
+    return {};
+}
 bool UserService::AuthenticationAvailable() const {
     return UsersAvailable() && repository_->TokensAvailable();
 }
