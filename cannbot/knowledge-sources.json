@@ -2,6 +2,9 @@
   "schema_version": 1,
   "description": "Curated truth sources packaged for the Kernel Agent knowledge skill.",
   "sources": [
+    {"id":"im-backup-validation","path":"docs/benchmarks/2026-11-01-im-backup-restore.json","authority":"snapshot","topics":["backup","restore","kafka","validation","limitations"]},
+    {"id":"backup-restore","path":"docs/backup-restore.md","authority":"canonical","topics":["backup","restore","docker","recovery","limitations"]},
+    {"id":"backup-restore-code","path":"scripts/spark_backup.py","authority":"code","topics":["backup","restore","docker","integrity"]},
     {"id":"public-runtime-validation","path":"docs/benchmarks/2026-10-31-public-runtime.json","authority":"snapshot","topics":["public-runtime","hermes","pi","validation","replay","publication"]},
     {"id":"public-agent-launcher","path":"cannbot/scripts/public_agent_gateway.py","authority":"code","topics":["connector","public-runtime","isolation","startup"]},
     {"id":"public-hermes-launcher","path":"cannbot/scripts/hermes_public_gateway.py","authority":"code","topics":["hermes","public-runtime","isolation","startup"]},

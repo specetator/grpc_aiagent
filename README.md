@@ -28,7 +28,8 @@ docker compose down      # 停止服务，保留数据卷
 docker compose up -d     # 恢复
 ```
 
-详细安装、升级边界与旧 WSL 开发方式见 [安装指南](docs/install.md)。
+详细安装、升级边界与旧 WSL 开发方式见 [安装指南](docs/install.md)，数据维护见
+[备份与恢复](docs/backup-restore.md)。
 Agent 是可选模块；当前能力和验收边界见 [Room Agent](docs/generic-room-agents.md)。
 **v0.1.0 正在交付，尚未发布完整验收版本**，进度见 [交付跟踪](docs/v0.1.0-delivery.md)。
 

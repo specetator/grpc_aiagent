@@ -51,8 +51,9 @@ docker compose up -d           # 恢复服务
 更新版本前停止业务写入并备份，之后再运行新版本迁移与服务：
 
 ```bash
-docker compose stop gateway logic comet job agent-bridge
-# 在停机状态下备份所有命名卷，再更新源码或镜像版本。
+python3 scripts/spark_backup.py backup --project sparkpush --env-file .env \
+  --output "$HOME/spark-backups/before-upgrade" --leave-stopped
+# 确认备份成功，再更新源码或镜像版本。
 docker compose pull
 docker compose up -d
 ```
@@ -65,6 +66,7 @@ docker compose up -d
 
 MySQL DDL 不提供整个升级事务回滚。失败的迁移不会标记成功，已完成的幂等 DDL
 可在修复原因后重跑。安全卷与数据卷需要作为同一备份集合保存。
+完整命令、目标冲突保护及外部 Runtime 的范围限制见 [备份与恢复](backup-restore.md)。
 
 ## 可选 Agent
 
@@ -75,8 +77,8 @@ Chat Completions 地址，因为那会绕过已有 AgentRouter 和 Runtime。
 
 当前公共房间 Agent 配置参见 [通用 Room Agent](generic-room-agents.md)。
 公共 Connector 的 Docker 连接方式见 [可选 Connector 部署](optional-agent-connector.md)。
-v0.1.0 的正式公共 Runtime 启动器和完整多人浏览器验收仍在实施，以
-[交付跟踪](v0.1.0-delivery.md) 为准，不以 Compose profile 的存在声称全部已验收。
+公共 Runtime 启动器和三浏览器 Pi/Hermes 协作已取得真实验收证据；
+发行制品、完整 Runtime 备份恢复及剩余专项以 [交付跟踪](v0.1.0-delivery.md) 为准。
 
 ## 保留 WSL 本地开发
 
