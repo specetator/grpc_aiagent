@@ -72,3 +72,4 @@
 - `docs/benchmarks/2026-10-31-generic-room-agents.md`：本轮真实/受控验收回执、变更清单与源文件指纹。
 - `docs/v0.1.0-delivery.md`：v0.1.0 产品交付要求、部署/工作区/Web/发行的验收进度；未完成项不代表已交付。
 - `docs/install.md`：完整 Docker 同源入口、凭据/数据卷、增量迁移和旧 WSL 开发模式。
+- `docs/optional-agent-connector.md`：可选 Connector overlay、独立授权回连、凭据导出及配置故障隔离；正式公共 Runtime 与完整浏览器验收状态见交付跟踪。

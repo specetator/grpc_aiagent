@@ -1,0 +1,258 @@
+{
+  "date": "2026-10-31",
+  "phase": "v0.1.0 phase 2B: optional Connector deployment boundary",
+  "release_accepted": false,
+  "source_base_commit": "cb0cccca955206486580948b2b976628b0568ab8",
+  "working_tree": true,
+  "source_manifest": {
+    "encoding": "UTF-8 sorted relative path + NUL + file sha256 + LF",
+    "sha256": "30b1ab069b3ec7826ffea93b94e69a2311a6c2bc5291fbcaffcbec9038216eef",
+    "files": [
+      {
+        "path": ".env.example",
+        "sha256": "eed44f7365ff97555d1d91bd30cb83e19d82c56a203069aeb2122db175508e6f"
+      },
+      {
+        "path": "deploy/Caddyfile.agents",
+        "sha256": "fdb97303dd980dd38d6c782c301ca6c6b7f96e19b8d8226281186052da4a26b4"
+      },
+      {
+        "path": "deploy/agents/.gitignore",
+        "sha256": "567ee259f36e6a6e731af944d8ce1ed394a6c7971fcc1ca31154ffd93f5bc186"
+      },
+      {
+        "path": "deploy/agents/agents.json.example",
+        "sha256": "c8e301f71ad688aa67d39fed5c9820adad6f2f464b30a869958a688afe70d4de"
+      },
+      {
+        "path": "deploy/agents/projects.json.example",
+        "sha256": "600afa0d63be57a1ff8cd687e1ffdb4a39ecfbde034daea4ef91912d9d29dbc3"
+      },
+      {
+        "path": "deploy/bootstrap.py",
+        "sha256": "2b2bba617f2bd27ee8531cf9b840f861403132b2e708266e78324b8b3688126f"
+      },
+      {
+        "path": "deploy/credentials.py",
+        "sha256": "225dd265973a8c40ccd31b0c0e45fde4371d71baff420a653426f10659fd4f3f"
+      },
+      {
+        "path": "deploy/entrypoint.py",
+        "sha256": "66a01a7f626ad2d0925d089653cdf4f5c34d7cf7d464d0863a2ec8343ce037e5"
+      },
+      {
+        "path": "deploy/export_agent_credentials.py",
+        "sha256": "da019924eba8047a2a9823d78cd262273d545b542f3e9a8c706660da7d832299"
+      },
+      {
+        "path": "docker-compose.agents.yml",
+        "sha256": "90cdd163eecbb1363163cefa122f1a238efbea44d3d0318b9ec53de805a8dd2a"
+      },
+      {
+        "path": "logic/main.cpp",
+        "sha256": "179a83a5bbabc04c4c9672c0a79d9cbe0ce54d7ab4ccb62098940148e601bc99"
+      },
+      {
+        "path": "logic/services/agent_connection_service.cpp",
+        "sha256": "f9c6a2fe0bebea11f832fe43a6294abab0b4ad04d4da7aa90f29d7b60b89d7a7"
+      },
+      {
+        "path": "logic/services/agent_connection_service.h",
+        "sha256": "6581e03928b4e59805185a2ffdd709b08fd3b6b3cc48dacfe0e165175b94960b"
+      },
+      {
+        "path": "logic/services/room_agent_catalog.cpp",
+        "sha256": "65d13d0993867eeb8136db7825c1f751c13a2939de8b0692ec186943ced9d8e4"
+      },
+      {
+        "path": "logic/services/room_agent_service.h",
+        "sha256": "a70eec1d627b9a1d5bf944ae07d8497e67ccb9b7b4c82d18883c1e0664623ae5"
+      },
+      {
+        "path": "logic/services/room_workspace_service.cpp",
+        "sha256": "c3df58dfe65a9b1f2b4cc6a490c73c95d77bde5cc93b433ac0f55e0b4682d906"
+      },
+      {
+        "path": "scripts/ops/export-agent-credentials.py",
+        "sha256": "42def4b0f93650bb0c9eb1571ba8cfc21f376ac3c4dc069742ac337a255a4cd3"
+      },
+      {
+        "path": "tests/agent_connection_service_test.cpp",
+        "sha256": "57728f3aa048993c29f6392e076c780a9e6dc230c06370e10d495aea7c617eef"
+      },
+      {
+        "path": "tests/connector_deployment_e2e.py",
+        "sha256": "24a82807782174c53df4a62392333ed1280e2f8d8f4d64f1eeb19086cb6ce3a5"
+      },
+      {
+        "path": "tests/room_agent_service_test.cpp",
+        "sha256": "5947faa7239c79752f28b815a59e7175ba42f4f4c0a5f89681243d4ed74e90f1"
+      }
+    ]
+  },
+  "image": {
+    "local_tag": "spark-push:connector",
+    "id": "sha256:ebfb7196cea6e654149c34728c249a83dacfcfc58530a77fabc699c616d6a285",
+    "published": false
+  },
+  "validation": [
+    {
+      "command": "cmake --build build-wsl -j2; subsequent main.cpp credential guard rebuilt with cmake --build build-wsl --target logic_server -j2",
+      "exit_code": 0
+    },
+    {
+      "command": "docker build -t spark-push:connector -f Dockerfile .",
+      "exit_code": 0
+    },
+    {
+      "command": "ctest --test-dir build-wsl --output-on-failure",
+      "exit_code": 0,
+      "passed": 54,
+      "skipped": 4,
+      "note": "Final credential guard affects main/entrypoint, covered by current-image Compose tests; CTest binaries unchanged."
+    },
+    {
+      "command": "python3 tests/run_mysql_review_tests.py",
+      "exit_code": 0,
+      "passed": 2,
+      "mode": "real owned MySQL 8"
+    },
+    {
+      "command": "python3 tests/run_redis_review_tests.py",
+      "exit_code": 0,
+      "passed": 2,
+      "mode": "real owned Redis"
+    },
+    {
+      "command": "python3 tests/connector_deployment_e2e.py --image spark-push:connector --out /tmp/spark-v010-connector-e2e3.json",
+      "exit_code": 0,
+      "python": "3.11",
+      "receipt": {
+        "ok": true,
+        "mode": "real Compose / MySQL / Redis / Kafka / Logic; no Agent runtime",
+        "source_commit": "cb0cccca955206486580948b2b976628b0568ab8",
+        "checks": [
+          "optional overlay starts without any reachable Connector or model",
+          "bootstrap upgrades old credentials once without changing existing or unknown values",
+          "empty Compose keys use persisted keys; export contains only two keys and refuses overwrite",
+          "Connector-offline chat is Kafka-accepted, delivered to another member and present in SQL history",
+          "exact callback route uses its separate key and returns only the stored request scope",
+          "workspace revoke/regrant and an independent member removal each invalidate authorized requests",
+          "invalid catalog disables Agents while authenticated chat and history remain available",
+          "invalid project catalog disables Agents while authenticated chat and history remain available",
+          "invalid gateway origin disables Agents while authenticated chat and history remain available",
+          "invalid authorization key disables Agents while authenticated chat and history remain available",
+          "Agent bot ID already owned by a human disables Agents while authenticated chat and history remain available",
+          "repair plus normal Logic restart preserves bindings and accepted requests",
+          "missing optional Agent schema disables Agents but preserves ordinary IM",
+          "persisted NUL key remains unchanged; IM starts and Agents report unavailable",
+          "persisted unencodable Unicode key remains unchanged; IM starts and Agents report unavailable",
+          "explicit key overrides agree with exported keys without rotating persistent credentials"
+        ],
+        "image_id": "sha256:ebfb7196cea6e654149c34728c249a83dacfcfc58530a77fabc699c616d6a285"
+      }
+    },
+    {
+      "command": "python3 tests/compose_e2e.py --image spark-push:connector --out /tmp/spark-v010-connector-im-regression1.json",
+      "exit_code": 0,
+      "python": "3.11",
+      "image_id": "sha256:ebfb7196cea6e654149c34728c249a83dacfcfc58530a77fabc699c616d6a285",
+      "receipt": {
+        "ok": true,
+        "mode": "real Docker Compose, Agents disabled",
+        "source_commit": "cb0cccca955206486580948b2b976628b0568ab8",
+        "checks": [
+          "fresh copied environment starts all services with one public origin",
+          "database, Redis, Kafka, internal RPC and metrics have no published host ports",
+          "private space invites and outsider rejection through the public gateway",
+          "ten simultaneous authenticated WebSockets receive all ten group messages",
+          "duplicate client message preserves its canonical sequence",
+          "ordinary direct chat works with Agent functionality disabled",
+          "shared attachment is visible only to room members",
+          "WebSocket reconnect restores a message sent while offline",
+          "SQL-backed public history contains one final row per accepted group message",
+          "normal full-stack down/up preserves login, membership, exact history and attachment bytes",
+          "restarted services continue using the same monotonic conversation sequence"
+        ]
+      }
+    },
+    {
+      "command": "python3 cannbot/scripts/test_pi_citations.py",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 cannbot/scripts/validate_knowledge.py --strict",
+      "exit_code": 0,
+      "sources": 92
+    },
+    {
+      "command": "python3 cannbot/scripts/sync_pi_agent.py --check",
+      "exit_code": 1,
+      "note": "Existing personal settings/skills drift preserved. No install or replacement performed."
+    }
+  ],
+  "artifact_sha256": [
+    {
+      "name": "spark-v010-connector-build4.log",
+      "sha256": "6bf0f164b2ec7b8e33106e7d5a0fab4f874899638ece87f94fa6dcd53e803e41"
+    },
+    {
+      "name": "spark-v010-connector-build5.log",
+      "sha256": "54a29f80d1c62e6e9f348363b0aca205c2977e246823520f0aada0a0baea28fa"
+    },
+    {
+      "name": "spark-v010-connector-docker-build3.log",
+      "sha256": "37b7fc408aeadb40b336fdb9ae48c35a163256a4bc7f2d9e5c899436f5892ca8"
+    },
+    {
+      "name": "spark-v010-connector-ctest1.log",
+      "sha256": "f68471e89db27303514b5d9178ccf73d6b400e2a2a8054a9b5b7b5c32b5bd195"
+    },
+    {
+      "name": "spark-v010-connector-mysql1.log",
+      "sha256": "ab720c3857dc30232f614ffd0390b713f484f511d2e8704484efac1651c8f0b6"
+    },
+    {
+      "name": "spark-v010-connector-redis1.log",
+      "sha256": "e1b0f060e1fe9d345da5c4faedc360ce69167a8b91ea365bedb704c031456af2"
+    },
+    {
+      "name": "spark-v010-connector-e2e3.log",
+      "sha256": "3822482ed3dce8a6086bd256fb1630dd2b402cfdfc77d99211b2092038ad915c"
+    },
+    {
+      "name": "spark-v010-connector-im-regression1.log",
+      "sha256": "4ee883c383e1843b7b3d46932bf9f6659ca2d3e4531ab7ee0b63e22c805de5ea"
+    },
+    {
+      "name": "spark-v010-connector-citations1.log",
+      "sha256": "01a43506d267a7a8c1fa33c62440e0f358f234ab91c15370875742cf02a9f8d4"
+    },
+    {
+      "name": "spark-v010-connector-knowledge1.log",
+      "sha256": "00670c35decfdf148e5ca3ba7c0cac50726bc35e1c66a0fb7a0c82f4d54ecbfa"
+    },
+    {
+      "name": "spark-v010-connector-sync1.log",
+      "sha256": "6bce1a61aea5c376aa689eb08e2cd56882849e14966824610c6a729a63dcc11c"
+    },
+    {
+      "name": "spark-v010-connector-knowledge2.log",
+      "sha256": "2a564d6f28473a2001e277621be3c1f05b031370483ae03ced4b363ebe293f29"
+    }
+  ],
+  "reviews": {
+    "reviewer": "round 2 PASS WITH NOTES; invalid optional credentials no longer enter exec environment",
+    "tester": "PASS WITH NOTES; recipient delivery and exact history, independent revoke, stored credential preservation verified"
+  },
+  "unverified": [
+    "formal public Pi Gateway and isolated production Hermes launcher",
+    "actual Logic authorization + real Pi/Hermes tools + IM end-to-end in a single run",
+    "Bridge/Gateway credential rotation end-to-end; this stage validates Logic and exported override consistency only",
+    "first publication racing revocation; ai_request replay after admitted final and later workspace revocation",
+    "real cross-room native concurrency and process restart recovery for project snapshots",
+    "unified Web, three independent browser acceptance and current native CANN regression",
+    "fresh Linux install, backup/restore, GitHub Actions, GHCR and v0.1.0 Release"
+  ],
+  "boundary": "No model or Native Runtime was called in this stage. Real Compose/Kafka/DB/WS evidence verifies deployment and object authorization, not native code analysis or full release acceptance."
+}

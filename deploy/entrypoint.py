@@ -3,6 +3,7 @@ import json
 import os
 from pathlib import Path
 import sys
+from credentials import connector_credentials, valid_connector_key
 
 role = sys.argv[1] if len(sys.argv) > 1 else 'logic'
 if role == 'bootstrap':
@@ -23,7 +24,16 @@ os.environ['SPARK_RPC_TLS_CA'] = str(root/'rpc.crt')
 os.environ['SPARK_RPC_TLS_CERT'] = str(root/'rpc.crt')
 os.environ['SPARK_RPC_TLS_KEY'] = str(root/'rpc.key')
 os.environ['SPARK_PUSH_MYSQL_PASSWORD'] = security['mysql']
-os.environ.setdefault('SPARK_PUSH_HERMES_API_KEY', security['gateway'])
+# Compose's ${VAR:-} is an empty string, not a missing environment entry.
+connector_keys = connector_credentials(security, os.environ)
+invalid_connector_keys = [key for key, value in connector_keys.items() if not valid_connector_key(value)]
+if invalid_connector_keys:
+    # Persisted optional data may contain JSON NUL or wrong types. Do not pass
+    # it to exec's environment, crash the IM services, or silently rotate it.
+    os.environ['SPARK_PUSH_AGENT_CREDENTIALS_INVALID'] = 'true'
+    for key in invalid_connector_keys:
+        connector_keys[key] = ''
+os.environ.update(connector_keys)
 
 # Retain all shipped tuning/defaults, overriding only deployment endpoints.
 config = Path('/app/conf/' + role + '.conf').read_text()

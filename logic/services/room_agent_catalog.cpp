@@ -60,6 +60,7 @@ const AgentDefinition* RoomAgentService::Definition(const std::string& id) const
 }
 ServiceStatus RoomAgentService::Agents(int64_t actor,int64_t room,Json* result) {
     auto access=CheckMember(actor,room);if(!access.ok()) return access;
+    if(configuration_error_)return {503,"room Agent configuration unavailable"};
     if(catalog_.empty()){*result={{"agents",Json::array()},{"requests",Json::array()},{"can_manage",false}};return {};}
     Json bindings,requests;std::string error;int64_t owner=0;bool member=false;
     if(!repo_->Bindings(room,&bindings,&error) || !repo_->Requests(room,&requests,&error) ||
@@ -77,6 +78,7 @@ ServiceStatus RoomAgentService::Agents(int64_t actor,int64_t room,Json* result) 
 }
 ServiceStatus RoomAgentService::Install(int64_t actor,int64_t room,const Json& input,bool installed) {
     auto access=CheckMember(actor,room);if(!access.ok()) return access;
+    if(configuration_error_)return {503,"room Agent configuration unavailable"};
     for(auto it=input.begin();it!=input.end();++it)
         if(it.key()!="room_id" && it.key()!="agent_id") return {400,"only agent_id can be selected"};
     if(!input.contains("agent_id") || !input["agent_id"].is_string()) return {400,"agent_id required"};
@@ -155,6 +157,7 @@ bool RoomAgentService::BuildRequests(const Message& current,const std::vector<Me
 ServiceStatus RoomAgentService::CheckDispatch(const Json& request) {
     const auto& scope=request.at("collaboration");
     auto access=CheckMember(request.at("user_id"),scope.at("room_id"));if(!access.ok())return access;
+    if(configuration_error_)return {503,"room Agent configuration unavailable"};
     Json bindings;std::string error;if(!repo_->Bindings(scope.at("room_id"),&bindings,&error))return {500,error};
     Json workspace;if(!repo_->Workspace(scope.at("room_id"),&workspace,&error))return {500,error};
     return CheckAuthorization(scope,{{"member",true},{"bindings",bindings},{"workspace",workspace}});
@@ -167,6 +170,7 @@ bool RoomAgentService::RejectPending(const Json& request,const std::string& reas
 
 ServiceStatus RoomAgentService::Control(int64_t actor,int64_t room,const Json& input,Json* output) {
     auto access=CheckMember(actor,room);if(!access.ok())return access;
+    if(configuration_error_)return {503,"room Agent configuration unavailable"};
     for(auto it=input.begin();it!=input.end();++it)
         if(it.key()!="room_id" && it.key()!="request_id" && it.key()!="operation" && it.key()!="approval_token")return {400,"invalid control fields"};
     const auto operation=input.value("operation","");

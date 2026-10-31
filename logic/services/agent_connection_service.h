@@ -6,7 +6,7 @@
 #include "services/service_status.h"
 
 namespace sparkpush {
-// The only network destination is an operator-owned loopback Gateway.
+// The only network destination is an operator-configured Gateway origin.
 // Customer URL validation/probing and private credential storage live there.
 class AgentConnectionService {
  public:
@@ -14,6 +14,8 @@ class AgentConnectionService {
     explicit AgentConnectionService(Transport transport) : transport_(std::move(transport)) {}
     static Transport LocalGateway(int port, const std::string& key,
                                   const std::string& path = "/v1/agent/connections");
+    static Transport TrustedGateway(const std::string& origin,const std::string& key,
+                                    const std::string& path = "/v1/agent/connections");
     ServiceStatus Execute(int64_t actor, const nlohmann::json& input, nlohmann::json* output);
  private:
     Transport transport_;

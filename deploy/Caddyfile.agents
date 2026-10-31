@@ -1,0 +1,16 @@
+{
+    admin off
+    auto_https off
+}
+:9011 {
+    @authorize {
+        method POST
+        path /internal/room-agent/authorize
+    }
+    handle @authorize {
+        reverse_proxy logic:9101
+    }
+    handle {
+        respond "not found" 404
+    }
+}

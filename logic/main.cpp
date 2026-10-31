@@ -86,6 +86,22 @@ ArgParseResult ParseConfigPath(int argc, char** argv, std::string* config_path) 
     return ArgParseResult::kOk;
 }
 
+nlohmann::json ReadOperatorCatalog(const char* path) {
+    if(std::filesystem::is_symlink(path) || !std::filesystem::is_regular_file(path) ||
+       std::filesystem::file_size(path)>65536)
+        throw std::runtime_error("invalid operator catalog file");
+    std::ifstream stream(path);nlohmann::json value;stream>>value;return value;
+}
+sparkpush::AgentConnectionService::Transport GatewayTransport(const std::string& path) {
+    const char* key=std::getenv("SPARK_PUSH_HERMES_API_KEY");
+    const char* origin=std::getenv("SPARK_PUSH_AGENT_GATEWAY_ORIGIN");
+    if(origin && *origin)return sparkpush::AgentConnectionService::TrustedGateway(origin,key?key:"",path);
+    const char* port=std::getenv("SPARK_PUSH_AGENT_GATEWAY_PORT");
+    std::string value=port && *port?port:"8643";
+    if(value.find_first_not_of("0123456789")!=std::string::npos)throw std::invalid_argument("invalid gateway port");
+    return sparkpush::AgentConnectionService::LocalGateway(std::stoi(value),key?key:"",path);
+}
+
 }  // namespace
 
 namespace sparkpush {
@@ -96,8 +112,7 @@ namespace sparkpush {
 //   1. RequireRpcKey / InternalServerCredentials 先跑：两者都会抛异常，
 //      目的是“凭证没配好就不要启动”，而不是起来后所有 RPC 静默 401。
 //   2. Kafka producer -> MySQL/Redis 池 -> DAO -> service：依赖方向自下而上。
-//   3. schema 校验/建表（EnsureSchema / CheckSchema）在构造 service 之前，
-//      任何一项失败都直接 return 1，不开端口。
+//   3. 核心 schema 校验失败不开端口；可选 Room Agent 配置失败只关闭该能力。
 //   4. Hermes consumer 的 **Init** 在 gRPC 绑定之前（连不上 Kafka 就不开服务），
 //      但 **Start** 在服务器启动之后（避开还没准备好就开始消费）。
 //   5. spark_push_service_ready 置 1 在最后，之前任何一步失败都不会让
@@ -106,16 +121,22 @@ namespace sparkpush {
 // 【返回值的含义】return 1 表示“启动失败或运行期故障”，return 0 表示
 // “收到停止信号后干净退出”。两者对 systemd/docker 的重启策略意义不同。
 int RunLogic(Config cfg) {
-    std::vector<AgentDefinition> room_catalog;
-    if(const char* path=std::getenv("SPARK_PUSH_ROOM_AGENT_CATALOG")) {
-        if(std::filesystem::is_symlink(path) || std::filesystem::file_size(path)>65536)
-            throw std::runtime_error("invalid room Agent catalog file");
-        std::ifstream stream(path);nlohmann::json registry;stream>>registry;
-        const char* test=std::getenv("SPARK_PUSH_ROOM_HERMES_TEST");
-        room_catalog=ParseRoomAgentCatalog(registry,test && std::string(test)=="true");
-        for(const auto& agent:room_catalog) {
-            if(agent.bot_user_id==cfg.hermes_bot_user_id)throw std::runtime_error("public room Agent needs a separate bot identity from legacy CANN");
-            cfg.agent_bot_users[agent.bot_user_id]=agent.display_name;
+    AgentConnectionService::Transport connection_transport;
+    if(const char* enabled=std::getenv("SPARK_PUSH_AGENT_SELF_SERVICE");enabled && std::string(enabled)=="true") {
+        try {
+            if(!cfg.hermes_enabled)throw std::runtime_error("Agent integration disabled");
+            auto transport=GatewayTransport("/v1/agent/connections");
+            auto bots=cfg.agent_bot_users;
+            const std::vector<std::string> names{"我的 DeepSeek Harness", "我的 Codex", "我的 Claude Code", "我的 Hermes", "我的 OpenClaw"};
+            for(size_t i=0;i<names.size();++i) {
+                const int64_t id=900000000301LL+i;
+                if(bots.count(id))throw std::runtime_error("duplicate customer Agent identity");
+                bots[id]=names[i];
+            }
+            cfg.agent_bot_users=std::move(bots);connection_transport=std::move(transport);
+        } catch(const std::exception&) {
+            // Catalog/URL/parser exceptions may contain operator secrets.
+            LOG_ERROR << "Optional customer Agents unavailable: check integration, gateway origin/key and bot IDs; ordinary IM remains enabled";
         }
     }
     // 下面两行是启动门禁，失败会抛 std::runtime_error，由 main() 的
@@ -229,17 +250,53 @@ int RunLogic(Config cfg) {
         LOG_ERROR << "Failed to ensure room Agent schema: " << room_schema_error;
         return 1;
     }
-    if(!room_catalog.empty() && !room_agent_repository.CheckCatalogSchema(&room_schema_error))
-        throw std::runtime_error("Apply sql/migrations/20261031_generic_room_agents.sql before enabling the catalog");
     RoomAgentService room_agent_service(&room_agent_repository, cfg.hermes_bot_user_id,
-                                       cfg.hermes_enabled && cfg.room_agent_enabled, room_catalog);
-    if(const char* path=std::getenv("SPARK_PUSH_ROOM_PROJECT_CATALOG")) {
-        if(std::filesystem::is_symlink(path) || std::filesystem::file_size(path)>65536)
-            throw std::runtime_error("invalid room project catalog file");
-        std::ifstream stream(path);nlohmann::json projects;stream>>projects;
-        const char* key=std::getenv("SPARK_PUSH_WORKSPACE_AUTH_KEY");
-        room_agent_service.SetProjectCatalog(ParseRoomProjectCatalog(projects),key?key:"");
+                                       cfg.hermes_enabled && cfg.room_agent_enabled);
+    const char* setup_stage="Connector credentials";
+    bool room_configuration_ok=true;
+    bool room_catalog_configured=false;
+    try {
+        const char* invalid_credentials=std::getenv("SPARK_PUSH_AGENT_CREDENTIALS_INVALID");
+        if(invalid_credentials && std::string(invalid_credentials)=="true")
+            throw std::runtime_error("invalid optional credentials");
+        setup_stage="Agent catalog";
+        std::vector<AgentDefinition> catalog;
+        if(const char* path=std::getenv("SPARK_PUSH_ROOM_AGENT_CATALOG");path && *path) {
+            const char* test=std::getenv("SPARK_PUSH_ROOM_HERMES_TEST");
+            catalog=ParseRoomAgentCatalog(ReadOperatorCatalog(path),test && std::string(test)=="true");
+            for(const auto& agent:catalog)
+                if(agent.bot_user_id==cfg.hermes_bot_user_id || cfg.agent_bot_users.count(agent.bot_user_id))
+                    throw std::runtime_error("public Agent requires a separate bot identity");
+        }
+        setup_stage="Agent schema migrations";
+        if(!catalog.empty() && !room_agent_repository.CheckCatalogSchema(&room_schema_error))
+            throw std::runtime_error("missing optional schema");
+        RoomAgentService candidate(&room_agent_repository,cfg.hermes_bot_user_id,
+                                   cfg.hermes_enabled && cfg.room_agent_enabled,catalog);
+        setup_stage="project catalog and authorization key";
+        if(const char* path=std::getenv("SPARK_PUSH_ROOM_PROJECT_CATALOG");path && *path) {
+            const char* key=std::getenv("SPARK_PUSH_WORKSPACE_AUTH_KEY");
+            candidate.SetProjectCatalog(ParseRoomProjectCatalog(ReadOperatorCatalog(path)),key?key:"");
+        }
+        setup_stage="gateway origin and key";
+        const char* key=std::getenv("SPARK_PUSH_HERMES_API_KEY");
+        const char* origin=std::getenv("SPARK_PUSH_AGENT_GATEWAY_ORIGIN");
+        if(!catalog.empty() && ((key && *key) || (origin && *origin)))
+            candidate.SetControlTransport(GatewayTransport("/v1/agent/room-control"));
+        setup_stage="public Agent accounts";
+        for(const auto& agent:catalog)
+            if(!user_dao.EnsureHermesBotUser(agent.bot_user_id,"agent_bot_"+std::to_string(agent.bot_user_id),agent.display_name,&hermes_user_err))
+                throw std::runtime_error("public Agent account unavailable");
+        // Publish only the fully validated configuration. No partial catalog or
+        // fallback to the legacy/private runtime after an optional setup error.
+        for(const auto& agent:catalog)cfg.agent_bot_users[agent.bot_user_id]=agent.display_name;
+        room_agent_service=std::move(candidate);
+        room_catalog_configured=!catalog.empty();
+    } catch(const std::exception&) {
+        room_configuration_ok=false;room_agent_service.DisableConfiguration();
+        LOG_ERROR << "Optional room Agents unavailable: check " << setup_stage << "; ordinary IM remains enabled";
     }
+    MetricsRegistry::Instance().Set("spark_push_room_agent_configuration_error",room_configuration_ok?0:1);
     OperatorTaskService operator_task_service(&room_agent_repository);
     SessionDao session_dao(&mysql_pool);
     MessageDao message_dao(&mysql_pool);
@@ -312,19 +369,7 @@ int RunLogic(Config cfg) {
     DanmakuService danmaku_service(&conversation_store, &danmaku_dao, &group_member_dao,
                                    &group_producer, &redis_store);
     KnowledgeService knowledge_service(cfg.cann_knowledge_root);
-    AgentConnectionService::Transport connection_transport;
-    if (const char* enabled = std::getenv("SPARK_PUSH_AGENT_SELF_SERVICE");
-        enabled && std::string(enabled) == "true") {
-        const char* key = std::getenv("SPARK_PUSH_HERMES_API_KEY");
-        const char* port = std::getenv("SPARK_PUSH_AGENT_GATEWAY_PORT");
-        connection_transport = AgentConnectionService::LocalGateway(port ? std::stoi(port) : 8643, key ? key : "");
-    }
     AgentConnectionService agent_connection_service(std::move(connection_transport));
-    if(!room_catalog.empty()) {
-        const char* key=std::getenv("SPARK_PUSH_HERMES_API_KEY");
-        const char* port=std::getenv("SPARK_PUSH_AGENT_GATEWAY_PORT");
-        if(key && *key)room_agent_service.SetControlTransport(AgentConnectionService::LocalGateway(port?std::stoi(port):8643,key,"/v1/agent/room-control"));
-    }
 
     // 启动 gRPC 服务器（LogicService）
     std::string grpc_addr = cfg.internal_grpc_listen_addr + ":" + std::to_string(cfg.listen_port);
@@ -429,7 +474,7 @@ int RunLogic(Config cfg) {
                                              cfg.persist_kafka_timeout_ms)) break;
             if (!message_dao.reservations().Published(record.first, &error)) break;
         }
-        if(!room_catalog.empty() && !message_service.RecoverRoomAgentRequests(&error))
+        if(room_catalog_configured && !message_service.RecoverRoomAgentRequests(&error))
             LOG_ERROR << "Room Agent outbox recovery pending";
     }, std::chrono::milliseconds(1000));
     LOG_INFO << "Logic HTTP server listening on port " << std::to_string(cfg.http_port);
@@ -533,16 +578,6 @@ int main(int argc, char** argv) {
     int ret = 1;
     try {
         sparkpush::Config cfg = sparkpush::LoadConfig(config_path);
-        const char* self_service = std::getenv("SPARK_PUSH_AGENT_SELF_SERVICE");
-        if (self_service && std::string(self_service) == "true") {
-            if (!cfg.hermes_enabled) throw std::runtime_error("customer Agents require hermes_enabled");
-            const std::vector<std::string> names{"我的 DeepSeek Harness", "我的 Codex", "我的 Claude Code", "我的 Hermes", "我的 OpenClaw"};
-            for (size_t i = 0; i < names.size(); ++i) {
-                const int64_t bot = 900000000301LL + i;
-                if (cfg.agent_bot_users.count(bot)) throw std::runtime_error("customer Agent contact ID already configured");
-                cfg.agent_bot_users[bot] = names[i];
-            }
-        }
         ret = sparkpush::RunLogic(cfg);
     } catch (const std::exception& error) {
         LOG_ERROR << "Logic startup/runtime failure: " << error.what();

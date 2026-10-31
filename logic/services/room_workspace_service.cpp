@@ -31,6 +31,7 @@ void RoomAgentService::SetProjectCatalog(std::vector<ProjectDefinition> projects
 }
 ServiceStatus RoomAgentService::Workspace(int64_t actor,int64_t room,Json* result) {
     auto access=CheckMember(actor,room); if(!access.ok()) return access;
+    if(configuration_error_)return {503,"room Agent configuration unavailable"};
     int64_t owner=0; bool member=false; std::string error; Json selected;
     if(!repo_->Access(room,actor,&owner,&member,&error) || !repo_->Workspace(room,&selected,&error))return {500,error};
     Json projects=Json::array();
@@ -40,6 +41,7 @@ ServiceStatus RoomAgentService::Workspace(int64_t actor,int64_t room,Json* resul
 }
 ServiceStatus RoomAgentService::SetWorkspace(int64_t actor,int64_t room,const Json& input,Json* result) {
     auto access=CheckMember(actor,room); if(!access.ok())return access;
+    if(configuration_error_)return {503,"room Agent configuration unavailable"};
     for(auto it=input.begin();it!=input.end();++it)
         if(it.key()!="room_id" && it.key()!="project_id" && it.key()!="generation") return {400,"only a project ID and generation may be selected"};
     if(!input.contains("project_id") || !input["project_id"].is_string() ||
@@ -71,6 +73,7 @@ bool RoomAgentService::PublishReply(const Json& request,const Json& reply,const 
     const auto& scope=request.at("collaboration");
     // Existing CANN and pre-workspace requests keep their original reservations.
     if(scope.value("kind","")!="room_agent_v1" || !scope.contains("workspace_generation")) {*output=reply;return true;}
+    if(configuration_error_) {if(error)*error="room Agent configuration unavailable";return false;}
     auto result=ResultFromReply(request,reply);result.erase("completed_at_ms");
     const auto material=Json{{"message",content},{"result",result}}.dump();
     unsigned char bytes[SHA256_DIGEST_LENGTH];

@@ -39,7 +39,15 @@ with (ROOT / '.lock').open('w') as lock:
     security = ROOT / 'security.json'
     if not security.exists():
         save(security, json.dumps({name: secrets.token_hex(32) for name in
-             ('comet', 'job', 'admin', 'mysql', 'gateway')}))
+             ('comet', 'job', 'admin', 'mysql', 'gateway', 'workspace')}))
+    values = json.loads(security.read_text())
+    if not isinstance(values, dict):
+        raise SystemExit('Invalid security volume; restore security.json from backup.')
+    # Upgrade existing installations under the same lock. Never rotate a
+    # present value (including an invalid optional key) or drop unknown fields.
+    if 'workspace' not in values:
+        values['workspace'] = secrets.token_hex(32)
+        save(security, json.dumps(values))
     if not (ROOT / 'rpc.crt').exists():
         subprocess.run(['openssl', 'req', '-x509', '-newkey', 'rsa:3072', '-nodes',
                         '-keyout', str(ROOT/'rpc.key.tmp'), '-out', str(ROOT/'rpc.crt.tmp'),

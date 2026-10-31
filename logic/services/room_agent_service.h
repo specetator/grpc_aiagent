@@ -114,6 +114,12 @@ class RoomAgentService {
                      bool enabled, std::vector<AgentDefinition> catalog = {})
         : repo_(repo), bot_(public_cann_bot), enabled_(enabled), catalog_(std::move(catalog)) {}
     using ControlTransport=std::function<nlohmann::json(const nlohmann::json&)>;
+    // Startup only: an invalid optional deployment must not stop ordinary IM
+    // or convert queued/in-flight work into permanent authorization denial.
+    void DisableConfiguration() {
+        configuration_error_=true; enabled_=false; catalog_.clear();
+        projects_.clear(); workspace_key_.clear(); control_={};
+    }
     void SetControlTransport(ControlTransport transport) { control_=std::move(transport); }
     void SetProjectCatalog(std::vector<ProjectDefinition>, std::string authorization_key);
     ServiceStatus Workspace(int64_t actor,int64_t room,nlohmann::json*);
@@ -170,6 +176,7 @@ class RoomAgentService {
     RoomAgentRepository* repo_;
     int64_t bot_;
     bool enabled_;
+    bool configuration_error_{false};
     std::vector<AgentDefinition> catalog_;
     ControlTransport control_;
     std::vector<ProjectDefinition> projects_;

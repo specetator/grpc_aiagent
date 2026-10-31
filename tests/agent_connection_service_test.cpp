@@ -29,5 +29,11 @@ int main() {
     try { AgentConnectionService::LocalGateway(8643,"bad\r\nheader"); }
     catch(const std::invalid_argument&) { rejected=true; }
     assert(rejected);
+    for(const auto* origin:{"http://user:pass@host","http://host/v1","http://host/?x=1","http://host/#x","file:///tmp/socket","http://host:bad","http://host\n/header"}) {
+        rejected=false;try{AgentConnectionService::TrustedGateway(origin,"operator-key");}
+        catch(const std::invalid_argument&){rejected=true;}assert(rejected);
+    }
+    assert(AgentConnectionService::TrustedGateway("http://host.docker.internal:8643","operator-key"));
+    assert(AgentConnectionService::TrustedGateway("https://connector.example/","operator-key","/v1/agent/room-control"));
     std::cout << "Agent connection ownership, input and error contracts passed\n";
 }

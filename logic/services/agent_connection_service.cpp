@@ -15,17 +15,35 @@ size_t Collect(char* data, size_t size, size_t count, void* target) {
 }
 }
 AgentConnectionService::Transport AgentConnectionService::LocalGateway(int port, const std::string& key, const std::string& path) {
+    if(port<1 || port>65535)throw std::invalid_argument("invalid Agent Gateway port");
+    return TrustedGateway("http://127.0.0.1:"+std::to_string(port),key,path);
+}
+AgentConnectionService::Transport AgentConnectionService::TrustedGateway(const std::string& origin,const std::string& key,const std::string& path) {
     if(path!="/v1/agent/connections" && path!="/v1/agent/room-control")throw std::invalid_argument("invalid Gateway service path");
-    if (port < 1 || port > 65535 || key.empty() || key.find_first_of("\r\n") != std::string::npos)
+    if (key.empty() || key.find_first_of("\r\n") != std::string::npos || origin.empty() || origin.size()>2048 ||
+        origin.find_first_of("\r\n\t \\")!=std::string::npos)
         throw std::invalid_argument("invalid Agent Gateway configuration");
     static const auto initialized = curl_global_init(CURL_GLOBAL_DEFAULT);
     if (initialized != CURLE_OK) throw std::runtime_error("HTTP initialization failed");
-    return [port, key, path](const nlohmann::json& input) {
+    std::unique_ptr<CURLU,decltype(&curl_url_cleanup)> parsed(curl_url(),curl_url_cleanup);
+    if(!parsed || curl_url_set(parsed.get(),CURLUPART_URL,origin.c_str(),CURLU_DISALLOW_USER)!=CURLUE_OK)
+        throw std::invalid_argument("invalid Agent Gateway origin");
+    auto part=[&](CURLUPart name){char* raw=nullptr;const auto result=curl_url_get(parsed.get(),name,&raw,0);
+        std::unique_ptr<char,decltype(&curl_free)> value(raw,curl_free);
+        return result==CURLUE_OK?std::string(raw):std::string();};
+    const auto scheme_end=origin.find("://");
+    const auto slash=scheme_end==std::string::npos?0:origin.find('/',scheme_end+3);
+    if(scheme_end==std::string::npos || (slash!=std::string::npos && slash!=origin.size()-1) ||
+       (part(CURLUPART_SCHEME)!="http" && part(CURLUPART_SCHEME)!="https") || part(CURLUPART_HOST).empty() ||
+       part(CURLUPART_PATH)!="/" || origin.find_first_of("?#")!=std::string::npos)
+        throw std::invalid_argument("Agent Gateway must be an HTTP(S) origin");
+    const auto base=origin.back()=='/'?origin.substr(0,origin.size()-1):origin;
+    return [base, key, path](const nlohmann::json& input) {
         std::unique_ptr<CURL, decltype(&curl_easy_cleanup)> curl(curl_easy_init(), curl_easy_cleanup);
         if (!curl) throw std::runtime_error("HTTP initialization failed");
         auto body = input.dump();
         std::string response;
-        const auto url = "http://127.0.0.1:" + std::to_string(port) + path;
+        const auto url = base + path;
         curl_slist* raw = nullptr;
         raw = curl_slist_append(raw, "Content-Type: application/json");
         raw = curl_slist_append(raw, ("Authorization: Bearer " + key).c_str());

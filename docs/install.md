@@ -74,7 +74,8 @@ MySQL DDL 不提供整个升级事务回滚。失败的迁移不会标记成功�
 Chat Completions 地址，因为那会绕过已有 AgentRouter 和 Runtime。
 
 当前公共房间 Agent 配置参见 [通用 Room Agent](generic-room-agents.md)。
-v0.1.0 的授权仓库只读工具与正式配置向导仍在实施，以
+公共 Connector 的 Docker 连接方式见 [可选 Connector 部署](optional-agent-connector.md)。
+v0.1.0 的正式公共 Runtime 启动器和完整多人浏览器验收仍在实施，以
 [交付跟踪](v0.1.0-delivery.md) 为准，不以 Compose profile 的存在声称全部已验收。
 
 ## 保留 WSL 本地开发

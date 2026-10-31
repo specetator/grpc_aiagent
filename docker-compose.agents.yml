@@ -1,0 +1,36 @@
+# Optional host Connector. Base IM has no dependency on its availability.
+services:
+  logic:
+    environment:
+      SPARK_PUSH_HERMES_ENABLED: "true"
+      SPARK_PUSH_ROOM_AGENT_ENABLED: "true"
+      SPARK_PUSH_ROOM_AGENT_CATALOG: /run/spark-agent-config/agents.json
+      SPARK_PUSH_ROOM_PROJECT_CATALOG: /run/spark-agent-config/projects.json
+      SPARK_PUSH_HERMES_API_KEY: ${SPARK_PUSH_HERMES_API_KEY:-}
+      SPARK_PUSH_WORKSPACE_AUTH_KEY: ${SPARK_PUSH_WORKSPACE_AUTH_KEY:-}
+      SPARK_PUSH_AGENT_GATEWAY_ORIGIN: ${SPARK_PUSH_AGENT_GATEWAY_ORIGIN:-http://host.docker.internal:8643}
+    extra_hosts: [host.docker.internal:host-gateway]
+    volumes:
+      - type: bind
+        source: ${SPARK_PUSH_AGENT_CONFIG_DIR:-./deploy/agents}
+        target: /run/spark-agent-config
+        read_only: true
+        bind: {create_host_path: false}
+
+  agent-bridge:
+    environment:
+      SPARK_PUSH_HERMES_BASE_URL: ${SPARK_PUSH_AGENT_GATEWAY_ORIGIN:-http://host.docker.internal:8643}/v1
+
+  agent-authority:
+    image: caddy:2.10-alpine
+    profiles: [agents]
+    restart: unless-stopped
+    ports:
+      - "${SPARK_PUSH_AGENT_AUTH_BIND:-127.0.0.1}:${SPARK_PUSH_AGENT_AUTH_PORT:-9011}:9011"
+    volumes:
+      - ./deploy/Caddyfile.agents:/etc/caddy/Caddyfile:ro
+    depends_on:
+      logic: {condition: service_healthy}
+    logging:
+      driver: json-file
+      options: {max-size: 10m, max-file: "3"}

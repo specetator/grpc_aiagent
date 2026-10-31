@@ -1,0 +1,8 @@
+{
+  "schema": 1,
+  "default_agent": "public-pi",
+  "bot_user_id": 900000000401,
+  "agents": [
+    {"id":"public-pi","name":"Pi","runtime":"pi_rpc","owner_user_ids":[],"bot_user_id":900000000401,"room_enabled":true,"room_policy":"read_only"}
+  ]
+}
