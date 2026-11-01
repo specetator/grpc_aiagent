@@ -5,6 +5,22 @@ GPU，也不需要在主机安装 CMake、gRPC 或 Protobuf。
 
 ## 首次安装
 
+推荐使用 [v0.1.0 Release](https://github.com/specetator/grpc_aiagent/releases/tag/v0.1.0)
+的固定 Linux/amd64 安装包。下载 `spark-push-v0.1.0-linux-amd64.tar.gz`、
+`release.json` 和 `SHA256SUMS` 到同一新目录，然后执行：
+
+```bash
+sha256sum --check SHA256SUMS
+tar -xzf spark-push-v0.1.0-linux-amd64.tar.gz
+cd spark-push-v0.1.0
+cp .env.example .env
+docker compose pull
+docker compose up -d --no-build --wait
+```
+
+安装包的应用和依赖镜像均固定 digest，已通过匿名拉取与干净 Linux 用户空间验收。
+也可以克隆源码使用发布镜像；此方式的依赖标签可能随时间更新：
+
 ```bash
 git clone --depth 1 https://github.com/specetator/grpc_aiagent.git
 cd grpc_aiagent
@@ -15,7 +31,7 @@ docker compose ps
 
 打开 `http://localhost:9010`。其他成员使用同一主机的局域网 IP，例如
 `http://192.168.1.20:9010`。注册后创建私有协作空间并邀请已注册成员接受邀请。
-首次安装使用发布镜像；镜像尚未发布或需要从本地源码构建时：
+首次安装使用发布镜像；需要从本地源码构建时：
 
 ```bash
 docker compose up -d --build

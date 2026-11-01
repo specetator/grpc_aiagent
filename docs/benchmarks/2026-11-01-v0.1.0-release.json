@@ -1,0 +1,426 @@
+{
+  "schema": "sparkpush.v0.1.0-delivery.v1",
+  "date": "2026-11-01",
+  "accepted": true,
+  "scope": "v0.1.0 small-team read-only Agent collaboration; not full MVP V1.0 T01-T14 certification",
+  "release": {
+    "ok": true,
+    "release_url": "https://github.com/specetator/grpc_aiagent/releases/tag/v0.1.0",
+    "release_id": 430280547,
+    "published_at": "2026-11-01T00:49:27Z",
+    "source_revision": "7f92f3d4a08c495d38b7c208f77798959ca90c04",
+    "publishing_workflow_revision": "97b1e21424453367027d21d195fbfc7fca334a56",
+    "promotion_run": 41258267671,
+    "promotion_attempt": 2,
+    "promotion_conclusion": "failure",
+    "release_publish_method": "maintainer gh CLI after Actions Release API 403",
+    "release_create_exit_code": 0,
+    "workflow_verification_and_manifest_promotion": "success",
+    "image": "ghcr.io/specetator/spark-push@sha256:4452bd3c2160551e9b6483b1c9b3391d38585640850a174b11204c5df16640aa",
+    "stable_tag": "ghcr.io/specetator/spark-push:v0.1.0",
+    "anonymous_stable_manifest_matches": true,
+    "stable_git_tag_matches": true,
+    "freshly_downloaded_assets_match_candidate": true,
+    "evidence_verified": true,
+    "assets": [
+      {
+        "name": "SHA256SUMS",
+        "sha256": "bdd62dfe84c0779cd0bf7877b49aa8996355151012bcb7421a25222d4d31f398"
+      },
+      {
+        "name": "acceptance.json",
+        "sha256": "4ee044b481e4c45873deddc3b7085f6d6ad3ec4c428e8e9a754cf3d8c91bd424"
+      },
+      {
+        "name": "cann_documents.json",
+        "sha256": "f2f7f7b3d2183a09823908bd4214b96aae3a09865f9363c41bca694e3a50107f"
+      },
+      {
+        "name": "clean_linux.json",
+        "sha256": "ca86fc86b50a63f3e29d3cc66b024f302fb0620b46a286677c009ca43d4cfdd7"
+      },
+      {
+        "name": "cross_room.json",
+        "sha256": "e7f6830cc9ea1141e89988858fd0d4f076bda98dc51645baf813f0606a8735c1"
+      },
+      {
+        "name": "im_backup.json",
+        "sha256": "42ed06d12d8d09fc7954d4702ab71a78e870d20a1829f5199d9e46163c6181db"
+      },
+      {
+        "name": "legacy_private.json",
+        "sha256": "27ca74edfb1c7729e5b4d70dbedc39220b8bd44ba0b1188c4d4f2f6fdc8b6baa"
+      },
+      {
+        "name": "release.json",
+        "sha256": "cc98daeb9a4759fa0f4a08f8da2eb2c8ea2963ebae956df36759ee6383a4b924"
+      },
+      {
+        "name": "spark-push-v0.1.0-linux-amd64.tar.gz",
+        "sha256": "930f81cb7b7bab7475b7c942e66b8fcd0375b895b0aef051c33e0671b3f35f43"
+      },
+      {
+        "name": "team_backup.json",
+        "sha256": "bb3db103a625c87e4fbc78b466abef49cfc6f89a17e709e8d4809f728cd6d7be"
+      },
+      {
+        "name": "web_agents.json",
+        "sha256": "2ada1bd9a8c5dae97d410323557d597a6dda2ea1e07c453a9f6229398729633a"
+      },
+      {
+        "name": "web_im.json",
+        "sha256": "532df2480f7a204edd1d02089aad0f8864f43f368484ba3e9136cf7834e91985"
+      }
+    ]
+  },
+  "candidate": "v0.1.0-rc.2",
+  "archive_sha256": "930f81cb7b7bab7475b7c942e66b8fcd0375b895b0aef051c33e0671b3f35f43",
+  "acceptance_url": "https://github.com/specetator/grpc_aiagent/releases/download/v0.1.0/acceptance.json",
+  "scenarios": [
+    {
+      "scenario": "web_im",
+      "ok": true,
+      "exit_code": 0,
+      "checks": 2,
+      "browser_checks": 11,
+      "im_checks": 0,
+      "source_files": 63,
+      "cleanup": null,
+      "cleanup_errors": [],
+      "limitations": [
+        "browser test is one-machine acceptance, not production HA or fresh-Linux-host proof",
+        "real CANN/private Agent and Kafka injection remain separate regressions"
+      ],
+      "sha256": "532df2480f7a204edd1d02089aad0f8864f43f368484ba3e9136cf7834e91985",
+      "receipt_url": "https://github.com/specetator/grpc_aiagent/releases/download/v0.1.0/web_im.json"
+    },
+    {
+      "scenario": "web_agents",
+      "ok": true,
+      "exit_code": 0,
+      "checks": 3,
+      "browser_checks": 12,
+      "im_checks": 0,
+      "source_files": 63,
+      "cleanup": null,
+      "cleanup_errors": [],
+      "limitations": [
+        "browser test is one-machine acceptance, not production HA or fresh-Linux-host proof",
+        "real CANN/private Agent and Kafka injection remain separate regressions"
+      ],
+      "sha256": "2ada1bd9a8c5dae97d410323557d597a6dda2ea1e07c453a9f6229398729633a",
+      "receipt_url": "https://github.com/specetator/grpc_aiagent/releases/download/v0.1.0/web_agents.json"
+    },
+    {
+      "scenario": "cross_room",
+      "ok": true,
+      "exit_code": 0,
+      "checks": 16,
+      "browser_checks": 0,
+      "im_checks": 0,
+      "source_files": 20,
+      "cleanup": {
+        "owned_compose_resources_removed": true,
+        "private_pi_model_files_unchanged": true,
+        "original_windows_profile_unchanged": true,
+        "owned_native_profile_removed": true
+      },
+      "cleanup_errors": [],
+      "limitations": [
+        "not browser acceptance",
+        "Windows shared storage does not prove OS read-only mounts",
+        "CANN/private Agent regression is separate; no arbitrary side-effecting tool execution",
+        "unknown-run failure injection is separate"
+      ],
+      "sha256": "e7f6830cc9ea1141e89988858fd0d4f076bda98dc51645baf813f0606a8735c1",
+      "receipt_url": "https://github.com/specetator/grpc_aiagent/releases/download/v0.1.0/cross_room.json"
+    },
+    {
+      "scenario": "team_backup",
+      "ok": true,
+      "exit_code": 0,
+      "checks": 18,
+      "browser_checks": 0,
+      "im_checks": 0,
+      "source_files": 20,
+      "cleanup": {
+        "owned_compose_resources_removed": true,
+        "private_pi_model_files_unchanged": true,
+        "original_windows_profile_unchanged": true,
+        "owned_native_profile_removed": true
+      },
+      "cleanup_errors": [],
+      "limitations": [
+        "not browser acceptance",
+        "Windows shared storage does not prove OS read-only mounts",
+        "CANN/private Agent regression is separate; no arbitrary side-effecting tool execution",
+        "unknown recovery uses controlled event/status receipt loss, not a natural outage"
+      ],
+      "sha256": "bb3db103a625c87e4fbc78b466abef49cfc6f89a17e709e8d4809f728cd6d7be",
+      "receipt_url": "https://github.com/specetator/grpc_aiagent/releases/download/v0.1.0/team_backup.json"
+    },
+    {
+      "scenario": "legacy_private",
+      "ok": true,
+      "exit_code": 0,
+      "checks": 11,
+      "browser_checks": 0,
+      "im_checks": 0,
+      "source_files": 28,
+      "cleanup": {
+        "owned_compose_removed": true,
+        "owned_native_removed": true,
+        "private_pi_model_files_unchanged": true,
+        "original_windows_profile_unchanged": true
+      },
+      "cleanup_errors": [],
+      "limitations": [
+        "not browser or Ascend/NPU validation",
+        "Kernel contact remains shared; Pi isolation is by private conversation, not an owner-only catalog entry",
+        "C++ probe uses the generated program self-check, not an independent numerical precision oracle",
+        "Only owned C++ test execution is authorized; public Runtime policy and personal technical profiles are unchanged"
+      ],
+      "sha256": "27ca74edfb1c7729e5b4d70dbedc39220b8bd44ba0b1188c4d4f2f6fdc8b6baa",
+      "receipt_url": "https://github.com/specetator/grpc_aiagent/releases/download/v0.1.0/legacy_private.json"
+    },
+    {
+      "scenario": "im_backup",
+      "ok": true,
+      "exit_code": 0,
+      "checks": 10,
+      "browser_checks": 0,
+      "im_checks": 0,
+      "source_files": 6,
+      "cleanup": null,
+      "cleanup_errors": [],
+      "limitations": [],
+      "sha256": "42ed06d12d8d09fc7954d4702ab71a78e870d20a1829f5199d9e46163c6181db",
+      "receipt_url": "https://github.com/specetator/grpc_aiagent/releases/download/v0.1.0/im_backup.json"
+    },
+    {
+      "scenario": "cann_documents",
+      "ok": true,
+      "exit_code": 0,
+      "checks": 14,
+      "browser_checks": 0,
+      "im_checks": 0,
+      "source_files": 6,
+      "cleanup": null,
+      "cleanup_errors": [],
+      "limitations": [],
+      "sha256": "f2f7f7b3d2183a09823908bd4214b96aae3a09865f9363c41bca694e3a50107f",
+      "receipt_url": "https://github.com/specetator/grpc_aiagent/releases/download/v0.1.0/cann_documents.json"
+    },
+    {
+      "scenario": "clean_linux",
+      "ok": true,
+      "exit_code": 0,
+      "checks": 4,
+      "browser_checks": 0,
+      "im_checks": 11,
+      "source_files": 4,
+      "cleanup": true,
+      "cleanup_errors": [],
+      "limitations": [],
+      "sha256": "ca86fc86b50a63f3e29d3cc66b024f302fb0620b46a286677c009ca43d4cfdd7",
+      "receipt_url": "https://github.com/specetator/grpc_aiagent/releases/download/v0.1.0/clean_linux.json"
+    }
+  ],
+  "ci": {
+    "source_revision": "7f92f3d4a08c495d38b7c208f77798959ca90c04",
+    "run": "https://github.com/specetator/grpc_aiagent/actions/runs/41253926593",
+    "conclusion": "success",
+    "ctest": {
+      "registered": 66,
+      "passed": 59,
+      "skipped": 7,
+      "failed": 0
+    },
+    "supplementary_real": {
+      "mysql_tests": 2,
+      "redis_tests": 2,
+      "kafka_replacement_and_production_compose_mounts": "passed"
+    },
+    "candidate_workflow": "https://github.com/specetator/grpc_aiagent/actions/runs/41253954411",
+    "candidate_conclusion": "success"
+  },
+  "local_tests": {
+    "ctest": {
+      "registered": 66,
+      "passed": 62,
+      "skipped_database": 4,
+      "failed": 0,
+      "exit_code": 0
+    },
+    "backup_contracts": 28,
+    "release_contracts_after_workflow_repair": 10,
+    "actionlint_after_workflow_repair_exit": 0,
+    "promotion_git_contracts": {
+      "ok": true,
+      "kind": "real local Git promotion contracts; not product E2E",
+      "workflow_sha256": "093b0e65667dd6d0bbd19d5bc295b70f0a7c705eb3ea62af73dd232121be6870",
+      "embedded_verifier_sha256": "415eeae5cadbf6a1eb533463a61b4f006e422ce64d13d5111f43fe7e97c73a06",
+      "cases": [
+        {
+          "case": "same_revision",
+          "accepted": true,
+          "expected": true,
+          "exit_code": 0
+        },
+        {
+          "case": "workflow_only_parent",
+          "accepted": true,
+          "expected": true,
+          "exit_code": 0
+        },
+        {
+          "case": "shallow_parent",
+          "accepted": true,
+          "expected": true,
+          "exit_code": 0
+        },
+        {
+          "case": "existing_same_stable",
+          "accepted": true,
+          "expected": true,
+          "exit_code": 0
+        },
+        {
+          "case": "product_drift",
+          "accepted": false,
+          "expected": false,
+          "exit_code": 1
+        },
+        {
+          "case": "rename",
+          "accepted": false,
+          "expected": false,
+          "exit_code": 1
+        },
+        {
+          "case": "distant_parent",
+          "accepted": false,
+          "expected": false,
+          "exit_code": 1
+        },
+        {
+          "case": "merge",
+          "accepted": false,
+          "expected": false,
+          "exit_code": 1
+        },
+        {
+          "case": "wrong_candidate",
+          "accepted": false,
+          "expected": false,
+          "exit_code": 1
+        },
+        {
+          "case": "missing_candidate",
+          "accepted": false,
+          "expected": false,
+          "exit_code": 1
+        },
+        {
+          "case": "wrong_stable",
+          "accepted": false,
+          "expected": false,
+          "exit_code": 1
+        },
+        {
+          "case": "checkout_mismatch",
+          "accepted": false,
+          "expected": false,
+          "exit_code": 1
+        },
+        {
+          "case": "invalid_revision",
+          "accepted": false,
+          "expected": false,
+          "exit_code": 1
+        },
+        {
+          "case": "unrelated",
+          "accepted": false,
+          "expected": false,
+          "exit_code": 1
+        }
+      ]
+    }
+  },
+  "product_assertion_map": {
+    "three_independent_browsers_and_same_timeline": "web_agents.browser.checks 1, 2, 4 (1-based)",
+    "real_pi_task_hermes_cpp_read_and_carol_handoff": "web_agents.browser.checks 6",
+    "reconnect_restart_and_persistent_task": "web_agents.browser.checks 8, 9; team_backup.checks 16, 18",
+    "revocation": "web_agents.browser.checks 11; cross_room; team_backup.checks 17, 18",
+    "native_http_tool_profile_restrictions": "team_backup.checks 1; actual Native HTTP 404/400 deny probes",
+    "native_unknown_recovery": "team_backup.checks 7, 13; same original Native Run, unchanged tool transcripts and one durable final per user",
+    "native_process_restart": "team_backup.checks 15; not per-Run cancellation"
+  },
+  "publication_history": [
+    {
+      "candidate": "v0.1.0-rc.1",
+      "accepted": false,
+      "failures": [
+        "Kafka image left five anonymous volumes after ordinary replacement",
+        "team backup refused packaged platform: linux/amd64"
+      ],
+      "unchanged_prerelease_preserved": true
+    },
+    {
+      "run": "https://github.com/specetator/grpc_aiagent/actions/runs/41257928136",
+      "conclusion": "failure",
+      "reason": "gh release view after cd to assets lacked explicit --repo; checksum and evidence verification had passed",
+      "stable_mutations": false
+    },
+    {
+      "workflow_fix": "97b1e21424453367027d21d195fbfc7fca334a56",
+      "changed_files": [
+        ".github/workflows/release.yml"
+      ],
+      "architecture_review": "pass",
+      "independent_review": "pass",
+      "independent_test_evidence_review": "pass",
+      "candidate_product_unchanged": true
+    },
+    {
+      "run": "https://github.com/specetator/grpc_aiagent/actions/runs/41258267671",
+      "attempts": [
+        1,
+        2
+      ],
+      "conclusion": "failure",
+      "verified_receipts_and_promoted_exact_manifest": true,
+      "reason": "GitHub Actions Release API returned HTTP 403; no claim of workflow completion"
+    },
+    {
+      "maintainer_action": "Created stable Git tag at tested source and published original 12 assets using already-authorized repository credentials",
+      "release_create_exit_code": 0,
+      "fresh_download_verification": true
+    }
+  ],
+  "limitations": [
+    "Only v0.1.0 read-only collaboration scope accepted; not all MVP V1.0 T01-T14",
+    "Current fixed artifact did not independently rerun Native per-Run stop, provider failure or approval-rejection tests; older receipts are not transferred",
+    "Public interactive approvals are disabled; no arbitrary shell enabled",
+    "Windows shared storage/tool allowlist is not proof of OS read-only mount sandbox",
+    "Clean install uses fresh Linux/DinD userspace and independent daemon on WSL, not an independent VM/kernel",
+    "Unknown recovery uses controlled event/status receipt loss around a real Native Run, not all natural failures",
+    "Updates and restored Agent activation require cold maintenance restart; Logic hot replacement reconnection remains unresolved",
+    "Public Runtime backup/restore uses original platform and paths; excludes private Profile backup",
+    "CANN sandbox C++ self-check is not Ascend/NPU or independent numerical accuracy validation",
+    "Android physical-device, production HA, long-running endurance and broader capacity tests not performed",
+    "Private installed Agent knowledge/config drift retained; sync_pi_agent --check exit 1 was not overwritten"
+  ],
+  "privacy": {
+    "public_json_credential_scan_findings": [],
+    "personal_config_and_workspace_preserved": true,
+    "private_logs_and_runtime_databases_uploaded": false
+  },
+  "next_interfaces": [
+    "Administrator-managed Catalog/RoomAgentBinding and structured mention IDs",
+    "Independent room/Agent Runtime Session and exact request_id controls",
+    "Persisted task revisions, handoff and original-run recovery",
+    "Existing approval/status/stop interfaces remain capability-gated; broader runtime acceptance is a subsequent stage"
+  ]
+}

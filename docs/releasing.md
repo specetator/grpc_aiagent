@@ -1,7 +1,9 @@
 # 发布 Spark Push v0.1.0
 
 维护者流程：固定提交 → CI → 不可变候选镜像和安装包 → 实际验收 → 原样推广。
-当前提供流程和测试工具；是否已发布及最终结果以 GitHub Release 的实际回执为准。
+已发布 [v0.1.0](https://github.com/specetator/grpc_aiagent/releases/tag/v0.1.0)，
+产品提交为 `7f92f3d`，发布工作流修复为 `97b1e21`；两者不能混为同一制品版本。
+实际回执、失败记录和维护者完成发布的过程见 [交付回执](benchmarks/2026-11-01-v0.1.0-release.json)。
 目标平台为 Linux/amd64，适用于 Linux 主机与 WSL2；基础 IM 不需要模型或 GPU。
 
 ## 构建候选
@@ -108,7 +110,11 @@ Mock/契约测试不能放入此集合；它们由 CI 和单独阶段报告记�
 gh workflow run release.yml -f operation=promote -f candidate=v0.1.0-rc.2
 ```
 
-工作流要求候选 revision 等于当前提交，校验包及全部回执，先验证匿名拉取，再把
+工作流要求候选 Git tag 与 manifest revision 一致。通常 revision 必须等于当前提交；
+唯一例外是当前提交只有一个父提交，该父提交就是候选 revision，且唯一文件变化为
+`.github/workflows/release.yml`，用于修复发布步骤。产品、测试、文档变化、合并提交
+或更远祖先均不符合例外，必须生成新候选。源码标签与 Release target 始终使用受检 revision。
+工作流校验包及全部回执，先验证匿名拉取，再把
 同一个 manifest 标记为 `v0.1.0` 并比较 digest。它不重新构建镜像或重打安装包；
 正式 Release 附上原包和证据。已有 stable 标签只允许与候选相同，不覆盖别的镜像。
 [Docker 的 manifest 复制行为](https://docs.docker.com/reference/cli/docker/buildx/imagetools/create/)。
@@ -116,6 +122,12 @@ gh workflow run release.yml -f operation=promote -f candidate=v0.1.0-rc.2
 任一产品或制品变化都必须产生新提交和新候选；不能把旧测试结果迁移成新版本通过。
 网络或发布步骤失败时保留已经产生的候选，先核对实际 digest/标签状态；不强推或
 覆盖旧候选来恢复流水线。
+
+本次 Actions 已完成八份回执验证和稳定镜像 manifest 推广，但 Release API 连续返回
+403；维护者使用已有 `repo/workflow` 凭据创建指向受检 revision 的 Git 标签，并上传
+相同的 12 个资产完成 Release。重新下载后逐文件 SHA、Git 标签和匿名镜像 digest
+全部一致。该 Actions run 仍记录为失败，不能改写为成功；这是有授权维护者的发布
+补足方式，不是放宽制品验收。维护者凭据不得写入 workflow、安装包或公开日志。
 
 升级、回滚和卸载遵循 [安装指南](install.md) 与 [整批备份恢复](backup-restore.md)：
 先冷备并停机，保留旧镜像与 Runtime 指纹。恢复使用原镜像，Agent 默认关闭；

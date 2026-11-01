@@ -596,6 +596,12 @@
       "path": "docs/benchmarks/2026-11-01-release-candidate-fixes.json",
       "authority": "snapshot",
       "topics": ["release", "docker", "backup", "testing"]
+    },
+    {
+      "id": "v010-release-2026-11-01",
+      "path": "docs/benchmarks/2026-11-01-v0.1.0-release.json",
+      "authority": "snapshot",
+      "topics": ["release", "docker", "backup", "testing", "agents"]
     }
   ]
 }

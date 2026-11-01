@@ -4,6 +4,9 @@
 通过 `@Pi`、`@Hermes` 调用可选 Agent，读取授权项目代码并在同一时间线协作。
 基于 C++17、gRPC、WebSocket、Kafka、MySQL 和 Redis；保留 Web 与原生 Android 客户端。
 
+[v0.1.0 已发布](https://github.com/specetator/grpc_aiagent/releases/tag/v0.1.0)：
+提供 Linux/amd64 安装包、公开镜像和八份真实制品验收回执。项目代码采用 MIT。
+
 ## 快速开始
 
 基础 IM 可独立运行，不需要模型、Agent、GPU 或主机 C++ 开发依赖。
@@ -33,9 +36,9 @@ docker compose up -d     # 恢复
 详细安装、升级边界与旧 WSL 开发方式见 [安装指南](docs/install.md)，数据维护见
 [备份与恢复](docs/backup-restore.md)。
 Agent 是可选模块；当前能力和验收边界见 [Room Agent](docs/generic-room-agents.md)。
-安装包和最终验收状态以 [GitHub Releases](https://github.com/specetator/grpc_aiagent/releases)
-中的实际回执为准；`rc` 候选仍需完成验收。阶段进度见 [交付跟踪](docs/v0.1.0-delivery.md)。
-候选镜像、固定安装包及实际验收流程见 [发行指南](docs/releasing.md)。
+需要与验收完全一致的应用和依赖版本时，使用 [v0.1.0 固定安装包](https://github.com/specetator/grpc_aiagent/releases/tag/v0.1.0)，
+按 [安装指南](docs/install.md) 校验 SHA256 后启动。真实结果和边界见
+[交付跟踪](docs/v0.1.0-delivery.md)，可重复验收命令见 [发行指南](docs/releasing.md)。
 
 真实三人协作验收截图：Hermes 读取授权 C++ 文件，Carol 接手 Pi 整理的任务。
 
@@ -83,7 +86,8 @@ Client ──WebSocket──► Comet ──MessageStream──► Logic
 Pi/Hermes 授权代码读取、三 HTTP/WS 用户、Kafka 重投与整栈重启验收，见
 [公共 Runtime 回执](docs/benchmarks/2026-10-31-public-runtime.json)。
 统一 Web 已通过真实三独立浏览器、Pi/Hermes、任务交接、Job 延迟落库、断网和整栈重启验收，见
-[Web 阶段回执](docs/benchmarks/2026-11-01-web-collaboration.json)。整版 v0.1.0 发行验收仍在进行。
+[Web 阶段回执](docs/benchmarks/2026-11-01-web-collaboration.json)。固定 v0.1.0 制品的八类真实验收
+已通过并随 Release 发布，见 [最终交付回执](docs/benchmarks/2026-11-01-v0.1.0-release.json)。
 同机 IM 与公共 Pi/Hermes 的成套冷备、原路径恢复及原 Run 查询恢复已通过真实链路
 17 项检查，见 [恢复回执](docs/benchmarks/2026-11-01-team-backup-restore.json)。启用恢复后的
 Agent 需保留卷并冷启动整栈；本流程不覆盖任意热替换，也不复制私人 Profile。
@@ -117,7 +121,11 @@ python3 tests/run_redis_review_tests.py build
 python3 tests/run_kafka_volume_test.py build
 ```
 
-2026-11-01 Web 阶段 CTest 注册 60 项：56 项通过，4 项 SQL/Redis 集成测试默认跳过；后者已在本阶段真实独立数据库补跑通过。真实三浏览器基础 IM 11 项、Pi/Hermes 模式 12 项通过，彼此包含重复覆盖；Mock 浏览器 20 项单列。见 [Web 阶段回执](docs/benchmarks/2026-11-01-web-collaboration.json)。
+v0.1.0 冻结源码本地 CTest 注册 66 项：62 项通过、4 项数据库默认跳过。
+CI 为 59 项通过、7 项跳过，并另行通过真实 MySQL 2 项、Redis 2 项及 Kafka 持久化与卷生命周期检查。
+同一固定安装包的八类真实验收全部通过，包含三浏览器 IM 11 项、真实 Pi/Hermes 12 项、
+跨房间隔离、冷备恢复、旧 CANN/私聊和干净 Linux 用户空间安装；这些计数有重复覆盖。
+Mock/契约测试单列，范围及原始回执见 [最终交付回执](docs/benchmarks/2026-11-01-v0.1.0-release.json)。
 2026-10-28 本地回归 44 项通过，3 项数据库测试在隔离容器补跑通过；详见 [Native 测试回执](docs/benchmarks/2026-10-28-hermes-native.json)。
 可用标准库 harness 启动隔离三服务并做实际 ACK/接收/SQL 校验，不使用个人 `.env.local`：
 

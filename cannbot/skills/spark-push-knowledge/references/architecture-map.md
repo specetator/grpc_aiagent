@@ -81,7 +81,8 @@
 - `docs/room-workspaces.md`：批准项目、不可变文件快照、Pi/Hermes 原生只读工具与最终发布决定；区分真实 Runtime 和完整 IM E2E。
 - `docs/mvp-v1-acceptance.md`：M1–M6 / T01–T14 的证据类型与未覆盖边界。
 - `docs/benchmarks/2026-10-31-generic-room-agents.md`：本轮真实/受控验收回执、变更清单与源文件指纹。
-- `docs/v0.1.0-delivery.md`：v0.1.0 产品交付要求、部署/工作区/Web/发行的验收进度；未完成项不代表已交付。
+- `docs/v0.1.0-delivery.md`：v0.1.0 已发布制品、分阶段交付和保留的历史失败；不等同于 MVP V1.0 全量验收。
+- `docs/benchmarks/2026-11-01-v0.1.0-release.json`：正式 Git 标签、镜像、安装包及八类真实制品回执；含发布权限失败、维护者完成发布及未覆盖范围。
 - `docs/install.md`：完整 Docker 同源入口、凭据/数据卷、增量迁移和旧 WSL 开发模式。
 - `docs/optional-agent-connector.md`：可选 Connector overlay、独立授权回连、凭据导出及配置故障隔离；正式公共 Runtime 与完整浏览器验收状态见交付跟踪。
 - `tests/public_cross_room_scenario.py`：正式公共启动器下的两私有空间、原生工具与会话隔离专项；复用 `tests/public_room_runtime_e2e.py --cross-room`，消费屏障和冷重启后核对原始执行记录。
