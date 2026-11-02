@@ -7,7 +7,7 @@
 | 问题领域 | 首选文档 | 当前代码真源 |
 |---|---|---|
 | 总体架构、组件边界、启动入口 | `README.md`、`docs/spark-push-architecture.md`、`scripts/00_prepare_and_run.md` | `CMakeLists.txt`、各组件 `main.cpp` |
-| 完整项目复习、简历表述、GitHub 发布与验证口径 | `docs/project-guide-and-resume.md` | 对应章节列出的当前源码和带日期测试报告 |
+| 项目学习、面试八股、简历与 Git 版本管理 | `docs/project-guide-and-resume.md` | 69 道问答、10 个 C++17 实验；对应当前源码与带版本的验收记录 |
 | 源码分发、全新克隆、独立 IM 启动与验收 | `README.md`、`docs/benchmarks/2026-10-12-release-smoke.json` | `scripts/ops/doctor.sh`、`tests/run_release_smoke.py` |
 | 固定提交的 GHCR 候选、安装包、真实验收与同镜像推广 | `docs/releasing.md`、`docs/benchmarks/2026-11-01-release-tooling.json` | `.github/workflows/release.yml`、`scripts/package_release.py`、`scripts/verify_release.py`、`tests/clean_linux_release_e2e.py` |
 | 候选制品 Kafka 匿名卷与显式平台备份回归 | `docs/benchmarks/2026-11-01-release-candidate-fixes.json` | `docker-compose.yml`、`scripts/spark_backup.py`、`tests/kafka_compose_volume_e2e.py`、`tests/backup_restore_e2e.py` |

@@ -171,6 +171,7 @@ python3 tests/run_release_smoke.py --out /tmp/spark-release-smoke.json --jobs 2
 | 主题 | 文档 |
 |---|---|
 | 当前架构与调用链 | [架构](docs/spark-push-architecture.md)、[Logic 业务层](docs/logic-business-layer.md) |
+| 项目学习、面试八股与简历 | [完整学习手册](docs/project-guide-and-resume.md)：69 道问答、10 个 C++17 实验，含 Git 版本管理与图文协作 |
 | 算法、复杂度、锁与失败路径 | [项目手册](docs/project-guide-and-resume.md)、[模块算法](docs/spark-push-internals.md) |
 | ACK / 游标 / 迁移 / 排障 | [可靠性](docs/reliability-optimization.md)、[工程修复](docs/review-remediation.md) |
 | Kernel Agent 与流式回复 | [产品与子 Agent](docs/kernel-agent.md)、[Kernel Agent 集成](docs/pi-agent-integration.md)、[多 Agent](docs/multi-agent-integration.md) |

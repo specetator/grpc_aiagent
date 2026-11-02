@@ -125,7 +125,7 @@
     {"id":"room-agent-repository","path":"logic/repositories/room_agent_repository.cpp","authority":"code","topics":["room","mysql","checkpoint","transaction","revision"]},
     {"id":"room-agent-workspace","path":"cannbot/scripts/room_agent.py","authority":"code","topics":["room","pi","workspace","sandbox","tests","checkpoint"]},
     {"id":"room-agent-tool-guard","path":"cannbot/pi/extensions/room-workspace.ts","authority":"code","topics":["room","pi","authorization","tools","concurrency"]},
-    {"id":"project-guide-and-resume","path":"docs/project-guide-and-resume.md","authority":"canonical","topics":["architecture","guide","resume","review","services","cuda","release"]},
+    {"id":"project-guide-and-resume","path":"docs/project-guide-and-resume.md","authority":"canonical","topics":["architecture","guide","resume","interview","cpp","git","review","services","cuda","release","media"]},
     {"id":"project-overview","path":"README.md","authority":"canonical","topics":["architecture","startup","reliability","ai-integration"]},
     {"id":"reliability-design","path":"docs/reliability-optimization.md","authority":"canonical","topics":["ack","cursor","deduplication","reconnect","metrics"]},
     {"id":"inference-serving-phase-one","path":"docs/inference-serving.md","authority":"canonical","topics":["inference","gateway","worker","streaming","scheduler","metrics","rocm","cuda","batching"]},
