@@ -1,0 +1,113 @@
+{
+  "kind": "real isolated ASR diagnostic, no Agent/IM",
+  "input": {
+    "kind": "diagnostic clip, not full recording acceptance",
+    "original_sha256": "121b03712aa51ffa453e7fa1b3b2f54c358cc6ad07eb1e5a4cfee9dc5f2fd041",
+    "start_ms": 0,
+    "duration_ms": 30000,
+    "clip_sha256": "816b109b133eaf3b1ddf8b81f45ce173ea8a9427e239e4626881b0abcf66473c"
+  },
+  "image_id": "sha256:4c2e26418ad4ec59d0d57bdf2a15af30826c14de5d253d39bf96be2de2b38120",
+  "model_sha256": "02e8ad144c5a1e9441bbd2aab66e62a1b2627c4b0f1936a7cdc68878c9767227",
+  "parser_sha256": "e29263d81f71583e3c49cd6cc8d5d0a5cfb2bcbed36c40482b171d90c8c10188",
+  "ok": true,
+  "coverage": {
+    "audio": {
+      "decoded_samples": 480000,
+      "duration_ms": 30000,
+      "language": "en",
+      "offset_ms": 0,
+      "sample_rate": 16000,
+      "segments": 8,
+      "speaker_labels": false,
+      "track_end_ms": 30000
+    },
+    "container_duration_ms": 30000,
+    "duration_ms": 30000,
+    "kind": "audio",
+    "source_origin_ms": 0
+  },
+  "fragments": [
+    {
+      "anchor": {
+        "end_ms": 4620,
+        "part": 0,
+        "start_ms": 0
+      },
+      "index": 0,
+      "kind": "transcript",
+      "text": "Decision Checkpoint 1. The codename is Silver Lantern. Alice owns QBAC Pressure Review."
+    },
+    {
+      "anchor": {
+        "end_ms": 9240,
+        "part": 0,
+        "start_ms": 4940
+      },
+      "index": 1,
+      "kind": "transcript",
+      "text": "This is Discussion Item 1. We are reviewing the messaging service and its failure recovery."
+    },
+    {
+      "anchor": {
+        "end_ms": 12720,
+        "part": 0,
+        "start_ms": 9480
+      },
+      "index": 2,
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    {
+      "anchor": {
+        "end_ms": 17280,
+        "part": 0,
+        "start_ms": 12980
+      },
+      "index": 3,
+      "kind": "transcript",
+      "text": "Keep the original request identifier when retrying. Check the database history and the"
+    },
+    {
+      "anchor": {
+        "end_ms": 21080,
+        "part": 0,
+        "start_ms": 17280
+      },
+      "index": 4,
+      "kind": "transcript",
+      "text": "worker logs. The release owner will collect the test evidence before making a decision."
+    },
+    {
+      "anchor": {
+        "end_ms": 24000,
+        "part": 0,
+        "start_ms": 21360
+      },
+      "index": 5,
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    {
+      "anchor": {
+        "end_ms": 28560,
+        "part": 0,
+        "start_ms": 24280
+      },
+      "index": 6,
+      "kind": "transcript",
+      "text": "This is Discussion Item 2. We are reviewing the messaging service and its failure recovery."
+    },
+    {
+      "anchor": {
+        "end_ms": 29580,
+        "part": 0,
+        "start_ms": 28560
+      },
+      "index": 7,
+      "kind": "transcript",
+      "text": "A broker acknowledgement."
+    }
+  ],
+  "seconds": 46.044
+}

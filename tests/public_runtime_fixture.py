@@ -31,6 +31,8 @@ class PublicHermesRuntime(HermesRoomRuntime):
             'keys_file':self.win(keys),'api_key_file':self.win(self.root/'api-key'),
             'authority_origin':self.workspace['authority'],'snapshots':self.win(Path(self.workspace['snapshots'])),
             'git_bash':self.win(Path('/mnt/f/Git/bin/bash.exe')),'port':port}
+        if self.workspace.get('context_tools'):
+            config['room_context_contract']=1
         path=self.root/'public-config.json';path.write_text(json.dumps(config));path.chmod(0o600)
         self.command=[self.python,self.win(ROOT/'cannbot/scripts/hermes_public_gateway.py'),'--config',self.win(path),'--control-stdin']
         self.launch()
@@ -39,6 +41,8 @@ class PublicHermesRuntime(HermesRoomRuntime):
             'profile':'spark-public-hermes','room_workspace_contract':1,'native_interactive_approvals':False,
             'transport':'windows_stdio','windows_python':self.python,'base_url':f'http://127.0.0.1:{port}/v1',
             'expected_model':'spark-public-hermes','credential_env_file':str(self.root/'api.env'),'credential_env_key':'API_SERVER_KEY'}
+        if self.workspace.get('context_tools'):
+            self.entry['room_context_contract']=1
         return self.entry
 
     def launch(self):

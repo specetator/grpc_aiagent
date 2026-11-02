@@ -1,0 +1,59 @@
+Real MySQL: repeated context migration preserved the existing epoch
+Real MySQL: repeated source migration preserved the existing receipt
+Real MySQL: pre-media upgrade and repeated migration preserved the old attachment row
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+UpdateCTestConfiguration  from :/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/DartConfiguration.tcl
+Parse Config file:/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/DartConfiguration.tcl
+UpdateCTestConfiguration  from :/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/DartConfiguration.tcl
+Parse Config file:/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/DartConfiguration.tcl
+Test project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 38
+    Start 38: media_context_http_test
+
+38: Test command: /usr/bin/python3 "/home/peco/cppcode/fenbushi/sparkpush_project/tests/media_context_http_test.py" "/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests/media_processing_http_probe"
+38: Working Directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests
+38: Test timeout computed to be: 240
+38: real room context passed: literal SQL search; pre-LIMIT epoch filter; canonical room and message ceiling
+38: Traceback (most recent call last):
+38:   File "/home/peco/cppcode/fenbushi/sparkpush_project/tests/media_context_http_test.py", line 391, in <module>
+38:     raise SystemExit(main())
+38:   File "/home/peco/cppcode/fenbushi/sparkpush_project/tests/media_context_http_test.py", line 231, in main
+38:     resolved=member_sources()
+38:   File "/home/peco/cppcode/fenbushi/sparkpush_project/tests/media_context_http_test.py", line 230, in member_sources
+38:     return post('/api/chatroom/agents/sources',body,a['token'] if token is None else token,code)
+38:   File "/home/peco/cppcode/fenbushi/sparkpush_project/tests/media_context_http_test.py", line 87, in post
+38:     assert result["code"] in allowed, (path, code, result.get("code"), result.get("message"))
+38: AssertionError: ('/api/chatroom/agents/sources', 0, 503, 'room Agent unavailable')
+1/1 Test #38: media_context_http_test ..........***Failed    8.07 sec
+real room context passed: literal SQL search; pre-LIMIT epoch filter; canonical room and message ceiling
+Traceback (most recent call last):
+  File "/home/peco/cppcode/fenbushi/sparkpush_project/tests/media_context_http_test.py", line 391, in <module>
+    raise SystemExit(main())
+  File "/home/peco/cppcode/fenbushi/sparkpush_project/tests/media_context_http_test.py", line 231, in main
+    resolved=member_sources()
+  File "/home/peco/cppcode/fenbushi/sparkpush_project/tests/media_context_http_test.py", line 230, in member_sources
+    return post('/api/chatroom/agents/sources',body,a['token'] if token is None else token,code)
+  File "/home/peco/cppcode/fenbushi/sparkpush_project/tests/media_context_http_test.py", line 87, in post
+    assert result["code"] in allowed, (path, code, result.get("code"), result.get("message"))
+AssertionError: ('/api/chatroom/agents/sources', 0, 503, 'room Agent unavailable')
+
+
+0% tests passed, 1 tests failed out of 1
+
+Total Test time (real) =   8.08 sec
+
+The following tests FAILED:
+	 38 - media_context_http_test (Failed)
+Errors while running CTest
+Traceback (most recent call last):
+  File "/home/peco/cppcode/fenbushi/sparkpush_project/tests/run_mysql_review_tests.py", line 98, in <module>
+    subprocess.run(["ctest", "--test-dir", str(build), "-R", "^media_context_http_test$",
+  File "/usr/lib/python3.10/subprocess.py", line 526, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['ctest', '--test-dir', '/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl', '-R', '^media_context_http_test$', '--output-on-failure', '--verbose']' returned non-zero exit status 8.

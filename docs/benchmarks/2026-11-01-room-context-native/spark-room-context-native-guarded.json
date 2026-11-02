@@ -1,0 +1,250 @@
+{
+  "kind": "real-native-tools-and-models-with-fixture-authority",
+  "passed": false,
+  "scope": "Opt-in real native room tools/models with an HTTP authority fixture.\n\nThis is a native integration probe, NOT Logic/MySQL/Kafka/Web acceptance.\nOnly explicitly authorized default-profile MODEL access is provisioned into\nowned homes; private sessions/configuration/workspaces are never copied.\n",
+  "checks": [
+    "pi reads bounded room text without a code project",
+    "pi native tool result contains all three actual images",
+    "pi provider-bound request contains all three image payloads"
+  ],
+  "runtimes": {
+    "pi": {
+      "answer": {
+        "nonce": "6a8026fccb193e25b51ad2b4",
+        "images": [
+          {
+            "left": {
+              "shape": "circle",
+              "color": "red"
+            },
+            "right": {
+              "shape": "triangle",
+              "color": "green"
+            },
+            "lower": {
+              "shape": "square",
+              "color": "blue"
+            }
+          },
+          {
+            "left": {
+              "shape": "square",
+              "color": "red"
+            },
+            "right": {
+              "shape": "circle",
+              "color": "blue"
+            },
+            "lower": {
+              "shape": "circle",
+              "color": "blue"
+            }
+          },
+          {
+            "left": {
+              "shape": "circle",
+              "color": "red"
+            },
+            "right": {
+              "shape": "square",
+              "color": "blue"
+            },
+            "lower": {
+              "shape": "triangle",
+              "color": "green"
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "left": {
+            "shape": "circle",
+            "color": "red"
+          },
+          "right": {
+            "shape": "triangle",
+            "color": "green"
+          },
+          "lower": {
+            "shape": "square",
+            "color": "blue"
+          }
+        },
+        {
+          "left": {
+            "shape": "square",
+            "color": "red"
+          },
+          "right": {
+            "shape": "triangle",
+            "color": "green"
+          },
+          "lower": {
+            "shape": "circle",
+            "color": "blue"
+          }
+        },
+        {
+          "left": {
+            "shape": "circle",
+            "color": "red"
+          },
+          "right": {
+            "shape": "square",
+            "color": "blue"
+          },
+          "lower": {
+            "shape": "triangle",
+            "color": "green"
+          }
+        }
+      ],
+      "image_sha256": [
+        "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9",
+        "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7",
+        "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+      ],
+      "audit": [
+        {
+          "phase": "provider",
+          "hashes": [],
+          "markers": [
+            "probe-memory-00cf171564464fc1ec4bef95"
+          ],
+          "request_id": "ra_4a46e174cf197276b4c164712037a999475df8a88fca5e9ad4f1334209526f15"
+        },
+        {
+          "phase": "provider",
+          "hashes": [],
+          "markers": [
+            "probe-memory-00cf171564464fc1ec4bef95"
+          ],
+          "request_id": "ra_4a46e174cf197276b4c164712037a999475df8a88fca5e9ad4f1334209526f15"
+        },
+        {
+          "phase": "tool",
+          "hashes": [
+            "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7"
+          ],
+          "markers": [],
+          "request_id": "ra_4a46e174cf197276b4c164712037a999475df8a88fca5e9ad4f1334209526f15"
+        },
+        {
+          "phase": "tool",
+          "hashes": [
+            "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9"
+          ],
+          "markers": [],
+          "request_id": "ra_4a46e174cf197276b4c164712037a999475df8a88fca5e9ad4f1334209526f15"
+        },
+        {
+          "phase": "tool",
+          "hashes": [
+            "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+          ],
+          "markers": [],
+          "request_id": "ra_4a46e174cf197276b4c164712037a999475df8a88fca5e9ad4f1334209526f15"
+        },
+        {
+          "phase": "provider",
+          "hashes": [
+            "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7",
+            "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9",
+            "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+          ],
+          "markers": [
+            "probe-memory-00cf171564464fc1ec4bef95"
+          ],
+          "request_id": "ra_4a46e174cf197276b4c164712037a999475df8a88fca5e9ad4f1334209526f15"
+        }
+      ]
+    }
+  },
+  "model": {
+    "provider": "openai-codex",
+    "id": "gpt-6-luna"
+  },
+  "fixture_replay_sha256": "8ec95133cff14f990c3294bfe1862c818446334545a442f3d6590f94f59de72d",
+  "image_files": [
+    "spark-room-context-native-guarded-images/5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7.jpg",
+    "spark-room-context-native-guarded-images/04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9.jpg",
+    "spark-room-context-native-guarded-images/8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b.jpg"
+  ],
+  "failed_checks": [
+    "pi answers three no-text images correctly",
+    "Pi native process restart recalls only its room/epoch history"
+  ],
+  "error_type": "AssertionError",
+  "failed_check": "Pi native process restart recalls only its room/epoch history",
+  "failure_audits": {
+    "pi": [
+      {
+        "phase": "provider",
+        "hashes": [],
+        "markers": [
+          "probe-memory-00cf171564464fc1ec4bef95"
+        ],
+        "request_id": "ra_4a46e174cf197276b4c164712037a999475df8a88fca5e9ad4f1334209526f15"
+      },
+      {
+        "phase": "provider",
+        "hashes": [],
+        "markers": [
+          "probe-memory-00cf171564464fc1ec4bef95"
+        ],
+        "request_id": "ra_4a46e174cf197276b4c164712037a999475df8a88fca5e9ad4f1334209526f15"
+      },
+      {
+        "phase": "tool",
+        "hashes": [
+          "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7"
+        ],
+        "markers": [],
+        "request_id": "ra_4a46e174cf197276b4c164712037a999475df8a88fca5e9ad4f1334209526f15"
+      },
+      {
+        "phase": "tool",
+        "hashes": [
+          "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9"
+        ],
+        "markers": [],
+        "request_id": "ra_4a46e174cf197276b4c164712037a999475df8a88fca5e9ad4f1334209526f15"
+      },
+      {
+        "phase": "tool",
+        "hashes": [
+          "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+        ],
+        "markers": [],
+        "request_id": "ra_4a46e174cf197276b4c164712037a999475df8a88fca5e9ad4f1334209526f15"
+      },
+      {
+        "phase": "provider",
+        "hashes": [
+          "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7",
+          "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9",
+          "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+        ],
+        "markers": [
+          "probe-memory-00cf171564464fc1ec4bef95"
+        ],
+        "request_id": "ra_4a46e174cf197276b4c164712037a999475df8a88fca5e9ad4f1334209526f15"
+      },
+      {
+        "phase": "provider",
+        "hashes": [
+          "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7",
+          "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9",
+          "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+        ],
+        "markers": [
+          "probe-memory-00cf171564464fc1ec4bef95"
+        ],
+        "request_id": "ra_ba50137d14c10880b61f6ea5175a7d28d18918386e9399304b2dfe08671f7585"
+      }
+    ]
+  },
+  "private_profile_hashes_unchanged": true,
+  "tool_call_count": 5
+}

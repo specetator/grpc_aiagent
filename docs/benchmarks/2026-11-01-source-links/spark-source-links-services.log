@@ -1,0 +1,10 @@
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+Test project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+    Start 23: room_agent_service_test
+1/2 Test #23: room_agent_service_test ..........   Passed    0.01 sec
+    Start 24: media_context_service_test
+2/2 Test #24: media_context_service_test .......   Passed    0.01 sec
+
+100% tests passed, 0 tests failed out of 2
+
+Total Test time (real) =   0.02 sec

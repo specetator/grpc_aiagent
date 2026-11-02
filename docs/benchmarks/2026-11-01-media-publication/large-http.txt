@@ -1,0 +1,32 @@
+Real MySQL: pre-media upgrade and repeated migration preserved the old attachment row
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+Test project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+    Start 36: media_pipeline_http_test
+1/1 Test #36: media_pipeline_http_test .........   Passed   24.83 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =  24.84 sec
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+Test project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+    Start 35: media_processing_http_test
+1/1 Test #35: media_processing_http_test .......   Passed    4.10 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   4.10 sec
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+Test project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+    Start 13: media_mysql_integration_test
+1/4 Test #13: media_mysql_integration_test ...........   Passed    2.67 sec
+    Start 14: media_artifact_mysql_test
+2/4 Test #14: media_artifact_mysql_test ..............   Passed    0.88 sec
+    Start 21: message_reservation_integration_test
+3/4 Test #21: message_reservation_integration_test ...   Passed    0.20 sec
+    Start 63: space_mysql_integration_test
+4/4 Test #63: space_mysql_integration_test ...........   Passed    0.34 sec
+
+100% tests passed, 0 tests failed out of 4
+
+Total Test time (real) =   4.09 sec
+{"jpeg_bytes_lower_bound": 297717, "base64_bytes_lower_bound": 396956, "previous_body_limit": 131072, "current_artifact_body_limit": 2097152, "largest_successful_http_body_bytes": 397354, "passed": true}

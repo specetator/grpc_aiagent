@@ -1,0 +1,7 @@
+{
+  "kind": "diagnostic clip, not full recording acceptance",
+  "original_sha256": "121b03712aa51ffa453e7fa1b3b2f54c358cc6ad07eb1e5a4cfee9dc5f2fd041",
+  "start_ms": 0,
+  "duration_ms": 30000,
+  "clip_sha256": "816b109b133eaf3b1ddf8b81f45ce173ea8a9427e239e4626881b0abcf66473c"
+}

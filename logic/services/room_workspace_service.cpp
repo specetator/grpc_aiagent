@@ -86,6 +86,10 @@ ServiceStatus RoomAgentService::SetWorkspace(int64_t actor,int64_t room,const Js
 }
 ServiceStatus RoomAgentService::CheckAuthorization(const Json& scope,const Json& state) const {
     if(!state.at("member").get<bool>())return {403,"active room membership required"};
+    const auto context=scope.value("context_generation",Json(0));
+    if(!context.is_number_integer() || context<0 || context>9007199254740991LL ||
+       !state.contains("context_generation") || state.at("context_generation")!=context)
+        return {403,"room context authorization changed"};
     const auto* d=Definition(scope.at("agent_id"));
     if(!enabled_ || !d || !d->enabled || d->bot_user_id!=scope.at("bot_user_id") || d->runtime!=scope.at("runtime"))
         return {403,"Agent disabled or definition changed"};
@@ -102,9 +106,11 @@ bool RoomAgentService::PublishReply(const Json& request,const Json& reply,const 
     if(require_existing)*require_existing=false;
     const auto& scope=request.at("collaboration");
     const bool cann=!request.contains("agent_id");
-    // Pre-workspace generic requests retain their original contract. CANN now
-    // shares the publication fence, including replies to old persisted inputs.
-    if(!cann && (scope.value("kind","")!="room_agent_v1" || !scope.contains("workspace_generation"))) {*output=reply;return true;}
+    // Even pre-workspace requests must fence their first publication. Existing
+    // durable legacy replies are adopted below without rewriting their scope.
+    if(!cann && scope.value("kind","")!="room_agent_v1") {
+        if(error)*error="invalid room Agent scope";return false;
+    }
     if(configuration_error_) {if(error)*error="room Agent configuration unavailable";return false;}
     for(const auto* key:{"request_id","session_id","user_id","bot_user_id","collaboration"})
         if(!reply.contains(key) || reply.at(key)!=request.at(key))return false;
@@ -126,8 +132,8 @@ bool RoomAgentService::PublishReply(const Json& request,const Json& reply,const 
         try {return PublicationDigest(prepared.message.content_json,saved_result,true)==digest;}
         catch(const std::exception&){return false;}
     },[&](const Json& state){
-        if(cann && state.at("original_message").is_object()) {
-            // Older CANN finals predate this ledger. Adopt only a fully
+        if(state.contains("original_message") && state.at("original_message").is_object()) {
+            // Older CANN/generic finals predate this ledger. Adopt only a fully
             // verifiable durable result, never today's projection as a new
             // first answer. Partial/ambiguous legacy records fail closed.
             const auto& original=state.at("original_message");
@@ -160,7 +166,7 @@ bool RoomAgentService::PublishReply(const Json& request,const Json& reply,const 
         Json denied;
         for(const auto* field:{"request_id","session_id","user_id","bot_user_id","collaboration","completed_at_ms"})denied[field]=reply.at(field);
         denied["ok"]=false;denied["terminal_status"]="cancelled";
-        denied["text"]="工作区或成员授权已撤销，本次结果未发布。";
+        denied["text"]="房间上下文、工作区或成员授权已撤销，本次结果未发布。";
         return denied;
     },output,error,require_existing);
 }
@@ -174,6 +180,19 @@ ServiceStatus RoomAgentService::AuthorizeWorkspace(const std::string& key,const 
     if(!request.is_object() || !request.contains("agent_id"))return {404,"room Agent request not found"};
     auto access=CheckDispatch(request);if(!access.ok())return access;
     *output={{"request_id",id},{"collaboration",request.at("collaboration")}};
+    return {};
+}
+ServiceStatus RoomAgentService::AuthorizeContext(const std::string& key,const std::string& id,Json* output) {
+    Json authorized;auto status=AuthorizeWorkspace(key,{{"request_id",id}},&authorized);
+    if(!status.ok())return status;
+    const auto& scope=authorized.at("collaboration");
+    if(!scope.contains("context_generation"))return {409,"legacy request has no explicit media context"};
+    Json request;std::string error;
+    if(!repo_->Request(id,&request,&error))return {503,"room context request unavailable"};
+    if(!request.is_object() || request.at("collaboration")!=scope)return {409,"room context request changed"};
+    Json bots=Json::array({bot_});
+    for(const auto& agent:catalog_)bots.push_back(agent.bot_user_id);
+    *output={{"request_id",id},{"collaboration",scope},{"message_ceiling",request.at("message_seq")},{"bot_users",bots}};
     return {};
 }
 }

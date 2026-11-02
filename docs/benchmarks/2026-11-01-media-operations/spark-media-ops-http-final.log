@@ -1,0 +1,11 @@
+Real MySQL: repeated context migration preserved the existing epoch
+Real MySQL: repeated source migration preserved the existing receipt
+Real MySQL: pre-media upgrade and repeated migration preserved the old attachment row
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+Test project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+    Start 40: media_worker_http_test
+1/1 Test #40: media_worker_http_test ...........   Passed   87.27 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =  87.27 sec

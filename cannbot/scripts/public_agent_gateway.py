@@ -28,6 +28,8 @@ def validate_registry(registry):
     if registry.get('schema') != 1 or not isinstance(registry.get('agents'), list) or not 1 <= len(registry['agents']) <= 12:
         raise ValueError('public Gateway requires an explicit Agent catalog')
     for entry in registry['agents']:
+        if 'room_context_contract' in entry and (type(entry['room_context_contract']) is not int or entry['room_context_contract'] != 1):
+            raise ValueError('room_context_contract must be explicitly 1 or absent')
         if (entry.get('owner_user_ids') != [] or type(entry.get('room_enabled')) is not bool or
             entry.get('room_policy') != 'read_only' or entry.get('runtime') not in {'pi_rpc', 'hermes_native'}):
             raise ValueError('public Gateway cannot load private or legacy Agent definitions')
@@ -95,7 +97,7 @@ def serve(config, *, control_stdin=False):
             SPARK_PUSH_PUBLIC_PI_ROOT=str(home.directory('rooms')),
             SPARK_PUSH_PUBLIC_PI_MODELS_FILE=str(models),
             SPARK_PUSH_PUBLIC_PI_ENV_FILE=pi.get('model_env_file', ''),
-            SPARK_PUSH_ROOM_PROJECT_CATALOG=config['projects'],
+            SPARK_PUSH_ROOM_PROJECT_CATALOG=config.get('projects',''),
             SPARK_PUSH_PUBLIC_WORKSPACE_ROOT=config['snapshots'],
             SPARK_WORKSPACE_AUTH_ORIGIN=config['authority_origin'],
             SPARK_PUSH_WORKSPACE_AUTH_KEY=authority_key)

@@ -1,0 +1,600 @@
+{
+  "kind": "real-native-tools-and-models-with-fixture-authority",
+  "passed": false,
+  "scope": "Opt-in real native room tools/models with an HTTP authority fixture.\n\nThis is a native integration probe, NOT Logic/MySQL/Kafka/Web acceptance.\nOnly explicitly authorized default-profile MODEL access is provisioned into\nowned homes; private sessions/configuration/workspaces are never copied.\n",
+  "checks": [
+    "pi reads bounded room text without a code project",
+    "pi native tool result contains all three actual images",
+    "pi provider-bound request contains all three image payloads",
+    "pi answers three randomized no-text images correctly",
+    "Pi native process restart recalls only its room/epoch history",
+    "pi isolation turn actually reaches the model",
+    "pi provider history has the expected scope markers",
+    "pi provider history excludes other room/Agent/generation markers",
+    "Pi native process restart recalls only its room/epoch history",
+    "pi isolation turn actually reaches the model",
+    "pi provider history has the expected scope markers",
+    "pi provider history excludes other room/Agent/generation markers",
+    "Pi native process restart recalls only its room/epoch history",
+    "pi isolation turn actually reaches the model",
+    "pi provider history has the expected scope markers",
+    "pi provider history excludes other room/Agent/generation markers",
+    "Hermes advertises verified explicit room toolset",
+    "hermes reads bounded room text without a code project",
+    "hermes native tool result contains all three actual images",
+    "hermes provider-bound request contains all three image payloads",
+    "hermes answers three randomized no-text images correctly",
+    "hermes isolation turn actually reaches the model",
+    "hermes provider history has the expected scope markers",
+    "hermes provider history excludes other room/Agent/generation markers",
+    "hermes actual native todo state matches the scoped history",
+    "hermes isolation turn actually reaches the model",
+    "hermes provider history has the expected scope markers",
+    "hermes provider history excludes other room/Agent/generation markers"
+  ],
+  "runtimes": {
+    "pi": {
+      "answer": {
+        "nonce": "fd9a432778545e10d2e4996a",
+        "images": [
+          {
+            "left": {
+              "shape": "square",
+              "color": "red"
+            },
+            "right": {
+              "shape": "circle",
+              "color": "blue"
+            },
+            "lower": {
+              "shape": "triangle",
+              "color": "green"
+            }
+          },
+          {
+            "left": {
+              "shape": "square",
+              "color": "blue"
+            },
+            "right": {
+              "shape": "circle",
+              "color": "red"
+            },
+            "lower": {
+              "shape": "triangle",
+              "color": "green"
+            }
+          },
+          {
+            "left": {
+              "shape": "square",
+              "color": "green"
+            },
+            "right": {
+              "shape": "triangle",
+              "color": "blue"
+            },
+            "lower": {
+              "shape": "circle",
+              "color": "red"
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "left": {
+            "shape": "square",
+            "color": "red"
+          },
+          "right": {
+            "shape": "circle",
+            "color": "blue"
+          },
+          "lower": {
+            "shape": "triangle",
+            "color": "green"
+          }
+        },
+        {
+          "left": {
+            "shape": "square",
+            "color": "blue"
+          },
+          "right": {
+            "shape": "circle",
+            "color": "red"
+          },
+          "lower": {
+            "shape": "triangle",
+            "color": "green"
+          }
+        },
+        {
+          "left": {
+            "shape": "square",
+            "color": "green"
+          },
+          "right": {
+            "shape": "triangle",
+            "color": "blue"
+          },
+          "lower": {
+            "shape": "circle",
+            "color": "red"
+          }
+        }
+      ],
+      "image_sha256": [
+        "52d317733c72bcdfa74e9acdf10c26a9d6d1d1c415133fc31bf2e1c951b97671",
+        "61942a8410c198a92fed2c19679c2c931b6d1ce2357f81d43013b35750e0fbeb",
+        "94c7655ec13ec4ede0b17b181704e5fdfad72827cafec8ee03f8b4cde859725d"
+      ],
+      "audit": [
+        {
+          "phase": "provider",
+          "hashes": [],
+          "markers": [
+            "probe-memory-647fdcdc5d93320e8b722ef0"
+          ],
+          "request_id": "ra_848a70462dcd112c822f9ba1e8d7aff6576a4ef01673d4bded6818a8e3eb41f7"
+        },
+        {
+          "phase": "provider",
+          "hashes": [],
+          "markers": [
+            "probe-memory-647fdcdc5d93320e8b722ef0"
+          ],
+          "request_id": "ra_848a70462dcd112c822f9ba1e8d7aff6576a4ef01673d4bded6818a8e3eb41f7"
+        },
+        {
+          "phase": "tool",
+          "hashes": [
+            "52d317733c72bcdfa74e9acdf10c26a9d6d1d1c415133fc31bf2e1c951b97671"
+          ],
+          "markers": [],
+          "request_id": "ra_848a70462dcd112c822f9ba1e8d7aff6576a4ef01673d4bded6818a8e3eb41f7"
+        },
+        {
+          "phase": "tool",
+          "hashes": [
+            "94c7655ec13ec4ede0b17b181704e5fdfad72827cafec8ee03f8b4cde859725d"
+          ],
+          "markers": [],
+          "request_id": "ra_848a70462dcd112c822f9ba1e8d7aff6576a4ef01673d4bded6818a8e3eb41f7"
+        },
+        {
+          "phase": "tool",
+          "hashes": [
+            "61942a8410c198a92fed2c19679c2c931b6d1ce2357f81d43013b35750e0fbeb"
+          ],
+          "markers": [],
+          "request_id": "ra_848a70462dcd112c822f9ba1e8d7aff6576a4ef01673d4bded6818a8e3eb41f7"
+        },
+        {
+          "phase": "provider",
+          "hashes": [
+            "52d317733c72bcdfa74e9acdf10c26a9d6d1d1c415133fc31bf2e1c951b97671",
+            "94c7655ec13ec4ede0b17b181704e5fdfad72827cafec8ee03f8b4cde859725d",
+            "61942a8410c198a92fed2c19679c2c931b6d1ce2357f81d43013b35750e0fbeb"
+          ],
+          "markers": [
+            "probe-memory-647fdcdc5d93320e8b722ef0"
+          ],
+          "request_id": "ra_848a70462dcd112c822f9ba1e8d7aff6576a4ef01673d4bded6818a8e3eb41f7"
+        }
+      ],
+      "isolation": [
+        {
+          "provider_markers": [
+            "probe-memory-647fdcdc5d93320e8b722ef0"
+          ],
+          "todo_checked": false
+        },
+        {
+          "provider_markers": [],
+          "todo_checked": false
+        },
+        {
+          "provider_markers": [],
+          "todo_checked": false
+        }
+      ]
+    },
+    "hermes": {
+      "answer": {
+        "nonce": "fd9a432778545e10d2e4996a",
+        "images": [
+          {
+            "left": {
+              "shape": "square",
+              "color": "red"
+            },
+            "right": {
+              "shape": "circle",
+              "color": "blue"
+            },
+            "lower": {
+              "shape": "triangle",
+              "color": "green"
+            }
+          },
+          {
+            "left": {
+              "shape": "square",
+              "color": "blue"
+            },
+            "right": {
+              "shape": "circle",
+              "color": "red"
+            },
+            "lower": {
+              "shape": "triangle",
+              "color": "green"
+            }
+          },
+          {
+            "left": {
+              "shape": "square",
+              "color": "green"
+            },
+            "right": {
+              "shape": "triangle",
+              "color": "blue"
+            },
+            "lower": {
+              "shape": "circle",
+              "color": "red"
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "left": {
+            "shape": "square",
+            "color": "red"
+          },
+          "right": {
+            "shape": "circle",
+            "color": "blue"
+          },
+          "lower": {
+            "shape": "triangle",
+            "color": "green"
+          }
+        },
+        {
+          "left": {
+            "shape": "square",
+            "color": "blue"
+          },
+          "right": {
+            "shape": "circle",
+            "color": "red"
+          },
+          "lower": {
+            "shape": "triangle",
+            "color": "green"
+          }
+        },
+        {
+          "left": {
+            "shape": "square",
+            "color": "green"
+          },
+          "right": {
+            "shape": "triangle",
+            "color": "blue"
+          },
+          "lower": {
+            "shape": "circle",
+            "color": "red"
+          }
+        }
+      ],
+      "image_sha256": [
+        "52d317733c72bcdfa74e9acdf10c26a9d6d1d1c415133fc31bf2e1c951b97671",
+        "61942a8410c198a92fed2c19679c2c931b6d1ce2357f81d43013b35750e0fbeb",
+        "94c7655ec13ec4ede0b17b181704e5fdfad72827cafec8ee03f8b4cde859725d"
+      ],
+      "audit": [
+        {
+          "phase": "provider",
+          "hashes": [],
+          "status": 200,
+          "markers": [
+            "probe-memory-f27365bdfd9fafc32b31d87d"
+          ],
+          "request_id": null
+        },
+        {
+          "phase": "provider",
+          "hashes": [],
+          "status": 200,
+          "markers": [
+            "probe-memory-f27365bdfd9fafc32b31d87d"
+          ],
+          "request_id": "ra_378f8a0e40b4440f2e441e5e5cd8f5268d8a336f681dceaa6d1f283a252a409f"
+        },
+        {
+          "phase": "provider",
+          "hashes": [],
+          "status": 200,
+          "markers": [
+            "probe-memory-f27365bdfd9fafc32b31d87d"
+          ],
+          "request_id": "ra_378f8a0e40b4440f2e441e5e5cd8f5268d8a336f681dceaa6d1f283a252a409f"
+        },
+        {
+          "phase": "tool",
+          "hashes": [
+            "52d317733c72bcdfa74e9acdf10c26a9d6d1d1c415133fc31bf2e1c951b97671"
+          ],
+          "status": null,
+          "markers": [],
+          "request_id": "ra_378f8a0e40b4440f2e441e5e5cd8f5268d8a336f681dceaa6d1f283a252a409f"
+        },
+        {
+          "phase": "tool",
+          "hashes": [
+            "94c7655ec13ec4ede0b17b181704e5fdfad72827cafec8ee03f8b4cde859725d"
+          ],
+          "status": null,
+          "markers": [],
+          "request_id": "ra_378f8a0e40b4440f2e441e5e5cd8f5268d8a336f681dceaa6d1f283a252a409f"
+        },
+        {
+          "phase": "tool",
+          "hashes": [
+            "61942a8410c198a92fed2c19679c2c931b6d1ce2357f81d43013b35750e0fbeb"
+          ],
+          "status": null,
+          "markers": [],
+          "request_id": "ra_378f8a0e40b4440f2e441e5e5cd8f5268d8a336f681dceaa6d1f283a252a409f"
+        },
+        {
+          "phase": "provider",
+          "hashes": [
+            "52d317733c72bcdfa74e9acdf10c26a9d6d1d1c415133fc31bf2e1c951b97671",
+            "94c7655ec13ec4ede0b17b181704e5fdfad72827cafec8ee03f8b4cde859725d",
+            "61942a8410c198a92fed2c19679c2c931b6d1ce2357f81d43013b35750e0fbeb"
+          ],
+          "status": 200,
+          "markers": [
+            "probe-memory-f27365bdfd9fafc32b31d87d"
+          ],
+          "request_id": "ra_378f8a0e40b4440f2e441e5e5cd8f5268d8a336f681dceaa6d1f283a252a409f"
+        },
+        {
+          "phase": "todo",
+          "hashes": [],
+          "status": null,
+          "markers": [],
+          "request_id": "ra_378f8a0e40b4440f2e441e5e5cd8f5268d8a336f681dceaa6d1f283a252a409f"
+        }
+      ],
+      "isolation": [
+        {
+          "provider_markers": [
+            "probe-memory-f27365bdfd9fafc32b31d87d"
+          ],
+          "todo_checked": true
+        }
+      ]
+    }
+  },
+  "error_type": "AssertionError",
+  "failed_check": "hermes actual native todo state matches the scoped history",
+  "failure_audits": {
+    "pi": [
+      {
+        "phase": "provider",
+        "hashes": [],
+        "markers": [
+          "probe-memory-647fdcdc5d93320e8b722ef0"
+        ],
+        "request_id": "ra_848a70462dcd112c822f9ba1e8d7aff6576a4ef01673d4bded6818a8e3eb41f7"
+      },
+      {
+        "phase": "provider",
+        "hashes": [],
+        "markers": [
+          "probe-memory-647fdcdc5d93320e8b722ef0"
+        ],
+        "request_id": "ra_848a70462dcd112c822f9ba1e8d7aff6576a4ef01673d4bded6818a8e3eb41f7"
+      },
+      {
+        "phase": "tool",
+        "hashes": [
+          "52d317733c72bcdfa74e9acdf10c26a9d6d1d1c415133fc31bf2e1c951b97671"
+        ],
+        "markers": [],
+        "request_id": "ra_848a70462dcd112c822f9ba1e8d7aff6576a4ef01673d4bded6818a8e3eb41f7"
+      },
+      {
+        "phase": "tool",
+        "hashes": [
+          "94c7655ec13ec4ede0b17b181704e5fdfad72827cafec8ee03f8b4cde859725d"
+        ],
+        "markers": [],
+        "request_id": "ra_848a70462dcd112c822f9ba1e8d7aff6576a4ef01673d4bded6818a8e3eb41f7"
+      },
+      {
+        "phase": "tool",
+        "hashes": [
+          "61942a8410c198a92fed2c19679c2c931b6d1ce2357f81d43013b35750e0fbeb"
+        ],
+        "markers": [],
+        "request_id": "ra_848a70462dcd112c822f9ba1e8d7aff6576a4ef01673d4bded6818a8e3eb41f7"
+      },
+      {
+        "phase": "provider",
+        "hashes": [
+          "52d317733c72bcdfa74e9acdf10c26a9d6d1d1c415133fc31bf2e1c951b97671",
+          "94c7655ec13ec4ede0b17b181704e5fdfad72827cafec8ee03f8b4cde859725d",
+          "61942a8410c198a92fed2c19679c2c931b6d1ce2357f81d43013b35750e0fbeb"
+        ],
+        "markers": [
+          "probe-memory-647fdcdc5d93320e8b722ef0"
+        ],
+        "request_id": "ra_848a70462dcd112c822f9ba1e8d7aff6576a4ef01673d4bded6818a8e3eb41f7"
+      },
+      {
+        "phase": "provider",
+        "hashes": [
+          "52d317733c72bcdfa74e9acdf10c26a9d6d1d1c415133fc31bf2e1c951b97671",
+          "94c7655ec13ec4ede0b17b181704e5fdfad72827cafec8ee03f8b4cde859725d",
+          "61942a8410c198a92fed2c19679c2c931b6d1ce2357f81d43013b35750e0fbeb"
+        ],
+        "markers": [
+          "probe-memory-647fdcdc5d93320e8b722ef0"
+        ],
+        "request_id": "ra_b2b75837affe2c92b1cd1ccfb042af9e79810fc9ff2472e688c154d518495dd9"
+      },
+      {
+        "phase": "provider",
+        "hashes": [],
+        "markers": [],
+        "request_id": "ra_e7b16e83702456cdb2d44f643bcde50ce46b3330422d01530c5942395470559a"
+      },
+      {
+        "phase": "provider",
+        "hashes": [],
+        "markers": [],
+        "request_id": "ra_4ed8e75374fbb57b272ed96f8a9f52ac8c49c7ece0ccc6ee46819bb24bda89f2"
+      }
+    ],
+    "hermes": [
+      {
+        "phase": "provider",
+        "hashes": [],
+        "status": 200,
+        "markers": [
+          "probe-memory-f27365bdfd9fafc32b31d87d"
+        ],
+        "request_id": null
+      },
+      {
+        "phase": "provider",
+        "hashes": [],
+        "status": 200,
+        "markers": [
+          "probe-memory-f27365bdfd9fafc32b31d87d"
+        ],
+        "request_id": "ra_378f8a0e40b4440f2e441e5e5cd8f5268d8a336f681dceaa6d1f283a252a409f"
+      },
+      {
+        "phase": "provider",
+        "hashes": [],
+        "status": 200,
+        "markers": [
+          "probe-memory-f27365bdfd9fafc32b31d87d"
+        ],
+        "request_id": "ra_378f8a0e40b4440f2e441e5e5cd8f5268d8a336f681dceaa6d1f283a252a409f"
+      },
+      {
+        "phase": "tool",
+        "hashes": [
+          "52d317733c72bcdfa74e9acdf10c26a9d6d1d1c415133fc31bf2e1c951b97671"
+        ],
+        "status": null,
+        "markers": [],
+        "request_id": "ra_378f8a0e40b4440f2e441e5e5cd8f5268d8a336f681dceaa6d1f283a252a409f"
+      },
+      {
+        "phase": "tool",
+        "hashes": [
+          "94c7655ec13ec4ede0b17b181704e5fdfad72827cafec8ee03f8b4cde859725d"
+        ],
+        "status": null,
+        "markers": [],
+        "request_id": "ra_378f8a0e40b4440f2e441e5e5cd8f5268d8a336f681dceaa6d1f283a252a409f"
+      },
+      {
+        "phase": "tool",
+        "hashes": [
+          "61942a8410c198a92fed2c19679c2c931b6d1ce2357f81d43013b35750e0fbeb"
+        ],
+        "status": null,
+        "markers": [],
+        "request_id": "ra_378f8a0e40b4440f2e441e5e5cd8f5268d8a336f681dceaa6d1f283a252a409f"
+      },
+      {
+        "phase": "provider",
+        "hashes": [
+          "52d317733c72bcdfa74e9acdf10c26a9d6d1d1c415133fc31bf2e1c951b97671",
+          "94c7655ec13ec4ede0b17b181704e5fdfad72827cafec8ee03f8b4cde859725d",
+          "61942a8410c198a92fed2c19679c2c931b6d1ce2357f81d43013b35750e0fbeb"
+        ],
+        "status": 200,
+        "markers": [
+          "probe-memory-f27365bdfd9fafc32b31d87d"
+        ],
+        "request_id": "ra_378f8a0e40b4440f2e441e5e5cd8f5268d8a336f681dceaa6d1f283a252a409f"
+      },
+      {
+        "phase": "todo",
+        "hashes": [],
+        "status": null,
+        "markers": [],
+        "request_id": "ra_378f8a0e40b4440f2e441e5e5cd8f5268d8a336f681dceaa6d1f283a252a409f"
+      },
+      {
+        "phase": "provider",
+        "hashes": [],
+        "status": 200,
+        "markers": [
+          "probe-memory-f27365bdfd9fafc32b31d87d"
+        ],
+        "request_id": "ra_4ac08eb88e9b8a3c1e55c9fc0a3a8fa4b5328120ee210dd32354c855357112b2"
+      },
+      {
+        "phase": "provider",
+        "hashes": [],
+        "status": 200,
+        "markers": [
+          "probe-memory-f27365bdfd9fafc32b31d87d"
+        ],
+        "request_id": "ra_4ac08eb88e9b8a3c1e55c9fc0a3a8fa4b5328120ee210dd32354c855357112b2"
+      },
+      {
+        "phase": "todo",
+        "hashes": [],
+        "status": null,
+        "markers": [
+          "probe-memory-f27365bdfd9fafc32b31d87d"
+        ],
+        "request_id": "ra_4ac08eb88e9b8a3c1e55c9fc0a3a8fa4b5328120ee210dd32354c855357112b2"
+      },
+      {
+        "phase": "provider",
+        "hashes": [],
+        "status": 200,
+        "markers": [
+          "probe-memory-f27365bdfd9fafc32b31d87d"
+        ],
+        "request_id": "ra_03b703075aa56f975b3e4998e7d3851543c01e264b1ffc8e2f1300eb29e276ea"
+      },
+      {
+        "phase": "provider",
+        "hashes": [],
+        "status": 200,
+        "markers": [
+          "probe-memory-f27365bdfd9fafc32b31d87d"
+        ],
+        "request_id": "ra_03b703075aa56f975b3e4998e7d3851543c01e264b1ffc8e2f1300eb29e276ea"
+      },
+      {
+        "phase": "todo",
+        "hashes": [],
+        "status": null,
+        "markers": [],
+        "request_id": "ra_03b703075aa56f975b3e4998e7d3851543c01e264b1ffc8e2f1300eb29e276ea"
+      }
+    ]
+  },
+  "native_error_classes": [],
+  "private_profile_hashes_unchanged": true,
+  "tool_call_count": 10
+}

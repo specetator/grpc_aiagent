@@ -75,6 +75,38 @@ class GenericRoomTest(unittest.TestCase):
     def test_replay_restart_no_execution(self):
         sc=scope();self.call(sc);self.router=self.make_router()
         _,meta=self.call(sc);self.assertTrue(meta['turn_replayed']);self.assertEqual(len(self.factory.calls),1)
+
+    def test_context_epoch_isolates_runtime_and_persisted_projection(self):
+        from room_workspace import execution_namespace
+        original={**scope(),'project_id':'','workspace_generation':0,'context_generation':0}
+        old_answer,_=self.call(original,'old-private-context')
+        oldkey=execution_namespace(original)
+        self.router.store.compact_context(oldkey,'old-private-summary',keep_last=0)
+        fresh={**scope(seq=2),'project_id':'','workspace_generation':0,'context_generation':1}
+        answer,_=self.call(fresh,'new-authorized-context')
+        self.assertTrue(answer.endswith('new-authorized-context'))
+        self.assertNotIn('old-private',answer)
+        self.assertEqual(self.factory.sessions[execution_namespace(fresh)],['new-authorized-context'])
+        newkey=execution_namespace(fresh)
+        self.assertNotEqual(oldkey,newkey)
+        self.assertNotIn('old-private',json.dumps(self.router.store.context(newkey)))
+        self.router=self.make_router()
+        answer,_=self.call({**fresh,**scope(seq=3,actor=8)},'second-member')
+        self.assertTrue(answer.endswith('new-authorized-context|second-member'))
+        self.assertNotIn('old-private',answer)
+        # Same request cannot be reassigned to today's context, even on restart.
+        with self.assertRaises(ValueError):self.call({**original,'context_generation':1},'old-private-context')
+        before=len(self.factory.calls)
+        answer,meta=self.call(original,'old-private-context')
+        self.assertEqual(answer,old_answer);self.assertTrue(meta['turn_replayed'])
+        self.assertEqual(len(self.factory.calls),before)
+
+    def test_invalid_context_epoch_rejected_before_runtime(self):
+        original={**scope(),'project_id':'','workspace_generation':0}
+        for value in (None,True,-1,2**53,'1',1.5):
+            with self.assertRaises(ValueError):self.call({**original,'context_generation':value})
+        with self.assertRaises(ValueError):self.call({**scope(),'context_generation':0})
+        self.assertEqual(self.factory.calls,[])
     def test_completed_replay_after_revoke_and_catalog_disable_keeps_original(self):
         sc={**scope(), 'project_id':'sample', 'workspace_generation':1}
         text,meta=self.call(sc,'accepted code review')
@@ -271,5 +303,30 @@ class GenericRoomTest(unittest.TestCase):
         self.assertIn('--no-tools',worker.argv);self.assertIn('--no-extensions',worker.argv);self.assertIn('--no-skills',worker.argv)
         self.assertNotEqual(worker.cwd,private);self.assertNotEqual(worker.session_dir,prototype.session_dir)
         with self.assertRaises(ValueError):PublicRoomPiFactory(prototype,private/'public')
+
+    def test_public_media_tools_do_not_require_project_catalog(self):
+        made=[]
+        class Pi:
+            def __init__(self,argv,cwd,env,session_dir):self.argv,self.cwd,self.env,self.session_dir=argv,cwd,env,session_dir;made.append(self)
+            def start(self):pass
+            def stop(self):pass
+            def chat(self,*args,**kwargs):return 'ok',{}
+        private=self.root/'private';private.mkdir()
+        prototype=Pi(['/fixed/pi'],private,{'PATH':'/usr/bin'},private/'sessions')
+        environment={'SPARK_WORKSPACE_AUTH_ORIGIN':'http://127.0.0.1:1','SPARK_PUSH_WORKSPACE_AUTH_KEY':'k'*48}
+        with patch.dict(os.environ,environment,clear=True):factory=PublicRoomPiFactory(prototype,self.root/'public')
+        self.assertIsNone(factory.snapshots);self.assertIsNotNone(factory.authority)
+        sc={**scope(),'project_id':'','workspace_generation':0,'context_generation':0}
+        from room_workspace import execution_namespace
+        with patch.object(factory.authority,'authorize',return_value=sc) as authorize:
+            factory.for_scope(sc).chat('read room context',None,1,session_id=execution_namespace(sc),request_id=sc['request_id'])
+            self.assertEqual(authorize.call_count,2)
+        worker=made[-1]
+        self.assertIn('--no-builtin-tools',worker.argv);self.assertIn('--no-context-files',worker.argv)
+        self.assertNotIn('--no-tools',worker.argv)
+        extensions=[worker.argv[i+1] for i,arg in enumerate(worker.argv) if arg=='--extension']
+        self.assertEqual(len(extensions),1);self.assertTrue(extensions[0].endswith('/room-context.ts'))
+        self.assertEqual(json.loads(worker.env['SPARK_PUBLIC_SCOPE']),sc)
+        self.assertNotIn('SPARK_PUBLIC_SNAPSHOT',worker.env)
 
 if __name__=='__main__':unittest.main()

@@ -1,0 +1,211 @@
+{
+  "date": "2026-11-01",
+  "base_commit": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "worktree": "Uncommitted additive multimodal development; earlier work preserved; no private profile or credential changed",
+  "status": "authorized_context_api_passed",
+  "full_multimodal_goal_complete": false,
+  "scope": "Canonical request-bound room message/media/fragment search and bounded reads, JPEG transport, durable source receipts. Native tool registration and native model understanding remain incomplete.",
+  "validation": [
+    {
+      "command": "cmake --build build-wsl -j2",
+      "exit_code": 0,
+      "evidence": "build.txt"
+    },
+    {
+      "command": "ctest --test-dir build-wsl --output-on-failure --output-junit /tmp/spark-media-tools-ctest-final.xml",
+      "exit_code": 0,
+      "registered": 77,
+      "passed": 66,
+      "skipped": 11,
+      "failed": 0,
+      "evidence": [
+        "ctest.txt",
+        "ctest.xml"
+      ]
+    },
+    {
+      "command": "env -u SPARK_TEST_MEDIA_IMAGE -u SPARK_TEST_MEDIA_WORKER_TEST SPARK_TEST_CONTEXT_IMAGE=spark-media:development SPARK_TEST_MEDIA_MODEL=/tmp/spark-media-asr-small python3 tests/run_mysql_review_tests.py build-wsl",
+      "exit_code": 0,
+      "passed_ctest_entries": [
+        "media_context_http_test",
+        "media_processing_http_test",
+        "media_mysql_integration_test",
+        "media_artifact_mysql_test",
+        "message_reservation_integration_test",
+        "space_mysql_integration_test"
+      ],
+      "evidence": [
+        "mysql.txt",
+        "context-http.json"
+      ]
+    },
+    {
+      "command": "python3 cannbot/scripts/validate_knowledge.py --strict",
+      "exit_code": 0,
+      "sources": 179,
+      "evidence": "knowledge.txt"
+    },
+    {
+      "command": "python3 cannbot/scripts/test_pi_citations.py",
+      "exit_code": 0,
+      "evidence": "citations.txt"
+    },
+    {
+      "command": "python3 cannbot/scripts/sync_pi_agent.py --check",
+      "exit_code": 1,
+      "meaning": "Read-only installed Skill/settings differences; no synchronization or personal configuration edits",
+      "evidence": "sync-check.txt"
+    }
+  ],
+  "contracts": {
+    "media_context_service_test": {
+      "checks": 59,
+      "type": "Controlled repositories, actual RoomAgentService policy; no native model"
+    },
+    "room_agent_service_test": {
+      "checks": 214,
+      "type": "Existing service regression"
+    }
+  },
+  "real_http_cases": [
+    "literal SQL search; pre-LIMIT epoch filter; canonical room and message ceiling",
+    "Unicode bounded read; deterministic durable receipts; actual HTTP process restart",
+    "two observed SQL lock waiters compete for last receipt slot; no overrun; duplicate at capacity; request-bound IDs",
+    "literal fragment search locates long-text tail with real line anchor and stable read receipt",
+    "real text upload/worker/publication; fixed revision; cross-room read denied even for dual member",
+    "source withdrawal while HTTP read waits; fragment payload/hash mismatch rejected",
+    "real Docker image parsing and JPEG read; zero-text discovery; metadata versus image receipts",
+    "actual HTTP read blocked on room lock; epoch commit fences receipt and protected response",
+    "actual in-flight HTTP member revocation; final authorization withholds source data",
+    "member removal, never-member, uninstalled Agent and stale epoch denied",
+    "missing receipt migration fails closed; old receipts remain unchanged"
+  ],
+  "real_http_scope": {
+    "accounts": 3,
+    "private_rooms": 2,
+    "fixture": "Production HttpApiServer, Service, MySQL repositories and Redis bearer sessions; canonical messages and Agent requests seeded via owned SQL",
+    "parser": "Actual production Docker parser worker on text-free PNG; actual JPEG bytes/hash/anchor read through context API; real text upload and text worker for long-text tail",
+    "faults": "Actual server process kill/restart; controlled SQL epoch/member/source mutation while HTTP request is observed waiting on im_group; actual payload/hash inconsistency and missing table",
+    "receipt_budget": "8191 rows seeded for volume, two real HTTP requests observed waiting on room lock, then competing for last slot; one succeeds, one429, count8192; duplicate still succeeds"
+  },
+  "migrations": [
+    "New source migration and all prerequisite media migrations applied twice in owned database",
+    "Existing source receipt, context generation17 and old attachment row preserved"
+  ],
+  "supplemented_skips": [
+    "media_context_http_test",
+    "media_processing_http_test",
+    "media_mysql_integration_test",
+    "media_artifact_mysql_test",
+    "message_reservation_integration_test",
+    "space_mysql_integration_test"
+  ],
+  "not_rerun_skips": [
+    "route_generation_integration_test",
+    "media_pipeline_http_test",
+    "media_worker_http_test",
+    "collaboration_browser_test",
+    "redis_sequence_integration_test"
+  ],
+  "independent_review": {
+    "code": "Round2 PASS after correcting per-item response byte reservation; reviewer did not execute tests",
+    "evidence": "Round3 PASS for current code and final terminal outputs; reviewer did not execute tests",
+    "evidence_file": "independent-review.md"
+  },
+  "development_findings": [
+    {
+      "finding": "A fixed4096-byte reserve cannot cover up to60 source_id fields",
+      "resolution": "Reserve96bytes per item plus4096 envelope headroom, validate68-byte receipt IDs, recheck final serialized size; oversized-result contract59-check suite passed"
+    },
+    {
+      "finding": "Asset-only media search could not directly locate long-recording decisions",
+      "resolution": "Reuse published fragment literal search; return full matched fragment with index and canonical anchor; long-text tail read/hash identity verified"
+    }
+  ],
+  "limitations": [
+    "Native Pi/Hermes room tools are not registered yet; request_id injection and native image conversion remain next-stage work",
+    "No model was called by this stage; JPEG read is not visual understanding",
+    "No final-answer/task source validation, shared delete product API or Web media interaction yet",
+    "Controlled SQL withdrawal/epoch mutation tests do not implement production deletion",
+    "Fragment search provides a bounded has_more hint and query refinement; asset and message cursors do not page fragment matches",
+    "Receipts attest server-observed source ranges; they do not attest client receipt, model consumption or correctness",
+    "No new retraction barrier for previously authorized Kafka/Comet frames or delivered network bytes",
+    "No Kafka/native model/browser/full20-minute audio/video E2E rerun in this module; previous parser/worker evidence is historical, not relabeled",
+    "Independent Redis route/sequence, parser publication HTTP, worker HTTP and browser fixture remain unrerun in this phase"
+  ],
+  "next_stage": [
+    "Register room_search, room_read and room_read_media in existing Pi/Hermes runtimes with trusted request_id injection",
+    "Validate actual native image payload and room/Agent/generation history isolation",
+    "Integrate final/task references, controlled deletion, Web media library and three-user end-to-end collaboration"
+  ],
+  "source_sha256": {
+    "logic/services/media_context_service.h": "02a9af356554e4e31ad166088f9d78c94d4ad7fe17d03bb29f4f63a02275bec2",
+    "logic/services/media_context_service.cpp": "82381848ae4d2c55a01a4f4e75c2c44c819449728f42abc792b2fabae6fd689a",
+    "logic/repositories/media_context_repository.h": "cae1512990a375a3213f9af0c207a6f7e3fb503ebef45c3f561fe8a83bc68fa6",
+    "logic/repositories/media_context_repository.cpp": "4b54bec9d26f7671ce633db7522b358fa258b1426d36a5fdb16d2d3976bed03e",
+    "logic/services/room_agent_service.h": "32035ba468c5d7caba09aa320bec2bfafb9ad6c6c6f3eab957dd1af63f2d145c",
+    "logic/services/room_agent_service.cpp": "b774c678e5c189d5cc151cc936ca2802f2bf887c08cdfbbc4077263f1a3d1dd2",
+    "logic/services/room_agent_catalog.cpp": "2746ea58fa4fb6646121fcd5b0caa53d98898aa704d442be9f0c8bc237e86b00",
+    "logic/services/room_workspace_service.cpp": "7d1930405f09515fb0bd7c97c71c6b1c2cce25dcd85cb0e760b213c38c26f70c",
+    "logic/repositories/room_agent_repository.cpp": "786b6fad9f12b3b200c44d9863a4a41c0dabce12b8565b4eb8fee4de092b4283",
+    "logic/services/media_processing_service.cpp": "0768c2d3bd5cd87dcfb30f9c75f1c5304e55a2a0a8d27db67993dfd1b178fb12",
+    "logic/repositories/media_processing_repository.cpp": "f6a819f8a217fea3e3eb4e156896f0643eac49e8ef8668b8ba922d3d7f5e38d6",
+    "logic/repositories/media_artifact_repository.cpp": "11b6b5a31d5f42efb85c78748ec907aeb32c706cc72eb76f99a6f914e00d7d91",
+    "logic/services/message_service.cpp": "9dc0bd2738bfdd137d32ef7111ac88fd473849852637b4f7a8745b198ae4f67a",
+    "logic/http_server.cpp": "3f0efbb8db8be3af78bc52050fd3e76ad13ce1ea11046dd3824545613b2e081d",
+    "logic/http_server.h": "94f9624b70d96123cd7fcd083e0211b3f9423caf65f0ffc8272c5e225b06d33b",
+    "logic/main.cpp": "c5b1d856ee11e5cef11476394e3f74ee42d73a6489f53e855c102a1fe8232b2e",
+    "logic/CMakeLists.txt": "ecc12baeddfda6c6f304854981ad59b750f8a712a80dcaa8e6af4db311c18aa6",
+    "sql/schema.sql": "6a4d8c75e991d714074c8386eb4f717d91b9ef8103c65eac750655d7bc5d5f85",
+    "sql/migrations/20261101_media_context_sources.sql": "f35123f6b3d31d1570cf063483a704ededf8031137f1531c79116ac93d2f1c97",
+    "tests/media_context_service_test.cpp": "94f6d9ffde8971fd1ebb00b8edd991c1138685bc27810ce3264251a07041bc7a",
+    "tests/media_context_http_test.py": "7ea6809e0d8283a4d82ae9cff287e4fc0ab703834c56ba9ff27a97d19a8a7de9",
+    "tests/media_processing_http_probe.cpp": "c42b2fd1579ad3283387f716b368ad16b41eb1f21e8cb5de132a08ad747cc9e8",
+    "tests/run_mysql_review_tests.py": "3be388fafd1c0c4ba5ffe0542a2230eea3103bca4866eb6cbbb3b8b2dd93074d",
+    "tests/CMakeLists.txt": "046ba50475e767b12945b39b8425fa0b58b109519371cb8a6dd539c4b2adcc94",
+    "docs/room-context-tools.md": "714f33ea2b2263f471efb452d771bf04a1d58afa973c8b25eb6e7106699566dc",
+    "docs/media-agent-context.md": "df76c0708a7e36c6ca0760d7e4dc6fdeded999aeaa9630e37c16192141eb3786",
+    "docs/multimodal-collaboration.md": "26b143fa2f3b1b04a078e6cc172882c2a1584fc7a61a690be13741ab7f8f8ffd",
+    "cannbot/knowledge-sources.json": "377a78b33c0b5d5db17ffc3b7d11199d0705377a25ba48480fb0903482a51d24",
+    "cannbot/skills/spark-push-knowledge/references/architecture-map.md": "dae27a2d03154adf3410fec841e2d42bbd2864e51e36268c4de02c9793fdb89a"
+  },
+  "artifacts": {
+    "build.txt": {
+      "path": "2026-11-01-room-context-tools/build.txt",
+      "sha256": "1b081501df3641f4c6f13e362dba48e7b5a1f23e5bc55559fc59f521a55c6d52"
+    },
+    "ctest.txt": {
+      "path": "2026-11-01-room-context-tools/ctest.txt",
+      "sha256": "96dd898fd891f05757d4c110afbd3acf06760530d71b54805fdf5e0be5c01d98"
+    },
+    "ctest.xml": {
+      "path": "2026-11-01-room-context-tools/ctest.xml",
+      "sha256": "cb35f56ea9561a8dbd94337b7204c702f1bdc252d488372e1a4106c3353cc24d"
+    },
+    "mysql.txt": {
+      "path": "2026-11-01-room-context-tools/mysql.txt",
+      "sha256": "ab5eb7eb9b9fd2b62cf1196f635da465eefbc93fe8a8e7d0dbaa7c23dcb6af3b"
+    },
+    "context-http.json": {
+      "path": "2026-11-01-room-context-tools/context-http.json",
+      "sha256": "025b50298329eb9df2b5432cae63353a3b16400b5c66bac81d849aa938fac5c6"
+    },
+    "knowledge.txt": {
+      "path": "2026-11-01-room-context-tools/knowledge.txt",
+      "sha256": "f71612eeda72f30c9bbe39a6cb8f3a6f0090acec8b18871035323ae2ad29a5de"
+    },
+    "citations.txt": {
+      "path": "2026-11-01-room-context-tools/citations.txt",
+      "sha256": "01a43506d267a7a8c1fa33c62440e0f358f234ab91c15370875742cf02a9f8d4"
+    },
+    "sync-check.txt": {
+      "path": "2026-11-01-room-context-tools/sync-check.txt",
+      "sha256": "6bce1a61aea5c376aa689eb08e2cd56882849e14966824610c6a729a63dcc11c"
+    },
+    "independent-review.md": {
+      "path": "2026-11-01-room-context-tools/independent-review.md",
+      "sha256": "12bb822f4aa14d138bbc27e113ee323d880b7d7d6c3b0fa0700e0050ecbabd87"
+    }
+  },
+  "preserved_interview_handbook_sha256": "125b059f03dcb5b69b4f34ac34cbb75d15366d2e2a5ab6d649fe6916e8c105a4"
+}

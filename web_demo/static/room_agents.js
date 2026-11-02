@@ -16,7 +16,7 @@ class RoomAgents {
   async invoke(path,body){
     const version=this.version;
     try {const data=await this.api('/api/chatroom/agents/'+path,{room_id:this.room,...body});return version===this.version?data:null;}
-    catch(error){if(version===this.version)this.notice(error.message);return null;}
+    catch(error){if(version===this.version){this.notice(error.message);if(path==='sources'&&error.code===403)this.options.sourceDenied?.(this.room);}return null;}
   }
   async refresh(){
     if(!this.room)return;
@@ -42,6 +42,7 @@ class RoomAgents {
       const row=document.createElement('div');row.dataset.requestId=request.request_id;
       row.textContent=`${request.agent_name} · ${this.options.name?.(request.actor_user_id)||('发起人 '+request.actor_user_id)} · ${this.options.status?.(request.status)||request.status}`;
       if(request.result && request.result.text){const detail=document.createElement('pre');detail.style.whiteSpace='pre-wrap';detail.textContent=request.result.text;row.appendChild(detail);}
+      this.sourcesButton(row,request.request_id);
       const query=document.createElement('button');query.textContent='查询执行状态';
       query.onclick=async()=>{
         const state=await this.invoke('control',{request_id:request.request_id,operation:'status'});if(!state)return;
@@ -53,6 +54,12 @@ class RoomAgents {
       };row.appendChild(query);
       if(request.status==='completed'){
         const save=document.createElement('button');save.textContent='保存为协作任务';save.onclick=()=>this.createTask(request);row.appendChild(save);
+        const proposal=this.proposal(request.result?.text||'');
+        for(const task of (Array.isArray(proposal.tasks)?proposal.tasks:[]).slice(0,30)){
+          if(!task||typeof task.title!=='string')continue;
+          const button=document.createElement('button');button.textContent='保存任务 · '+task.title;
+          button.onclick=()=>this.createTask(request,task);row.appendChild(button);
+        }
       }
       if(request.status==='unknown'){
         const recover=document.createElement('button');recover.textContent='恢复原请求';
@@ -76,10 +83,65 @@ class RoomAgents {
     try{const result=await this.api('/api/chatroom/tasks/'+action,{room_id:this.room,...body});return version===this.version?result:null;}
     catch(error){if(version===this.version)this.notice(error.message);return null;}
   }
-  async createTask(request){
+  proposal(text){try{const value=JSON.parse(text.slice(text.indexOf('{'),text.lastIndexOf('}')+1));return value&&typeof value==='object'&&!Array.isArray(value)?value:{};}catch(_){return {};}}
+  timelineSources(parent,request){
+    if(!this.options.openSource||typeof request!=='string'||!request||request.length>121)return;
+    let box=parent.querySelector('[data-message-sources]');
+    if(box&&box.dataset.sourceVersion===String(this.version)&&box.dataset.requestId===request)return;
+    if(!box){box=document.createElement('div');box.dataset.messageSources='';parent.append(box);}else box.replaceChildren();
+    box.dataset.sourceVersion=String(this.version);box.dataset.requestId=request;this.sourcesButton(box,request);
+  }
+  sourcesButton(parent,request,ids){
+    if(!this.options.openSource)return;
+    const button=document.createElement('button');button.textContent=ids?'查看任务来源':'查看读取来源';
+    const box=document.createElement('div');box.hidden=true;box.dataset.sourceList='';
+    let after='',loading=false;const version=this.version;
+    const load=async more=>{
+      if(loading||version!==this.version)return;loading=true;
+      if(!more)box.replaceChildren();
+      try{
+        const page=await this.invoke('sources',{request_id:request,...(ids?{source_ids:ids}:more?{after}:{})});if(!page)return;
+        if(!more){box.replaceChildren();const hint=document.createElement('p');hint.textContent=ids?'任务保存的来源，点击后重新核对可用性。':'服务端记录的读取来源，不代表结论已经核实。';box.append(hint);}
+        for(const source of page.items){
+          const row=document.createElement('div'),link=document.createElement('button');
+          link.textContent=source.available?source.name:'来源已失效或已撤回';link.disabled=!source.available;link.dataset.sourceId=source.source_id;
+          if(source.available){const ref=source.reference,anchor=ref.anchor||{};
+            if(ref.kind==='image_metadata')link.textContent+='（图片信息）';
+            if(ref.kind==='media')link.textContent+='（资料目录）';
+            if(anchor.page)link.textContent+=' · 第 '+anchor.page+' 页';
+            else if(anchor.start_ms!==undefined||anchor.timestamp_ms!==undefined){const seconds=Math.floor((anchor.start_ms??anchor.timestamp_ms)/1000);link.textContent+=' · '+Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');}
+            else if(ref.line_start)link.textContent+=' · 第 '+ref.line_start+' 行';
+          }
+          link.onclick=()=>{if(version===this.version)this.options.openSource(request,source.source_id);};row.append(link);box.append(row);
+        }
+        if(!page.items.length&&!more){const empty=document.createElement('p');empty.textContent='此请求没有可显示的资料读取回执。';box.append(empty);}
+        after=page.next_after;next.hidden=!page.has_more;box.append(next);
+      }finally{loading=false;}
+    };
+    const next=document.createElement('button');next.textContent='更多来源';next.hidden=true;next.onclick=()=>load(true);
+    button.onclick=()=>{box.hidden=!box.hidden;if(!box.hidden)load(false);};parent.append(button,box);
+  }
+  static taskDraft(candidate){
+    const proposal={title:typeof candidate.title==='string'?candidate.title:'',description:typeof candidate.description==='string'?candidate.description:'',
+      steps:Array.isArray(candidate.steps)?candidate.steps.filter(value=>typeof value==='string').slice(0,30):[]};
+    // Keep review evidence in the existing editable/persisted description.
+    // Content uncertainty is not the Runtime's execution "unknown" state.
+    const review=[];
+    if(candidate.needs_confirmation===true)review.push('待确认：请核对来源中的姓名、术语与任务内容后再执行。');
+    for(const [key,label] of [['verbatim_quote','模型摘录（待核对）'],['interpretation','模型解释'],['reason','确认说明']]){
+      if(typeof candidate[key]==='string'&&candidate[key].trim())review.push(label+'：'+candidate[key].trim());
+    }
+    if(review.length)proposal.description=[...review,proposal.description].filter(Boolean).join('\n\n');
+    return proposal;
+  }
+  async createTask(request,selected){
+    if(this.savingTask)return;this.savingTask=true;
+    try{
     const version=this.version;
-    let proposal={};const text=request.result?.text||'';
-    try{const raw=text.slice(text.indexOf('{'),text.lastIndexOf('}')+1);proposal=JSON.parse(raw);}catch(_){}
+    const text=request.result?.text||'',candidate=selected||this.proposal(text);
+    const sourceIds=candidate.source_ids??[...new Set((selected?JSON.stringify(selected):text).match(/\bsrc_[a-f0-9]{64}\b/g)||[])];
+    if(!Array.isArray(sourceIds)||sourceIds.length>32||sourceIds.some(id=>typeof id!=='string'||!/^src_[a-f0-9]{64}$/.test(id))){this.notice('任务来源格式无效或超过 32 项，请选择单项任务建议。');return;}
+    const proposal=RoomAgents.taskDraft(candidate);
     let title,description,steps;
     if(this.options.editTask){const edited=await this.options.editTask(request,proposal);if(!edited||version!==this.version)return;({title,description,steps}=edited);}
     else {
@@ -87,7 +149,8 @@ class RoomAgents {
       description=global.prompt('任务描述',typeof proposal.description==='string'?proposal.description:text);if(description===null)return;
       steps=global.prompt('建议步骤（每行一项）',Array.isArray(proposal.steps)?proposal.steps.filter(x=>typeof x==='string').join('\n'):'');if(steps===null)return;
     }
-    if(await this.taskApi('create',{request_id:request.request_id,title,description,steps:steps.split('\n').filter(x=>x.trim())}))await this.loadTasks();
+    if(await this.taskApi('create',{request_id:request.request_id,title,description,steps:steps.split('\n').filter(x=>x.trim()),source_ids:[...new Set(sourceIds)]}))await this.loadTasks();
+    }finally{this.savingTask=false;}
   }
   async loadTasks(){
     const target=this.panel.querySelector('[data-room-tasks]');if(!target||!this.room)return;
@@ -98,6 +161,7 @@ class RoomAgents {
       const title=document.createElement('summary');title.textContent=`${task.title} · ${this.options.status?.(task.status)||task.status} · ${task.assignee_user_id?'负责人 '+(this.options.name?.(task.assignee_user_id)||task.assignee_user_id):'待接手'}`;
       const body=document.createElement('pre');body.style.whiteSpace='pre-wrap';body.textContent=`${task.description}\n步骤：\n${task.steps.join('\n')}\n交接：${task.summary}\n进度由成员更新，不代表测试已通过。`;
       detail.append(title,body);
+      if(task.source_ids?.length)this.sourcesButton(detail,task.request_id,task.source_ids);
       const claim=document.createElement('button');claim.textContent='接手任务';claim.onclick=async()=>{if(await this.taskApi('update',{task_id:task.task_id,revision:task.revision,claim:true,status:'running'}))await this.loadTasks();};detail.appendChild(claim);
       const update=document.createElement('button');update.textContent='更新进度 / 交接';update.onclick=async()=>{
         const version=this.version;let summary,status;

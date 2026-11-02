@@ -36,7 +36,9 @@ docker compose -f docker-compose.yml -f docker-compose.agents.yml \
   Connector 须监听 Docker 能到达的宿主机接口，宿主 `127.0.0.1` 并非容器回环。
 - 授权回连默认只发布 `127.0.0.1:9011`。Connector 的
   `SPARK_WORKSPACE_AUTH_ORIGIN` 应为 `http://127.0.0.1:9011`。
-  此入口只代理 `POST /internal/room-agent/authorize`；其他 API、metrics 和方法返回 404。
+  此入口只代理 POST 到工作区授权、三个房间资料查询接口及已声明的媒体 worker 完整路径；
+  其他 API、metrics 和方法返回 404。资料查询与 worker 使用不同的 Service 凭据，
+  公共 9010 入口显式拒绝 `/internal` 路径。媒体配置和路径边界见[服务链路说明](multimodal-service-e2e.md)。
 - Windows Native 或其他受信宿主需要回连时，可显式设置
   `SPARK_PUSH_AGENT_AUTH_BIND`、`SPARK_PUSH_AGENT_AUTH_PORT` 为其可达接口。
   Logic 仍校验专用 Bearer；网络可达本身不授予房间访问权。
@@ -79,7 +81,9 @@ python3 cannbot/scripts/public_agent_gateway.py --config /srv/spark-public/publi
 公共 Pi Gateway 当前仅支持 Linux；停机依赖原生进程组及 `/proc` 检查。
 此入口清理环境、固定单 worker，创建无工具的独立 Pi prototype，再调用已有
 `load_router` / `make_handler`。每个房间/Agent/授权代次使用独立原生 session。
-公共请求目前只接受 Logic 构造的文本上下文；图片没有进入公共 Agent 协议。
+公共请求继续由 Logic 构造文本上下文与结构化身份。显式配置 `room_context_contract: 1` 后，
+Agent 可按当前请求授权，通过原生资料工具读取转写、文档片段及实际图片；图片读取不等于模型视觉准确性已通过。
+Catalog 和独立 Hermes 启动配置都须声明该合同，默认部署示例保持关闭。具体配置见[原生资料工具](room-context-native-tools.md)。
 未绑定项目时也检查当前成员权。绑定项目后，只能通过 guarded read 读取该次
 请求的不可变快照；不开放 shell、写入、全局扩展或私人 Skills。
 
@@ -104,7 +108,8 @@ secret source，拒绝继承其他 global profile root，也拒绝 home 内隐�
 
 Native 只开放需要的 Runs、session 创建/查询、状态、事件、停止及审批接口。
 `/p/...` Profile 切换、chat/responses、浏览器、插件路由、任意 session 配置与
-工具参数入口均拒绝。工具实际列表必须限制为 `workspace_read` / `todo_list`，
+工具参数入口均拒绝。工具实际列表限制为 `workspace_read` / `todo_list`；显式启用资料合同时才增加
+`room_search` / `room_read` / `room_read_media`，
 Memory、用户 Profile、MCP、工具搜索与 checkpoints 关闭。原生能力不匹配时
 启动或调用失败，不回退到私人服务。
 

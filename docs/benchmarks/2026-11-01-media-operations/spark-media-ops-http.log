@@ -1,0 +1,44 @@
+Real MySQL: repeated context migration preserved the existing epoch
+Real MySQL: repeated source migration preserved the existing receipt
+Real MySQL: pre-media upgrade and repeated migration preserved the old attachment row
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+Test project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+    Start 40: media_worker_http_test
+1/1 Test #40: media_worker_http_test ...........***Failed   79.15 sec
+real worker passed: worker_publish_diagram.png
+real worker passed: worker_publish_design.pdf
+real worker passed: worker_publish_notes.docx
+real worker passed: worker_publish_incident.mp4
+real worker passed: worker_publish_speech.wav
+real worker passed: claim_media_lost_three_replies_same_assignment
+real worker passed: reserve_lost_three_replies_same_assignment
+real worker passed: partial_upload_kill_tamper_and_foreign_container_recovery
+real worker passed: published_reply_lost_recovers_without_parser
+real worker passed: real_capacity_wait_renews_then_resumes_original_assignment
+real worker passed: kill_after_docker_create_before_id_return
+real worker passed: encrypted_pdf_failed_without_publication_and_reclaimed
+real worker passed: continuous_worker_idle_then_two_distinct_jobs_and_sigterm
+systemctl: unrecognized option '--kill-whom=main'
+Traceback (most recent call last):
+  File "/home/peco/cppcode/fenbushi/sparkpush_project/tests/media_worker_http_test.py", line 328, in <module>
+    if __name__=='__main__':sys.exit(main())
+  File "/home/peco/cppcode/fenbushi/sparkpush_project/tests/media_worker_http_test.py", line 253, in main
+    subprocess.run(['systemctl','--user','kill','--kill-whom=main','--signal=SIGKILL',managed_unit+'.service'],check=True)
+  File "/usr/lib/python3.10/subprocess.py", line 526, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['systemctl', '--user', 'kill', '--kill-whom=main', '--signal=SIGKILL', 'spark-media-worker-test-45451399a2.service']' returned non-zero exit status 1.
+
+
+0% tests passed, 1 tests failed out of 1
+
+Total Test time (real) =  79.15 sec
+
+The following tests FAILED:
+	 40 - media_worker_http_test (Failed)
+Errors while running CTest
+Traceback (most recent call last):
+  File "/home/peco/cppcode/fenbushi/sparkpush_project/tests/run_mysql_review_tests.py", line 107, in <module>
+    subprocess.run(["ctest", "--test-dir", str(build), "-R", "^media_worker_http_test$",
+  File "/usr/lib/python3.10/subprocess.py", line 526, in run
+    raise CalledProcessError(retcode, process.args,
+subprocess.CalledProcessError: Command '['ctest', '--test-dir', '/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl', '-R', '^media_worker_http_test$', '--output-on-failure']' returned non-zero exit status 8.

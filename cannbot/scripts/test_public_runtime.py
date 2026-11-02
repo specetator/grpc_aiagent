@@ -243,11 +243,33 @@ class PublicRuntimeTest(unittest.TestCase):
                'memory':{'memory_enabled':False,'user_profile_enabled':False},'mcp_servers':{},
                'checkpoints':{'enabled':False},'approvals':{'mode':'manual'}}
         validate_native_policy(value)
+        media=copy.deepcopy(value);media['platform_toolsets']['api_server'].append('spark_room_context')
+        validate_native_policy(media,context_tools=True)
+        with self.assertRaises(ValueError):validate_native_policy(media)
+        with self.assertRaises(ValueError):validate_native_policy(value,context_tools=True)
         for key,changed in [('platform_toolsets',{'api_server':['todo','spark_workspace','terminal']}),
                             ('memory',{'memory_enabled':True,'user_profile_enabled':False}),
                             ('mcp_servers',{'private':{}}),('approvals',{'mode':'auto'})]:
             bad=copy.deepcopy(value);bad[key]=changed
             with self.assertRaises(ValueError):validate_native_policy(bad)
+
+    def test_media_upgrade_reports_owned_policy_mismatch_without_rewriting(self):
+        import contextlib
+        import io
+        from hermes_public_gateway import main
+        config=self.root/'old-native.json'
+        config.write_text(json.dumps({'platform_toolsets':{'api_server':['todo','spark_workspace']}}))
+        original=config.read_bytes()
+        launcher=self.root/'launcher.json';launcher.write_text(json.dumps({'room_context_contract':1}))
+        def attempted_start(settings,**kwargs):
+            self.assertEqual(settings['room_context_contract'],1)
+            validate_native_policy(json.loads(config.read_text()),context_tools=True)
+        output=io.StringIO()
+        with patch('hermes_public_gateway.serve',side_effect=attempted_start), patch('sys.argv',['public','--config',str(launcher)]), contextlib.redirect_stdout(output):
+            self.assertEqual(main(),1)
+        self.assertEqual(config.read_bytes(),original)
+        self.assertIn('toolsets mismatch',output.getvalue());self.assertIn('room_context_contract',output.getvalue())
+        self.assertNotIn(str(self.root),output.getvalue())
 
     def test_native_dotenv_cannot_discover_source_or_another_profile(self):
         calls=[]

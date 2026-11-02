@@ -1,0 +1,91 @@
+{
+  "date": "2026-11-02",
+  "phase": "ASR diagnostic and persistent task review notes",
+  "overall_goal_complete": false,
+  "source_commit": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "implementation": [
+    "Meeting task draft asks for verbatim quote, separate interpretation, confirmation flag and reason, without automatic identity assignment",
+    "Saving a proposed task preserves supplied review notes in the existing editable description; server authorization, task states and API schema are unchanged",
+    "No ASR model/decoder default was changed; the candidate is not added to the operator model catalog"
+  ],
+  "asr": {
+    "kind": "real no-network CPU ASR over the same original synthetic 30-second clip; no IM or Agent",
+    "repository": "Systran/faster-whisper-large-v3",
+    "revision": "edaa852ec7e145841d8ffdb056a99866b5f0a478",
+    "model_card": "https://huggingface.co/Systran/faster-whisper-large-v3",
+    "model_sha256": "303a7f7f818df95ad5e4950ceab61ca81fdeba57448f87e944fcdfc0924beb1e",
+    "resource_limits": {
+      "cpus": 2,
+      "memory_gib": 4
+    },
+    "candidate_adopted": false,
+    "accuracy_gate_passed": false,
+    "expected_name_and_term_prompts_used": false,
+    "beam_5": {
+      "production_parser_completed": true,
+      "seconds": 67.373,
+      "first_fragment": "Decision Checkpoint 1. The codename is Silver Lantern. Alice owns QBAC Pressure Review."
+    },
+    "beam_1": {
+      "diagnostic_completed": true,
+      "seconds": 46.25,
+      "first_fragment": " Decision Checkpoint 1. The code name is Silver Lantern. Alice owns QBAC Pressure Review.",
+      "scope": "separate decoder diagnostic, not production parser E2E"
+    },
+    "finding": "Both still transcribe queue backpressure as QBAC Pressure; no full 20-minute run was repeated"
+  },
+  "native_review": {
+    "kind": "actual Pi CLI in disposable home, saved synthetic transcript and actual earlier room message; no room tools, authorization server or IM",
+    "completed": true,
+    "seconds": 11.329,
+    "tool_result_count": 0,
+    "reported_uncertainty": true,
+    "meaning_resolved": false,
+    "private_profile_unchanged": true
+  },
+  "browser": {
+    "kind": "controlled HTTP/WS contracts, not real service E2E",
+    "checks": 28,
+    "passed": true,
+    "scope": "review fields appear as plain text in the editable draft and reach the existing task API description with source_ids preserved"
+  },
+  "validation": {
+    "knowledge_sources": 200,
+    "syntax_and_diff_check": true
+  },
+  "not_executed": [
+    "No full ASR/Agent/IM scenario repeated",
+    "No fresh real SQL or full CTest run for this UI-only behavior",
+    "Review-note UI changes not packaged/deployed; prior media-playback image and real-browser receipt cover the earlier sources",
+    "Original audio accuracy and complete media-derived task E2E remain unpassed"
+  ],
+  "cleanup": "All diagnostic subprocesses and owned containers terminated; candidate weights retained under /tmp/spark-media-asr-large-v3; private profiles unchanged",
+  "source_sha256": {
+    "web_demo/static/room_media.js": "1b2a98361458addb613d2b4c97e6eaf9d9fa41bc586276b70f29f82e3085e918",
+    "web_demo/static/room_agents.js": "245cb9dde655d345a73989edad43c216d25c2d8e109a24d639de3f9033996990",
+    "tests/collaboration_browser_test.cjs": "3f5d283628e275dfdaed81fc65b554667f9fadcd2d7ceabfb1ce0483a9e92aea",
+    "cannbot/media/parser.py": "e29263d81f71583e3c49cd6cc8d5d0a5cfb2bcbed36c40482b171d90c8c10188",
+    "cannbot/media/sandbox.py": "4b3e24fcbfe95da6cd0af4f12389eb1bd37b65a36bc0e4cfc0347975bbbf3bbd",
+    "cannbot/media/provision_asr.py": "59f2a96c2e13d343401e29b0220d88e2771602af5594a4980295298e977c5d0a",
+    "docs/web-collaboration-client.md": "5627ff646d9967beefccc1229d74e9722d3ae5e29a92ce5c3c47a15ee4f8fe54",
+    "docs/multimodal-service-e2e.md": "ab3f13787222ae2904c71b8a2b9448da3ef2212cc7a9afc7ede65d68aa4822cd"
+  },
+  "artifact_directory": "2026-11-02-transcript-review",
+  "artifact_sha256": {
+    "large-v3-first.json": "877fb1ad135b6d44edddfa2ddf65c62ad6de74ed0e230136d53dc173192e0e36",
+    "large-v3-greedy.json": "567c4491264ef54ccfbd93b5d4b1a4d39320b2f3882d5e10f7fea42733cae77b",
+    "greedy-decoder.py": "5666792591d36aa1b5f16e7efd163d795100797546212b66a07ca7dc4b728b68",
+    "spark-transcript-review-knowledge.log": "92ab88e7f815b03932841070ddc708679abb2f288683aaa83add4323ca2d12a6",
+    "spark-pi-transcript-review-probe.py": "fe7f06f82eab4f066183fae683d4fb151daee76b3a995d6725af73b9a568d808",
+    "spark-pi-transcript-review.json": "3765b6d7c9279c54141fb9bcd6a4cfce5a6179c9f909348f6208308a41dca542",
+    "spark-transcript-review-browser-final.log": "04241e32dd9ac0a0ab0914ebeba72575dd484be604952a74a7f5d4edc6314800",
+    "input.json": "7275558d9a80abeb6bb347bf8193bef720f4c8331d89732a95728f47f1d27c14",
+    "first-30s.wav": "816b109b133eaf3b1ddf8b81f45ce173ea8a9427e239e4626881b0abcf66473c",
+    "spark-pi-transcript-review.log": "983043c5602d7743ef5fc1c243fc65cf95b96d6c51b769fcbc339b55b6c1e29d",
+    "spark-asr-greedy-probe.py": "c0781e3a4ba82159082bfe001efbf68433df3665646108e621b7485f9ae9ec3a",
+    "spark-asr-large-v3-provision.json": "8cfb125ed6aae62e5cfb0dd65ef2e997b8e50f2bee5103ca4a2ab69dd902fa69",
+    "spark-asr-large-v3-diagnostic.py": "8ec9b25997f683a67eacad64d1c26b9e10c3d56f3c6915b3cbe65bc6ab1e4543",
+    "run.py": "e250c1cce36ea1dee03fd7198fb52eb83e97269aadf9d9006419ba2c5bf9ee1b",
+    "spark-asr-large-v3-provision.log": "1b6bcafdaff5ef45f5b34a327c5d1ae28b560322c97b7db0ca25c08817f16570"
+  }
+}

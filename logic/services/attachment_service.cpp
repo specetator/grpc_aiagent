@@ -51,6 +51,10 @@ ServiceStatus AttachmentService::Read(int64_t user, const std::string& id,
             !conversations_->CheckAccess(user, stored.session_id, &session).ok())
             return {403, "attachment is not visible"};
     }
+    // General room media shares the attachment identity table. Its drafts and
+    // queued originals must not become readable through the legacy image API.
+    if (stored.status != "ready" || !IsAllowedImageMime(stored.mime) || stored.bytes > kMaxImageBytes)
+        return {409, "use the authorized room media endpoint for this object"};
     // 鉴权通过之后才读磁盘：避开无权请求也触发一次文件 IO。
     if (!repository_->Read(stored, &result->bytes, &error)) return {404, error};
     return {};
@@ -74,7 +78,8 @@ ServiceStatus AttachmentService::AuthorizeMessageImages(int64_t sender,
         // 任何人只要拿到一个 attachment_id 就能把它当成自己的内容发出去。
         if (stored.owner_user_id != sender)
             return {400, "attachment does not belong to the sender"};
-        if (stored.status != "ready") return {400, "attachment is not ready"};
+        if (stored.status != "ready" || !IsAllowedImageMime(stored.mime) || stored.bytes > kMaxImageBytes)
+            return {400, "attachment is not a ready legacy image"};
         // 已绑定的附件必须属于当前会话：防止把 A 会话的图泄到 B 会话。
         if (!stored.session_id.empty() && stored.session_id != session)
             return {400, "attachment belongs to another conversation"};

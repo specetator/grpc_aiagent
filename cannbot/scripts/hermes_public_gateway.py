@@ -7,7 +7,7 @@ import os
 from pathlib import Path
 import sys
 
-from public_runtime import PublicHome, clean_environment, key, model_environment, read_json, validate_native_policy, restrict_native_dotenv, install_shutdown
+from public_runtime import PublicHome, clean_environment, key, model_environment, read_json, validate_native_policy, restrict_native_dotenv, install_shutdown, PublicNativePolicyMismatch
 
 
 async def run(config, home, *, control_stdin=False):
@@ -18,7 +18,9 @@ async def run(config, home, *, control_stdin=False):
     credentials = read_json(config['keys_file'])
     authority = WorkspaceAuthority(config['authority_origin'], key(credentials.get('SPARK_PUSH_WORKSPACE_AUTH_KEY')))
     snapshots = ProjectSnapshots({'schema': 1, 'projects': []}, Path(config['snapshots']))
-    api = public_api_adapter(APIServerAdapter, authority, snapshots, config['agent_id'], config['profile'], public_profile=True)
+    context_tools = config.get('room_context_contract') == 1
+    api = public_api_adapter(APIServerAdapter, authority, snapshots, config['agent_id'], config['profile'],
+                             public_profile=True, context_tools=context_tools)
     adapter = api(PlatformConfig(enabled=True, extra={'host': config.get('host', '127.0.0.1'),
         'port': config.get('port', 18644), 'key': key(Path(config['api_key_file']).read_text().strip()),
         'model_name': config['profile']}))
@@ -28,10 +30,14 @@ async def run(config, home, *, control_stdin=False):
         adapter.verify_public_routes()
         # Native discovery must show the actual tools before declaring ready.
         from hermes_cli.config import load_config
-        validate_native_policy(load_config())
+        validate_native_policy(load_config(), context_tools=context_tools)
         from toolsets import resolve_toolset
         if set(resolve_toolset('spark_workspace')) != {'workspace_read'}:
             raise RuntimeError('public workspace tool discovery failed')
+        if context_tools:
+            from room_context import TOOL_NAMES
+            if set(resolve_toolset('spark_room_context')) != TOOL_NAMES:
+                raise RuntimeError('public Native room context registration mismatch')
         # Native tool discovery is lazy and can exceed the Bridge readiness
         # timeout on a cold process. Exercise the actual authenticated surface
         # before declaring ready, not just the listening socket.
@@ -43,7 +49,8 @@ async def run(config, home, *, control_stdin=False):
                 if response.status != 200:
                     raise RuntimeError('public Native tool policy preflight failed')
                 catalog = await response.json()
-                if {r['name'] for r in catalog['data'] if r['enabled']} != {'todo', 'spark_workspace'}:
+                expected_tools = {'todo', 'spark_workspace'} | ({'spark_room_context'} if context_tools else set())
+                if {r['name'] for r in catalog['data'] if r['enabled']} != expected_tools:
                     raise RuntimeError('unexpected public Native tool surface')
         stopped = asyncio.Event()
         loop = asyncio.get_running_loop()
@@ -59,6 +66,9 @@ def serve(config, *, control_stdin=False):
     if (config.get('schema') != 1 or not re.fullmatch(r'spark-public-[a-z0-9_-]{1,34}', config.get('profile', '')) or
         not re.fullmatch(r'[a-z][a-z0-9_-]{0,47}', config.get('agent_id', ''))):
         raise ValueError('explicit public profile and Agent identity required')
+    if 'room_context_contract' in config and (type(config['room_context_contract']) is not int or config['room_context_contract'] != 1):
+        raise ValueError('room_context_contract must be explicitly 1 or absent')
+    context_tools = config.get('room_context_contract') == 1
     source = Path(config['source'])
     if not source.is_absolute() or not (source/'gateway/platforms/api_server.py').is_file():
         raise ValueError('operator must provide the installed Hermes source')
@@ -78,7 +88,7 @@ def serve(config, *, control_stdin=False):
         sys.path.insert(0, str(source))
         import yaml
         expected = {'model': config['model'], 'agent': {'max_turns': 8},
-            'platform_toolsets': {'api_server': ['todo', 'spark_workspace']},
+            'platform_toolsets': {'api_server': ['todo', 'spark_workspace'] + (['spark_room_context'] if context_tools else [])},
             'tools': {'tool_search': {'enabled': 'off'}},
             'memory': {'memory_enabled': False, 'user_profile_enabled': False},
             'mcp_servers': {}, 'checkpoints': {'enabled': False}, 'approvals': {'mode': 'manual'},
@@ -91,7 +101,7 @@ def serve(config, *, control_stdin=False):
             if path.is_symlink() or path.stat().st_size > 65536:
                 raise ValueError('invalid public Native config file')
             current = yaml.safe_load(path.read_text(encoding='utf-8'))
-            validate_native_policy(current)
+            validate_native_policy(current, context_tools=context_tools)
             if current.get('model') != expected['model']:
                 raise ValueError('public Native model changed; update owned config explicitly')
         else:
@@ -124,6 +134,9 @@ def main():
     args = parser.parse_args()
     try:
         serve(read_json(args.config), control_stdin=args.control_stdin)
+    except PublicNativePolicyMismatch as error:
+        print(str(error), flush=True)
+        return 1
     except Exception as error:
         print('Public Hermes unavailable: ' + type(error).__name__ + '; check operator configuration', flush=True)
         return 1

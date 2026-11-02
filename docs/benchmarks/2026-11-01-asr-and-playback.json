@@ -1,0 +1,91 @@
+{
+  "date": "2026-11-01",
+  "phase": "optional-asr-model-and-original-media-playback",
+  "overall_goal_complete": false,
+  "source_commit": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "implementation": [
+    "Operator-only pinned small/large-v3-turbo model aliases; small remains the default; ordinary users cannot submit a URL/model path",
+    "Bounded HTTP Range downloads resume interrupted responses within the process; exact ranges and final Git/LFS hashes are checked before immutable publication",
+    "Room audio/video playback reuses authorized chunk reads and whole-file integrity checks; no autoplay or model invocation",
+    "Closing preview/switching room releases the player source and Blob URL; stale view reads cannot publish a player"
+  ],
+  "asr_diagnostic": {
+    "kind": "real isolated CPU ASR, synthetic 30-second clip, no IM or Agent",
+    "completed": true,
+    "accuracy_gate_passed": false,
+    "scope": "Same unmodified PCM beginning of the earlier failed 20-minute fixture; no expected names/terms or ASR prompt supplied",
+    "small_seconds": 11.63,
+    "turbo_seconds": 46.044,
+    "small_transcript": "Decision Checkpoint 1 The code name is Silver Lantern AliSone's Cuback Pressure Review",
+    "turbo_transcript": "Decision Checkpoint 1. The codename is Silver Lantern. Alice owns QBAC Pressure Review.",
+    "finding": "Turbo recovered Alice but QBAC Pressure still does not faithfully transcribe queue backpressure. Larger model is optional, not recommended as a default upgrade from this result.",
+    "reports": [
+      "small.json",
+      "turbo.json"
+    ],
+    "image_id": "sha256:4c2e26418ad4ec59d0d57bdf2a15af30826c14de5d253d39bf96be2de2b38120",
+    "model_sha256": "02e8ad144c5a1e9441bbd2aab66e62a1b2627c4b0f1936a7cdc68878c9767227",
+    "full_audio_e2e": "not run in this phase; remaining semantic error and short-clip latency do not justify repeating the existing long acceptance yet"
+  },
+  "provisioning": {
+    "passed": true,
+    "exit_code": 0,
+    "receipt": "spark-asr-turbo-provision-second.json",
+    "failed_initial_attempt": {
+      "exit_code": 1,
+      "log": "spark-asr-turbo-provision.log",
+      "reason": "Premature response EOF left wrong-sized weights; verification rejected publication. Partial was removed; range download then completed and verified."
+    },
+    "private_profiles_used": false
+  },
+  "validation": {
+    "parser_boundary_contract": {
+      "passed": 14,
+      "log": "spark-asr-provision-unit-final.log",
+      "scope": "Includes truncated response recovery and refusal of a wrong resumed range; transport is controlled in this unit test"
+    },
+    "browser": {
+      "kind": "mock_browser_contract",
+      "passed": 26,
+      "log": "spark-media-playback-browser.log",
+      "scope": "Chromium with controlled HTTP/WS and an actual two-second PCM WAV; verifies metadata load, explicit play and source release on close, not real service/model E2E"
+    },
+    "python_javascript_syntax": "passed",
+    "diff_check": "passed",
+    "knowledge_sources": 197
+  },
+  "limits": [
+    "Audio owner/action accuracy for the full recording is still unresolved; this is not a passed meeting-task E2E",
+    "No new Pi/Hermes model call or full CTest in this phase; prior real video pass and Pi visual failure remain separate",
+    "Browser playback loads and verifies the whole original up to 256 MiB before displaying a player; no streaming or browser codec guarantees",
+    "Model download resume covers transient failures within one process; process restart discards private partial files and reuses only fully verified files",
+    "Playback UI and new installer are worktree changes, not deployed or rebuilt into the application image",
+    "Real multi-browser media acceptance, shared asset deletion and final-message structured citations remain open"
+  ],
+  "reproduction": {
+    "model": "python3 cannbot/media/provision_asr.py --model large-v3-turbo --directory /path/to/new-model-directory",
+    "diagnostic": "Copy run.py, input.json and first-30s.wav into a temporary directory; run python3 TEMP/run.py REPOSITORY_ROOT MODEL_DIRECTORY LABEL. Requires the existing spark-media:development image to match the current parser source."
+  },
+  "source_sha256": {
+    "cannbot/media/provision_asr.py": "59f2a96c2e13d343401e29b0220d88e2771602af5594a4980295298e977c5d0a",
+    "cannbot/media/parser.py": "e29263d81f71583e3c49cd6cc8d5d0a5cfb2bcbed36c40482b171d90c8c10188",
+    "cannbot/media/sandbox.py": "4b3e24fcbfe95da6cd0af4f12389eb1bd37b65a36bc0e4cfc0347975bbbf3bbd",
+    "tests/media_parser_test.py": "2354b8b5004e7d86939555c5bbbb860628feb382dcad8a508bd2afe603382c4d",
+    "web_demo/static/room_media.js": "4a66e2f01a6c68ff95d83acc2b80f199cefb6ad323703fc2f9277e2ac31d7138",
+    "tests/collaboration_browser_test.cjs": "ebbe2c08df1c4b42617761200ec858f07eab5bea18f88c6b9862551c7c64a30f"
+  },
+  "artifact_directory": "2026-11-01-asr-and-playback",
+  "artifact_sha256": {
+    "first-30s.wav": "816b109b133eaf3b1ddf8b81f45ce173ea8a9427e239e4626881b0abcf66473c",
+    "input.json": "7275558d9a80abeb6bb347bf8193bef720f4c8331d89732a95728f47f1d27c14",
+    "run.py": "e250c1cce36ea1dee03fd7198fb52eb83e97269aadf9d9006419ba2c5bf9ee1b",
+    "small.json": "e03c3573003d28961451a6a30f2afd0b73af6bfb11f7d7c2fa68f9114a17a5bb",
+    "spark-asr-knowledge.log": "4755f54dd3af5c7696003f9caed72201eae8b0e83a88a2ea9476cb06e21a0a67",
+    "spark-asr-provision-unit-final.log": "964af6d8037302c8ecbd3707885441c4db873abd89c9cb7c11ea5788395ec798",
+    "spark-asr-turbo-provision-second.json": "9ad079fd7172405f8d45f69db89f03a6fd087bdce88281f6a43f46baa5e85823",
+    "spark-asr-turbo-provision-second.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "spark-asr-turbo-provision.log": "f3d24104e51a37f0b8898029d95f304e1664fe929c1711418603ca62d715548e",
+    "spark-media-playback-browser.log": "aabb5bc7f7d24deab4f682be737616ea7eb5d75da1554f8fbbe802ba281af918",
+    "turbo.json": "bc73639bbb14b91c66924e43f5e355e744e622079e7f56151620cac0371ee298"
+  }
+}

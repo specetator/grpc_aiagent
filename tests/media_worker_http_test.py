@@ -1,0 +1,328 @@
+"""Opt-in real worker/Docker parser/HTTP/MySQL/Redis recovery.
+
+Synthetic media with real CPU ASR; transparent transport gates/drop faults and
+owned SQL quota fixtures are identified explicitly. No native Agent/Web/Kafka.
+"""
+import base64
+import hashlib
+import http.client
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import json
+import os
+from pathlib import Path
+import secrets
+import shutil
+import socket
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "cannbot/scripts"))
+import media_worker as worker
+from media_processing_http_test import sql
+
+
+def wait_for(condition, seconds=30):
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        if condition():return
+        time.sleep(0.05)
+    raise AssertionError("timed out waiting for controlled worker checkpoint")
+
+
+def main():
+    required = ("SPARK_PUSH_RUN_MYSQL_TESTS", "SPARK_TEST_MYSQL_CONTAINER", "SPARK_TEST_REDIS_PORT",
+                "SPARK_TEST_MEDIA_IMAGE", "SPARK_TEST_MEDIA_MODEL", "SPARK_TEST_MEDIA_FIXTURES", "SPARK_TEST_MEDIA_WORKER_TEST")
+    if not all(os.environ.get(k) for k in required):return 77
+    image = subprocess.check_output(["docker", "image", "inspect", os.environ["SPARK_TEST_MEDIA_IMAGE"], "--format", "{{.Id}}"],text=True).strip()
+    config = worker.Configuration(image, os.environ["SPARK_TEST_MEDIA_MODEL"])
+    fixtures = Path(os.environ["SPARK_TEST_MEDIA_FIXTURES"])
+    report = dict(scope=__doc__, status="running", configuration=config.description(), checks=[], worker_events=[])
+    report_path = Path(os.environ.get("SPARK_TEST_MEDIA_WORKER_REPORT", "/tmp/spark-media-worker-http.json"))
+    def save():report_path.write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\n")
+    def passed(name, **facts):
+        report["checks"].append(dict(name=name,passed=True,**facts));save();print("real worker passed:",name,flush=True)
+    save()
+    with tempfile.TemporaryDirectory(prefix="spark-media-worker-http-") as temporary:
+        root=Path(temporary);key=secrets.token_hex(32);keyfile=root/"worker.key";keyfile.write_text(key);keyfile.chmod(0o600)
+        with socket.socket() as sock:sock.bind(("127.0.0.1",0));port=sock.getsockname()[1]
+        env=dict(os.environ,SPARK_PUSH_MEDIA_WORKER_KEY=key,SPARK_PUSH_MEDIA_PIPELINE_SHA256="a"*64,
+                 SPARK_PUSH_MEDIA_PARSER_PIPELINE_SHA256=config.pipeline,SPARK_PUSH_MEDIA_PARSER_SHA256=config.parser_sha)
+        server=subprocess.Popen([sys.argv[1],str(port),str(root/"blobs")],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+        def ready():
+            assert server.poll() is None
+            try:
+                with socket.create_connection(("127.0.0.1",port),timeout=0.1):return True
+            except OSError:return False
+        rule={};rule_lock=threading.Lock();gate_seen=threading.Event();gate_release=threading.Event()
+        class Relay(BaseHTTPRequestHandler):
+            def log_message(self,*_):pass
+            def do_POST(self):
+                raw=self.rfile.read(int(self.headers['Content-Length']));body=json.loads(raw)
+                op=self.path.rsplit('/',1)[-1];action=None
+                with rule_lock:
+                    if rule.get('op')==op and rule.get('remaining',0)>0 and ('index' not in rule or body.get('index')==rule['index']):
+                        rule['remaining']-=1;action=rule['action']
+                if action=='gate':
+                    gate_seen.set();gate_release.wait(40);self.close_connection=True;return
+                connection=http.client.HTTPConnection('127.0.0.1',port,timeout=30)
+                try:
+                    connection.request('POST',self.path,raw,{'Authorization':self.headers.get('Authorization',''),'Content-Type':'application/json'})
+                    response=connection.getresponse();data=response.read(2*1024*1024+1)
+                    if action=='drop':self.close_connection=True;return
+                    self.send_response(response.status);self.send_header('Content-Type','application/json')
+                    self.send_header('Content-Length',str(len(data)));self.end_headers();self.wfile.write(data)
+                except (BrokenPipeError,ConnectionResetError):pass
+                finally:connection.close()
+        relay=ThreadingHTTPServer(('127.0.0.1',0),Relay);relay.daemon_threads=True
+        relay_thread=threading.Thread(target=relay.serve_forever);relay_thread.start()
+        workers=[];logs=[];run_index=0;managed_unit=None
+        def configuration(state,name):
+            path=root/(name+'.json')
+            path.write_text(json.dumps(dict(schema=1,image_id=image,model_dir=str(config.model),
+                origin=f'http://127.0.0.1:{relay.server_port}',key_file=str(keyfile),state_dir=str(state),
+                pipeline_sha256=config.pipeline,parser_sha256=config.parser_sha)))
+            path.chmod(0o600);return path
+        def managed(action,*args,check=True):
+            return subprocess.run(['bash',str(ROOT/'scripts/sparkctl.sh'),'media',action,
+                '--unit',managed_unit,*args],env=dict(os.environ,SPARK_PUSH_MEDIA_PYTHON=sys.executable),
+                capture_output=True,text=True,check=check,timeout=100)
+        def fault(op,action,remaining=1,**extra):
+            gate_seen.clear();gate_release.clear()
+            with rule_lock:rule.clear();rule.update(op=op,action=action,remaining=remaining,**extra)
+        def reset():
+            with rule_lock:rule.clear()
+            gate_release.set()
+        def post(path,body,token='',expected=0):
+            conn=http.client.HTTPConnection('127.0.0.1',port,timeout=30)
+            try:
+                conn.request('POST',path,json.dumps(body).encode(),{'Content-Type':'application/json','Authorization':'Bearer '+token})
+                result=json.loads(conn.getresponse().read());assert result['code']==expected,(path,result['code'],result.get('message'))
+                return result.get('data',{})
+            finally:conn.close()
+        def internal(op,body,expected=0):return post('/internal/media/'+op,body,key,expected)
+        def media(op,body,who,expected=0):return post('/api/room/media/'+op,body,who['token'],expected)
+        def upload(name,mime):
+            raw=(fixtures/name).read_bytes()
+            ident=media('init',dict(room_id=room,client_upload_id=secrets.token_hex(16),name=name,mime=mime,bytes=len(raw),sha256=hashlib.sha256(raw).hexdigest()),a)['id']
+            for i,offset in enumerate(range(0,len(raw),1024*1024)):
+                media('chunk',dict(id=ident,index=i,data=base64.b64encode(raw[offset:offset+1024*1024]).decode()),a)
+            media('finish',dict(id=ident),a);return ident
+        def events(log):
+            return [json.loads(line) for line in log.read_text().splitlines() if line.startswith('{')]
+        def start(state, extra_env=None, once=True):
+            nonlocal run_index
+            run_index+=1;log=root/f'worker-{run_index}.log';logs.append(log)
+            stream=log.open('w')
+            args=[sys.executable,str(ROOT/'cannbot/scripts/media_worker.py'),'--config',str(configuration(state,'worker-'+str(run_index)))]
+            if once:args.append('--once')
+            proc=subprocess.Popen(args,env=dict(os.environ,**(extra_env or {})),stdout=stream,stderr=stream)
+            stream.close();workers.append(proc);return proc,log
+        def finish(proc,log,code=0,timeout=400):
+            actual=proc.wait(timeout=timeout)
+            assert actual==code,(actual,events(log))
+            report['worker_events'].append(dict(run=log.name,exit_code=actual,events=events(log)))
+            return events(log)
+        def kill(proc):
+            proc.kill();assert proc.wait(timeout=10)<0
+        def pending(state):return json.loads((state/'claim.json').read_text())
+        def check_ready(ident):
+            status=media('processing',dict(id=ident),b);assert status['state']=='ready'
+            media('processing',dict(id=ident),c,403)
+            return status
+        try:
+            wait_for(ready)
+            people=[]
+            for label in ('A','B','C'):
+                people.append(post('/api/register',dict(account='worker_'+label+secrets.token_hex(5),name=label,password=secrets.token_hex(12))))
+            a,b,c=people
+            room=post('/api/spaces/create',{'name':'生产媒体 worker 真实测试'},a['token'])['room_id']
+            post('/api/spaces/invite',dict(room_id=room,user_id=b['user_id']),a['token'])
+            post('/api/spaces/accept',dict(room_id=room),b['token'])
+            retained=None
+            for name,mime in [('diagram.png','image/png'),('design.pdf','application/pdf'),
+                              ('notes.docx','application/vnd.openxmlformats-officedocument.wordprocessingml.document'),
+                              ('incident.mp4','video/mp4'),('speech.wav','audio/wav')]:
+                ident=upload(name,mime);state=root/('state-'+secrets.token_hex(4));proc,log=start(state)
+                finish(proc,log);status=check_ready(ident);assert not (state/'claim.json').exists()
+                if retained is None:retained=status
+                passed('worker_publish_'+name,revision=status['revision'],result=status['result'])
+            for op in ('claim_media','reserve'):
+                ident=upload('diagram.png','image/png');state=root/('drop-'+op)
+                fault(op,'drop',3);proc,log=start(state);finish(proc,log,1)
+                old=pending(state);reset();proc,log=start(state);finish(proc,log)
+                status=check_ready(ident);assert status['attempt']==1 and status['revision']==sql(f"SELECT revision_id FROM room_media_claim WHERE claim_key=SHA2('{old['claim_id']}',256);")
+                passed(op+'_lost_three_replies_same_assignment',attempt=status['attempt'])
+            # Real installed bundle and one uploaded image, interrupted before image 1.
+            ident=upload('design.pdf','application/pdf');state=root/'partial-artifact'
+            fault('stage_artifact','gate',index=1);proc,log=start(state);wait_for(gate_seen.is_set)
+            saved=pending(state);revision=saved['assignment']['revision'];execution=saved['execution_id']
+            assert sql(f"SELECT COUNT(*) FROM room_media_artifact WHERE revision_id='{revision}' AND installed=1;")=='1'
+            kill(proc);reset()
+            output=state/'executions'/execution/'output';imagefile=output/'image-000000.jpg';raw=imagefile.read_bytes()
+            imagefile.write_bytes(b'!' + raw[1:]);proc,log=start(state);ev=finish(proc,log,1)
+            assert not any(e['event']=='parser_start' for e in ev) and pending(state)==saved
+            imagefile.write_bytes(raw)
+            # Wrong ownership label on the same name must survive recovery.
+            foreign=subprocess.check_output(['docker','create','--name','spark-media-'+execution,'--entrypoint','python3',image,'-c','pass'],text=True).strip()
+            try:
+                proc,log=start(state);finish(proc,log,1)
+                subprocess.run(['docker','inspect',foreign],check=True,stdout=subprocess.DEVNULL)
+                assert pending(state)==saved
+            finally:subprocess.run(['docker','rm','-f',foreign],check=True,stdout=subprocess.DEVNULL)
+            proc,log=start(state);ev=finish(proc,log);status=check_ready(ident)
+            assert status['revision']==revision and any(e['event']=='bundle_recovered' for e in ev)
+            assert not any(e['event']=='parser_start' for e in ev)
+            passed('partial_upload_kill_tamper_and_foreign_container_recovery',same_revision=True,parser_restarted=False)
+            ident=upload('diagram.png','image/png');state=root/'complete-drop'
+            fault('complete','drop',3);proc,log=start(state);finish(proc,log,1)
+            old=pending(state);status=check_ready(ident);reset();proc,log=start(state);ev=finish(proc,log)
+            assert not any(e['event']=='parser_start' for e in ev) and status['revision']==old['assignment']['revision']
+            assert not (state/'claim.json').exists()
+            passed('published_reply_lost_recovers_without_parser')
+            # Capacity is denied by real SQL quota, not a proxy-generated answer.
+            retained_revision=retained['revision']
+            charge=sql(f"SELECT charged_bytes FROM room_media_revision_storage WHERE revision_id='{retained_revision}';")
+            ident=upload('diagram.png','image/png');state=root/'capacity'
+            sql(f"UPDATE room_media_revision_storage SET charged_bytes=10737418240 WHERE revision_id='{retained_revision}';")
+            try:
+                proc,log=start(state)
+                wait_for(lambda:any(e['event']=='waiting_capacity' for e in events(log)))
+                old=pending(state)
+                wait_for(lambda:sum(e['event']=='heartbeat' for e in events(log))>=2,35)
+                assert not any(e['event']=='parser_start' for e in events(log))
+            finally:sql(f"UPDATE room_media_revision_storage SET charged_bytes={charge} WHERE revision_id='{retained_revision}';")
+            ev=finish(proc,log);status=check_ready(ident)
+            assert status['revision']==old['assignment']['revision'] and status['attempt']==1
+            passed('real_capacity_wait_renews_then_resumes_original_assignment')
+            # Actual Docker create succeeded, but the CLI has not returned its ID.
+            ident=upload('diagram.png','image/png');state=root/'create-gap';bindir=root/'bin';bindir.mkdir(mode=0o700)
+            marker=root/'created.json';release=root/'release-create';real_docker=shutil.which('docker')
+            wrapper=bindir/'docker'
+            wrapper.write_text('#!'+sys.executable+'\n'+
+                'import json,os,subprocess,sys,time\nfrom pathlib import Path\n'+
+                f'real={real_docker!r}; marker=Path({str(marker)!r}); release=Path({str(release)!r})\n'+
+                'if len(sys.argv)>1 and sys.argv[1]=="create" and not marker.exists():\n'+
+                ' r=subprocess.run([real]+sys.argv[1:],capture_output=True)\n'+
+                ' marker.write_text(json.dumps({"id":r.stdout.decode().strip(),"returncode":r.returncode}))\n'+
+                ' end=time.monotonic()+30\n'+
+                ' while not release.exists() and time.monotonic()<end:time.sleep(0.05)\n'+
+                ' try:sys.stdout.buffer.write(r.stdout);sys.stderr.buffer.write(r.stderr)\n'+
+                ' except BrokenPipeError:pass\n'+
+                ' sys.exit(r.returncode)\n'+
+                'os.execv(real,[real]+sys.argv[1:])\n')
+            wrapper.chmod(0o700)
+            proc,log=start(state,{'PATH':str(bindir)+os.pathsep+os.environ['PATH']})
+            wait_for(marker.exists);created=json.loads(marker.read_text());assert created['returncode']==0
+            inspected=json.loads(subprocess.check_output(['docker','inspect',created['id']]))[0];assert inspected['State']['Status']=='created'
+            kill(proc);release.touch();proc,log=start(state);ev=finish(proc,log);check_ready(ident)
+            assert any(e['event']=='parser_recovered' for e in ev)
+            assert subprocess.run(['docker','inspect',created['id']],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode!=0
+            passed('kill_after_docker_create_before_id_return',exact_orphan_removed=True)
+            ident=upload('encrypted.pdf','application/pdf');state=root/'encrypted'
+            proc,log=start(state);finish(proc,log,1)
+            status=media('processing',dict(id=ident),b)
+            assert status['state']=='failed' and status['error_code']=='encrypted_document'
+            assert sql(f"SELECT COUNT(*) FROM room_media_publication WHERE asset_id='{ident}';")=='0'
+            assert sql(f"SELECT state,charged_bytes FROM room_media_revision_storage WHERE asset_id='{ident}';")=='reclaimed\t0'
+            assert not (state/'claim.json').exists()
+            passed('encrypted_pdf_failed_without_publication_and_reclaimed')
+            # Exercise default continuous operation, including startup idle.
+            state=root/'continuous';proc,log=start(state,once=False)
+            wait_for(lambda:any(e['event']=='result' and e['state']=='idle' for e in events(log)))
+            first=upload('diagram.png','image/png')
+            wait_for(lambda:any(e['event']=='published' and e['id']==first for e in events(log)))
+            second=upload('diagram.png','image/png')
+            wait_for(lambda:any(e['event']=='published' and e['id']==second for e in events(log)))
+            check_ready(first);check_ready(second);proc.terminate();finish(proc,log,1)
+            passed('continuous_worker_idle_then_two_distinct_jobs_and_sigterm')
+            if os.environ.get('SPARK_TEST_MEDIA_SYSTEMD')=='1':
+                managed_unit='spark-media-worker-test-'+secrets.token_hex(5)
+                state=root/'managed';path=configuration(state,'managed')
+                managed('start','--config',str(path))
+                def property(name):
+                    return subprocess.check_output(['systemctl','--user','show',managed_unit+'.service',
+                        '--property='+name,'--value'],text=True).strip()
+                wait_for(lambda:property('ActiveState')=='active')
+                ident=upload('diagram.png','image/png')
+                wait_for(lambda:media('processing',{'id':ident},b)['state']=='ready',90)
+                status=check_ready(ident);pid=property('MainPID');assert pid!='0'
+                subprocess.run(['systemctl','--user','kill','--kill-who=main','--signal=SIGKILL',managed_unit+'.service'],check=True)
+                wait_for(lambda:property('ActiveState')=='active' and property('MainPID') not in ('0',pid),45)
+                second=upload('diagram.png','image/png')
+                wait_for(lambda:media('processing',{'id':second},b)['state']=='ready',90)
+                check_ready(second);assert check_ready(ident)['revision']==status['revision']
+                managed('stop')
+                assert subprocess.run(['systemctl','--user','is-active','--quiet',managed_unit+'.service']).returncode!=0
+                assert state.is_dir() and path.is_file()
+                report['managed_service']=dict(unit=managed_unit,original_revision=status['revision'],
+                    stop_preserved_state=True,journal=managed('logs').stdout)
+                passed('systemd_public_config_publish_kill_restart_second_publish_and_stop')
+                managed_unit=None
+            if os.environ.get('SPARK_TEST_MEDIA_LONG_AUDIO')=='1':
+                ident=upload('meeting-20min.wav','audio/wav');state=root/'long-audio'
+                proc,log=start(state)
+                wait_for(lambda:any(e['event']=='parser_stage' and e['stage']=='asr_running' for e in events(log)),60)
+                old=pending(state);name='spark-media-'+old['execution_id']
+                inspected=json.loads(subprocess.check_output(['docker','inspect',name]))[0];assert inspected['State']['Running']
+                kill(proc);started=time.monotonic();proc,log=start(state);ev=finish(proc,log,timeout=500)
+                status=check_ready(ident);assert status['revision']==old['assignment']['revision']
+                assert any(e['event']=='parser_recovered' for e in ev) and sum(e['event']=='heartbeat' for e in ev)>=3
+                texts=[];offset=0
+                while True:
+                    page=media('fragments',dict(id=ident,revision=status['revision'],offset=offset,limit=20),b)
+                    texts.extend(f['content'] for f in page['items'])
+                    if not page['has_more']:break
+                    offset=page['next_offset']
+                tail=' '.join(f['text'] for f in texts if f['anchor'].get('start_ms',0)>1150000).lower()
+                assert 'magenta' in tail and 'harbor' in tail and 'paused' in tail
+                passed('kill_during_asr_then_full_20min_worker_recovery',seconds=round(time.monotonic()-started,3),
+                    fragments=len(texts),heartbeats=sum(e['event']=='heartbeat' for e in ev),coverage=status['result']['coverage'])
+                ident=upload('meeting-20min.wav','audio/wav');state=root/'fenced-asr'
+                proc,log=start(state)
+                wait_for(lambda:any(e['event']=='parser_stage' and e['stage']=='asr_running' for e in events(log)),60)
+                old=pending(state);lease=old['assignment'];name='spark-media-'+old['execution_id']
+                assert json.loads(subprocess.check_output(['docker','inspect',name]))[0]['State']['Running']
+                sql(f"UPDATE room_media_job SET lease_until=TIMESTAMPADD(SECOND,-1,NOW(3)) WHERE asset_id='{ident}';")
+                finish(proc,log,1,timeout=45)
+                assert pending(state)==old
+                assert subprocess.run(['docker','inspect',name],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode!=0
+                assert sql(f"SELECT COUNT(*) FROM room_media_fragment WHERE revision_id='{lease['revision']}';")=='0'
+                assert sql(f"SELECT COUNT(*) FROM room_media_artifact WHERE revision_id='{lease['revision']}';")=='0'
+                assert sql(f"SELECT COUNT(*) FROM room_media_publication WHERE asset_id='{ident}';")=='0'
+                internal('heartbeat',{k:lease[k] for k in worker.LEASE_FIELDS},409)
+                # Same CLI observes authoritative expiry, then performs terminal cleanup.
+                proc,log=start(state);ev=finish(proc,log,1)
+                assert any(e['event']=='result' and e['state']=='expired' for e in ev)
+                assert sql(f"SELECT state,charged_bytes FROM room_media_revision_storage WHERE revision_id='{lease['revision']}';")=='reclaimed\t0'
+                passed('running_asr_lease_revocation_stops_container_without_stage_or_publish')
+            # Existing published/live revisions never become deletion authority.
+            page=internal('reclaim_candidates',{'limit':20})
+            assert retained_revision not in page['items']
+            internal('reclaim',{'revision':retained_revision},409)
+            post('/internal/media/reclaim_candidates',{'limit':5},b['token'],401)
+            passed('gc_published_protection_and_user_denial')
+            report['status']='passed';save();return 0
+        except Exception as exc:
+            report.update(status='failed',failure_type=type(exc).__name__)
+            report['last_logs']=[dict(run=p.name,events=events(p)) for p in logs[-3:]];save();raise
+        finally:
+            if managed_unit:
+                managed('stop',check=False)
+            reset()
+            for proc in workers:
+                if proc.poll() is None:proc.kill();proc.wait(timeout=10)
+            # Only execution IDs in this test's private worker state, verified by sandbox.
+            for claim in root.glob('*/claim.json'):
+                try:
+                    record=json.loads(claim.read_text())
+                    worker.sandbox.cleanup_execution(record['execution_id'],claim.parent/'executions'/record['execution_id'],image,config.model)
+                except Exception:pass
+            relay.shutdown();relay.server_close();relay_thread.join()
+            server.kill();server.wait(timeout=10)
+
+
+if __name__=='__main__':sys.exit(main())

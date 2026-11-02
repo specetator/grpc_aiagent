@@ -1,0 +1,110 @@
+Real MySQL: repeated context migration preserved the existing epoch
+Real MySQL: repeated source migration preserved the existing receipt
+Real MySQL: pre-media upgrade and repeated migration preserved the old attachment row
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+UpdateCTestConfiguration  from :/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/DartConfiguration.tcl
+Parse Config file:/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/DartConfiguration.tcl
+UpdateCTestConfiguration  from :/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/DartConfiguration.tcl
+Parse Config file:/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/DartConfiguration.tcl
+Test project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 38
+    Start 38: media_context_http_test
+
+38: Test command: /usr/bin/python3 "/home/peco/cppcode/fenbushi/sparkpush_project/tests/media_context_http_test.py" "/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests/media_processing_http_probe"
+38: Working Directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests
+38: Test timeout computed to be: 240
+38: real room context passed: literal SQL search; pre-LIMIT epoch filter; canonical room and message ceiling
+38: real room context passed: Unicode bounded read; deterministic durable receipts; actual HTTP process restart
+38: real room context passed: two observed SQL lock waiters compete for last receipt slot; no overrun; duplicate at capacity; request-bound IDs
+38: real room context passed: literal fragment search locates long-text tail with real line anchor and stable read receipt
+38: real room context passed: real text upload/worker/publication; fixed revision; cross-room read denied even for dual member
+38: real room context passed: source withdrawal while HTTP read waits; fragment payload/hash mismatch rejected
+38: real room context passed: real Docker image parsing and JPEG read; zero-text discovery; metadata versus image receipts
+38: real room context passed: actual HTTP read blocked on room lock; epoch commit fences receipt and protected response
+38: real room context passed: public runtime tool clients read real Logic sources and reject authoritative member revocation; no model
+38: real room context passed: actual in-flight HTTP member revocation; final authorization withholds source data
+38: real room context passed: member removal, never-member, uninstalled Agent and stale epoch denied
+38: real room context passed: missing receipt migration fails closed; old receipts remain unchanged
+1/1 Test #38: media_context_http_test ..........   Passed   16.66 sec
+
+The following tests passed:
+	media_context_http_test
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =  16.67 sec
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+Test project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+    Start 37: media_processing_http_test
+1/1 Test #37: media_processing_http_test .......   Passed    4.51 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   4.51 sec
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+UpdateCTestConfiguration  from :/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/DartConfiguration.tcl
+Parse Config file:/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/DartConfiguration.tcl
+UpdateCTestConfiguration  from :/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/DartConfiguration.tcl
+Parse Config file:/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/DartConfiguration.tcl
+Test project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 13
+    Start 13: media_mysql_integration_test
+
+13: Test command: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests/media_mysql_integration_test
+13: Working Directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests
+13: Test timeout computed to be: 60
+13: 20261101 13:12:11.424682Z 1192312 ERROR mysql_ping failed, dropping connection - mysql_pool.cpp:296
+13: real MySQL room media: resume, hashes, concurrent finalize, permissions, restart and SQL binding passed
+1/4 Test #13: media_mysql_integration_test ...........   Passed    2.68 sec
+test 14
+    Start 14: media_artifact_mysql_test
+
+14: Test command: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests/media_artifact_mysql_test
+14: Working Directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests
+14: Test timeout computed to be: 60
+14: 20261101 13:12:11.978266Z 1192356 ERROR mysql_ping failed, dropping connection - mysql_pool.cpp:296
+14: 20261101 13:12:12.254432Z 1192356 ERROR mysql_ping failed, dropping connection - mysql_pool.cpp:296
+14: real JPEG validation, immutable replay, connection kill and restarted install passed
+14: GC failure retained quota, retry removed bytes, old worker fenced, lock inode retained
+14: concurrent reservations, simultaneous original/derived writes and actual room-lock wait snapshot test passed
+14: bounded GC cursor, live/ready exclusion and concurrent actual-file reclamation passed
+2/4 Test #14: media_artifact_mysql_test ..............   Passed    0.94 sec
+test 21
+    Start 21: message_reservation_integration_test
+
+21: Test command: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests/message_reservation_integration_test
+21: Working Directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests
+21: Test timeout computed to be: 45
+21: canonical retries, parallel allocation, legacy coexistence, outbox and safe delivery passed
+3/4 Test #21: message_reservation_integration_test ...   Passed    0.20 sec
+test 67
+    Start 67: space_mysql_integration_test
+
+67: Test command: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests/space_mysql_integration_test
+67: Working Directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests
+67: Test timeout computed to be: 45
+67: Real MySQL context: both room-lock publication/revocation orders observed and verified
+67: real MySQL space transactions, concurrency, SQL binding and Agent persistence passed
+4/4 Test #67: space_mysql_integration_test ...........   Passed    0.53 sec
+
+The following tests passed:
+	media_mysql_integration_test
+	media_artifact_mysql_test
+	message_reservation_integration_test
+	space_mysql_integration_test
+
+100% tests passed, 0 tests failed out of 4
+
+Total Test time (real) =   4.36 sec

@@ -335,9 +335,18 @@ def install_shutdown(callback, *, control_stdin=False):
         threading.Thread(target=control, daemon=True).start()
 
 
-def validate_native_policy(config):
+class PublicNativePolicyMismatch(ValueError):
+    def __init__(self):
+        super().__init__('Public Native toolsets mismatch: make the owned launcher room_context_contract and '
+                         'owned config.yaml api_server toolsets agree; no configuration files were rewritten.')
+
+
+def validate_native_policy(config, *, context_tools=False):
+    tools = ['todo', 'spark_workspace'] + (['spark_room_context'] if context_tools else [])
+    if isinstance(config, dict) and config.get('platform_toolsets', {}).get('api_server') != tools:
+        raise PublicNativePolicyMismatch()
     if (not isinstance(config, dict) or
-        config.get('platform_toolsets', {}).get('api_server') != ['todo', 'spark_workspace'] or
+        config.get('platform_toolsets', {}).get('api_server') != tools or
         config.get('tools', {}).get('tool_search', {}).get('enabled') != 'off' or
         config.get('memory', {}).get('memory_enabled') is not False or
         config.get('memory', {}).get('user_profile_enabled') is not False or

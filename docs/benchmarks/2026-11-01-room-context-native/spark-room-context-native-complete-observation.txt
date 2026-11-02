@@ -1,0 +1,65 @@
+starting Pi RPC
+Pi session roomagent_7_public-pi_cc6a3dae888a6d784d587fa6b__0.jsonl
+Pi turn started session=roomagent_7_public-pi_cc6a3dae888a6d784d587fa6b__0.jsonl thinking=medium
+tool start room_search
+tool end room_search error=False
+tool start room_read_media
+tool start room_read_media
+tool start room_read_media
+tool start room_read
+tool end room_read error=False
+tool end room_read_media error=False
+tool end room_read_media error=False
+tool end room_read_media error=False
+Pi turn completed session=roomagent_7_public-pi_cc6a3dae888a6d784d587fa6b__0.jsonl elapsed_s=6.7 tools=5
+native probe passed: pi reads bounded room text without a code project
+native probe passed: pi native tool result contains all three actual images
+native probe passed: pi provider-bound request contains all three image payloads
+native probe failed: pi answers three no-text images correctly
+starting Pi RPC
+Pi session roomagent_7_public-pi_cc6a3dae888a6d784d587fa6b__0.jsonl
+Pi turn started session=roomagent_7_public-pi_cc6a3dae888a6d784d587fa6b__0.jsonl thinking=medium
+Pi turn completed session=roomagent_7_public-pi_cc6a3dae888a6d784d587fa6b__0.jsonl elapsed_s=3.5 tools=0
+native probe passed: Pi native process restart recalls only its room/epoch history
+native probe passed: pi isolation turn actually reaches the model
+native probe passed: pi provider history has the expected scope markers
+native probe passed: pi provider history excludes other room/Agent/generation markers
+starting Pi RPC
+Pi session roomagent_8_public-pi_cc6a3dae888a6d784d587fa6b__0.jsonl
+Pi turn started session=roomagent_8_public-pi_cc6a3dae888a6d784d587fa6b__0.jsonl thinking=medium
+Pi turn completed session=roomagent_8_public-pi_cc6a3dae888a6d784d587fa6b__0.jsonl elapsed_s=3.0 tools=0
+native probe passed: Pi native process restart recalls only its room/epoch history
+native probe passed: pi isolation turn actually reaches the model
+native probe passed: pi provider history has the expected scope markers
+native probe passed: pi provider history excludes other room/Agent/generation markers
+starting Pi RPC
+Pi session roomagent_7_public-pi_c5e7777d4e9d5c73f5c36b9c9__0.jsonl
+Pi turn started session=roomagent_7_public-pi_c5e7777d4e9d5c73f5c36b9c9__0.jsonl thinking=medium
+Pi turn completed session=roomagent_7_public-pi_c5e7777d4e9d5c73f5c36b9c9__0.jsonl elapsed_s=3.0 tools=0
+native probe passed: Pi native process restart recalls only its room/epoch history
+native probe passed: pi isolation turn actually reaches the model
+native probe passed: pi provider history has the expected scope markers
+native probe passed: pi provider history excludes other room/Agent/generation markers
+native probe passed: Hermes advertises verified explicit room toolset
+native probe passed: hermes reads bounded room text without a code project
+native probe passed: hermes native tool result contains all three actual images
+native probe passed: hermes provider-bound request contains all three image payloads
+native probe passed: hermes answers three no-text images correctly
+native probe passed: hermes isolation turn actually reaches the model
+native probe passed: hermes provider history has the expected scope markers
+native probe passed: hermes provider history excludes other room/Agent/generation markers
+native probe passed: hermes actual native todo state matches the scoped history
+native probe passed: hermes isolation turn actually reaches the model
+native probe passed: hermes provider history has the expected scope markers
+native probe passed: hermes provider history excludes other room/Agent/generation markers
+native probe passed: hermes actual native todo state matches the scoped history
+native probe passed: hermes isolation turn actually reaches the model
+native probe passed: hermes provider history has the expected scope markers
+native probe passed: hermes provider history excludes other room/Agent/generation markers
+native probe passed: hermes actual native todo state matches the scoped history
+native probe passed: hermes isolation turn actually reaches the model
+native probe passed: hermes provider history has the expected scope markers
+native probe passed: hermes provider history excludes other room/Agent/generation markers
+native probe passed: hermes actual native todo state matches the scoped history
+native probe passed: authorized private model profile remains byte-identical
+Native probe failed: AssertionError (inspect sanitized report)

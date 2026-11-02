@@ -1,0 +1,50 @@
+{
+  "scope": {
+    "kind": "room_agent_v1",
+    "room_id": 7,
+    "agent_id": "public-pi",
+    "actor_user_id": 17,
+    "bot_user_id": 101,
+    "generation": 1,
+    "workspace_generation": 0,
+    "context_generation": 0,
+    "project_id": "",
+    "policy": "read_only",
+    "runtime": "pi_rpc",
+    "source_msg_id": "r_7-9",
+    "request_id": "ra_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "image": {
+    "request_id": "ra_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "context_generation": 0,
+    "items": [
+      {
+        "source_id": "src_cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "reference": {
+          "kind": "image",
+          "room_id": 7,
+          "asset_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          "revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "index": 0,
+          "sha256": "483f1d465d602ae1b7565e5d4dd8b55f1b62668d9ec4611607ae32be3e18b940",
+          "anchor": {
+            "kind": "image",
+            "index": 0
+          }
+        },
+        "mime": "image/jpeg",
+        "data": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/2wBDAQkJCQwLDBgNDRgyIRwhMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjIyMjL/wAARCAACAAMDASIAAhEBAxEB/8QAHwAAAQUBAQEBAQEAAAAAAAAAAAECAwQFBgcICQoL/8QAtRAAAgEDAwIEAwUFBAQAAAF9AQIDAAQRBRIhMUEGE1FhByJxFDKBkaEII0KxwRVS0fAkM2JyggkKFhcYGRolJicoKSo0NTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqDhIWGh4iJipKTlJWWl5iZmqKjpKWmp6ipqrKztLW2t7i5usLDxMXGx8jJytLT1NXW19jZ2uHi4+Tl5ufo6erx8vP09fb3+Pn6/8QAHwEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoL/8QAtREAAgECBAQDBAcFBAQAAQJ3AAECAxEEBSExBhJBUQdhcRMiMoEIFEKRobHBCSMzUvAVYnLRChYkNOEl8RcYGRomJygpKjU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6goOEhYaHiImKkpOUlZaXmJmaoqOkpaanqKmqsrO0tba3uLm6wsPExcbHyMnK0tPU1dbX2Nna4uPk5ebn6Onq8vP09fb3+Pn6/9oADAMBAAIRAxEAPwDraKKK/KD7Q//Z",
+        "metadata": {
+          "mime": "image/jpeg",
+          "sha256": "483f1d465d602ae1b7565e5d4dd8b55f1b62668d9ec4611607ae32be3e18b940",
+          "anchor": {
+            "kind": "image",
+            "index": 0
+          },
+          "width": 3,
+          "height": 2
+        }
+      }
+    ]
+  }
+}

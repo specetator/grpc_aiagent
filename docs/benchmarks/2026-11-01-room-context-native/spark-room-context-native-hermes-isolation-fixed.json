@@ -1,0 +1,228 @@
+{
+  "kind": "real-native-tools-and-models-with-fixture-authority",
+  "passed": true,
+  "scope": "Opt-in real native room tools/models with an HTTP authority fixture.\n\nThis is a native integration probe, NOT Logic/MySQL/Kafka/Web acceptance.\nOnly explicitly authorized default-profile MODEL access is provisioned into\nowned homes; private sessions/configuration/workspaces are never copied.\n",
+  "checks": [
+    "Hermes advertises verified explicit room toolset",
+    "hermes reads bounded room text without a code project",
+    "hermes native tool result contains all three actual images",
+    "hermes provider-bound request contains all three image payloads",
+    "hermes answers three randomized no-text images correctly",
+    "hermes isolation turn actually reaches the model",
+    "hermes provider history has the expected scope markers",
+    "hermes provider history excludes other room/Agent/generation markers",
+    "hermes actual native todo state matches the scoped history",
+    "hermes isolation turn actually reaches the model",
+    "hermes provider history has the expected scope markers",
+    "hermes provider history excludes other room/Agent/generation markers",
+    "hermes actual native todo state matches the scoped history",
+    "hermes isolation turn actually reaches the model",
+    "hermes provider history has the expected scope markers",
+    "hermes provider history excludes other room/Agent/generation markers",
+    "hermes actual native todo state matches the scoped history",
+    "hermes isolation turn actually reaches the model",
+    "hermes provider history has the expected scope markers",
+    "hermes provider history excludes other room/Agent/generation markers",
+    "hermes actual native todo state matches the scoped history"
+  ],
+  "runtimes": {
+    "hermes": {
+      "answer": {
+        "nonce": "468576a0273e9ebc3f7aafad",
+        "images": [
+          {
+            "left": {
+              "shape": "square",
+              "color": "blue"
+            },
+            "right": {
+              "shape": "circle",
+              "color": "green"
+            },
+            "lower": {
+              "shape": "triangle",
+              "color": "red"
+            }
+          },
+          {
+            "left": {
+              "shape": "triangle",
+              "color": "green"
+            },
+            "right": {
+              "shape": "square",
+              "color": "red"
+            },
+            "lower": {
+              "shape": "circle",
+              "color": "blue"
+            }
+          },
+          {
+            "left": {
+              "shape": "square",
+              "color": "green"
+            },
+            "right": {
+              "shape": "triangle",
+              "color": "blue"
+            },
+            "lower": {
+              "shape": "circle",
+              "color": "red"
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "left": {
+            "shape": "square",
+            "color": "blue"
+          },
+          "right": {
+            "shape": "circle",
+            "color": "green"
+          },
+          "lower": {
+            "shape": "triangle",
+            "color": "red"
+          }
+        },
+        {
+          "left": {
+            "shape": "triangle",
+            "color": "green"
+          },
+          "right": {
+            "shape": "square",
+            "color": "red"
+          },
+          "lower": {
+            "shape": "circle",
+            "color": "blue"
+          }
+        },
+        {
+          "left": {
+            "shape": "square",
+            "color": "green"
+          },
+          "right": {
+            "shape": "triangle",
+            "color": "blue"
+          },
+          "lower": {
+            "shape": "circle",
+            "color": "red"
+          }
+        }
+      ],
+      "image_sha256": [
+        "2fd05f0d242172c414418526a106a5708266abe0e0379ac0631f1c8c16d2a7fb",
+        "61942a8410c198a92fed2c19679c2c931b6d1ce2357f81d43013b35750e0fbeb",
+        "f2f851fa77ae6b088b9383adf4f6142a14b4badfbc2e662f1b600c5b5724773f"
+      ],
+      "audit": [
+        {
+          "phase": "provider",
+          "hashes": [],
+          "status": 200,
+          "markers": [
+            "probe-memory-1806b255f868ca9b617c9adb"
+          ],
+          "request_id": "ra_057cdcc50af410f6936f536d0f1384b65167cd9d7bd3fcb7cfb22ddd0b8d1762"
+        },
+        {
+          "phase": "provider",
+          "hashes": [],
+          "status": 200,
+          "markers": [
+            "probe-memory-1806b255f868ca9b617c9adb"
+          ],
+          "request_id": null
+        },
+        {
+          "phase": "provider",
+          "hashes": [],
+          "status": 200,
+          "markers": [
+            "probe-memory-1806b255f868ca9b617c9adb"
+          ],
+          "request_id": "ra_057cdcc50af410f6936f536d0f1384b65167cd9d7bd3fcb7cfb22ddd0b8d1762"
+        },
+        {
+          "phase": "tool",
+          "hashes": [
+            "2fd05f0d242172c414418526a106a5708266abe0e0379ac0631f1c8c16d2a7fb"
+          ],
+          "status": null,
+          "markers": [],
+          "request_id": "ra_057cdcc50af410f6936f536d0f1384b65167cd9d7bd3fcb7cfb22ddd0b8d1762"
+        },
+        {
+          "phase": "tool",
+          "hashes": [
+            "f2f851fa77ae6b088b9383adf4f6142a14b4badfbc2e662f1b600c5b5724773f"
+          ],
+          "status": null,
+          "markers": [],
+          "request_id": "ra_057cdcc50af410f6936f536d0f1384b65167cd9d7bd3fcb7cfb22ddd0b8d1762"
+        },
+        {
+          "phase": "tool",
+          "hashes": [
+            "61942a8410c198a92fed2c19679c2c931b6d1ce2357f81d43013b35750e0fbeb"
+          ],
+          "status": null,
+          "markers": [],
+          "request_id": "ra_057cdcc50af410f6936f536d0f1384b65167cd9d7bd3fcb7cfb22ddd0b8d1762"
+        },
+        {
+          "phase": "provider",
+          "hashes": [
+            "2fd05f0d242172c414418526a106a5708266abe0e0379ac0631f1c8c16d2a7fb",
+            "f2f851fa77ae6b088b9383adf4f6142a14b4badfbc2e662f1b600c5b5724773f",
+            "61942a8410c198a92fed2c19679c2c931b6d1ce2357f81d43013b35750e0fbeb"
+          ],
+          "status": 200,
+          "markers": [
+            "probe-memory-1806b255f868ca9b617c9adb"
+          ],
+          "request_id": "ra_057cdcc50af410f6936f536d0f1384b65167cd9d7bd3fcb7cfb22ddd0b8d1762"
+        },
+        {
+          "phase": "todo",
+          "hashes": [],
+          "status": null,
+          "markers": [],
+          "request_id": "ra_057cdcc50af410f6936f536d0f1384b65167cd9d7bd3fcb7cfb22ddd0b8d1762"
+        }
+      ],
+      "isolation": [
+        {
+          "provider_markers": [
+            "probe-memory-1806b255f868ca9b617c9adb"
+          ],
+          "todo_checked": true
+        },
+        {
+          "provider_markers": [
+            "probe-memory-1806b255f868ca9b617c9adb"
+          ],
+          "todo_checked": true
+        },
+        {
+          "provider_markers": [],
+          "todo_checked": true
+        },
+        {
+          "provider_markers": [],
+          "todo_checked": true
+        }
+      ]
+    }
+  },
+  "private_profile_hashes_unchanged": true,
+  "tool_call_count": 5
+}

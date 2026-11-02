@@ -11,13 +11,14 @@ class SparkCollaborationUI {
       <aside id="collaboration-panel" hidden aria-label="协作详情">
         <header><strong>协作详情</strong><button type="button" data-close-panel aria-label="关闭协作详情">×</button></header>
         <nav class="detail-tabs" aria-label="协作工具">
-          <button data-tab="agents">Agent</button><button data-tab="tasks">任务</button><button data-tab="workspace">工作区</button><button data-tab="members">成员</button>
+          <button data-tab="agents">Agent</button><button data-tab="media">资料</button><button data-tab="tasks">任务</button><button data-tab="workspace">工作区</button><button data-tab="members">成员</button>
         </nav>
         <section id="room-agents">
           <div data-section="agents"><h3>房间 Agent</h3><p class="help">安装后，在消息框输入 @ 选择。普通讨论不会调用模型。</p><button data-agents-refresh>刷新执行状态</button><div data-agents-list></div><div data-agent-requests></div></div>
           <div data-section="tasks" hidden><h3>协作任务</h3><p class="help">在 Agent 已完成的回复中保存任务，成员可以接手并更新进度。</p><div data-room-tasks></div></div>
           <p data-agents-error class="form-error" role="status"></p>
         </section>
+        <section data-section="media" hidden></section>
         <section data-section="workspace" hidden><h3>项目工作区</h3><p class="help">从管理员发布的项目中选择。公共 Agent 仅能读取授权代码。</p>
           <form data-workspace-form><label>授权项目<select name="project_id" aria-label="授权项目"></select></label><button type="submit">保存工作区</button></form>
           <p data-workspace-status role="status"></p>
@@ -54,7 +55,7 @@ class SparkCollaborationUI {
     const choices=document.createElement('div');choices.id='room-mention-choices';choices.setAttribute('aria-label','可用 Agent');selected.before(choices);
     const agentPanel=root.querySelector('#room-agents');
     this.agents=new RoomAgents(agentPanel,document.getElementById('msg-text'),choices,client.api,client.append,{
-      selectedHost:selected,name:id=>this.memberName(id),status:statusLabel,loaded:client.agentsLoaded,
+      selectedHost:selected,name:id=>this.memberName(id),status:statusLabel,loaded:client.agentsLoaded,sourceDenied:client.invalidate,
       editTask:(request,proposal)=>this.edit('保存协作任务',[
         {name:'title',label:'任务标题',value:proposal.title||'协作任务',required:true,max:255},
         {name:'description',label:'任务描述',value:proposal.description||request.result?.text||'',type:'textarea'},
@@ -64,6 +65,12 @@ class SparkCollaborationUI {
         {name:'summary',label:'交接摘要',value:task.summary,type:'textarea'}])
     });
     this.cann=new RoomAgentChannel(root.querySelector('#room-agent-panel'),client.api);
+    this.media=new RoomMedia(root.querySelector('[data-section="media"]'),client.api,this.agents,document.getElementById('msg-text'),{
+      denied:client.invalidate,compose:()=>this.togglePanel(false)});
+    this.agents.options.openSource=(request,source)=>{this.togglePanel(true);this.tab('media');this.media.openSource(request,source);};
+    this.mediaButton=document.createElement('button');this.mediaButton.type='button';this.mediaButton.textContent='房间资料';this.mediaButton.hidden=true;
+    this.mediaButton.onclick=()=>{this.togglePanel(true);this.tab('media');};
+    document.getElementById('collaboration-details-btn').after(this.mediaButton);
     root.querySelector('[data-workspace-form]').onsubmit=e=>{e.preventDefault();this.saveWorkspace();};
     document.getElementById('manage-spaces-btn').onclick=()=>this.openDirectory();
     document.getElementById('collaboration-details-btn').onclick=()=>this.togglePanel();
@@ -74,7 +81,7 @@ class SparkCollaborationUI {
   memberName(id){return this.members.find(member=>Number(member.user_id)===Number(id))?.name||this.members.find(member=>Number(member.user_id)===Number(id))?.account||'成员';}
   reset(){
     this.version++;this.navigation++;this.listVersion++;this.room=0;this.spaces=[];this.members=[];
-    this.spacePanel.select(0);this.agents.select(0);this.cann.select(0);this.togglePanel(false);
+    this.spacePanel.select(0);this.agents.select(0);this.cann.select(0);this.media.select(0);this.mediaButton.hidden=true;this.togglePanel(false);
     this.directory.close();this.form.close();document.getElementById('space-list').replaceChildren();
     this.root.querySelector('[data-invitations]').replaceChildren();this.root.querySelector('[data-public-spaces]').replaceChildren();
     this.root.querySelector('[data-workspace-form]').reset();this.root.querySelector('[data-workspace-status]').textContent='';
@@ -116,12 +123,13 @@ class SparkCollaborationUI {
     const room=conversation?.kind==='room'?Number(conversation.room_id):0;this.room=room;this.version++;
     this.directory.close();this.form.close();
     document.getElementById('collaboration-details-btn').hidden=!room;
+    this.mediaButton.hidden=!room;this.media.select(room);
     if(!room){this.navigation++;this.members=[];this.togglePanel(false);}
     this.spacePanel.select(room,conversation?.role);this.agents.select(room);this.cann.select(room);
     if(room)this.loadWorkspace();
   }
   togglePanel(open){this.panel.hidden=open===undefined?!this.panel.hidden:!open;document.body.classList.toggle('details-open',!this.panel.hidden);}
-  tab(name){this.root.querySelectorAll('[data-section]').forEach(section=>section.hidden=section.dataset.section!==name);this.root.querySelectorAll('[data-tab]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.tab===name)));}
+  tab(name){this.root.querySelectorAll('[data-section]').forEach(section=>section.hidden=section.dataset.section!==name);this.root.querySelectorAll('[data-tab]').forEach(button=>button.setAttribute('aria-pressed',String(button.dataset.tab===name)));if(name==='media')this.media.refresh();}
   async openDirectory(){this.directory.showModal();this.root.querySelector('[data-directory-error]').textContent='';await this.spacePanel.run(()=>this.spacePanel.invitations());await this.discover(false);}
   async discover(more){
     const version=this.version;const host=this.root.querySelector('[data-public-spaces]');if(!more){host.replaceChildren();this.publicOffset=0;}

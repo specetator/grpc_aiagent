@@ -1,0 +1,73 @@
+{
+  "date": "2026-11-02",
+  "phase": "Real Web audiovisual analysis and source timestamp playback",
+  "overall_goal_complete": false,
+  "source_commit": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "image_id": "sha256:b9e09b890197cede40a2411c718a1f25b577a79c1a20d5e9de7fdaca34dafb17",
+  "kind": "real owned Compose, three independent Chromium processes, production parser and isolated Hermes Native; synthetic 10-second video with independently specified visual/audio facts",
+  "ok": true,
+  "exit_code": 0,
+  "attempts": 1,
+  "browser_checks": 7,
+  "parent_checks": 3,
+  "verified": [
+    "three independent browser processes register and log in through the UI",
+    "Alice creates a private space, invites Bob and Carol by account, both accept without numeric IDs",
+    "incident.mp4 uploaded through the UI is parsed by the real worker, shared with three members and readable without a model call",
+    "three browsers see the same attributed video analysis; ordinary upload and draft selection did not invoke a model",
+    "cited frames open with exact hashes; the source action seeks the real video without autoplay and native controls advance playback",
+    "full service restart and fresh browser profiles recover the same video final, fixed source images and timestamp playback",
+    "removing the member clears his active player and denies original video, derived frame and Agent source reads"
+  ],
+  "semantics": {
+    "frames": [
+      {
+        "timestamp_ms": 0,
+        "panel_color": "red",
+        "marker_color": "white",
+        "marker_shape": "circle",
+        "source_id": "src_06486a6181e9d4920a8490d20928d16fad90274537981058528fc83d8bfb2d2e"
+      },
+      {
+        "timestamp_ms": 5000,
+        "panel_color": "green",
+        "marker_color": "yellow",
+        "marker_shape": "triangle",
+        "source_id": "src_b1c63e735716a6d5b95a7f852c13c101010f8495d6e5383dca906df8c63f6ea2"
+      }
+    ],
+    "transition_window_ms": [
+      0,
+      5000
+    ],
+    "audio_summary": "The audio says the red panel shows a connection failure and the green panel means recovery. The sampled frames show a red panel with a white circle at 0 ms and a green panel with a yellow triangle at 5000 ms; the transition is bounded by these two sampled frames, not timed more precisely."
+  },
+  "source_image_evidence": "Both cited JPEG hashes observed in actual Native tool results and successful provider requests; browser preview bytes match authoritative receipts",
+  "playback_timestamp_ms": 5000,
+  "implementation": [
+    "--media-analysis --media-case video reuses existing Web registration/upload/mention flow and owned media worker",
+    "Semantic assertions reuse validate_video from the HTTP/WS media scenario; no expected shapes, colors or audio facts are supplied in the model prompt",
+    "Browser checks actual source navigation, native video controls, full service restart, fresh profiles and membership revocation"
+  ],
+  "not_executed": [
+    "No PDF, Pi, long meeting transcription, standalone SQL or full CTest rerun",
+    "No real production incident recording or Chinese visual-layout acceptance",
+    "No new application image build, production deployment or GitHub publication; only test/docs sources changed"
+  ],
+  "unresolved": "Original long-audio semantic gate remains failed due to a transcription term; this video result does not resolve it",
+  "cleanup": "Owned Compose stack and native processes terminated; docker ps shows only the five pre-existing user containers",
+  "command": "PATH=/home/peco/.local/node/bin:$PATH SPARK_PLAYWRIGHT_MODULE=/tmp/spark-spaces-browser/node_modules/playwright /tmp/spark-spaces-py311/bin/python tests/collaboration_web_e2e.py --image spark-push:media-review --agents --media-analysis --media-case video --media-image spark-media:development --media-model /tmp/spark-media-asr-small --media-fixtures /tmp/spark-collaboration-fixtures-v2-DQVG8Q --out /tmp/spark-web-video-analysis-e2e.json",
+  "source_sha256": {
+    "tests/collaboration_web_e2e.py": "3c688232a0d5bc2710959706cdf38d39ce2c9ba105c9e8e5c8440e5331cac5fb",
+    "tests/collaboration_web_media_analysis.cjs": "433b2f6c1f96a695dcfe7135ada7e3192e238b28f9b1bde2452abf80914f0487",
+    "tests/collaboration_web_video_analysis.cjs": "de4cd184bf88076ad3f1299824c0ffb218105b149071530b7156fd0d80911772",
+    "tests/public_media_scenario.py": "08f31befb94cb7ba54e3d4083064802ad8968a1016e0c19f6ab6a29481d7f8fc",
+    "tests/room_context_runtime_probe.py": "d7c597046ce60a194b376c6512ddbb18e6972d2d08783c74086f99823d308f3e",
+    "web_demo/static/room_media.js": "1b2a98361458addb613d2b4c97e6eaf9d9fa41bc586276b70f29f82e3085e918"
+  },
+  "artifact_directory": "2026-11-02-web-video-analysis",
+  "artifact_sha256": {
+    "spark-web-video-analysis-e2e.json": "12422394a6e2ae37d084bef9da2fda873c160df4b2a5ffb55ae0fd84cb2018fd",
+    "spark-web-video-analysis-e2e.log": "6c20854ba4091d425cd2013c56cea16c5547e99f0c1cde4bed0c7ca1a52c6eef"
+  }
+}

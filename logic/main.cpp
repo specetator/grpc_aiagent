@@ -20,6 +20,10 @@
 #include "http_server.h"
 #include "repositories/room_agent_repository.h"
 #include "repositories/space_repository.h"
+#include "repositories/media_repository.h"
+#include "repositories/media_processing_repository.h"
+#include "repositories/media_context_repository.h"
+#include "repositories/media_artifact_repository.h"
 #include "services/room_agent_service.h"
 #include "kafka_consumer.h"
 #include "kafka_producer.h"
@@ -281,6 +285,9 @@ int RunLogic(Config cfg) {
         if(const char* path=std::getenv("SPARK_PUSH_ROOM_PROJECT_CATALOG");path && *path) {
             const char* key=std::getenv("SPARK_PUSH_WORKSPACE_AUTH_KEY");
             candidate.SetProjectCatalog(ParseRoomProjectCatalog(ReadOperatorCatalog(path)),key?key:"");
+        } else if(const char* key=std::getenv("SPARK_PUSH_WORKSPACE_AUTH_KEY");key && *key) {
+            // Room media authority does not require a code project grant.
+            candidate.SetProjectCatalog({},key);
         }
         setup_stage="gateway origin and key";
         const char* key=std::getenv("SPARK_PUSH_HERMES_API_KEY");
@@ -361,6 +368,23 @@ int RunLogic(Config cfg) {
     UserService user_service(&users, std::move(user_options));
     ConversationService conversation_service(&conversations,&user_service);
     AttachmentService attachment_service(&attachments, &conversation_service);
+    MySqlMediaRepository media_repository(&mysql_pool, cfg.attachment_dir);
+    const bool media_ready=media_repository.CheckSchema();
+    if(!media_ready) LOG_WARN << "Room media unavailable; apply room_media, media_processing, media_artifacts and media_publication migrations (20261101)";
+    RoomMediaService media_service(media_ready ? &media_repository : nullptr, &conversation_service);
+    MySqlMediaProcessingRepository media_jobs(&mysql_pool);
+    const bool processing_ready=media_ready && media_jobs.CheckSchema();
+    const char* media_key=std::getenv("SPARK_PUSH_MEDIA_WORKER_KEY");
+    const char* media_pipeline=std::getenv("SPARK_PUSH_MEDIA_PIPELINE_SHA256");
+    const char* media_parser_pipeline=std::getenv("SPARK_PUSH_MEDIA_PARSER_PIPELINE_SHA256");
+    const char* media_parser_sha=std::getenv("SPARK_PUSH_MEDIA_PARSER_SHA256");
+    MySqlMediaArtifactRepository media_artifacts(&mysql_pool,cfg.attachment_dir+"/media_derived");
+    MediaProcessingService media_processing(processing_ready ? &media_jobs : nullptr,
+        &media_repository,&conversation_service,media_key?media_key:"",media_pipeline?media_pipeline:"",
+        processing_ready && media_artifacts.CheckSchema()?&media_artifacts:nullptr,
+        media_parser_pipeline?media_parser_pipeline:"",media_parser_sha?media_parser_sha:"");
+    MySqlMediaContextRepository media_context_repository(&mysql_pool);
+    MediaContextService media_context(&room_agent_service,&media_processing,&media_repository,&media_context_repository);
     MessageService message_service(
         &conversation_store, &group_member_dao, &user_service, &single_producer,
         &group_producer, &broadcast_producer, &persist_producer, &redis_store,
@@ -448,7 +472,7 @@ int RunLogic(Config cfg) {
         &loop, httpAddr,
         {user_service, conversation_service, attachment_service, message_service,
          room_service, admin_service, danmaku_service, knowledge_service,
-         &room_agent_service, &operator_task_service, &agent_connection_service}, cfg.logic_http_threads);
+         &room_agent_service, &operator_task_service, &agent_connection_service, &media_service, &media_processing, &media_context}, cfg.logic_http_threads);
     httpServer.start();
     // outbox 崩溃恢复定时器（每 1s）。这是事务性 outbox 模式的另一半：
     // 正常路径上 Submit 会同步走完 PrepareOutbox -> SendAndWait -> Published，

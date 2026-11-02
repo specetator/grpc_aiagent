@@ -1,0 +1,105 @@
+{
+  "date": "2026-11-01",
+  "phase": "focused-video-and-analysis-entry",
+  "overall_goal_complete": false,
+  "source_commit": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "implementation": [
+    "AGENTS.md defines feature-first focused validation; full suite is a phase integration gate, not an every-edit checklist",
+    "Media E2E selects pdf/audio/video independently while retaining shared real message/replay/restart checks",
+    "Web material analysis has summary/task/video presets; audio/video select appropriate defaults; drafts carry selected asset ID/revision and require explicit send",
+    "Task draft asks for source IDs and uncertain owners to be reviewed; it never assigns system accounts from transcript names",
+    "Reuses existing Native image observer; actual tool and HTTP provider payload hashes replace an invalid text-only SQLite image assertion"
+  ],
+  "real_video": {
+    "passed": true,
+    "exit_code": 0,
+    "check_groups": 13,
+    "selected_cases": [
+      "video"
+    ],
+    "not_selected": [
+      "pdf",
+      "audio"
+    ],
+    "report": "spark-video-focused-e2e-second.json",
+    "log": "spark-video-focused-e2e-second.log",
+    "scope": "Real isolated Compose/MySQL/Redis/Kafka, production parser, actual Pi/Hermes models and three HTTP/WS users. Synthetic 10-second video; not browsers. Pi/Hermes code baselines retained; only Hermes analyzes video.",
+    "checks": [
+      "formal Native capabilities and HTTP whitelist deny chat/profile/tool/session bypasses",
+      "three independent users exchange real messages; normal chat does not invoke models",
+      "public-pi reads the real nonce and C++ file; all three clients see its attributed durable final",
+      "public-hermes reads the real nonce and C++ file; all three clients see its attributed durable final",
+      "original Native room broker receipt succeeds and both consumers commit without dead letters",
+      "selected media uploaded through real chunk APIs and published by production worker: video",
+      "Hermes video answer matches nonspoken image facts and audio; actual JPEGs observed in Native tool and provider requests",
+      "real native tool transcripts confirm file contents; Agents use separate sessions and share one IM timeline",
+      "Native process restart reuses the owned Profile without rewriting config, model auth or identity",
+      "tasks and handoff are persisted; duplicate client messages preserve completed execution records",
+      "Kafka redelivery after revoke, catalog disable and Connector/Bridge restart preserves one original result",
+      "full Compose restart and fresh login retain final messages, claimed task and membership revocation",
+      "selected media sources and attributed finals survive Kafka replay and full Compose restart; removed member is denied"
+    ],
+    "cleanup": {
+      "owned_compose_resources_removed": true,
+      "private_pi_model_files_unchanged": true,
+      "original_windows_profile_unchanged": true,
+      "owned_native_profile_removed": true
+    },
+    "command": "/tmp/spark-spaces-py311/bin/python tests/public_room_runtime_e2e.py --image spark-push:media-sources --media --media-case video --media-image spark-media:development --media-model /tmp/spark-media-asr-small --media-fixtures /tmp/spark-collaboration-fixtures-v2-DQVG8Q --out /tmp/spark-video-focused-e2e-second.json"
+  },
+  "earlier_failure": {
+    "report": "spark-video-focused-e2e.json",
+    "log": "spark-video-focused-e2e.log",
+    "passed": false,
+    "cause": "Semantic video checks passed, but the harness expected JPEG data URLs in Native SQLite text history. The installed Native _durable_content intentionally projects images to [screenshot].",
+    "fix": "Observe exact image hashes in real tool and successful provider requests using the existing Native probe. The failed run remains failed; its unexecuted replay/recovery checks are not retroactively passed."
+  },
+  "browser": {
+    "kind": "mock_browser_contract",
+    "checks": 25,
+    "passed": true,
+    "exit_code": 0,
+    "log": "spark-media-analysis-browser.log",
+    "scope": "Actual Chromium with controlled HTTP/WS; includes selected fixed source, task draft and explicit-send behavior. Not real model acceptance of the new Chinese presets."
+  },
+  "other_validation": {
+    "assertion_negative_cases": 9,
+    "python_syntax": "passed",
+    "javascript_syntax": "passed",
+    "knowledge_sources": 197,
+    "knowledge_log": "spark-video-knowledge.log",
+    "diff_check": "passed"
+  },
+  "packaging": {
+    "image_id": "sha256:875afac308df1c78205a6189905fe23621dd3970337bb4e9cbb558da6a945620",
+    "snapshot": "spark-video-package.json",
+    "scope": "Local image includes source/task links and material search. It predates the subsequent analysis-preset UI change; that UI was browser-tested from the working tree. No production deployment or push."
+  },
+  "limits": [
+    "PDF and 20-minute audio were not selected; prior ASR owner/action accuracy failure remains unresolved",
+    "Pi visual semantic failure from the independent image probe remains unresolved; this run uses Hermes for video",
+    "Saved task/restart checks here cover the existing code-review task, not a new audio-derived task",
+    "Three-client protocol E2E and controlled browser checks do not equal three-browser real media acceptance",
+    "Prompt asset IDs are target hints, not a new server-enforced asset binding protocol; each tool call remains authorized",
+    "Shared asset deletion, final-message structured citations, full media acceptance and worker deployment integration remain open",
+    "No full CTest or CANN/private-Agent regression rerun for these local harness/UI edits; unknown-run failure injection is separate"
+  ],
+  "current_source_sha256": {
+    "AGENTS.md": "bba1f805876b9ec74c7d9d917bfa0cb6429b6429c7fe2939e6a001fbbfec2498",
+    "web_demo/static/room_media.js": "c4c6ab741f9ee72d320355441241e4e782be57cf2093e76062e34d06dd30e864",
+    "tests/collaboration_browser_test.cjs": "ab1a09e4bdef10b19f92bb9103e6c493a214a7e7f2df116f3f83b4d4323018db",
+    "tests/public_media_scenario.py": "8bb8e3760fe056ab8b01aeb7374214804b146e0d9b8c945d727316fa18618d49",
+    "tests/room_context_runtime_probe.py": "d7c597046ce60a194b376c6512ddbb18e6972d2d08783c74086f99823d308f3e",
+    "tests/public_room_runtime_e2e.py": "c56f830c76957262885eb5f073802b7d98de2551784675658d009ac2477c4a8c"
+  },
+  "artifact_directory": "2026-11-01-video-focused",
+  "artifact_sha256": {
+    "spark-media-analysis-browser.log": "27f266b79e0b8ff4427753f9e1038ce7a28073d671f4b4afb70b8edaf6771a37",
+    "spark-video-focused-e2e-second.json": "e8c16ea5c0446533e526d93d6bb0b85836dec5720ad436821d764780b0df0d3d",
+    "spark-video-focused-e2e-second.log": "652c7d820e9bc2175d1888da63d3d04e79901b835973348336ff22ab3327693e",
+    "spark-video-focused-e2e.json": "86c091a32a39bcaefb15b48470f21a702a9e80b16cabd788d55d8c977e1486a9",
+    "spark-video-focused-e2e.log": "9c98a724d0a4cefa3d58460be03a4e6632aa821eebade236b365d9baaac97fae",
+    "spark-video-knowledge.log": "4755f54dd3af5c7696003f9caed72201eae8b0e83a88a2ea9476cb06e21a0a67",
+    "spark-video-package.json": "31309abec8d0f07ef7d64cda546da3f27bc5c1fd859c97114eb739eaded2a5b7"
+  }
+}

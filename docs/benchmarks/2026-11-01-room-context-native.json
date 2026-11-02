@@ -1,0 +1,331 @@
+{
+  "date": "2026-11-01",
+  "phase": "native-room-context-tools",
+  "status": "implemented_with_failed_pi_visual_acceptance",
+  "overall_goal_complete": false,
+  "git_head": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "scope": "Development worktree, not v0.1.0. Native fixtures, installed-native contracts and actual Logic/SQL transport are separate evidence, not a single product E2E.",
+  "implementation": [
+    "shared bounded source schemas and request-bound Python/Pi tools",
+    "no-project room sources with existing public runtime isolation",
+    "explicit matching Hermes media opt-in and tool allowlist",
+    "instance-local Native todo hydration compatibility",
+    "explicit image delivery failure on model/provider/native downgrade",
+    "private CLI installer excludes explicitly scoped public extensions; owned temporary installation checked"
+  ],
+  "validation": {
+    "build": {
+      "exit": 0,
+      "log": "spark-room-native-build.txt",
+      "scope": "C++ build before later Python/JS-only guards; C++ unchanged in this phase"
+    },
+    "ctest_baseline": {
+      "registered": 78,
+      "passed": 67,
+      "skipped": 11,
+      "failed": 0,
+      "exit": 0,
+      "log": "spark-room-native-ctest.txt"
+    },
+    "ctest_current": {
+      "registered": 78,
+      "passed": 67,
+      "skipped": 11,
+      "failed": 0,
+      "exit": 0,
+      "skipped_tests": [
+        "media_mysql_integration_test",
+        "media_artifact_mysql_test",
+        "route_generation_integration_test",
+        "message_reservation_integration_test",
+        "media_processing_http_test",
+        "media_context_http_test",
+        "media_pipeline_http_test",
+        "media_worker_http_test",
+        "collaboration_browser_test",
+        "redis_sequence_integration_test",
+        "space_mysql_integration_test"
+      ],
+      "log": "spark-room-native-current-ctest.txt",
+      "scope": "Full suite before final one-line private-installer exclusion; post-change targeted suite is listed separately."
+    },
+    "unit_contract": {
+      "python_tests": 16,
+      "python_exit": 0,
+      "pi_js_exit": 0,
+      "scope": "fixture authority and controlled native seams; no model/SQL",
+      "python_log": "spark-room-native-unit-final.txt"
+    },
+    "installed_native_policy": {
+      "groups": 6,
+      "exit": 0,
+      "scope": "actual installed Native converter/strip; controlled capability predicates; no provider E2E",
+      "report": "spark-room-native-policy.json"
+    },
+    "related_ctest_after_guards": {
+      "passed": 6,
+      "exit": 0,
+      "log": "spark-room-native-guard-regression.txt"
+    },
+    "real_logic_clients": {
+      "exit": 0,
+      "context_http_groups": 12,
+      "pi_extension_executed": true,
+      "legacy_text_http_passed": true,
+      "sql_tests_passed": 4,
+      "report": "spark-media-context-http.json",
+      "log": "spark-room-native-mysql-clients.txt",
+      "scope": "real HTTP/MySQL/Redis/login/membership/upload/parser/receipts; Python and actual Pi TS tool clients; seeded canonical requests/messages; no model/Kafka/browser"
+    },
+    "real_native_complete_observation": {
+      "exit": 1,
+      "report": "spark-room-context-native-complete-observation.json",
+      "authority": "HTTP fixture; no Logic/MySQL/Kafka/browser",
+      "model": "openai-codex/gpt-6-luna",
+      "pi": "native and provider image delivery, restart/room/epoch history isolation passed; visual answers failed",
+      "hermes": "three image answers, actual provider image delivery, todo write/restart/other-room/new-epoch isolation passed",
+      "private_profile_hashes_unchanged": true
+    },
+    "pi_call_source_diagnostic": {
+      "exit": 1,
+      "report": "spark-room-context-native-pi-association.json",
+      "passed": "function call -> asset -> reference SHA -> actual JPEG SHA association",
+      "failed": "same second-image right green triangle misidentified"
+    },
+    "knowledge": {
+      "strict_exit": 0,
+      "citation_exit": 0,
+      "sync_check_exit": 1,
+      "sync_note": "read-only check reports existing installed personal knowledge/configuration drift; no installation or overwrite performed",
+      "sync_log": "spark-room-native-sync-final.txt"
+    },
+    "post_full_suite_installer_fix": {
+      "passed": 3,
+      "exit": 0,
+      "log": "spark-room-native-installer-regression.txt",
+      "scope": "room context contract (16 Python cases), public startup and project snapshot; real installer only into a disposable home, no private CLI startup claim"
+    }
+  },
+  "preserved_failures": [
+    "original Pi visual error",
+    "same-fixture Pi visual errors after guards",
+    "earlier Pi exact recall answer assertion failed; actual answer not captured in that earlier run",
+    "legacy Native todo hydration failed before instance-local alias compatibility"
+  ],
+  "limitations": [
+    "Pi same-fixture visual semantic acceptance failed; no blind retries counted as success",
+    "one continuous real Logic -> Native -> Kafka/Web source flow remains to be verified",
+    "shared delete, final/task source validation, Web media library and three-user full multimedia E2E remain incomplete",
+    "20-minute actual meeting -> durable decisions/tasks, PDF plus authorized code, and video frames plus audio not validated end to end",
+    "11 baseline CTest skips: 6 supplemented by owned SQL/HTTP; independent route-generation/redis-sequence/media-pipeline/media-worker/browser tests not rerun here",
+    "HTTP source receipt and early tool.completed do not prove provider vision or model correctness; already sent bytes/events cannot be retracted"
+  ],
+  "source_fingerprints_at_report": {
+    "cannbot/room-context-tools.json": "538dbf2cee52ce64ae02b063b469622cceb5ed1e7964a38dde978abc49e04a64",
+    "cannbot/pi/extensions/room-context.ts": "13c45132923f294f2c301b101924c460995cb59f16e5e985df87cfd6acd8a148",
+    "cannbot/scripts/room_context.py": "f2deeb4ca967b463abb4b610fe06dc41e6f957922f4b0f5f9a7706c9095a6b4b",
+    "cannbot/scripts/hermes_public_workspace.py": "0e81f1f12bfcb6365adac35c3707467c8d3028c8070c692c28342c94cd558030",
+    "cannbot/scripts/hermes_public_gateway.py": "e82fae9bf9ea643dd0a9e52ca1f29e1e622ac52e9ab4607b0021a3cb74c58ecc",
+    "cannbot/scripts/hermes_native_adapter.py": "8f932e375f4e7b04e9e0498a545584c89a000afc9994fffb434935918c252c86",
+    "cannbot/scripts/public_runtime.py": "61354793e71a93e2a4880e48dedd44790a873c3eb35eab7ace50678f097fc925",
+    "cannbot/scripts/public_agent_gateway.py": "002681db0d7b614a03c76e9f3fe151b286cc4ff16c13083482262b21cc1425f5",
+    "cannbot/scripts/agent_router.py": "577a1a132b31905b3059a90f10c11ceb503e2a3ce0c80a92f5a1f6e8789cbe1f",
+    "cannbot/scripts/room_agent.py": "069031c1a6de4e8d92444e1731e7425607c9e3b150c1e536ea96f468c9e6ea98",
+    "cannbot/scripts/room_workspace.py": "5e6de53e951f0a7ae911e19825fb7908d754142d191751820d69111f998666c9",
+    "cannbot/scripts/test_room_context.py": "fbd2466a460c955d0893878c79df9fe5a855e5f324d92440129909b2fead5674",
+    "cannbot/scripts/test_generic_room_agent.py": "6117ec482888da0644f63f9753688603e3460c551e74a9863ac8c4164c6bfcf1",
+    "cannbot/scripts/test_public_runtime.py": "37d095ecd8e1c2cf3b3471514e1d545ac8d6277dc60fc4b8dfde3be6e1bbaaa9",
+    "tests/room_context_test.cjs": "61df560fb2b3f1feca2a822cb556f950cbdc0a77da00161207304c600b550587",
+    "tests/room_context_http_client.cjs": "fea6bcbf304c7c99adb3a6695763f342f9492f8e8b75fd5fd63882ecb4793202",
+    "tests/media_context_http_test.py": "7b0669b065f201f555701923d2f5eb316ca72bebd765b831af6ea4be928854ef",
+    "tests/room_context_native_policy_test.py": "1798b6d88abb635e9fbb04565d4da2a1aa24747d387092587e093ed285440add",
+    "tests/room_context_runtime_probe.py": "4513cd7e2551688815bd4ba41d75eb7cd0302583c0d3f75c5d680d7b12d011e6",
+    "tests/public_runtime_fixture.py": "779738b57194a08cad69c685587b5ec209259d410df37334ee4a8fcbab0dd476",
+    "tests/CMakeLists.txt": "a69211f7d954989acb68da06014832e19dbe426721fa14f461f8c53a98a47716",
+    "docs/room-context-native-tools.md": "714eb2c9aeac217516042652685cd474c120b99b9163abf90b156df94ebbbd3b",
+    "docs/room-context-tools.md": "2d9b430dcdc03d7546be27e391bf950f0ee6a7280cc611cafdeaeeef41a8f5a4",
+    "docs/media-agent-context.md": "ee0e757b821652bbe36900d44ddfc3a46f07a8830350e49e4fbc09fb746f2706",
+    "docs/multimodal-collaboration.md": "f0ccaf1abb972e864e8ed11a2f35ec70b49647d7b6fc1034623fb0509f0183fa",
+    "cannbot/knowledge-sources.json": "8b52a9f4c5cbc6621ffd5f9dfdf5cede8058ae0ae2f277f2c2fd2a1e2c4dedee",
+    "cannbot/skills/spark-push-knowledge/references/architecture-map.md": "3e0414415d8f97a1d1507c03a35d12f9f64e5528b5663cf103fdcb0b66fcff41",
+    "cannbot/scripts/sync_pi_agent.py": "63029835d5d0bb9f823292dfcdb4c69f28da08cbd637bc352f67e347eac68e71"
+  },
+  "provenance_note": "Fingerprints identify current phase sources. Probe observation code evolved to retain fixtures, semantic failures and provider call associations; earlier raw reports are historical runs and are not asserted byte-identical to the final probe.",
+  "artifacts": [
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-media-context-http.json",
+      "sha256": "1c4ac62164fd8063940e9fd8c876de80621c497246b5448e0fd228a52d9de66c"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-complete-observation-images/04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9.jpg",
+      "sha256": "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-complete-observation-images/5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7.jpg",
+      "sha256": "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-complete-observation-images/8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b.jpg",
+      "sha256": "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-complete-observation.json",
+      "sha256": "eeb607fbd84ee293697392a0155195ee500b9956921341acd4bc2c5662723352"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-complete-observation.txt",
+      "sha256": "f9832e6d4afa4a2074f3de4506514cff5743498ce13b3f01f725063a938bd9ba"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-final-images/04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9.jpg",
+      "sha256": "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-final-images/5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7.jpg",
+      "sha256": "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-final-images/8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b.jpg",
+      "sha256": "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-final.json",
+      "sha256": "8ec95133cff14f990c3294bfe1862c818446334545a442f3d6590f94f59de72d"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-final.txt",
+      "sha256": "a0397b775806b7476951d8a6dc5bcf52c69a67b4fb4abbe983873870717f0631"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-guarded-images/04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9.jpg",
+      "sha256": "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-guarded-images/5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7.jpg",
+      "sha256": "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-guarded-images/8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b.jpg",
+      "sha256": "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-guarded.json",
+      "sha256": "1a5791f0d9c9da8460e702b923ec1192762131a20ea6652f042c2ab82176ae6e"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-guarded.txt",
+      "sha256": "db335aed628ff3033385b86dbe8485d6719d6ce75297b6cd8be9e7cbb66f8592"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-hermes-isolation-fixed.json",
+      "sha256": "0a8bf356d9471efe9a865272c3a02c9809668dd06141ae9c4d815b03ef813f53"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-isolation-before-todo-fix.json",
+      "sha256": "b80c1a937bdbdd73fd9c48a552ebde8c3046942c73b65a59732ef7de7097d621"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-pi-association-images/04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9.jpg",
+      "sha256": "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-pi-association-images/5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7.jpg",
+      "sha256": "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-pi-association-images/8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b.jpg",
+      "sha256": "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-pi-association.json",
+      "sha256": "23bf70f9f8da8c7de9e5b98fdf682bdda0d5e282c7782c925dc503318c9edca5"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-context-native-pi-association.txt",
+      "sha256": "c32f4a432f45e784ba44895611c09aa3526735e4d67d3205115fc7bda87fb49b"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-native-build.txt",
+      "sha256": "8f161874be1c0e983ed43ad7ec3b67438e9f4042c03bc77c857ff9e870e90c41"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-native-citations.txt",
+      "sha256": "01a43506d267a7a8c1fa33c62440e0f358f234ab91c15370875742cf02a9f8d4"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-native-ctest.txt",
+      "sha256": "03617178f714c2ddac28c223fbd933bd123fdb3d454c0dc519ae3478a9d5594f"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-native-ctest.xml",
+      "sha256": "9a3d6588219cbec169cd866cd7f4ef8d4bf6bdaf60d92e147ba6c75d6495e328"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-native-current-ctest.txt",
+      "sha256": "8a79fb3f6d365cc0f34feff835a91bf3b4870a652d03dd7f55ef8552c34a613d"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-native-current-ctest.xml",
+      "sha256": "89959efad47e350c57c947dd4486ac7b21805cccc47e3e415150a181735df56a"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-native-guard-regression.txt",
+      "sha256": "dbcf60bd6a0278b026ffdb23ae832e3583af5b1442b8307df1199971a2820787"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-native-installer-regression.txt",
+      "sha256": "9c236e8ac7d269631a9796f0e49bc3bed9051832211e4bcea67b7cc8d2ee2f1c"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-native-knowledge.txt",
+      "sha256": "b45432bc9f994ed4d3bb41be8fc53175ebe2b0f3ccf47be3b84feb0c213b7fed"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-native-mysql-clients.txt",
+      "sha256": "94f40114b79eb6869aa6de086a54d04122b21d299af0091905338338e26795a0"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-native-mysql.txt",
+      "sha256": "c8397cb50df7bdf81a96eedd80863d92338ff962f73beb04cbdeb860732d9e0d"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-native-policy.json",
+      "sha256": "f964a472d02b02c80baeb3ae7e061994da65c222fd28123d85ad00e2c357452b"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-native-policy.txt",
+      "sha256": "a7de29bee560a1feaa3b39d63c1ddd2507fd10ac57fef8d860adcb621bf536e6"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-native-sync-final.txt",
+      "sha256": "6bce1a61aea5c376aa689eb08e2cd56882849e14966824610c6a729a63dcc11c"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-native-sync.txt",
+      "sha256": "3b89c485ed5c4320db607b2226729b2e5df3c40e4c6e24e875f97594aa30e594"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-room-context-native/spark-room-native-unit-final.txt",
+      "sha256": "2139e99a50148661d6a892c0e6a678b09785ce1ec19c20c3e19b7c0a09ca37a3"
+    }
+  ],
+  "review": {
+    "architect": "approved instance-local image conversion/recovery guards",
+    "reviewer_round": 3,
+    "reviewer": "no blocking code findings; not E2E acceptance",
+    "independent_tester": "evidence separation and final installer regression accepted; Pi visual semantic gate remains failed"
+  },
+  "commands": [
+    "cmake --build build-wsl -j2",
+    "ctest --test-dir build-wsl --output-on-failure --output-junit /tmp/spark-room-native-current-ctest.xml",
+    "env PYTHONDONTWRITEBYTECODE=1 python3 cannbot/scripts/test_room_context.py",
+    "/home/peco/.local/node/bin/node tests/room_context_test.cjs",
+    "env PYTHONDONTWRITEBYTECODE=1 python3 tests/room_context_runtime_probe.py --isolation --fixtures-report /tmp/spark-room-context-native-final.json --out /tmp/spark-room-context-native-complete-observation.json",
+    "env PYTHONDONTWRITEBYTECODE=1 python3 tests/room_context_runtime_probe.py --runtime pi --fixtures-report /tmp/spark-room-context-native-final.json --out /tmp/spark-room-context-native-pi-association.json",
+    "Native Windows Python -B tests/room_context_native_policy_test.py --source F:/hermes/hermes-agent --out /tmp/spark-room-native-policy.json (arguments translated with wslpath)",
+    "env -u SPARK_TEST_MEDIA_IMAGE -u SPARK_TEST_MEDIA_WORKER_TEST PYTHONDONTWRITEBYTECODE=1 SPARK_TEST_CONTEXT_IMAGE=spark-media:development SPARK_TEST_MEDIA_MODEL=/tmp/spark-media-asr-small SPARK_TEST_CONTEXT_PI_NODE=/home/peco/.local/node/bin/node python3 tests/run_mysql_review_tests.py build-wsl",
+    "python3 cannbot/scripts/validate_knowledge.py --strict",
+    "python3 cannbot/scripts/test_pi_citations.py",
+    "python3 cannbot/scripts/sync_pi_agent.py --check"
+  ]
+}

@@ -54,7 +54,7 @@ def main() -> int:
         extension_root = REPO_ROOT / "cannbot/pi/extensions"
         extensions = {path.relative_to(extension_root): path.read_bytes()
                       for path in extension_root.rglob("*.ts")
-                      if path.name not in {"room-workspace.ts", "public-workspace.ts"}}
+                      if path.name not in {"room-workspace.ts", "public-workspace.ts", "room-context.ts"}}
         extensions[Path("lib/PI-LICENSE.txt")] = (REPO_ROOT / "third_party/pi/LICENSE").read_bytes()
         settings = (REPO_ROOT / "cannbot/pi/settings.json").read_bytes()
         models_example = (REPO_ROOT / "cannbot/pi/models.json.example").read_bytes()

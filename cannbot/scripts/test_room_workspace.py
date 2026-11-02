@@ -107,6 +107,19 @@ class SnapshotsTest(unittest.TestCase):
         del value['workspace_generation']
         self.assertEqual(execution_namespace(value),'roomagent_1_public-pi')
 
+    def test_context_epoch_namespaces_do_not_import_legacy_history(self):
+        old=scope();current={**old,'context_generation':0}
+        self.assertNotEqual(execution_namespace(old),execution_namespace(current))
+        first=execution_namespace(current)
+        for key,other in [('room_id',2),('agent_id','hermes'),('generation',2),
+                          ('workspace_generation',2),('project_id','another'),('context_generation',1)]:
+            self.assertNotEqual(first,execution_namespace({**current,key:other}))
+        self.assertEqual(first,execution_namespace({**current,'actor_user_id':8}))
+        for value in (None,True,-1,2**53,'1',1.5):
+            with self.assertRaises(ValueError):execution_namespace({**current,'context_generation':value})
+        del current['workspace_generation']
+        with self.assertRaises(ValueError):execution_namespace(current)
+
 
 class AuthorityTest(unittest.TestCase):
     def test_trusted_id_only_and_revocation_fail_closed(self):

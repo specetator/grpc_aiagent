@@ -1,0 +1,17 @@
+{
+  "kind": "installed-native-policy-contract",
+  "scope": "Opt-in contract test against installed Native conversion/recovery methods.\n\nNo model, provider HTTP, IM or permission E2E. Model capability predicates are\ncontrolled; actual Native projection, image stripping and learned state run.\nRun with the Native Python environment and --source pointing to its source.\n",
+  "passed": true,
+  "native_source_sha256": {
+    "agent\\vision_message_prep.py": "696b318ab5d86006df59e2028e1ebc703fd30a501dea8e352104849d3c42d82e",
+    "agent\\tool_dispatch_helpers.py": "773765ad340b7d707c2159b81076461db1aa3e3dab24bc60e0ccdac0d7b7ad9b"
+  },
+  "checks": [
+    "vision",
+    "text-model",
+    "provider-no-images",
+    "learned-rejection",
+    "native-strip-remember-true",
+    "native-strip-remember-false"
+  ]
+}

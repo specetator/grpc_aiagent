@@ -1,0 +1,85 @@
+[  2%] Built target spark_push_proto
+[  8%] Built target muduo_base
+[  9%] Built target inference_fake_cuda
+[ 10%] Built target inference_proto
+[ 11%] Built target inference_fake_nvml
+[ 12%] Built target ws_client_lib
+[ 13%] Built target security_test
+[ 13%] Built target web_demo
+[ 14%] Built target hermes_command_test
+[ 15%] Built target hermes_reply_test
+[ 16%] Built target hermes_native_config_test
+[ 17%] Built target hermes_sse_parser_test
+[ 18%] Built target citation_validation_test
+[ 19%] Built target knowledge_catalog_test
+[ 20%] Built target websocket_utils_test
+[ 27%] Built target muduo_net
+[ 31%] Built target spark_push_common
+[ 31%] Built target inference_cli
+[ 32%] Built target ws_client_cli
+[ 33%] Built target load_tester
+[ 34%] Built target e2e_bench
+[ 35%] Built target connection_bench
+[ 36%] Built target room_fanout_bench
+[ 38%] Built target storage_bench
+[ 39%] Built target kafka_delivery_bench
+[ 40%] Built target history_bench
+[ 41%] Built target dlq_replay
+[ 42%] Built target broadcast_fanout_test
+[ 43%] Built target queue_capacity_test
+[ 44%] Built target logging_rotation_test
+[ 45%] Built target route_generation_integration_test
+[ 46%] Built target mysql_pool_recovery_test
+[ 46%] Built target config_test
+[ 47%] Built target image_attachment_test
+[ 47%] Built target rate_limiter_test
+[ 48%] Built target kafka_failure_integration_test
+[ 49%] Built target kafka_parallel_integration_test
+[ 49%] Built target kafka_native_control_integration_test
+[ 51%] Built target comet_network_probe
+[ 53%] Built target agent_control_client_probe
+[ 55%] Built target redis_sequence_integration_test
+[ 56%] Built target muduo_http
+[ 59%] Built target comet_server
+[ 61%] Built target job_server
+[ 64%] Built target inference_core
+[ 64%] Building CXX object logic/CMakeFiles/spark_push_logic.dir/repositories/media_artifact_repository.cpp.o
+[ 67%] Built target hermes_bridge
+[ 68%] Built target web_demo_server
+[ 69%] Built target http_parser_test
+[ 71%] Built target muduo_inspect
+[ 72%] Built target inference_gateway
+[ 73%] Built target inference_worker
+[ 73%] Built target gpu_memory_probe_test
+[ 74%] Built target inference_tests
+[ 75%] Linking CXX static library libspark_push_logic.a
+[ 89%] Built target spark_push_logic
+[ 89%] Linking CXX executable message_acceptance_test
+[ 89%] Linking CXX executable logic_server
+[ 90%] Built target message_acceptance_test
+[ 90%] Linking CXX executable media_blob_store_test
+[ 92%] Built target logic_server
+[ 92%] Linking CXX executable media_mysql_integration_test
+[ 92%] Built target media_blob_store_test
+[ 92%] Building CXX object tests/CMakeFiles/media_artifact_mysql_test.dir/media_artifact_mysql_test.cpp.o
+[ 93%] Built target media_mysql_integration_test
+[ 93%] Linking CXX executable internal_rpc_test
+[ 94%] Built target internal_rpc_test
+[ 95%] Linking CXX executable message_reservation_integration_test
+[ 95%] Built target message_reservation_integration_test
+[ 95%] Linking CXX executable logic_business_service_test
+[ 95%] Built target logic_business_service_test
+[ 95%] Linking CXX executable room_agent_service_test
+[ 95%] Built target room_agent_service_test
+[ 95%] Linking CXX executable media_processing_http_probe
+[ 96%] Built target media_processing_http_probe
+[ 96%] Linking CXX executable http_api_probe
+[ 97%] Built target http_api_probe
+[ 97%] Linking CXX executable agent_connection_service_test
+[ 97%] Built target agent_connection_service_test
+[ 98%] Linking CXX executable space_service_test
+[ 98%] Built target space_service_test
+[ 98%] Linking CXX executable space_mysql_integration_test
+[ 99%] Built target space_mysql_integration_test
+[100%] Linking CXX executable media_artifact_mysql_test
+[100%] Built target media_artifact_mysql_test

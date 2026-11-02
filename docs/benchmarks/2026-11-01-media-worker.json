@@ -1,0 +1,462 @@
+{
+  "date": "2026-11-01",
+  "base_commit": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "worktree": "uncommitted additive multimodal development; personal profiles and existing modifications preserved",
+  "scope": "Durable operator media worker and bounded derived-revision GC; real parser/HTTP/MySQL/Redis recovery, separate from native Agent or Web multimodal E2E",
+  "status": "media_worker_stage_passed",
+  "full_multimodal_goal_complete": false,
+  "source_sha256": {
+    "cannbot/scripts/media_worker.py": "767d19de5c46494ad1c07baf1a0fdc47a6dc018fc28ad0a90c6eca26d80e061c",
+    "cannbot/scripts/media_text_worker.py": "2a0666e491e70aaf92945e47549bc817129b3e73e07a1fd9241523a16c392c6e",
+    "cannbot/media/sandbox.py": "4b3e24fcbfe95da6cd0af4f12389eb1bd37b65a36bc0e4cfc0347975bbbf3bbd",
+    "cannbot/media/parser.py": "e29263d81f71583e3c49cd6cc8d5d0a5cfb2bcbed36c40482b171d90c8c10188",
+    "logic/services/media_processing_service.cpp": "0768c2d3bd5cd87dcfb30f9c75f1c5304e55a2a0a8d27db67993dfd1b178fb12",
+    "logic/services/media_processing_service.h": "d2f516e4c4aea9a006c8dc6d470a366120db871693d0ba134e3d96daf1e3112e",
+    "logic/repositories/media_processing_repository.cpp": "f6a819f8a217fea3e3eb4e156896f0643eac49e8ef8668b8ba922d3d7f5e38d6",
+    "logic/repositories/media_artifact_repository.cpp": "11b6b5a31d5f42efb85c78748ec907aeb32c706cc72eb76f99a6f914e00d7d91",
+    "logic/repositories/media_artifact_repository.h": "431d735466dac6edb22522687973b0e087f7a24d457f1e80806e3151afdbad65",
+    "logic/http_server.cpp": "07e1b409cb73fb3d995a0d34404bb2310d6fde1eba24c7358e027c27662ab102",
+    "logic/services/media_manifest.cpp": "2d1894d800fb7073fd1dafd48136a03940bd95e5e7658cf2343583eaef30d633",
+    "logic/services/media_manifest.h": "0ae661296e45e38a6295b84d65432a6662dc3425f70a6702711271d2573a5721",
+    "logic/repositories/media_blob_store.cpp": "d05a3c06872e2fa96ef1328bce9aa0113b7719c6ac5a41bb54ee28abbce32400",
+    "logic/repositories/media_repository.cpp": "8d94abde6a17052c7fda61e245b60b967bae2295bdf81f146c10cee2cb060319",
+    "logic/services/media_service.cpp": "25cdd55bd282aa4ec2856f996fd07eac358cc6e6b8aa53acdfe6c09273673923",
+    "logic/main.cpp": "7ed8e46036bef610388f1737c8989f3e9ba00345520384d8bb6a1c3466330cf8",
+    "sql/schema.sql": "c982b7cbe6ca5dd0dc7186f2c3879a69796afe694ea43267df360b1ff7d7a672",
+    "tests/CMakeLists.txt": "ded7ef34d0653e11b822e1525f4d46759c39d814ab5eafc54065b27f38e4d686",
+    "tests/media_worker_test.py": "67119bc4cd918d456e5dcc969ee2a2159ac6b399802ed5245953e36b090ffb0d",
+    "tests/media_worker_http_test.py": "649668154ab85f99bb5d1de54d1555b1785e72ba9f4dfc5c272eb1e09ce781e4",
+    "tests/media_parser_test.py": "4a8575025bdb27655fa19309ca2d38b137ba2a5dad088ec85c0431a2dcdbca1a",
+    "tests/media_artifact_mysql_test.cpp": "b591e58142653990fa90cb26512f6ec3671edcb87d622392e41a52bf5fea9a4e",
+    "tests/media_processing_http_probe.cpp": "a7aa3a9f07356499065a30f9979d2c7b45b8cb9bd3af17e29d65cc68c8e07687",
+    "tests/media_pipeline_http_test.py": "6d012d51b6994bf3c997621b590d72f08a7a8ad572a71ae90618417315a2e13e",
+    "tests/run_mysql_review_tests.py": "c61d0275f1611cddae093c20f2bced5f3d944dcf51237ba6fc9d557942546f31",
+    "docs/media-worker.md": "fb752ed7229ef55beb7bc4a7d9f3501fd4d9bf945e1c37ed9136de4fd46de2da",
+    "docs/media-publication.md": "ebdb112f781a631432b9e29ee1dae17879dce336afa2287bcbd52864f0c5e58e",
+    "docs/media-parser-runtime.md": "489d785efad965efbb2ea8978e50c8a7bf5593011516e89ce420fca33fd1fb15",
+    "docs/multimodal-collaboration.md": "019d18c1a2043e66e0a130bbd18b1a7ff220fa958864b77731f67b721d9ebdb8",
+    "cannbot/knowledge-sources.json": "34646ae41cda65c0a4f0ef99012173701d8cb3c9ad0c0549438468fa1f6f5a8e",
+    "cannbot/skills/spark-push-knowledge/references/architecture-map.md": "3f8fba22a3425689cd4362444ce4087a54551a4540786abd911fbf2047356242"
+  },
+  "configuration": {
+    "pipeline_sha256": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+    "parser_sha256": "e29263d81f71583e3c49cd6cc8d5d0a5cfb2bcbed36c40482b171d90c8c10188",
+    "image_id": "sha256:4c2e26418ad4ec59d0d57bdf2a15af30826c14de5d253d39bf96be2de2b38120",
+    "model_sha256": "b2f73aed0684edce51988a894b0a40f3ef581f63d4e50bea7e2daa414dda9a8e"
+  },
+  "validation": [
+    {
+      "command": "cmake --build build-wsl -j2",
+      "exit_code": 0,
+      "evidence": "build.txt"
+    },
+    {
+      "command": "python3 tests/media_worker_test.py",
+      "exit_code": 0,
+      "passed": 7,
+      "kind": "contract, fake time/transport",
+      "evidence": "worker-contract.txt"
+    },
+    {
+      "command": "python3 tests/media_parser_test.py",
+      "exit_code": 0,
+      "passed": 13,
+      "kind": "local parser boundary contract",
+      "evidence": "parser-contract.txt"
+    },
+    {
+      "command": "ctest --test-dir build-wsl --output-on-failure -j2 --output-junit /tmp/spark-media-worker-ctest.xml",
+      "registered": 75,
+      "passed": 65,
+      "skipped": 10,
+      "failures": 0,
+      "completion_evidence": "ctest.txt and ctest.xml (complete JUnit and final CTest summary)",
+      "skipped_tests": [
+        "media_mysql_integration_test",
+        "media_artifact_mysql_test",
+        "route_generation_integration_test",
+        "message_reservation_integration_test",
+        "media_processing_http_test",
+        "media_pipeline_http_test",
+        "media_worker_http_test",
+        "collaboration_browser_test",
+        "redis_sequence_integration_test",
+        "space_mysql_integration_test"
+      ],
+      "note": "All ten skipped tests passed in explicit supplemental invocations below; not seventy-five real service E2Es."
+    },
+    {
+      "command": "SPARK_TEST_MEDIA_IMAGE=spark-media:development SPARK_TEST_MEDIA_FIXTURES=/tmp/spark-media-fixtures-nhdss1hi SPARK_TEST_MEDIA_MODEL=/tmp/spark-media-asr-small SPARK_TEST_MEDIA_WORKER_TEST=1 SPARK_TEST_MEDIA_LONG_AUDIO=1 SPARK_TEST_MEDIA_WORKER_REPORT=/tmp/spark-media-worker-http-final.json python3 tests/run_mysql_review_tests.py build-wsl",
+      "exit_code": 0,
+      "real_worker_scenarios": 16,
+      "real_http_suites": 2,
+      "real_sql_tests": 4,
+      "worker_suite_seconds": 313.59,
+      "evidence": "mysql-worker.txt and worker-http.json"
+    },
+    {
+      "command": "SPARK_TEST_MEDIA_IMAGE=spark-media:development SPARK_TEST_MEDIA_FIXTURES=/tmp/spark-media-fixtures-nhdss1hi SPARK_TEST_MEDIA_MODEL=/tmp/spark-media-asr-small SPARK_TEST_MEDIA_REPORT=/tmp/spark-media-worker-pipeline-final.json python3 tests/run_mysql_review_tests.py build-wsl",
+      "exit_code": 0,
+      "real_http_suites": 2,
+      "real_sql_tests": 4,
+      "publication_media_cases": 6,
+      "note": "Repeated text/SQL regressions overlap previous invocation; short publication suite does not replace long worker ASR evidence.",
+      "evidence": "mysql-publication-regression.txt and publication-regression.json"
+    },
+    {
+      "command": "python3 tests/run_redis_review_tests.py build-wsl",
+      "exit_code": 0,
+      "passed": 2,
+      "kind": "real isolated Redis",
+      "evidence": "redis.txt"
+    },
+    {
+      "command": "SPARK_PLAYWRIGHT_MODULE=/tmp/spark-spaces-browser/node_modules/playwright ctest --test-dir build-wsl --output-on-failure -R ^collaboration_browser_test$",
+      "exit_code": 0,
+      "passed": 1,
+      "kind": "actual browser, controlled HTTP/WS fixtures; not real service E2E",
+      "evidence": "browser-contract.txt"
+    },
+    {
+      "command": "python3 cannbot/scripts/validate_knowledge.py --strict",
+      "result": "knowledge validation passed: 167 source(s)",
+      "evidence": "knowledge.txt"
+    },
+    {
+      "command": "python3 cannbot/scripts/test_pi_citations.py",
+      "result": "pi citation tests passed",
+      "evidence": "citations.txt"
+    },
+    {
+      "command": "python3 cannbot/scripts/sync_pi_agent.py --check",
+      "exit_code": 1,
+      "note": "Installed knowledge differs; read-only check, no personal profile or installed skill synchronized",
+      "evidence": "sync-check.txt"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 cannbot/scripts/validate_knowledge.py --strict; python3 cannbot/scripts/test_pi_citations.py",
+      "execution": "independent tool calls after adding next-stage design",
+      "exit_codes": [
+        0,
+        0
+      ],
+      "sources": 168,
+      "note": "Earlier 167-source log predates adding next-stage design; no installed private skills synchronized."
+    }
+  ],
+  "checks": [
+    {
+      "name": "worker_publish_diagram.png",
+      "passed": true,
+      "revision": "82c5157a305809ed81a454b179ee2e3129e90ffd7173a17cb400fa388fd87f17",
+      "result": {
+        "artifact_bytes": 13618,
+        "artifact_count": 1,
+        "coverage": {
+          "images": 1,
+          "kind": "image"
+        },
+        "fragment_count": 1,
+        "id": "att_9a00321583b3e87e6004b29b",
+        "line_count": 0,
+        "manifest_sha256": "b335bbdfdc1c5f442f796c283727ee9ff4bc5f16cb4089c938fe2f67ca090ff4",
+        "pipeline_kind": "media-parser-v1",
+        "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+        "revision": "82c5157a305809ed81a454b179ee2e3129e90ffd7173a17cb400fa388fd87f17",
+        "state": "ready",
+        "text_bytes": 12
+      }
+    },
+    {
+      "name": "worker_publish_design.pdf",
+      "passed": true,
+      "revision": "7c4e21f4575b1c3f010900eb182c2896cc031a1ce83b1b87fef7b402a980a0e9",
+      "result": {
+        "artifact_bytes": 131336,
+        "artifact_count": 3,
+        "coverage": {
+          "kind": "pdf",
+          "page_count": 3,
+          "rendered_pages": 3
+        },
+        "fragment_count": 3,
+        "id": "att_c79f44a39e677253861c4c16",
+        "line_count": 0,
+        "manifest_sha256": "d2f174ebe7b6dcc43eb8ab30cf7069619943edc80d4b053d5111c1efef6cbfd6",
+        "pipeline_kind": "media-parser-v1",
+        "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+        "revision": "7c4e21f4575b1c3f010900eb182c2896cc031a1ce83b1b87fef7b402a980a0e9",
+        "state": "ready",
+        "text_bytes": 61
+      }
+    },
+    {
+      "name": "worker_publish_notes.docx",
+      "passed": true,
+      "revision": "6b14cf3e30bcd8ba6d7d8be64c7ad90e428339208f6ca65c51d0fa4348e44072",
+      "result": {
+        "artifact_bytes": 13618,
+        "artifact_count": 1,
+        "coverage": {
+          "kind": "docx",
+          "paragraphs": 2,
+          "sections": [
+            "document"
+          ]
+        },
+        "fragment_count": 3,
+        "id": "att_4f46b05a11576f27725ec428",
+        "line_count": 0,
+        "manifest_sha256": "2c5c4a29e37a13bfc61dc1be01a1f66c9a0a1f389ac0a95e390296884ee9711e",
+        "pipeline_kind": "media-parser-v1",
+        "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+        "revision": "6b14cf3e30bcd8ba6d7d8be64c7ad90e428339208f6ca65c51d0fa4348e44072",
+        "state": "ready",
+        "text_bytes": 91
+      }
+    },
+    {
+      "name": "worker_publish_incident.mp4",
+      "passed": true,
+      "revision": "be3efca3df02aedf8998d63d49ea165d1f08f0446b0f19bf08f8f15d2a6a7d9a",
+      "result": {
+        "artifact_bytes": 61260,
+        "artifact_count": 2,
+        "coverage": {
+          "audio": {
+            "decoded_samples": 69846,
+            "duration_ms": 4365,
+            "language": "en",
+            "offset_ms": 1953,
+            "sample_rate": 16000,
+            "segments": 1,
+            "speaker_labels": false,
+            "track_end_ms": 6318
+          },
+          "container_duration_ms": 10000,
+          "duration_ms": 10000,
+          "kind": "video",
+          "source_origin_ms": 0,
+          "video": {
+            "first_frame_ms": 0,
+            "frames": 2,
+            "last_frame_ms": 5000,
+            "sample_interval_ms": 5000,
+            "track_end_ms": 10000
+          }
+        },
+        "fragment_count": 1,
+        "id": "att_fc3d827d1c2775429e00e7f5",
+        "line_count": 0,
+        "manifest_sha256": "5f775db956685bac8e50693a55aa25ef2877ea9ab755c6d3c202064c75572cf3",
+        "pipeline_kind": "media-parser-v1",
+        "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+        "revision": "be3efca3df02aedf8998d63d49ea165d1f08f0446b0f19bf08f8f15d2a6a7d9a",
+        "state": "ready",
+        "text_bytes": 73
+      }
+    },
+    {
+      "name": "worker_publish_speech.wav",
+      "passed": true,
+      "revision": "873d89483509af723e1cf721b7a061a5a4c214bdf65e15d1d0beac67c86dd5f8",
+      "result": {
+        "artifact_bytes": 0,
+        "artifact_count": 0,
+        "coverage": {
+          "audio": {
+            "decoded_samples": 68491,
+            "duration_ms": 4281,
+            "language": "en",
+            "offset_ms": 0,
+            "sample_rate": 16000,
+            "segments": 2,
+            "speaker_labels": false,
+            "track_end_ms": 4281
+          },
+          "container_duration_ms": 4281,
+          "duration_ms": 4281,
+          "kind": "audio",
+          "source_origin_ms": 0
+        },
+        "fragment_count": 2,
+        "id": "att_9613db7f10180fdb38373ccb",
+        "line_count": 0,
+        "manifest_sha256": "e7294b9b56732c7858016d3f96769b5db03bb7616d92755765ba7d9b7ee13acb",
+        "pipeline_kind": "media-parser-v1",
+        "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+        "revision": "873d89483509af723e1cf721b7a061a5a4c214bdf65e15d1d0beac67c86dd5f8",
+        "state": "ready",
+        "text_bytes": 72
+      }
+    },
+    {
+      "name": "claim_media_lost_three_replies_same_assignment",
+      "passed": true,
+      "attempt": 1
+    },
+    {
+      "name": "reserve_lost_three_replies_same_assignment",
+      "passed": true,
+      "attempt": 1
+    },
+    {
+      "name": "partial_upload_kill_tamper_and_foreign_container_recovery",
+      "passed": true,
+      "same_revision": true,
+      "parser_restarted": false
+    },
+    {
+      "name": "published_reply_lost_recovers_without_parser",
+      "passed": true
+    },
+    {
+      "name": "real_capacity_wait_renews_then_resumes_original_assignment",
+      "passed": true
+    },
+    {
+      "name": "kill_after_docker_create_before_id_return",
+      "passed": true,
+      "exact_orphan_removed": true
+    },
+    {
+      "name": "encrypted_pdf_failed_without_publication_and_reclaimed",
+      "passed": true
+    },
+    {
+      "name": "continuous_worker_idle_then_two_distinct_jobs_and_sigterm",
+      "passed": true
+    },
+    {
+      "name": "kill_during_asr_then_full_20min_worker_recovery",
+      "passed": true,
+      "seconds": 201.386,
+      "fragments": 395,
+      "heartbeats": 11,
+      "coverage": {
+        "audio": {
+          "decoded_samples": 19199651,
+          "duration_ms": 1199978,
+          "language": "en",
+          "offset_ms": 0,
+          "sample_rate": 16000,
+          "segments": 395,
+          "speaker_labels": false,
+          "track_end_ms": 1199978
+        },
+        "container_duration_ms": 1199978,
+        "duration_ms": 1199978,
+        "kind": "audio",
+        "source_origin_ms": 0
+      }
+    },
+    {
+      "name": "running_asr_lease_revocation_stops_container_without_stage_or_publish",
+      "passed": true
+    },
+    {
+      "name": "gc_published_protection_and_user_denial",
+      "passed": true
+    }
+  ],
+  "long_audio": {
+    "name": "kill_during_asr_then_full_20min_worker_recovery",
+    "passed": true,
+    "seconds": 201.386,
+    "fragments": 395,
+    "heartbeats": 11,
+    "coverage": {
+      "audio": {
+        "decoded_samples": 19199651,
+        "duration_ms": 1199978,
+        "language": "en",
+        "offset_ms": 0,
+        "sample_rate": 16000,
+        "segments": 395,
+        "speaker_labels": false,
+        "track_end_ms": 1199978
+      },
+      "container_duration_ms": 1199978,
+      "duration_ms": 1199978,
+      "kind": "audio",
+      "source_origin_ms": 0
+    },
+    "input_kind": "continuous synthetic technical speech; real CPU ASR; not natural-meeting accuracy evaluation"
+  },
+  "gc_checks": [
+    "bounded ordered candidate pagination; excludes live and ready revisions",
+    "Reclaim independently refuses live/ready/current publication",
+    "two threads reclaim same actual JPEG, both succeed and charge becomes zero"
+  ],
+  "independent_review": {
+    "round": 1,
+    "reviewer": "/root/media_parser_reviewer",
+    "verdict": "PASS WITH NOTES; no remaining blocking protocol issue",
+    "tester": "/root/media_parser_tester",
+    "tester_verdict": "worker evidence accepted; based on parent-executed receipts, not independent execution",
+    "notes": [
+      "Preserve pending for unknown transport/runtime failure.",
+      "Complete authority wins late heartbeat failure.",
+      "A validated bundle resumes without parsing; absent full bundle may repeat read-only parsing.",
+      "Contract races and fake-time budgets are not real native or network E2E."
+    ],
+    "full_ctest_final_evidence": "75 registered; 65 passed, 10 conditional skips; all ten explicitly supplemented, no failures. Browser supplement is a contract with controlled HTTP/WS."
+  },
+  "fixed_failures": [
+    {
+      "initial_result": "first worker E2E failed before parsing",
+      "cause": "Docker missing-container stderr also uses Error response from daemon: No such container: NAME",
+      "fix": "accept this exact missing-name form; other daemon errors still fail closed",
+      "retested": "all final 16 worker scenarios"
+    },
+    {
+      "initial_result": "new GC test compilation failed",
+      "cause": "local gc cursor named after conflicted with existing struct stat after",
+      "fix": "rename cursor to gc_cursor",
+      "retested": "final full build and actual SQL GC tests"
+    }
+  ],
+  "limitations": [
+    "No Pi/Hermes room-media native tools or media citations in this stage.",
+    "No shared-media deletion/context generation or ordinary chat search yet.",
+    "No automatic expiry of unfinished original-upload drafts.",
+    "No Compose default media-worker deployment yet.",
+    "No Web multimodal uploads/previews or three-browser final goal E2E.",
+    "No native Agent/tool side-effect exactly-once claim; readonly parser may rerun after crash.",
+    "Twenty-minute input is synthetic; speaker identification and real multilingual/noisy meeting accuracy not evaluated.",
+    "Video sampling does not guarantee detection of events between sampled frames.",
+    "All standard registered tests covered across invocations; these are not a new full platform release acceptance."
+  ],
+  "raw_artifacts": {
+    "docs/benchmarks/2026-11-01-media-worker/browser-contract.txt": "0f9eb618c6f9f74fe9af26655ed5fb012038a5baabd086243a5c2a01dde675bb",
+    "docs/benchmarks/2026-11-01-media-worker/build.txt": "a431f34046ee885ea27c9dfb74a596bf47e12e2ff4bc5c69f68e411137dfabfd",
+    "docs/benchmarks/2026-11-01-media-worker/citations.txt": "01a43506d267a7a8c1fa33c62440e0f358f234ab91c15370875742cf02a9f8d4",
+    "docs/benchmarks/2026-11-01-media-worker/ctest.txt": "6104160b697e328b35f5c75ebd84052e02a05b463ef458926f2112cb8968f95c",
+    "docs/benchmarks/2026-11-01-media-worker/ctest.xml": "dd9cfb786f5f6a122be3997ae812bb3e2d176b2483238af87a416ede19d6dbc6",
+    "docs/benchmarks/2026-11-01-media-worker/knowledge.txt": "95ac3ef426dbcf4041e45bf34d43de195b97e3d5bda8e13eb302d44718bf1711",
+    "docs/benchmarks/2026-11-01-media-worker/media_parser_test.py.txt": "4a8575025bdb27655fa19309ca2d38b137ba2a5dad088ec85c0431a2dcdbca1a",
+    "docs/benchmarks/2026-11-01-media-worker/media_pipeline_http_test.py.txt": "6d012d51b6994bf3c997621b590d72f08a7a8ad572a71ae90618417315a2e13e",
+    "docs/benchmarks/2026-11-01-media-worker/media_worker_http_test.py.txt": "649668154ab85f99bb5d1de54d1555b1785e72ba9f4dfc5c272eb1e09ce781e4",
+    "docs/benchmarks/2026-11-01-media-worker/media_worker_test.py.txt": "67119bc4cd918d456e5dcc969ee2a2159ac6b399802ed5245953e36b090ffb0d",
+    "docs/benchmarks/2026-11-01-media-worker/mysql-publication-regression.txt": "b55b219fb083674141ca7768fa56e302b431728f7cc107fb7719db493090577a",
+    "docs/benchmarks/2026-11-01-media-worker/mysql-worker.txt": "f181e9e1fbf6b7e3f3c293c5110d52e8a02618d5f4c7dffc1412511ff674f653",
+    "docs/benchmarks/2026-11-01-media-worker/parser-contract.txt": "184fb21494bef7f4f254a9a86b6c9d30aa0419ed30162f06ba4194b9b1b11e0b",
+    "docs/benchmarks/2026-11-01-media-worker/publication-regression.json": "d52ed4b7d4c293569ce396275906d9b25ffcf371747f7f2f3f3993426e45cfd8",
+    "docs/benchmarks/2026-11-01-media-worker/redis.txt": "8d48458a070cf468bcc0ac8ef204bb83dab66d34607e964c4c0eeeea2e33ff96",
+    "docs/benchmarks/2026-11-01-media-worker/run_mysql_review_tests.py.txt": "c61d0275f1611cddae093c20f2bced5f3d944dcf51237ba6fc9d557942546f31",
+    "docs/benchmarks/2026-11-01-media-worker/sync-check.txt": "6bce1a61aea5c376aa689eb08e2cd56882849e14966824610c6a729a63dcc11c",
+    "docs/benchmarks/2026-11-01-media-worker/worker-contract.txt": "2ac022acaed8523f26ee52e9f68ccb0c6926d213b1ac0ac7a30a7b819f23df2c",
+    "docs/benchmarks/2026-11-01-media-worker/worker-http.json": "2e2f3dca290d7d4801bb9f06bec3e716df92a4b74c02fce782735bfb9e7af88a"
+  },
+  "next_stage": {
+    "design": "docs/media-agent-context.md",
+    "implemented": false,
+    "architect": "/root/media_modalities_architect",
+    "scope": "context generation, authorized native media tools, canonical sources, task references, Web and real multimodal E2E",
+    "hermes_native_image_e2e": "not run; source integration seam only"
+  }
+}

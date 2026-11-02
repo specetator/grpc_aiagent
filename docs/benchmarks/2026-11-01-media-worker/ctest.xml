@@ -1,0 +1,582 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="Linux-c++"
+	tests="75"
+	failures="0"
+	disabled="0"
+	skipped="10"
+	hostname="peco-pc"
+	time="49"
+	timestamp="2026-11-01T17:39:04"
+	>
+	<testcase name="inference_cuda_probe_success" classname="inference_cuda_probe_success" time="0.00216714" status="run">
+		<properties/>
+		<system-out>GPU probe: NVML PCI match, driver fallback and context restoration OK
+</system-out>
+	</testcase>
+	<testcase name="inference_cuda_probe_init" classname="inference_cuda_probe_init" time="0.0018433" status="run">
+		<properties/>
+		<system-out>GPU probe: NVML PCI match, driver fallback and context restoration OK
+</system-out>
+	</testcase>
+	<testcase name="inference_cuda_probe_sample" classname="inference_cuda_probe_sample" time="0.00160955" status="run">
+		<properties/>
+		<system-out>GPU probe: NVML PCI match, driver fallback and context restoration OK
+</system-out>
+	</testcase>
+	<testcase name="inference_cuda_probe_nvml" classname="inference_cuda_probe_nvml" time="0.0018648" status="run">
+		<properties/>
+		<system-out>GPU probe: NVML PCI match, driver fallback and context restoration OK
+</system-out>
+	</testcase>
+	<testcase name="inference_tests" classname="inference_tests" time="0.705516" status="run">
+		<properties/>
+		<system-out>inference selected request_id=stream worker_id=worker-test
+inference worker started request_id=stream worker_id=worker-test
+inference worker completed request_id=stream worker_id=worker-test
+inference selected request_id=cancel worker_id=worker-test
+inference worker started request_id=cancel worker_id=worker-test
+inference worker cancelled request_id=cancel worker_id=worker-test
+inference selected request_id=disconnect worker_id=worker-test
+inference worker started request_id=disconnect worker_id=worker-test
+inference selected request_id=bridge-client worker_id=worker-test
+inference worker started request_id=bridge-client worker_id=worker-test
+inference worker cancelled request_id=disconnect worker_id=worker-test
+inference worker completed request_id=bridge-client worker_id=worker-test
+inference selected request_id=down worker_id=worker-test
+inference worker failed request_id=down worker_id=worker-test error=failed to connect to all addresses
+inference selected request_id=owner worker_id=bounded
+inference wor...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="inference_llamacpp_adapter_test" classname="inference_llamacpp_adapter_test" time="1.11046" status="run">
+		<properties/>
+		<system-out>llama.cpp adapter streaming and failure test passed
+</system-out>
+	</testcase>
+	<testcase name="inference_vllm_adapter_contract_test" classname="inference_vllm_adapter_contract_test" time="1.11971" status="run">
+		<properties/>
+		<system-out>llama.cpp adapter streaming and failure test passed
+</system-out>
+	</testcase>
+	<testcase name="security_test" classname="security_test" time="0.115138" status="run">
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="broadcast_fanout_test" classname="broadcast_fanout_test" time="0.00150079" status="run">
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="queue_capacity_test" classname="queue_capacity_test" time="0.0011961" status="run">
+		<properties/>
+		<system-out>20261101 09:39:54.822603Z 937929 INFO  ThreadPool capacity-test started with 1 threads - thread_pool.cpp:39
+</system-out>
+	</testcase>
+	<testcase name="message_acceptance_test" classname="message_acceptance_test" time="0.00305386" status="run">
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="media_blob_store_test" classname="media_blob_store_test" time="0.0818319" status="run">
+		<properties/>
+		<system-out>media blob integrity, range, restart, traversal and link checks passed
+</system-out>
+	</testcase>
+	<testcase name="media_mysql_integration_test" classname="media_mysql_integration_test" time="0.00201949" status="notrun">
+		<skipped message="SKIP_RETURN_CODE=77"/>
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="media_artifact_mysql_test" classname="media_artifact_mysql_test" time="0.00196174" status="notrun">
+		<skipped message="SKIP_RETURN_CODE=77"/>
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="media_manifest_test" classname="media_manifest_test" time="0.00156773" status="run">
+		<properties/>
+		<system-out>media coverage, references, empty text, source spans and field boundaries passed
+</system-out>
+	</testcase>
+	<testcase name="logging_rotation_test" classname="logging_rotation_test" time="0.00890184" status="run">
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="route_generation_integration_test" classname="route_generation_integration_test" time="0.00142926" status="notrun">
+		<skipped message="SKIP_RETURN_CODE=77"/>
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="http_parser_test" classname="http_parser_test" time="0.00169457" status="run">
+		<properties/>
+		<system-out>20261101 09:39:54.824427Z 937934 INFO  HttpContext destroyed - HttpContext.h:43
+20261101 09:39:54.824437Z 937934 INFO  HttpContext destroyed - HttpContext.h:43
+20261101 09:39:54.824438Z 937934 INFO  HttpContext destroyed - HttpContext.h:43
+20261101 09:39:54.824439Z 937934 INFO  HttpContext destroyed - HttpContext.h:43
+20261101 09:39:54.824440Z 937934 INFO  HttpContext destroyed - HttpContext.h:43
+20261101 09:39:54.824441Z 937934 INFO  HttpContext destroyed - HttpContext.h:43
+20261101 09:39:54.824441Z 937934 INFO  HttpContext destroyed - HttpContext.h:43
+20261101 09:39:54.824443Z 937934 INFO  HttpContext destroyed - HttpContext.h:43
+20261101 09:39:54.824443Z 937934 INFO  HttpContext destroyed - HttpContext.h:43
+20261101 09:39:54.824444Z 937934 INFO  HttpContext destroyed - HttpContext.h:43
+20261101 09:39:54.824445Z 937934 INFO  HttpContext destroyed - HttpContext.h:43
+20261101 09:39:54.824446Z 937934 INFO  HttpContext destroyed - HttpContext.h:43
+20261101 09:39:54.824447Z 937934 INFO  HttpContext destroyed - H...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="internal_rpc_test" classname="internal_rpc_test" time="0.00802108" status="run">
+		<properties/>
+		<system-out>20261101 09:39:54.799633Z 937912 INFO  VerifyToken called for comet_id= - grpc_service.cpp:51
+20261101 09:39:54.799642Z 937912 WARN  Logic error code=500, message=redis store not initialized - grpc_service.cpp:16
+</system-out>
+	</testcase>
+	<testcase name="mysql_pool_recovery_test" classname="mysql_pool_recovery_test" time="0.353726" status="run">
+		<properties/>
+		<system-out>20261101 09:39:54.173597Z 937822 ERROR mysql_ping failed, dropping connection - mysql_pool.cpp:296
+20261101 09:39:54.173775Z 937823 ERROR mysql_real_connect failed:  - mysql_pool.cpp:110
+</system-out>
+	</testcase>
+	<testcase name="message_reservation_integration_test" classname="message_reservation_integration_test" time="0.00214701" status="notrun">
+		<skipped message="SKIP_RETURN_CODE=77"/>
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="logic_business_service_test" classname="logic_business_service_test" time="0.132611" status="run">
+		<properties/>
+		<system-out>logic_business_service_test: 1120 checks passed
+</system-out>
+	</testcase>
+	<testcase name="room_agent_service_test" classname="room_agent_service_test" time="0.0080119" status="run">
+		<properties/>
+		<system-out>room Agent service: 180 checks passed
+</system-out>
+	</testcase>
+	<testcase name="config_test" classname="config_test" time="0.00124144" status="run">
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="image_attachment_test" classname="image_attachment_test" time="0.001642" status="run">
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="rate_limiter_test" classname="rate_limiter_test" time="0.00119844" status="run">
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="hermes_command_test" classname="hermes_command_test" time="0.00149512" status="run">
+		<properties/>
+		<system-out>hermes command tests passed
+</system-out>
+	</testcase>
+	<testcase name="hermes_reply_test" classname="hermes_reply_test" time="0.00562175" status="run">
+		<properties/>
+		<system-out>Hermes reply retry and validation tests passed
+</system-out>
+	</testcase>
+	<testcase name="kafka_failure_integration_test" classname="kafka_failure_integration_test" time="16.5377" status="run">
+		<properties/>
+		<system-out>20261101 09:39:04.458681Z 936012 INFO  KafkaProducer initialized topic=reply (async produce + background poll) - kafka_producer.cpp:204
+20261101 09:39:04.475458Z 936012 INFO  KafkaProducer initialized topic=reply.dlq (async produce + background poll) - kafka_producer.cpp:204
+20261101 09:39:07.579928Z 936036 ERROR Kafka business callback threw topic=reply - kafka_consumer.cpp:311
+20261101 09:39:07.579937Z 936036 WARN  Kafka business callback failed, retrying topic=reply partition=0 offset=0 attempt=1/2 - kafka_consumer.cpp:318
+20261101 09:39:07.581037Z 936036 ERROR Kafka business callback threw topic=reply - kafka_consumer.cpp:311
+20261101 09:39:07.581038Z 936036 ERROR Kafka processing exhausted topic=reply partition=0 offset=0 - kafka_consumer.cpp:339
+20261101 09:39:08.590067Z 936012 INFO  KafkaProducer initialized topic=blocked (async produce + background poll) - kafka_producer.cpp:204
+20261101 09:39:08.607713Z 936012 INFO  KafkaProducer initialized topic=blocked.dlq (async produce + background poll) - kafka...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="kafka_parallel_integration_test" classname="kafka_parallel_integration_test" time="13.6454" status="run">
+		<properties/>
+		<system-out>20261101 09:39:04.484039Z 936037 INFO  KafkaProducer initialized topic=parallel (async produce + background poll) - kafka_producer.cpp:204
+20261101 09:39:11.915472Z 936169 ERROR Kafka processing exhausted topic=parallel partition=0 offset=0 - kafka_consumer.cpp:339
+Kafka parallel order, durable commit and replay passed
+</system-out>
+	</testcase>
+	<testcase name="kafka_native_control_integration_test" classname="kafka_native_control_integration_test" time="12.4463" status="run">
+		<properties/>
+		<system-out>20261101 09:39:18.130565Z 936339 INFO  KafkaProducer initialized topic=parallel (async produce + background poll) - kafka_producer.cpp:204
+20261101 09:39:24.442717Z 936538 ERROR Kafka processing exhausted topic=parallel partition=0 offset=0 - kafka_consumer.cpp:339
+Native control preemption, FIFO, durable offsets and failure replay passed
+</system-out>
+	</testcase>
+	<testcase name="hermes_native_config_test" classname="hermes_native_config_test" time="0.00315998" status="run">
+		<properties/>
+		<system-out>Native control defaults, identity allowlist and bounds passed
+</system-out>
+	</testcase>
+	<testcase name="hermes_sse_parser_test" classname="hermes_sse_parser_test" time="0.0159384" status="run">
+		<properties/>
+		<system-out>hermes SSE parser tests passed
+</system-out>
+	</testcase>
+	<testcase name="media_parser_test" classname="media_parser_test" time="0.136901" status="run">
+		<properties/>
+		<system-out>.............
+----------------------------------------------------------------------
+Ran 13 tests in 0.062s
+
+OK
+</system-out>
+	</testcase>
+	<testcase name="media_worker_test" classname="media_worker_test" time="0.0878761" status="run">
+		<properties/>
+		<system-out>..{"event": "published", "id": "att_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "heartbeats": 3}
+.{"event": "heartbeat", "id": "att_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "count": 1}
+{"event": "heartbeat", "id": "att_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "count": 2}
+....
+----------------------------------------------------------------------
+Ran 7 tests in 0.016s
+
+OK
+</system-out>
+	</testcase>
+	<testcase name="media_processing_http_test" classname="media_processing_http_test" time="0.0467526" status="notrun">
+		<skipped message="SKIP_RETURN_CODE=77"/>
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="media_pipeline_http_test" classname="media_pipeline_http_test" time="0.0650456" status="notrun">
+		<skipped message="SKIP_RETURN_CODE=77"/>
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="media_worker_http_test" classname="media_worker_http_test" time="0.0697081" status="notrun">
+		<skipped message="SKIP_RETURN_CODE=77"/>
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="dlq_replay_test" classname="dlq_replay_test" time="0.0447663" status="run">
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="comet_network_integration_test" classname="comet_network_integration_test" time="5.85085" status="run">
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="comet_stream_timeout_test" classname="comet_stream_timeout_test" time="6.03948" status="run">
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="http_api_integration_test" classname="http_api_integration_test" time="0.0762457" status="run">
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="user_agent_http_integration_test" classname="user_agent_http_integration_test" time="1.21045" status="run">
+		<properties/>
+		<system-out>127.0.0.1 - "POST /v1/agent/connections HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/agent/connections HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/agent/connections HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 422 -
+127.0.0.1 - "POST /v1/agent/connections HTTP/1.1" 200 -
+Real Logic auth/curl -&gt; Gateway -&gt; Connector integration passed; stream/replay/owner/delete verified
+</system-out>
+	</testcase>
+	<testcase name="room_agent_test" classname="room_agent_test" time="1.08236" status="run">
+		<properties/>
+		<system-out>.....127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 401 -
+127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 403 -
+127.0.0.1 - "POST /v1/agent/control HTTP/1.1" 403 -
+127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+.....
+----------------------------------------------------------------------
+Ran 10 tests in 1.002s
+
+OK
+</system-out>
+	</testcase>
+	<testcase name="deployment_endpoints_test" classname="deployment_endpoints_test" time="0.0203307" status="run">
+		<properties/>
+		<system-out>deployment endpoints: same origin HTTP/HTTPS and WSL compatibility passed
+</system-out>
+	</testcase>
+	<testcase name="kernel_subagents_test" classname="kernel_subagents_test" time="0.602076" status="run">
+		<properties/>
+		<system-out>Kernel subagent lifecycle, permission and race tests: 53 checks passed
+</system-out>
+	</testcase>
+	<testcase name="kernel_subagents_integration_test" classname="kernel_subagents_integration_test" time="0.77255" status="run">
+		<properties/>
+		<system-out>Kernel subagent real Pi SDK integration: 32 checks passed
+</system-out>
+	</testcase>
+	<testcase name="cursor_recovery_test" classname="cursor_recovery_test" time="0.0223224" status="run">
+		<properties/>
+		<system-out>gap, settled prefix and pagination regression checks passed
+ongoing tail recovery, pending expiry, visibility and authorization regression checks passed
+late different-page and equivalent-page completion regression checks passed
+first-session discovery, timeout and account-epoch regression checks passed
+</system-out>
+	</testcase>
+	<testcase name="room_agent_channel_test" classname="room_agent_channel_test" time="0.0199435" status="run">
+		<properties/>
+		<system-out>room Agent UI: safe text, attribution, ordering, deduplication, final authority and stale-room checks passed
+</system-out>
+	</testcase>
+	<testcase name="collaboration_browser_test" classname="collaboration_browser_test" time="0.021294" status="notrun">
+		<skipped message="SKIP_RETURN_CODE=77"/>
+		<properties/>
+		<system-out>SKIP: install Playwright and set SPARK_PLAYWRIGHT_MODULE for browser contracts
+</system-out>
+	</testcase>
+	<testcase name="logic_layer_contract_test" classname="logic_layer_contract_test" time="0.0234994" status="run">
+		<properties/>
+		<system-out>logic layer contracts passed: adapters depend on Services, business DTOs do not depend on HTTP/gRPC
+</system-out>
+	</testcase>
+	<testcase name="agent_control_integration_test" classname="agent_control_integration_test" time="0.686466" status="run">
+		<properties/>
+		<system-out>starting Pi RPC
+Pi session s_7_99__0.jsonl
+127.0.0.1 - "POST /v1/agent/control HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/agent/control HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+Pi turn started session=s_7_99__0.jsonl thinking=off
+Pi turn completed session=s_7_99__0.jsonl elapsed_s=0.0 tools=0
+Pi turn started session=s_7_99__0.jsonl thinking=off
+Pi turn completed session=s_7_99__0.jsonl elapsed_s=0.0 tools=0
+127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/agent/control HTTP/1.1" 422 -
+starting Pi RPC
+Pi session s_7_99__0.jsonl
+127.0.0.1 - "POST /v1/agent/control HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/agent/control HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/agent/control HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/agent/control HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/agent/control HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/agent/control HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/agent/control HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+Pi turn started ses...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="pi_gateway_test" classname="pi_gateway_test" time="3.11365" status="run">
+		<properties/>
+		<system-out>starting Pi RPC
+..starting Pi RPC
+Pi session s_1_900000000001__0.jsonl
+Pi turn started session=s_1_900000000001__0.jsonl thinking=off
+Pi turn completed session=s_1_900000000001__0.jsonl elapsed_s=0.0 tools=0
+.starting Pi RPC
+Pi session s_1_900000000001__0.jsonl
+Pi turn started session=s_1_900000000001__0.jsonl thinking=off
+.starting Pi RPC
+Pi session s_1_900000000001__0.jsonl
+Pi turn started session=s_1_900000000001__0.jsonl thinking=off
+starting Pi RPC
+Pi session s_1_900000000001__0.jsonl
+Pi turn started session=s_1_900000000001__0.jsonl thinking=off
+Pi turn completed session=s_1_900000000001__0.jsonl elapsed_s=0.0 tools=0
+.starting Pi RPC
+Pi session s_1_900000000001__0.jsonl
+Pi turn started session=s_1_900000000001__0.jsonl thinking=off
+Pi RPC stdout closed
+starting Pi RPC
+Pi session s_1_900000000001__0.jsonl
+Pi turn started session=s_1_900000000001__0.jsonl thinking=off
+Pi turn completed session=s_1_900000000001__0.jsonl elapsed_s=0.0 tools=0
+Pi turn started session=s_1_900000000001__0.jsonl thinking=off
+P...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="agent_router_test" classname="agent_router_test" time="6.7021" status="run">
+		<properties/>
+		<system-out>127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+.127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+.127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/agent/events/replay HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+....hermes_timing {"trace_id": "57477fd2a48b", "connect_ms": 6, "first_delta_ms": 10, "total_ms": 10, "chunk_count": 1, "finish_reason": "stop", "provider_output_bytes": 12, "provider_output_chars": 4}
+hermes_timing {"trace_id": "a7d5366efbad", "connect_ms": 6, "first_delta_ms": 11, "total_ms": 11, "chunk_count": 1, "finish_reason": "stop", "provider_output_bytes": 12, "provider_output_chars": 4}
+hermes_timing {"trace_id": "4dcbd2668796", "error_type": "ValueError", "total_ms": 0}
+hermes_timing {"trace_id": "7f366e27c0b9", "connect_ms": 4, "first_delta_ms": 9, "total_ms": 9, "chunk_count": 1, "finish_reason": "stop", "provider_output_bytes": 12, "provider_output_chars": 4}
+hermes_...
+[This part of the test output was removed since it exceeds the threshold of 1024 bytes.]
+</system-out>
+	</testcase>
+	<testcase name="user_agent_connections_test" classname="user_agent_connections_test" time="9.50797" status="run">
+		<properties/>
+		<system-out>.........127.0.0.1 - "POST /v1/agent/connections HTTP/1.1" 401 -
+127.0.0.1 - "POST /v1/agent/connections HTTP/1.1" 200 -
+..........
+----------------------------------------------------------------------
+Ran 19 tests in 9.407s
+
+OK
+</system-out>
+	</testcase>
+	<testcase name="agent_connection_service_test" classname="agent_connection_service_test" time="0.00451341" status="run">
+		<properties/>
+		<system-out>Agent connection ownership, input and error contracts passed
+</system-out>
+	</testcase>
+	<testcase name="hermes_native_test" classname="hermes_native_test" time="2.30932" status="run">
+		<properties/>
+		<system-out>......................................
+----------------------------------------------------------------------
+Ran 38 tests in 2.234s
+
+OK
+</system-out>
+	</testcase>
+	<testcase name="hermes_native_gateway_test" classname="hermes_native_gateway_test" time="3.99231" status="run">
+		<properties/>
+		<system-out>127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/agent/control HTTP/1.1" 422 -
+127.0.0.1 - "POST /v1/agent/control HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/agent/control HTTP/1.1" 200 -
+.127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/agent/control HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/agent/control HTTP/1.1" 422 -
+.127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/agent/control HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/agent/control HTTP/1.1" 200 -
+.127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+.127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 502 -
+.127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+127.0.0.1 - "POST /v1/chat/completions HTTP/1.1" 200 -
+.
+----------------------------------------------------------------------
+Ran 6 tests in 3.908s
+
+OK
+</system-out>
+	</testcase>
+	<testcase name="client_reliability_contract_test" classname="client_reliability_contract_test" time="0.0207586" status="run">
+		<properties/>
+		<system-out>ok test_login_restore_keeps_token_on_network_errors
+ok test_envelope_matches_web_rules
+ok test_bounded_reorder_stops_preview_on_overflow
+ok test_latency_percentiles
+ok test_scenario_matrix_is_documented
+ok test_live_e2e_is_opt_in
+client_reliability_contract_test passed
+</system-out>
+	</testcase>
+	<testcase name="citation_validation_test" classname="citation_validation_test" time="0.00113776" status="run">
+		<properties/>
+		<system-out>citation validation tests passed
+</system-out>
+	</testcase>
+	<testcase name="knowledge_catalog_test" classname="knowledge_catalog_test" time="0.00165744" status="run">
+		<properties/>
+		<system-out>knowledge catalog tests passed
+</system-out>
+	</testcase>
+	<testcase name="websocket_utils_test" classname="websocket_utils_test" time="0.00143258" status="run">
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="redis_sequence_integration_test" classname="redis_sequence_integration_test" time="0.00149258" status="notrun">
+		<skipped message="SKIP_RETURN_CODE=77"/>
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="space_service_test" classname="space_service_test" time="0.00176727" status="run">
+		<properties/>
+		<system-out>space service lifecycle and role policies passed
+</system-out>
+	</testcase>
+	<testcase name="space_mysql_integration_test" classname="space_mysql_integration_test" time="0.00232184" status="notrun">
+		<skipped message="SKIP_RETURN_CODE=77"/>
+		<properties/>
+		<system-out></system-out>
+	</testcase>
+	<testcase name="generic_room_agent_test" classname="generic_room_agent_test" time="1.51707" status="run">
+		<properties/>
+		<system-out>..................
+----------------------------------------------------------------------
+Ran 18 tests in 1.445s
+
+OK
+</system-out>
+	</testcase>
+	<testcase name="room_project_snapshot_test" classname="room_project_snapshot_test" time="0.602674" status="run">
+		<properties/>
+		<system-out>............
+----------------------------------------------------------------------
+Ran 12 tests in 0.527s
+
+OK
+</system-out>
+	</testcase>
+	<testcase name="hermes_public_workspace_contract_test" classname="hermes_public_workspace_contract_test" time="0.0789827" status="run">
+		<properties/>
+		<system-out>....
+----------------------------------------------------------------------
+Ran 4 tests in 0.013s
+
+OK
+</system-out>
+	</testcase>
+	<testcase name="public_runtime_startup_test" classname="public_runtime_startup_test" time="1.03069" status="run">
+		<properties/>
+		<system-out>...................
+----------------------------------------------------------------------
+Ran 19 tests in 0.961s
+
+OK
+</system-out>
+	</testcase>
+	<testcase name="public_runtime_lifecycle_test" classname="public_runtime_lifecycle_test" time="1.24312" status="run">
+		<properties/>
+		<system-out>posix: missing home refused; active/closed-but-alive owner refused; exited owner freezes and blocks restart without changing files
+posix: EOF, malformed JSON and wrong batch fail without release success; lock is held until failure and files stay unchanged
+posix: forced owner termination remains ineligible after restart; same-boot audit refused and fixture journal unchanged
+posix: an actual independently grouped writer survives parent kill; maintenance refuses throughout and the owned writer is reaped
+{"ok": true, "checks": 4}
+</system-out>
+	</testcase>
+	<testcase name="backup_contract_test" classname="backup_contract_test" time="0.336782" status="run">
+		<properties/>
+		<system-out>............................
+----------------------------------------------------------------------
+Ran 28 tests in 0.275s
+
+OK
+</system-out>
+	</testcase>
+	<testcase name="runtime_archive_test" classname="runtime_archive_test" time="2.08182" status="run">
+		<properties/>
+		<system-out>............
+----------------------------------------------------------------------
+Ran 12 tests in 1.998s
+
+OK
+</system-out>
+	</testcase>
+	<testcase name="cann_document_export_test" classname="cann_document_export_test" time="0.0735385" status="run">
+		<properties/>
+		<system-out>.......
+----------------------------------------------------------------------
+Ran 7 tests in 0.015s
+
+OK
+</system-out>
+	</testcase>
+	<testcase name="public_agent_mode_test" classname="public_agent_mode_test" time="3.10007" status="run">
+		<properties/>
+		<system-out>......
+----------------------------------------------------------------------
+Ran 6 tests in 3.039s
+
+OK
+</system-out>
+	</testcase>
+	<testcase name="release_contract_test" classname="release_contract_test" time="0.371199" status="run">
+		<properties/>
+		<system-out>..........
+----------------------------------------------------------------------
+Ran 10 tests in 0.300s
+
+OK
+</system-out>
+	</testcase>
+</testsuite>

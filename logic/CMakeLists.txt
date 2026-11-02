@@ -19,6 +19,11 @@ add_library(spark_push_logic STATIC
   attachment_dao.cpp
   repositories/dao_repositories.cpp
   repositories/space_repository.cpp
+  repositories/media_repository.cpp
+  repositories/media_processing_repository.cpp
+  repositories/media_context_repository.cpp
+  repositories/media_artifact_repository.cpp
+  repositories/media_blob_store.cpp
   repositories/room_agent_repository.cpp
   services/room_agent_service.cpp
   services/room_agent_catalog.cpp
@@ -27,6 +32,10 @@ add_library(spark_push_logic STATIC
   services/user_service.cpp
   services/conversation_service.cpp
   services/attachment_service.cpp
+  services/media_service.cpp
+  services/media_processing_service.cpp
+  services/media_context_service.cpp
+  services/media_manifest.cpp
   services/message_service.cpp
   services/admin_service.cpp
   services/danmaku_service.cpp

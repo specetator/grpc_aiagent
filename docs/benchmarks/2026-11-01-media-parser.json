@@ -1,0 +1,137 @@
+{
+  "date": "2026-11-01",
+  "base_commit": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "scope": "Isolated local parser; uncommitted working-tree source, synthetic fixtures; no Logic/native Agent/Web media integration",
+  "status": "parser_phase_passed",
+  "full_multimodal_goal_complete": false,
+  "source_sha256": {
+    "cannbot/media/parser.py": "e29263d81f71583e3c49cd6cc8d5d0a5cfb2bcbed36c40482b171d90c8c10188",
+    "cannbot/media/sandbox.py": "64c8ba7519a7bcb5be4fc5ef25c05c4dfa0b54772f5c89a88b6659a466fb1d53",
+    "cannbot/media/provision_asr.py": "78f03e39cfe2711f98d088de8f94fc3199bbac7a9e32a8fe295fb852b1f78da8",
+    "cannbot/media/requirements.txt": "dedfc435594e8a62613e49b38c3e2936cdb4a3c8a3e5dbdd73d6ba511f97fc57",
+    "cannbot/media/Dockerfile": "db1e93b9aa405dd983001cb3b7c68f192db247742d23d7e2d45f136e349bfba2",
+    "tests/media_parser_e2e.py": "39228af9880f82e6769b3830a4ac5cdf9eacc1271d6f6b996138498622377cc5",
+    "tests/media_parser_fixtures.py": "a2bed331fe52ef4faec5b0c9421bd85ffb59cb152b926b90f50ffaca263eb434",
+    "tests/media_parser_test.py": "4be19eb78c7681ace036c54b2e70e987ea5019e36725040d258bf580a021bf8a"
+  },
+  "image_id": "sha256:4c2e26418ad4ec59d0d57bdf2a15af30826c14de5d253d39bf96be2de2b38120",
+  "model_sha256": "b2f73aed0684edce51988a894b0a40f3ef581f63d4e50bea7e2daa414dda9a8e",
+  "tests": {
+    "stdlib_contract": {
+      "passed": 12,
+      "mock_scope": "Public model download concurrency mocks network; no model/decoder E2E is mocked"
+    },
+    "real_parser_e2e": {
+      "passed": 22,
+      "long_audio": {
+        "duration_ms": 1199978,
+        "samples": 19199651,
+        "fragments": 395,
+        "elapsed_seconds": 221.026,
+        "synthetic_continuous_speech": true
+      },
+      "supervisor_sigkill": {
+        "configured_deadline_seconds": 8,
+        "observed_container_lifetime_seconds": 8.336276447,
+        "exit_code": 142
+      }
+    },
+    "ctest": {
+      "registered": 70,
+      "passed": 64,
+      "skipped": 6,
+      "failed": 0,
+      "elapsed_seconds": 61.34,
+      "skips": [
+        {
+          "test": "media_mysql_integration_test",
+          "reason": "SQL opt-in test environment absent"
+        },
+        {
+          "test": "route_generation_integration_test",
+          "reason": "Redis opt-in test environment absent"
+        },
+        {
+          "test": "message_reservation_integration_test",
+          "reason": "SQL opt-in test environment absent"
+        },
+        {
+          "test": "media_processing_http_test",
+          "reason": "SQL/Redis opt-in test environment absent"
+        },
+        {
+          "test": "redis_sequence_integration_test",
+          "reason": "Redis opt-in test environment absent"
+        },
+        {
+          "test": "space_mysql_integration_test",
+          "reason": "SQL opt-in test environment absent"
+        }
+      ]
+    },
+    "real_model_cache_revalidation": {
+      "exit_code": 0
+    },
+    "build": {
+      "command": "cmake --build build-wsl -j2",
+      "exit_code": 0
+    },
+    "private_skill_sync_check": {
+      "exit_code": 1,
+      "reason": "Installed skill/settings drift; check only, preserved private installation"
+    }
+  },
+  "independent_review": {
+    "reviewer": "PASS WITH NOTES, read-only code review; no tests executed by reviewer",
+    "tester": "Parser-stage evidence review passed; parent executed all tests"
+  },
+  "corrected_findings": [
+    "Pinned PyAV and supplied verified PCM directly to ASR after real decoder incompatibility",
+    "Per-track packet end timestamps replace ambiguous container duration",
+    "Native word alignment fixed coarse ASR timing after a 35 second gap",
+    "Negative-offset WebM actually contained a backwards audio timestamp; real rejection case, not valid-negative-clock coverage",
+    "Model staging lock, deterministic container ownership, cleanup on failure, internal deadline and JPEG SOF/scan validation corrected before final tests"
+  ],
+  "not_covered": [
+    "Human/noisy/multilingual/multi-speaker accuracy benchmark",
+    "Real decoder acceptance of a valid negative time origin",
+    "Real concurrent public model downloads (mocked network contract plus real cache revalidation only)",
+    "Logic derived artifact publication, worker lease fencing/restart adoption and orphan GC",
+    "Pi/Hermes native room media tools, PDF plus code understanding, durable meeting tasks, video audiovisual explanations",
+    "Multi-user Web uploads/previews/reconnect/history and complete product E2E"
+  ],
+  "artifacts": [
+    {
+      "path": "docs/benchmarks/2026-11-01-media-parser/e2e.json",
+      "sha256": "fe256d1326f7b8a82fde2ae5cb58faef60a3031848deb16ca42b1abe506c2707"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-media-parser/e2e.txt",
+      "sha256": "f104abe850e19e3ff85ee08355c9f9a3c525a3e361dbafb6782279e2d25bce7e"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-media-parser/unit.txt",
+      "sha256": "8174809594ee6b1e4ae3d0ab050aacf7b9dee52cec449dd064e31c9e87c4c173"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-media-parser/ctest.txt",
+      "sha256": "de12bcbb562fd00b87dcb21ce1c61999dbdb7bddac2cb3e00c141e2e517a2a8b"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-media-parser/ctest.xml",
+      "sha256": "f3d56d18b88a31ec8bed813f61b48d36793d9ac3a234f7081c975bda6c2f4ccc"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-media-parser/model.json",
+      "sha256": "fbc1b8ce473cb91352449b484f1e0359051ec754146d729c7330cf5bee386b31"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-media-parser/dependencies.json",
+      "sha256": "01fdb2de1a0b895f992d88cf3b8b86ae9f854d927c6a0c99c5adb974b5e1b724"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-media-parser/sync-check.txt",
+      "sha256": "6bce1a61aea5c376aa689eb08e2cd56882849e14966824610c6a729a63dcc11c"
+    }
+  ]
+}

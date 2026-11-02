@@ -1,0 +1,492 @@
+{
+  "kind": "real-native-tools-and-models-with-fixture-authority",
+  "passed": false,
+  "scope": "Opt-in real native room tools/models with an HTTP authority fixture.\n\nThis is a native integration probe, NOT Logic/MySQL/Kafka/Web acceptance.\nOnly explicitly authorized default-profile MODEL access is provisioned into\nowned homes; private sessions/configuration/workspaces are never copied.\n",
+  "checks": [
+    "pi reads bounded room text without a code project",
+    "pi native tool result contains all three actual images",
+    "pi provider-bound request contains all three image payloads",
+    "Pi native process restart recalls only its room/epoch history",
+    "pi isolation turn actually reaches the model",
+    "pi provider history has the expected scope markers",
+    "pi provider history excludes other room/Agent/generation markers",
+    "Pi native process restart recalls only its room/epoch history",
+    "pi isolation turn actually reaches the model",
+    "pi provider history has the expected scope markers",
+    "pi provider history excludes other room/Agent/generation markers",
+    "Pi native process restart recalls only its room/epoch history",
+    "pi isolation turn actually reaches the model",
+    "pi provider history has the expected scope markers",
+    "pi provider history excludes other room/Agent/generation markers",
+    "Hermes advertises verified explicit room toolset",
+    "hermes reads bounded room text without a code project",
+    "hermes native tool result contains all three actual images",
+    "hermes provider-bound request contains all three image payloads",
+    "hermes answers three no-text images correctly",
+    "hermes isolation turn actually reaches the model",
+    "hermes provider history has the expected scope markers",
+    "hermes provider history excludes other room/Agent/generation markers",
+    "hermes actual native todo state matches the scoped history",
+    "hermes isolation turn actually reaches the model",
+    "hermes provider history has the expected scope markers",
+    "hermes provider history excludes other room/Agent/generation markers",
+    "hermes actual native todo state matches the scoped history",
+    "hermes isolation turn actually reaches the model",
+    "hermes provider history has the expected scope markers",
+    "hermes provider history excludes other room/Agent/generation markers",
+    "hermes actual native todo state matches the scoped history",
+    "hermes isolation turn actually reaches the model",
+    "hermes provider history has the expected scope markers",
+    "hermes provider history excludes other room/Agent/generation markers",
+    "hermes actual native todo state matches the scoped history",
+    "authorized private model profile remains byte-identical"
+  ],
+  "runtimes": {
+    "pi": {
+      "answer": {
+        "nonce": "103ed6f89a01d9b2cc065c46",
+        "images": [
+          {
+            "left": {
+              "shape": "circle",
+              "color": "red"
+            },
+            "right": {
+              "shape": "triangle",
+              "color": "green"
+            },
+            "lower": {
+              "shape": "square",
+              "color": "blue"
+            }
+          },
+          {
+            "left": {
+              "shape": "square",
+              "color": "red"
+            },
+            "right": {
+              "shape": "circle",
+              "color": "blue"
+            },
+            "lower": {
+              "shape": "circle",
+              "color": "blue"
+            }
+          },
+          {
+            "left": {
+              "shape": "circle",
+              "color": "red"
+            },
+            "right": {
+              "shape": "square",
+              "color": "blue"
+            },
+            "lower": {
+              "shape": "triangle",
+              "color": "green"
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "left": {
+            "shape": "circle",
+            "color": "red"
+          },
+          "right": {
+            "shape": "triangle",
+            "color": "green"
+          },
+          "lower": {
+            "shape": "square",
+            "color": "blue"
+          }
+        },
+        {
+          "left": {
+            "shape": "square",
+            "color": "red"
+          },
+          "right": {
+            "shape": "triangle",
+            "color": "green"
+          },
+          "lower": {
+            "shape": "circle",
+            "color": "blue"
+          }
+        },
+        {
+          "left": {
+            "shape": "circle",
+            "color": "red"
+          },
+          "right": {
+            "shape": "square",
+            "color": "blue"
+          },
+          "lower": {
+            "shape": "triangle",
+            "color": "green"
+          }
+        }
+      ],
+      "image_sha256": [
+        "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9",
+        "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7",
+        "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+      ],
+      "audit": [
+        {
+          "phase": "provider",
+          "hashes": [],
+          "markers": [
+            "probe-memory-331d32a50d79fd7d0104e8cc"
+          ],
+          "request_id": "ra_4c35f8bf2f9336d17d5c86de7fee2e2525db1902f23f16044f9911c65ae0bfd5"
+        },
+        {
+          "phase": "provider",
+          "hashes": [],
+          "markers": [
+            "probe-memory-331d32a50d79fd7d0104e8cc"
+          ],
+          "request_id": "ra_4c35f8bf2f9336d17d5c86de7fee2e2525db1902f23f16044f9911c65ae0bfd5"
+        },
+        {
+          "phase": "tool",
+          "hashes": [
+            "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7"
+          ],
+          "markers": [],
+          "request_id": "ra_4c35f8bf2f9336d17d5c86de7fee2e2525db1902f23f16044f9911c65ae0bfd5"
+        },
+        {
+          "phase": "tool",
+          "hashes": [
+            "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9"
+          ],
+          "markers": [],
+          "request_id": "ra_4c35f8bf2f9336d17d5c86de7fee2e2525db1902f23f16044f9911c65ae0bfd5"
+        },
+        {
+          "phase": "tool",
+          "hashes": [
+            "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+          ],
+          "markers": [],
+          "request_id": "ra_4c35f8bf2f9336d17d5c86de7fee2e2525db1902f23f16044f9911c65ae0bfd5"
+        },
+        {
+          "phase": "provider",
+          "hashes": [
+            "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7",
+            "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9",
+            "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+          ],
+          "markers": [
+            "probe-memory-331d32a50d79fd7d0104e8cc"
+          ],
+          "request_id": "ra_4c35f8bf2f9336d17d5c86de7fee2e2525db1902f23f16044f9911c65ae0bfd5"
+        }
+      ],
+      "recall_answers": [
+        {
+          "request_id": "ra_948fffac082a632ae0b365ec0b5637ee88c5e39464b5ec9a894e62b6406eabad",
+          "room_id": 7,
+          "context_generation": 0,
+          "answer": "probe-memory-331d32a50d79fd7d0104e8cc",
+          "expected": "probe-memory-331d32a50d79fd7d0104e8cc"
+        },
+        {
+          "request_id": "ra_deacf850d6e2a7e7a43e1aedd8c0a5541afa6e7562fdddab2842807ff5daa9cb",
+          "room_id": 8,
+          "context_generation": 0,
+          "answer": "UNKNOWN",
+          "expected": "UNKNOWN"
+        },
+        {
+          "request_id": "ra_64b26c3696c87750ae6c23f2b5fe3846ff16da10af97fa5173738c15c8cec22c",
+          "room_id": 7,
+          "context_generation": 1,
+          "answer": "UNKNOWN",
+          "expected": "UNKNOWN"
+        }
+      ],
+      "isolation": [
+        {
+          "provider_markers": [
+            "probe-memory-331d32a50d79fd7d0104e8cc"
+          ],
+          "todo_checked": false,
+          "request_id": "ra_948fffac082a632ae0b365ec0b5637ee88c5e39464b5ec9a894e62b6406eabad",
+          "room_id": 7,
+          "context_generation": 0
+        },
+        {
+          "provider_markers": [],
+          "todo_checked": false,
+          "request_id": "ra_deacf850d6e2a7e7a43e1aedd8c0a5541afa6e7562fdddab2842807ff5daa9cb",
+          "room_id": 8,
+          "context_generation": 0
+        },
+        {
+          "provider_markers": [],
+          "todo_checked": false,
+          "request_id": "ra_64b26c3696c87750ae6c23f2b5fe3846ff16da10af97fa5173738c15c8cec22c",
+          "room_id": 7,
+          "context_generation": 1
+        }
+      ]
+    },
+    "hermes": {
+      "answer": {
+        "nonce": "103ed6f89a01d9b2cc065c46",
+        "images": [
+          {
+            "left": {
+              "shape": "circle",
+              "color": "red"
+            },
+            "right": {
+              "shape": "triangle",
+              "color": "green"
+            },
+            "lower": {
+              "shape": "square",
+              "color": "blue"
+            }
+          },
+          {
+            "left": {
+              "shape": "square",
+              "color": "red"
+            },
+            "right": {
+              "shape": "triangle",
+              "color": "green"
+            },
+            "lower": {
+              "shape": "circle",
+              "color": "blue"
+            }
+          },
+          {
+            "left": {
+              "shape": "circle",
+              "color": "red"
+            },
+            "right": {
+              "shape": "square",
+              "color": "blue"
+            },
+            "lower": {
+              "shape": "triangle",
+              "color": "green"
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "left": {
+            "shape": "circle",
+            "color": "red"
+          },
+          "right": {
+            "shape": "triangle",
+            "color": "green"
+          },
+          "lower": {
+            "shape": "square",
+            "color": "blue"
+          }
+        },
+        {
+          "left": {
+            "shape": "square",
+            "color": "red"
+          },
+          "right": {
+            "shape": "triangle",
+            "color": "green"
+          },
+          "lower": {
+            "shape": "circle",
+            "color": "blue"
+          }
+        },
+        {
+          "left": {
+            "shape": "circle",
+            "color": "red"
+          },
+          "right": {
+            "shape": "square",
+            "color": "blue"
+          },
+          "lower": {
+            "shape": "triangle",
+            "color": "green"
+          }
+        }
+      ],
+      "image_sha256": [
+        "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9",
+        "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7",
+        "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+      ],
+      "audit": [
+        {
+          "phase": "provider",
+          "hashes": [],
+          "status": 200,
+          "markers": [
+            "probe-memory-475312388daff6afead5160f"
+          ],
+          "request_id": null
+        },
+        {
+          "phase": "provider",
+          "hashes": [],
+          "status": 200,
+          "markers": [
+            "probe-memory-475312388daff6afead5160f"
+          ],
+          "request_id": "ra_2de31fdc428b7f2d4ca6643e28279fc40018a32af23ed5ee839f7b8e0d512b32"
+        },
+        {
+          "phase": "provider",
+          "hashes": [],
+          "status": 200,
+          "markers": [
+            "probe-memory-475312388daff6afead5160f"
+          ],
+          "request_id": "ra_2de31fdc428b7f2d4ca6643e28279fc40018a32af23ed5ee839f7b8e0d512b32"
+        },
+        {
+          "phase": "provider",
+          "hashes": [],
+          "status": 200,
+          "markers": [
+            "probe-memory-475312388daff6afead5160f"
+          ],
+          "request_id": "ra_2de31fdc428b7f2d4ca6643e28279fc40018a32af23ed5ee839f7b8e0d512b32"
+        },
+        {
+          "phase": "tool",
+          "hashes": [
+            "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7"
+          ],
+          "status": null,
+          "markers": [],
+          "request_id": "ra_2de31fdc428b7f2d4ca6643e28279fc40018a32af23ed5ee839f7b8e0d512b32"
+        },
+        {
+          "phase": "tool",
+          "hashes": [
+            "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9"
+          ],
+          "status": null,
+          "markers": [],
+          "request_id": "ra_2de31fdc428b7f2d4ca6643e28279fc40018a32af23ed5ee839f7b8e0d512b32"
+        },
+        {
+          "phase": "tool",
+          "hashes": [
+            "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+          ],
+          "status": null,
+          "markers": [],
+          "request_id": "ra_2de31fdc428b7f2d4ca6643e28279fc40018a32af23ed5ee839f7b8e0d512b32"
+        },
+        {
+          "phase": "provider",
+          "hashes": [
+            "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7",
+            "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9",
+            "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+          ],
+          "status": 200,
+          "markers": [
+            "probe-memory-475312388daff6afead5160f"
+          ],
+          "request_id": "ra_2de31fdc428b7f2d4ca6643e28279fc40018a32af23ed5ee839f7b8e0d512b32"
+        },
+        {
+          "phase": "provider",
+          "hashes": [
+            "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7",
+            "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9",
+            "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+          ],
+          "status": 200,
+          "markers": [
+            "probe-memory-475312388daff6afead5160f"
+          ],
+          "request_id": "ra_2de31fdc428b7f2d4ca6643e28279fc40018a32af23ed5ee839f7b8e0d512b32"
+        },
+        {
+          "phase": "todo",
+          "hashes": [],
+          "status": null,
+          "markers": [],
+          "request_id": "ra_2de31fdc428b7f2d4ca6643e28279fc40018a32af23ed5ee839f7b8e0d512b32"
+        }
+      ],
+      "isolation": [
+        {
+          "provider_markers": [
+            "probe-memory-475312388daff6afead5160f"
+          ],
+          "todo_checked": true,
+          "request_id": "ra_13427e8cdbe0d4aba8702bb7c584c32301bd2eaf71836b17762dc022c33b9b60",
+          "room_id": 7,
+          "context_generation": 0
+        },
+        {
+          "provider_markers": [
+            "probe-memory-475312388daff6afead5160f"
+          ],
+          "todo_checked": true,
+          "request_id": "ra_fadb92949e7c074f74aec963bc20332565c97013a4ed79ae9e99cbc38b51b6eb",
+          "room_id": 7,
+          "context_generation": 0
+        },
+        {
+          "provider_markers": [],
+          "todo_checked": true,
+          "request_id": "ra_bd16c77bd5965b390d15a7dc6172055fb948b8ffe4a3bdf39fa87b0bf8352637",
+          "room_id": 8,
+          "context_generation": 0
+        },
+        {
+          "provider_markers": [],
+          "todo_checked": true,
+          "request_id": "ra_28edb8823b78444253e8555a2799b733f386840755f82b2e83ad73c188ce3258",
+          "room_id": 7,
+          "context_generation": 1
+        }
+      ]
+    }
+  },
+  "model": {
+    "provider": "openai-codex",
+    "id": "gpt-6-luna"
+  },
+  "fixture_replay_sha256": "8ec95133cff14f990c3294bfe1862c818446334545a442f3d6590f94f59de72d",
+  "image_files": [
+    "spark-room-context-native-complete-observation-images/5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7.jpg",
+    "spark-room-context-native-complete-observation-images/04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9.jpg",
+    "spark-room-context-native-complete-observation-images/8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b.jpg"
+  ],
+  "failed_checks": [
+    "pi answers three no-text images correctly"
+  ],
+  "private_profile_hashes_unchanged": true,
+  "tool_call_count": 10,
+  "error_type": "AssertionError"
+}

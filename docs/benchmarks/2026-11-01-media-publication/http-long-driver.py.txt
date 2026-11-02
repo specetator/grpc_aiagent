@@ -1,0 +1,306 @@
+"""Real parser -> authenticated HTTP -> MySQL/files -> authorized room content.
+
+Synthetic media; real CPU ASR. This harness is not the production worker and
+does not validate native Agent understanding, Web/Kafka or worker crash adoption.
+"""
+import base64
+import hashlib
+import http.client
+import json
+import os
+from pathlib import Path
+import secrets
+import socket
+import subprocess
+import sys
+import tempfile
+import threading
+import time
+
+ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT))
+from cannbot.media import sandbox
+from media_processing_http_test import sql
+
+
+def canonical(value):
+    return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False).encode()
+
+
+def digest(value):
+    return hashlib.sha256(canonical(value)).hexdigest()
+
+
+def main():
+    required = ("SPARK_PUSH_RUN_MYSQL_TESTS", "SPARK_TEST_REDIS_PORT", "SPARK_TEST_MYSQL_CONTAINER",
+                "SPARK_TEST_MEDIA_IMAGE", "SPARK_TEST_MEDIA_FIXTURES", "SPARK_TEST_MEDIA_MODEL")
+    if not all(os.environ.get(name) for name in required):
+        return 77
+    image = subprocess.check_output(["docker", "image", "inspect", os.environ["SPARK_TEST_MEDIA_IMAGE"],
+                                     "--format", "{{.Id}}"], text=True).strip()
+    fixtures = Path(os.environ["SPARK_TEST_MEDIA_FIXTURES"])
+    model = Path(os.environ["SPARK_TEST_MEDIA_MODEL"])
+    parser_sha = hashlib.sha256((ROOT / "cannbot/media/parser.py").read_bytes()).hexdigest()
+    model_sha = sandbox.model_fingerprint(model)
+    # Administrator-approved test pipeline. This does not register a public Agent
+    # or reuse any private runtime directory, model keys or user shell profile.
+    pipeline = digest({"test_driver": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+                       "parser": parser_sha, "image": image, "model": model_sha})
+    report = {"scope": __doc__, "status": "running", "image_id": image, "pipeline_sha256": pipeline,
+              "parser_sha256": parser_sha, "model_sha256": model_sha, "cases": []}
+    report_path = os.environ.get("SPARK_TEST_MEDIA_REPORT")
+
+    def save():
+        if report_path:
+            Path(report_path).write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
+
+    save()
+    with tempfile.TemporaryDirectory(prefix="spark-media-pipeline-") as directory:
+        root = Path(directory)
+        key = secrets.token_hex(32)
+        env = dict(os.environ, SPARK_PUSH_MEDIA_WORKER_KEY=key, SPARK_PUSH_MEDIA_PIPELINE_SHA256="a" * 64,
+                   SPARK_PUSH_MEDIA_PARSER_PIPELINE_SHA256=pipeline, SPARK_PUSH_MEDIA_PARSER_SHA256=parser_sha)
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0)); port = sock.getsockname()[1]
+        process = None
+
+        def start():
+            nonlocal process
+            process = subprocess.Popen([sys.argv[1], str(port), str(root / "blobs")], env=env,
+                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            deadline = time.monotonic() + 10
+            while True:
+                try:
+                    with socket.create_connection(("127.0.0.1", port), timeout=0.1):
+                        return
+                except OSError:
+                    assert process.poll() is None and time.monotonic() < deadline, "HTTP fixture failed"
+                    time.sleep(0.03)
+
+        def stop():
+            if process is not None and process.poll() is None:
+                process.kill(); process.wait(timeout=10)
+
+        def post(path, body, token, expected=0):
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=30)
+            try:
+                payload = canonical(body)
+                conn.request("POST", path, payload, {"Authorization": "Bearer " + token,
+                             "Content-Type": "application/json"})
+                response = conn.getresponse(); result = json.loads(response.read(2 * 1024 * 1024 + 1))
+                assert result["code"] == expected, (path, result.get("code"), result.get("message"))
+                if expected == 0 and path == "/internal/media/stage_artifact":
+                    report["largest_successful_artifact_request_bytes"] = max(len(payload), report.get("largest_successful_artifact_request_bytes", 0))
+                return result.get("data", {})
+            finally:
+                conn.close()
+
+        def internal(op, body, expected=0):
+            return post("/internal/media/" + op, body, key, expected)
+
+        def member(op, body, who, expected=0):
+            return post("/api/room/media/" + op, body, who["token"], expected)
+
+        def account(label):
+            return post("/api/register", {"account": "pipeline_" + label + secrets.token_hex(5),
+                        "name": label, "password": secrets.token_hex(12)}, "")
+
+        completed = []
+        try:
+            start()
+            # Per-pipeline configuration gates, including the media-only case.
+            env["SPARK_PUSH_MEDIA_PIPELINE_SHA256"] = ""
+            stop(); start()
+            internal("claim", {"claim_id": f"{int(time.time())}-{secrets.token_hex(16)}", "pipeline_sha": ""}, 503)
+            env["SPARK_PUSH_MEDIA_PIPELINE_SHA256"] = "a" * 64
+            env["SPARK_PUSH_MEDIA_PARSER_PIPELINE_SHA256"] = ""
+            stop(); start()
+            internal("claim_media", {"claim_id": f"{int(time.time())}-{secrets.token_hex(16)}", "pipeline_sha": ""}, 503)
+            env["SPARK_PUSH_MEDIA_PARSER_PIPELINE_SHA256"] = pipeline
+            stop(); start()
+            a, b, c = account("A"), account("B"), account("C")
+            room = post("/api/spaces/create", {"name": "媒体发布验收"}, a["token"])["room_id"]
+            other = post("/api/spaces/create", {"name": "隔离资料"}, c["token"])["room_id"]
+            post("/api/spaces/invite", {"room_id": room, "user_id": b["user_id"]}, a["token"])
+            post("/api/spaces/accept", {"room_id": room}, b["token"])
+            # Empty OCR is legitimate: a real blank image still has visual data.
+            blank = root / "blank.png"
+            blank.write_bytes(subprocess.check_output(["docker", "run", "--rm", "--network", "none", "--read-only",
+                "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--entrypoint", "python3", image,
+                "-c", "from PIL import Image; import sys; Image.new('RGB',(32,32),'white').save(sys.stdout.buffer,format='PNG')"]))
+            cases = [(blank, "image/png"), (fixtures / "diagram.png", "image/png"),
+                     (fixtures / "design.pdf", "application/pdf"),
+                     (fixtures / "notes.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+                     (fixtures / "incident.mp4", "video/mp4"), (fixtures / "speech.wav", "audio/wav")]
+            if os.environ.get("SPARK_TEST_MEDIA_LONG_AUDIO") == "1":
+                cases.append((fixtures / "meeting-20min.wav", "audio/wav"))
+            for number, (path, mime) in enumerate(cases):
+                started = time.monotonic(); raw = path.read_bytes(); source_sha = hashlib.sha256(raw).hexdigest()
+                ident = member("init", {"room_id": room, "client_upload_id": secrets.token_hex(16), "name": path.name,
+                                       "mime": mime, "bytes": len(raw), "sha256": source_sha}, a)["id"]
+                for index, offset in enumerate(range(0, len(raw), 1024 * 1024)):
+                    member("chunk", {"id": ident, "index": index, "data": base64.b64encode(raw[offset:offset+1024*1024]).decode()}, a)
+                member("finish", {"id": ident}, a)
+                request = {"claim_id": f"{int(time.time())}-{secrets.token_hex(16)}", "pipeline_sha": pipeline}
+                post("/internal/media/claim_media", request, a["token"], 401)
+                internal("claim_media", dict(request, runtime_url="http://untrusted"), 400)
+                assignment = internal("claim_media", request); assert assignment["id"] == ident
+                again = internal("claim_media", request)
+                assert all(again[k] == assignment[k] for k in ("id", "revision", "attempt", "lease_token", "pipeline_sha", "parser_sha256"))
+                lease = {k: assignment[k] for k in ("id", "attempt", "revision", "lease_token")}
+                internal("claim", request, 409)  # Cannot reinterpret a media claim as text.
+                if number == 0:
+                    env["SPARK_PUSH_MEDIA_PARSER_SHA256"] = "b" * 64
+                    stop(); start()
+                    internal("claim_media", request, 409)
+                    internal("check", lease, 409); internal("source", lease, 409)
+                    env["SPARK_PUSH_MEDIA_PARSER_SHA256"] = parser_sha
+                    stop(); start()
+                    assert internal("claim_media", request)["revision"] == lease["revision"]
+                member("artifacts", {"id": ident}, b, 409)
+                internal("stage", dict(lease, index=0, fragment={"kind": "text", "text": "unreserved",
+                         "anchor": {"page": 1, "part": 0}}), 409)
+                if number:
+                    internal("reserve", lease)
+                downloaded = root / f"source-{number}"
+                with downloaded.open("xb") as out:
+                    for offset in range(0, len(raw), 1024 * 1024):
+                        part = internal("source", dict(lease, offset=offset))
+                        data = base64.b64decode(part["data"], validate=True)
+                        assert part["offset"] == offset and part["sha256"] == source_sha
+                        out.write(data)
+                assert downloaded.read_bytes() == raw
+                finished = threading.Event(); heartbeats = []; errors = []
+
+                def renew():
+                    while not finished.wait(10):
+                        try:
+                            internal("heartbeat", lease); heartbeats.append(time.monotonic())
+                        except Exception as exc:
+                            errors.append(type(exc).__name__); return
+
+                keeper = threading.Thread(target=renew); keeper.start()
+                try:
+                    bundle = root / f"bundle-{number}"
+                    manifest = sandbox.run(downloaded, mime, bundle, image_id=image, parser_sha=parser_sha,
+                                           source_sha=source_sha, model_root=model, model_sha=model_sha,
+                                           timeout=900, cancelled=lambda: bool(errors))
+                finally:
+                    finished.set(); keeper.join()
+                assert not errors
+                fragments = [{k: v for k, v in f.items() if k != "index"} for f in manifest["fragments"]]
+                artifacts = [{k: v for k, v in f.items() if k not in ("index", "file")} for f in manifest["artifacts"]]
+                summary = {"fragment_count": len(fragments), "artifact_count": len(artifacts), "coverage": manifest["coverage"]}
+                summary["manifest_sha256"] = digest({"schema": "room-media-publication-v1", "source": manifest["source"],
+                    "parser_sha256": parser_sha, "pipeline_sha256": pipeline, "coverage": summary["coverage"],
+                    "fragments": [digest(f) for f in fragments], "artifacts": [digest(m) for m in artifacts]})
+                if number == 0:
+                    assert not fragments and len(artifacts) == 1
+                    internal("complete", dict(lease, **summary), 409)
+                    internal("stage_artifact", dict(lease, index=0, metadata=artifacts[0],
+                             data=base64.b64encode((bundle / manifest["artifacts"][0]["file"]).read_bytes()).decode()), 409)
+                    internal("reserve", lease); internal("reserve", lease)  # Lost reserve reply replay.
+                    before = sql(f"SELECT COUNT(*) FROM room_media_artifact WHERE revision_id='{lease['revision']}';")
+                    internal("stage_artifact", dict(lease, index=0, metadata=artifacts[0], data="A" * (2 * 1024 * 1024)), 413)
+                    assert before == "0" == sql(f"SELECT COUNT(*) FROM room_media_artifact WHERE revision_id='{lease['revision']}';")
+                    internal("heartbeat", dict(lease, extra="A" * (128 * 1024)), 413)
+                    report.update(oversized_artifact_rejected_without_write=True, normal_internal_body_limit_preserved=True)
+                internal("reclaim", {"revision": lease["revision"]}, 409)
+                for index, fragment in enumerate(fragments):
+                    accepted = internal("stage", dict(lease, index=index, fragment=fragment))
+                    assert accepted["sha256"] == digest(fragment)
+                for index, metadata in enumerate(artifacts):
+                    data = (bundle / manifest["artifacts"][index]["file"]).read_bytes()
+                    payload = dict(lease, index=index, metadata=metadata, data=base64.b64encode(data).decode())
+                    if index == len(artifacts) - 1:
+                        internal("complete", dict(lease, **summary), 409)  # No prefix-only publish.
+                    internal("stage_artifact", payload)
+                    if index == 0:
+                        assert internal("stage_artifact", payload)["sha256"] == metadata["sha256"]
+                        bad = dict(metadata, width=metadata["width"] + 1)
+                        internal("stage_artifact", dict(payload, metadata=bad), 400)
+                member("fragments", {"id": ident, "revision": lease["revision"]}, b, 409)
+                member("artifacts", {"id": ident}, b, 409)
+                if artifacts:
+                    member("artifact", {"id": ident, "revision": lease["revision"], "index": 0}, b, 409)
+                if fragments:
+                    found = member("search", {"room_id": room, "query": fragments[0]["text"][:20]}, b)
+                    assert all(item["id"] != ident for item in found["items"])
+                if number == 0:
+                    internal("complete", dict(lease, fragment_count=0, manifest_sha256=summary["manifest_sha256"]), 400)
+                if mime == "application/pdf":
+                    bad = dict(summary, coverage=dict(summary["coverage"], rendered_pages=2))
+                    internal("complete", dict(lease, **bad), 422)
+                if number == 0:
+                    sql("CREATE TRIGGER media_publication_test_failure BEFORE INSERT ON room_media_publication FOR EACH ROW "
+                        "SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='injected publication failure';")
+                    internal("complete", dict(lease, **summary), 503)
+                    assert sql(f"SELECT COUNT(*) FROM room_media_publication WHERE asset_id='{ident}';") == "0"
+                    assert sql(f"SELECT state FROM room_media_revision_storage WHERE revision_id='{lease['revision']}';") == "reserved"
+                    sql("DROP TRIGGER media_publication_test_failure;")
+                receipt = internal("complete", dict(lease, **summary))
+                assert internal("complete", dict(lease, **summary)) == receipt
+                assert receipt["manifest_sha256"] == summary["manifest_sha256"] and receipt["state"] == "ready"
+                internal("complete", dict(lease, **dict(summary, manifest_sha256="0" * 64)), 409)
+                internal("complete", dict(lease, **dict(summary, fragment_count=len(fragments) + 1)), 409)
+                internal("reclaim", {"revision": lease["revision"]}, 409)
+                expected_charge = sum(len(f["text"].encode()) for f in fragments) + sum(a["bytes"] for a in artifacts)
+                assert sql(f"SELECT charged_bytes FROM room_media_revision_storage WHERE revision_id='{lease['revision']}';") == str(expected_charge)
+                recovered = []; offset = 0
+                while True:
+                    page = member("fragments", {"id": ident, "revision": lease["revision"], "offset": offset}, b)
+                    recovered.extend(f["content"] for f in page["items"])
+                    if not page["has_more"]: break
+                    offset = page["next_offset"]
+                assert recovered == fragments
+                page = member("artifacts", {"id": ident}, b); assert len(page["items"]) == len(artifacts)
+                for index, metadata in enumerate(artifacts):
+                    item = member("artifact", {"id": ident, "revision": lease["revision"], "index": index}, b)
+                    assert hashlib.sha256(base64.b64decode(item["data"], validate=True)).hexdigest() == metadata["sha256"]
+                    member("artifact", {"id": ident, "revision": lease["revision"], "index": index}, c, 403)
+                    member("artifact", {"id": ident, "revision": "f" * 64, "index": index}, b, 409)
+                if number == 1:
+                    published_at = sql(f"SELECT published_at FROM room_media_publication WHERE asset_id='{ident}';")
+                    sql(f"DELETE FROM room_media_publication WHERE asset_id='{ident}';")
+                    try:
+                        member("fragments", {"id": ident, "revision": lease["revision"]}, b, 409)
+                        member("artifact", {"id": ident, "revision": lease["revision"], "index": 0}, b, 409)
+                        member("artifacts", {"id": ident}, b, 409)
+                        found = member("search", {"room_id": room, "query": "Kafka"}, b)
+                        assert all(item["id"] != ident for item in found["items"])
+                    finally:
+                        sql(f"INSERT INTO room_media_publication(asset_id,revision_id,published_at) "
+                            f"VALUES('{ident}','{lease['revision']}','{published_at}');")
+                    report["withdrawn_publication_rejected_between_requests"] = True
+                if path.name == "meeting-20min.wav":
+                    text = " ".join(f["text"] for f in recovered if f["anchor"].get("start_ms", 0) >= 1150000).lower()
+                    assert "magenta" in text and "harbor" in text and "paused" in text and len(heartbeats) >= 2
+                    assert member("search", {"room_id": room, "query": "Magenta"}, b)["items"]
+                assert not member("search", {"room_id": other, "query": "Kafka"}, c)["items"]
+                completed.append((ident, lease["revision"], len(artifacts)))
+                report["cases"].append({"file": path.name, "source_sha256": source_sha, "coverage": summary["coverage"],
+                    "fragment_count": len(fragments), "artifact_count": len(artifacts), "manifest_sha256": receipt["manifest_sha256"],
+                    "charged_bytes": expected_charge, "heartbeats": len(heartbeats), "seconds": round(time.monotonic()-started, 3), "passed": True})
+                save(); print("real media publication passed:", path.name, flush=True)
+            stop(); start()
+            for ident, revision, images in completed:
+                assert member("processing", {"id": ident}, b)["revision"] == revision
+                if images: member("artifact", {"id": ident, "revision": revision, "index": 0}, b)
+            post("/api/spaces/remove", {"room_id": room, "user_id": b["user_id"]}, a["token"])
+            for ident, revision, images in completed:
+                for op in ("read", "processing", "fragments", "artifacts"):
+                    member(op, {"id": ident}, b, 403)
+                if images: member("artifact", {"id": ident, "revision": revision, "index": 0}, b, 403)
+            member("search", {"room_id": room, "query": "Kafka"}, b, 403)
+            report.update(status="passed", actual_http_restart=True, revoked_member_rejected=True,
+                          publication_sql_failure_rolled_back=True, canonical_python_cpp_digests_matched=True,
+                          staged_content_not_readable=True, changed_ready_summary_conflicted=True)
+            save(); return 0
+        except Exception as exc:
+            report.update(status="failed", failure_type=type(exc).__name__);save();raise
+        finally:
+            stop()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -16,6 +16,7 @@ Spark Push 本地运维入口
   status      查看进程、容器和访问地址
   health      执行严格健康检查，失败时返回非零
   logs        查看或跟踪服务日志
+  media       配置、启停或查看独立媒体处理服务
   knowledge   更新并验证 CANN RAG generation
   bench       启动服务并运行四类隔离压测
   regress     编译、协议测试和知识源校验；浏览器/E2E 需额外环境变量
@@ -28,6 +29,7 @@ Spark Push 本地运维入口
   ./scripts/sparkctl.sh up --fast
   ./scripts/sparkctl.sh status
   ./scripts/sparkctl.sh logs bridge -f
+  ./scripts/sparkctl.sh media start --config /srv/spark-media/worker.json
   ./scripts/sparkctl.sh knowledge --source custom-docs
   ./scripts/sparkctl.sh restart --fast
   ./scripts/sparkctl.sh bench
@@ -50,6 +52,7 @@ case "$command_name" in
   status) exec bash "$SCRIPT_DIR/ops/status.sh" "$@" ;;
   health) exec bash "$SCRIPT_DIR/ops/health.sh" "$@" ;;
   logs|log) exec bash "$SCRIPT_DIR/ops/logs.sh" "$@" ;;
+  media) exec bash "$SCRIPT_DIR/ops/media.sh" "$@" ;;
   knowledge|kb) exec bash "$SCRIPT_DIR/ops/knowledge.sh" "$@" ;;
   bench) exec bash "$SCRIPT_DIR/ops/bench.sh" "$@" ;;
   regress) exec bash "$SCRIPT_DIR/regress.sh" "$@" ;;

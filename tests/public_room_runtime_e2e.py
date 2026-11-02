@@ -83,7 +83,23 @@ def main():
     parser.add_argument('--out',required=True,type=Path)
     parser.add_argument('--team-backup',action='store_true',help='also restore an actual IM + public Runtime cold batch')
     parser.add_argument('--cross-room',action='store_true',help='also verify real public sessions and code tools in two private rooms')
+    parser.add_argument('--media',action='store_true',help='also verify real uploads, parser, native room context and persisted audio tasks')
+    parser.add_argument('--media-case',choices=('all','pdf','audio','video'),default='all',
+                        help='select one media case for focused verification; default keeps full media acceptance')
+    parser.add_argument('--media-processing-timeout',type=int,default=900,
+                        help='per-asset processing wait in seconds (1..3600); does not extend worker leases')
+    parser.add_argument('--media-image')
+    parser.add_argument('--media-model',type=Path)
+    parser.add_argument('--media-fixtures',type=Path)
     args=parser.parse_args();output=args.out.resolve()
+    if args.media_case != 'all' and not args.media:
+        parser.error('--media-case requires --media')
+    if not 1 <= args.media_processing_timeout <= 3600:
+        parser.error('--media-processing-timeout must be between 1 and 3600 seconds')
+    if args.media_processing_timeout != 900 and not args.media:
+        parser.error('--media-processing-timeout requires --media')
+    if args.media and not all((args.media_image,args.media_model,args.media_fixtures)):
+        parser.error('--media requires --media-image, --media-model and --media-fixtures')
     report={'ok':False,'mode':'real Compose + public launchers + actual Pi/Hermes models; three HTTP/WS clients, not browsers',
         'source_commit':source_commit(ROOT),'scenario':'team_backup' if args.team_backup else 'cross_room' if args.cross_room else 'public_runtime','checks':[]}
     report['image_id']=subprocess.check_output(['docker','image','inspect',args.image,'--format','{{.Id}}'],text=True).strip()
@@ -97,6 +113,21 @@ def main():
         'tests/public_runtime_fixture.py','tests/hermes_room_runtime_fixture.py',
         'tests/team_backup_scenario.py','tests/public_cross_room_scenario.py','tests/public_room_runtime_e2e.py')}
     def check(label):report['checks'].append(label);print(label,flush=True)
+    media=None
+    if args.media:
+        from public_media_scenario import MediaScenario
+        media=MediaScenario(args.media_image,args.media_model,args.media_fixtures,output,args.media_case,
+                            processing_timeout=args.media_processing_timeout)
+        report['media']=media.evidence
+        for name in ('tests/public_media_scenario.py','tests/room_context_runtime_probe.py',
+                     'tests/media_parser_fixtures.py','deploy/Caddyfile.agents','deploy/Caddyfile',
+                     'cannbot/room-context-tools.json','cannbot/scripts/room_context.py','cannbot/pi/extensions/room-context.ts',
+                     'cannbot/scripts/media_worker.py','cannbot/scripts/media_text_worker.py','cannbot/media/parser.py',
+                     'cannbot/media/sandbox.py','logic/services/media_context_service.cpp',
+                     'logic/repositories/media_context_repository.cpp','logic/services/room_task_service.cpp',
+                     'logic/repositories/room_agent_repository.cpp','logic/repositories/room_context_source_sql.h',
+                     'web_demo/static/room_media.js','web_demo/static/room_agents.js','web_demo/static/index.html'):
+            report['source_sha256'][name]=hashlib.sha256((ROOT/name).read_bytes()).hexdigest()
     with tempfile.TemporaryDirectory(prefix='spark-public-e2e-',dir='/mnt/f') as temporary:
         root=Path(temporary);root.chmod(0o755)
         source=root/'source';(source/'logic').mkdir(parents=True)
@@ -119,6 +150,7 @@ def main():
             projects.write_text(json.dumps(approved))
         registry=config/'agents.json'
         catalog=json.loads((ROOT/'deploy/agents/agents.json.example').read_text())
+        if media:catalog['agents'][0]['room_context_contract']=1
         keys={'SPARK_PUSH_HERMES_API_KEY':secrets.token_hex(32),'SPARK_PUSH_WORKSPACE_AUTH_KEY':secrets.token_hex(32)}
         keyfile=root/'connector-keys.json';keyfile.write_text(json.dumps(keys));keyfile.chmod(0o600)
         envfile=root/'.env';envfile.write_text('');envfile.chmod(0o600)
@@ -129,6 +161,7 @@ def main():
         environment.update(keys,SPARK_PUSH_IMAGE=args.image,SPARK_PUSH_PORT=str(port),SPARK_PUSH_BIND='127.0.0.1',
             SPARK_PUSH_AGENT_CONFIG_DIR=str(config),SPARK_PUSH_AGENT_AUTH_PORT=str(authport),SPARK_PUSH_AGENT_AUTH_BIND=host,
             SPARK_PUSH_AGENT_GATEWAY_ORIGIN=f'http://{host}:{gatewayport}')
+        if media:environment.update(media.environment())
         options=['--env-file',str(envfile),'-p','spark-public-'+secrets.token_hex(6),'-f',str(ROOT/'docker-compose.yml'),
                  '-f',str(ROOT/'docker-compose.agents.yml'),'--profile','agents']
         cleanup_projects=[options[options.index('-p')+1]]
@@ -155,8 +188,12 @@ def main():
                     'wire_code':response['code'],'actor_user_id':user['user_id'] if user else None,
                     'room_id':body.get('room_id'),'session_id':body.get('session_id')})
             return response.get('data',{})
-        native=PublicHermesRuntime(workspace={'authority':authority,'key':keys['SPARK_PUSH_WORKSPACE_AUTH_KEY'],
-                                              'snapshots':str(root/'snapshots')})
+        native_class = PublicHermesRuntime
+        if media:
+            from room_context_runtime_probe import ObservedHermes
+            native_class = ObservedHermes
+        native=native_class(workspace={'authority':authority,'key':keys['SPARK_PUSH_WORKSPACE_AUTH_KEY'],
+                                              'snapshots':str(root/'snapshots'),'context_tools':bool(media)})
         gateway=PublicAgentGateway(root/'gateway',registry,projects,keyfile,authority,root/'snapshots',gatewayport)
         if args.team_backup:gateway.native_fault_marker=root/'native-transport-outage'
         adapter=None;started=False
@@ -167,6 +204,7 @@ def main():
             caps=adapter._capabilities(15)
             assert caps['features']['spark_public_profile_v1']['agent_id']=='public-hermes'
             assert 'chat_completions' not in caps['features']
+            assert bool(caps['features'].get('spark_room_context_v1'))==bool(media)
             probes=[(method,path,{} if method=='POST' else None,404) for method,path in [('POST','/v1/chat/completions'),('POST','/v1/responses'),('GET','/api/sessions'),
                                 ('GET','/p/default/v1/capabilities'),('GET','/p/technical/v1/health'),
                                 ('POST','/v1/browser-control/register'),('GET','/health/detailed')]]
@@ -188,6 +226,14 @@ print(json.dumps(codes))
             check('formal Native capabilities and HTTP whitelist deny chat/profile/tool/session bypasses')
             started=True;compose('up','-d','--wait','--wait-timeout','180','--pull','never')
             report['release_services']=running_images(ROOT,args.image,options[options.index('-p')+1])
+            application_ids=compose('ps','-q','logic','comet','job','web','agent-bridge').split()
+            assert len(application_ids)==5
+            actual=json.loads(subprocess.check_output(['docker','inspect',*application_ids],text=True))
+            assert all(row['Image']==report['image_id'] for row in actual)
+            report['running_application_images']={row['Name']:row['Image'] for row in actual}
+            if media:
+                media.check_routes(base,authority,keys['SPARK_PUSH_WORKSPACE_AUTH_KEY'])
+                media.start(authority)
             store=AgentStore(root/'gateway/service/router')
             def rid(source,agent):return 'ra_'+hashlib.sha256(json.dumps(['room-agent-v1',source,agent],separators=(',',':')).encode()).hexdigest()
             def history(user,room):return call('/api/session/history',{'session_id':f'r_{room}','limit':100},user)['messages']
@@ -240,10 +286,11 @@ print(json.dumps(codes))
                     prompt=('Use your read tool to read PROJECT_FILES.txt, probe.cpp and logic/message_reservation.cpp. '
                             'Report the EXACT acceptance nonce, cite MySqlMessageReservations::Reserve with one concrete review finding. '
                             'Then summarize the Kafka discussion with a task title and two suggested steps. Do not run shell or claim tests passed.')
-                    requests=[];payloads=[];finals=[]
+                    requests=[];payloads=[];payload_actors=[];finals=[]
                     for client,agent in zip(clients,('public-pi','public-hermes')):
                         payload,ack=await client.send(room,prompt,agent);assert ack['type']=='accepted_ack'
                         request=rid(ack['msg_id'],agent);requests.append(request);payloads.append(payload)
+                        payload_actors.append(client.user['user_id'])
                         for watcher in clients:await until(lambda:watcher.final(request),240)
                         answer=clients[2].final(request);finals.append(answer)
                         assert answer.get('agent_status')=='completed' and not answer.get('content',{}).get('error'),(agent,answer.get('agent_status'))
@@ -266,6 +313,13 @@ print(json.dumps(codes))
                         await cross_room(root=root,call=call,sql=sql,store=store,native=native,users=users,clients=clients,
                             room=room,nonce=nonce,second_nonce=second_nonce,original_requests=requests,
                             until=until,rid=rid,barrier=agent_barrier,report=report,check=check)
+                    if media:
+                        records=await media.exercise(root=root,call=call,sql=sql,store=store,native=native,
+                            users=users,clients=clients,room=room,nonce=nonce,until=until,rid=rid,barrier=agent_barrier,check=check)
+                        requests.extend(r['request_id'] for r in records)
+                        payloads.extend(r['payload'] for r in records)
+                        payload_actors.extend(r['actor_user_id'] for r in records)
+                        turns=[store.get_turn(request) for request in requests]
                     # Native transcripts prove actual tool outputs rather than
                     # inferring execution solely from an assistant statement.
                     native_db=native.root/'service/state.db'
@@ -390,7 +444,8 @@ print(json.dumps(codes))
                     task=call('/api/chatroom/tasks/update',{'room_id':room,'task_id':task['task_id'],
                         'revision':1,'claim':True,'status':'running','summary':'C takes over the code review'},c)
                     assert call('/api/chatroom/tasks/list',{'room_id':room},b)['tasks'][0]['summary']==task['summary']
-                    for client,payload in zip(clients,payloads):
+                    for actor,payload in zip(payload_actors,payloads):
+                        client=next(v for v in clients if v.user['user_id']==actor)
                         _,ack=await client.send(room,payload['content']['text'],payload['agent_mentions'][0],payload['client_msg_id'])
                         assert ack['type']=='accepted_ack'
                     await asyncio.sleep(2)
@@ -417,10 +472,10 @@ print(json.dumps(codes))
                     await asyncio.to_thread(compose,'exec','-T','kafka','/opt/kafka/bin/kafka-console-producer.sh',
                         '--bootstrap-server','kafka:29092','--topic','ai_request','--property','parse.key=true','--property','key.separator=\t',input=content)
                     request_after=await offsets('ai_request')
-                    assert sum(request_after.values())==sum(request_before.values())+2
+                    assert sum(request_after.values())==sum(request_before.values())+len(requests)
                     committed=await settled('ai_request','spark_push_hermes_bridge',request_after)
                     reply_after=await offsets('ai_reply')
-                    assert sum(reply_after.values())==sum(reply_before.values())+2
+                    assert sum(reply_after.values())==sum(reply_before.values())+len(requests)
                     wire=await asyncio.to_thread(compose,'exec','-T','kafka','/opt/kafka/bin/kafka-console-consumer.sh',
                         '--bootstrap-server','kafka:29092','--topic','ai_reply','--from-beginning',
                         '--max-messages',str(sum(reply_after.values())),'--timeout-ms','10000')
@@ -436,7 +491,7 @@ print(json.dumps(codes))
                         assert all(comparable_metadata(v.get('response_metadata',{}))==
                                    comparable_metadata(original.get('response_metadata',{})) for v in matching)
                     report['kafka_replay']={'request_before':request_before,'request_after':request_after,'committed':committed,
-                        'reply_before':reply_before,'reply_after':reply_after,'exact_results_replayed':2}
+                        'reply_before':reply_before,'reply_after':reply_after,'exact_results_replayed':len(requests)}
                     # Logic must consume both replay replies, not merely leave
                     # them queued while the old history still looks correct.
                     done=await settled('ai_reply','spark_push_group_hermes_reply',reply_after)
@@ -446,7 +501,7 @@ print(json.dumps(codes))
                     await asyncio.to_thread(compose,'exec','-T','kafka','/opt/kafka/bin/kafka-console-producer.sh',
                         '--bootstrap-server','kafka:29092','--topic','ai_reply','--property','parse.key=true','--property','key.separator=\t',input=content)
                     redelivered=await offsets('ai_reply')
-                    assert sum(redelivered.values())==sum(reply_after.values())+2
+                    assert sum(redelivered.values())==sum(reply_after.values())+len(requests)
                     report['kafka_replay']['independent_reply_redelivery']=redelivered
                     report['kafka_replay']['redelivery_committed']=await settled('ai_reply','spark_push_group_hermes_reply',redelivered)
                     assert before==[json.loads(sql("SELECT result FROM room_agent_request WHERE request_id='"+r+"'")) for r in requests]
@@ -483,6 +538,9 @@ print(json.dumps(codes))
                     b['token']=call('/api/login',b['credentials'])['token']
                     call('/api/session/history',{'session_id':f'r_{room}'},b,403)
                     check('full Compose restart and fresh login retain final messages, claimed task and membership revocation')
+                    if media:
+                        media.verify_restored(users,store)
+                        check('selected media sources and attributed finals survive Kafka replay and full Compose restart; removed member is denied')
                     if args.cross_room:
                         report['cross_room']['barriers']['cold_restart']=await agent_barrier()
                         verify_transcripts(root,native,store,report['cross_room']['sessions'])
@@ -494,8 +552,17 @@ print(json.dumps(codes))
                         check('second-room history, membership boundary and all native route identities survive the same full cold restart')
                 finally:
                     await asyncio.gather(*(client.close() for client in clients),return_exceptions=True)
-            asyncio.run(exercise());report['ok']=True
+            asyncio.run(exercise())
+            if media:media.assert_complete()
+            report['ok']=True
         finally:
+            media_cleanup_error=None
+            if media:
+                try:media.close()
+                except Exception as exc:
+                    media_cleanup_error=exc
+                    report['media']['cleanup_error']=type(exc).__name__
+                    report['ok']=False
             if adapter:adapter.stop()
             gateway.stop()
             if native.log:native.log.flush()
@@ -516,6 +583,7 @@ print(json.dumps(codes))
                 'unknown recovery uses controlled event/status receipt loss, not a natural outage' if args.team_backup else 'unknown-run failure injection is separate']
             output.write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
             print(json.dumps({'ok':report['ok'],'checks':len(report['checks'])}),flush=True)
+            if media_cleanup_error:raise RuntimeError('media worker cleanup failed; owned runtime/Compose cleanup still attempted') from media_cleanup_error
 
 
 if __name__=='__main__':main()

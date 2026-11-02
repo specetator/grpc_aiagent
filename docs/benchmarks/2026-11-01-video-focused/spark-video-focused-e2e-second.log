@@ -1,0 +1,14 @@
+formal Native capabilities and HTTP whitelist deny chat/profile/tool/session bypasses
+three independent users exchange real messages; normal chat does not invoke models
+public-pi reads the real nonce and C++ file; all three clients see its attributed durable final
+public-hermes reads the real nonce and C++ file; all three clients see its attributed durable final
+original Native room broker receipt succeeds and both consumers commit without dead letters
+selected media uploaded through real chunk APIs and published by production worker: video
+Hermes video answer matches nonspoken image facts and audio; actual JPEGs observed in Native tool and provider requests
+real native tool transcripts confirm file contents; Agents use separate sessions and share one IM timeline
+Native process restart reuses the owned Profile without rewriting config, model auth or identity
+tasks and handoff are persisted; duplicate client messages preserve completed execution records
+Kafka redelivery after revoke, catalog disable and Connector/Bridge restart preserves one original result
+full Compose restart and fresh login retain final messages, claimed task and membership revocation
+selected media sources and attributed finals survive Kafka replay and full Compose restart; removed member is denied
+{"ok": true, "checks": 13}

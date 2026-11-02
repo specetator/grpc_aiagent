@@ -1,0 +1,12 @@
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+Test project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+    Start 69: room_project_snapshot_test
+1/3 Test #69: room_project_snapshot_test ...........   Passed    0.64 sec
+    Start 71: room_context_runtime_contract_test
+2/3 Test #71: room_context_runtime_contract_test ...   Passed    0.50 sec
+    Start 72: public_runtime_startup_test
+3/3 Test #72: public_runtime_startup_test ..........   Passed    1.16 sec
+
+100% tests passed, 0 tests failed out of 3
+
+Total Test time (real) =   2.29 sec

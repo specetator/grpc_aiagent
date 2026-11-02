@@ -145,6 +145,12 @@ python3 tests/run_release_smoke.py --out /tmp/spark-release-smoke.json --jobs 2
 
 ## 协作空间
 
+当前开发工作树提供房间资料库：上传与检索文本、PDF/DOCX 和图片，查看原文和图片，
+由授权 Agent 读取并关联任务来源。入口见 [多模态协作](docs/multimodal-collaboration.md) 和
+[Web 资料操作](docs/web-collaboration-client.md#房间资料)。管理员需配置独立解析 worker，
+可通过 [sparkctl media](docs/media-worker-operations.md) 管理。三人网页文档分析、来源查看、任务交接与恢复已有真实回执。
+2026-11-02 按用户决定暂缓音频、视频功能；已有实现、原文件及历史测试记录保留，录音准确性不再阻塞当前图文协作阶段。
+
 打开首页即可在同一页面使用协作空间、私聊和个人 Agent。点击「创建 / 加入」创建默认私有空间，
 在「协作详情 → 成员」输入队友的完整账号发送邀请；队友接受后即可交流。
 公开空间可直接从发现列表加入，支持 owner/admin/member、成员管理和退出。

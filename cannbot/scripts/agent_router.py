@@ -606,6 +606,11 @@ class AgentRouter:
                     not 0<=scope["workspace_generation"]<2**53 or
                     (scope["project_id"] and scope["workspace_generation"]==0)):
                     raise ValueError("invalid workspace grant")
+            if 'context_generation' in scope:
+                if (type(scope['context_generation']) is not int or
+                    not 0 <= scope['context_generation'] < 2**53 or
+                    'workspace_generation' not in scope or 'project_id' not in scope):
+                    raise ValueError('invalid room context generation')
             if entry["runtime"]=="pi_rpc":
                 if self.public_room_adapter is None: raise ValueError("public Pi workspace unavailable")
             elif entry["runtime"]=="hermes_native":
@@ -1062,13 +1067,14 @@ def load_router(path: Path, pi, state_root: Path):
     if os.environ.get("SPARK_PUSH_PUBLIC_PI_ROOT"):
         from room_agent import PublicRoomPiFactory
         router.public_room_adapter=PublicRoomPiFactory(pi,Path(os.environ["SPARK_PUSH_PUBLIC_PI_ROOT"]))
-    if os.environ.get('SPARK_PUSH_ROOM_PROJECT_CATALOG'):
+    if (os.environ.get('SPARK_PUSH_ROOM_PROJECT_CATALOG') or os.environ.get('SPARK_WORKSPACE_AUTH_ORIGIN') or
+            os.environ.get('SPARK_PUSH_WORKSPACE_AUTH_KEY')):
         from room_workspace import ProjectSnapshots,WorkspaceAuthority
         router.workspace_authority=WorkspaceAuthority(os.environ.get('SPARK_WORKSPACE_AUTH_ORIGIN',''),
             os.environ.get('SPARK_PUSH_WORKSPACE_AUTH_KEY',''))
         if router.public_room_adapter is not None:
             router.project_snapshots=router.public_room_adapter.snapshots
-        else:
+        elif os.environ.get('SPARK_PUSH_ROOM_PROJECT_CATALOG'):
             router.project_snapshots=ProjectSnapshots(
                 json.loads(Path(os.environ['SPARK_PUSH_ROOM_PROJECT_CATALOG']).read_text()),
                 Path(os.environ.get('SPARK_PUSH_PUBLIC_WORKSPACE_ROOT','')))

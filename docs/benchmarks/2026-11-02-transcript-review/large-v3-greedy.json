@@ -1,0 +1,65 @@
+{
+  "kind": "One real ASR decoder diagnostic; no IM/Agent/pipeline success is implied.",
+  "image_id": "sha256:4c2e26418ad4ec59d0d57bdf2a15af30826c14de5d253d39bf96be2de2b38120",
+  "beam_size": 1,
+  "input_sha256": "816b109b133eaf3b1ddf8b81f45ce173ea8a9427e239e4626881b0abcf66473c",
+  "script_sha256": "5666792591d36aa1b5f16e7efd163d795100797546212b66a07ca7dc4b728b68",
+  "model_sha256": "303a7f7f818df95ad5e4950ceab61ca81fdeba57448f87e944fcdfc0924beb1e",
+  "ok": true,
+  "exit_code": 0,
+  "asr": {
+    "language": "en",
+    "duration": 30.0,
+    "segments": [
+      {
+        "text": " Decision Checkpoint 1. The code name is Silver Lantern. Alice owns QBAC Pressure Review.",
+        "start": 0.0,
+        "end": 4.5,
+        "avg_logprob": -0.1298440403663195
+      },
+      {
+        "text": " This is Discussion Item 1. We are reviewing the messaging service and its failure recovery.",
+        "start": 4.78,
+        "end": 9.12,
+        "avg_logprob": -0.1298440403663195
+      },
+      {
+        "text": " A broker acknowledgement does not mean the browser has displayed the message.",
+        "start": 9.36,
+        "end": 12.58,
+        "avg_logprob": -0.1298440403663195
+      },
+      {
+        "text": " Keep the original request identifier when retrying. Check the database history and the worker logs.",
+        "start": 12.82,
+        "end": 17.72,
+        "avg_logprob": -0.1298440403663195
+      },
+      {
+        "text": " The release owner will collect the test evidence before making a decision.",
+        "start": 17.92,
+        "end": 20.94,
+        "avg_logprob": -0.1298440403663195
+      },
+      {
+        "text": " We must keep the private room isolated from other rooms.",
+        "start": 21.22,
+        "end": 23.9,
+        "avg_logprob": -0.1298440403663195
+      },
+      {
+        "text": " This is Discussion Item 2. We are reviewing the messaging service and its failure recovery.",
+        "start": 24.12,
+        "end": 28.42,
+        "avg_logprob": -0.1298440403663195
+      },
+      {
+        "text": " A broker acknowledgement.",
+        "start": 28.42,
+        "end": 29.5,
+        "avg_logprob": -0.42848784582955496
+      }
+    ]
+  },
+  "seconds": 46.25
+}

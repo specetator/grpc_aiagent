@@ -1,0 +1,2 @@
+# Preserve hashed historical receipts, including original Windows line endings.
+docs/benchmarks/** -text -whitespace

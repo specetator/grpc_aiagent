@@ -1,0 +1,1 @@
+{"passed": true, "kind": "real systemd ownership guard", "unit": "spark-media-worker-guard-1efbb5a2cd", "foreign_description_stop_exit": 1, "foreign_fixture_still_active": true}

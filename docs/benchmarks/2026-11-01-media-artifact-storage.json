@@ -1,0 +1,163 @@
+{
+  "date": "2026-11-01",
+  "base_commit": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "worktree": "uncommitted additive media upgrade; personal configurations unchanged",
+  "scope": "Derived artifact repository, fixed-identity files, logical quota and reclamation foundation; worker/API/publication not connected",
+  "status": "storage_foundation_passed",
+  "full_multimodal_goal_complete": false,
+  "source_sha256": {
+    "logic/repositories/media_artifact_repository.cpp": "795277335cd4a4dc07240222bb9fa9fdd1d07c53008961ecffb405569cdb40d8",
+    "logic/repositories/media_artifact_repository.h": "689b708f923f10114062518101fc1d673bc3f1bc8bcdd0d88f00fbc0289099fd",
+    "logic/repositories/media_storage_quota.h": "77002ea05b2ca9b38ffabbf5f9117d698039dd190f8fa909dcff1af0c6d9646d",
+    "logic/repositories/media_blob_store.cpp": "d05a3c06872e2fa96ef1328bce9aa0113b7719c6ac5a41bb54ee28abbce32400",
+    "logic/repositories/media_blob_store.h": "6703e2e3dca2624a3fc77e05d173e10d2bb83fefe54ce655ca2702fcfe015650",
+    "logic/repositories/media_repository.cpp": "8d94abde6a17052c7fda61e245b60b967bae2295bdf81f146c10cee2cb060319",
+    "logic/main.cpp": "26b5128881421aa2b73afb863e921f2c600ec8cd556391ed9c8496bcf44d269c",
+    "logic/CMakeLists.txt": "3df7ccaa44da315fcd11d5b5c7bb91933f9abfa0ee4a68414bf3ff74ffeb03c1",
+    "sql/migrations/20261101_media_artifacts.sql": "5172646cc23ab2a1c5e47c7446bddbe6877177408a6169eb30bb30f0fa125f76",
+    "sql/schema.sql": "fde8c4de1a9729151a087618b0159fb916575581bf6f56dae7246b7fe337f344",
+    "tests/media_artifact_mysql_test.cpp": "4a4fec6e086ed023a374c3cdeb7c9a30a6368e858832970a3c06a2c4e871afe3",
+    "tests/run_mysql_review_tests.py": "9410ecbd6522c277b7c0b4b5ab34d949223239b96979e3f17591fcd659d9d247",
+    "tests/CMakeLists.txt": "2e9b03b29685394e3b8b10716d76a037396294f5ffa818e1bdfcc5fc4c059e03"
+  },
+  "commands": [
+    {
+      "command": "cmake --build build-wsl -j2",
+      "exit_code": 0
+    },
+    {
+      "command": "cmake --build build-wsl --target media_artifact_mysql_test -j2",
+      "exit_code": 0,
+      "note": "Final added GC SQL-failure regression; product source unchanged since full build/CTest"
+    },
+    {
+      "command": "SPARK_PLAYWRIGHT_MODULE=/tmp/spark-spaces-browser/node_modules/playwright ctest --test-dir build-wsl --output-on-failure -j2",
+      "exit_code": 0,
+      "registered": 71,
+      "passed": 64,
+      "skipped": 7,
+      "seconds": 56.02
+    },
+    {
+      "command": "python3 tests/run_mysql_review_tests.py build-wsl",
+      "exit_code": 0,
+      "real_http_passed": 1,
+      "real_sql_passed": 4,
+      "artifact_test_seconds": 1.11
+    },
+    {
+      "command": "python3 cannbot/scripts/validate_knowledge.py --strict",
+      "exit_code": 0,
+      "sources": 155
+    },
+    {
+      "command": "python3 cannbot/scripts/test_pi_citations.py",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 cannbot/scripts/sync_pi_agent.py --check",
+      "exit_code": 1,
+      "note": "Installed skill/settings drift; private installation preserved, no synchronization performed"
+    }
+  ],
+  "real_checks": [
+    "Upgrade from pre-media schema and repeat additive migrations preserve legacy attachment row",
+    "Real baseline JPEG, forged dimensions, index bounds, immutable identity and metadata conflict",
+    "Two actual MySQL KILL CONNECTION faults after file installation: first install and installed-index replay",
+    "Constructed real chunk/assembly leftovers reclaimed before a different index; immutable original preserved",
+    "Real unlink failure retains gc_pending and full charge; expired worker cannot continue",
+    "Real MySQL trigger SIGNAL in final GC transaction after file deletion rolls back metadata deletes and retains charge; retry converges",
+    "Stable revision flock inode survives GC",
+    "Live/ready revisions cannot be collected",
+    "Concurrent reservations cannot oversubscribe final capacity",
+    "Simultaneous original Create and derived Reserve share the final capacity; exactly one succeeds",
+    "Observed performance_schema room-lock wait, then concurrent charge commit: waiting Reserve sees new charge and refuses allocation"
+  ],
+  "test_boundaries": [
+    "Connection kill is a real database connection fault, not a worker process SIGKILL",
+    "Cross-index chunk/partial leftovers are deliberately constructed filesystem fixtures",
+    "Near-10-GiB cases use SQL size metadata, not 10 GiB of real file contents or ENOSPC testing",
+    "Legacy room image attachments outside room_media_asset are excluded from this new media-library logical quota",
+    "Repository tests use explicit fixtures; member authentication/authorization claims rely only on the separate existing real HTTP suite"
+  ],
+  "ctest_environment_skips": [
+    {
+      "test": "media_mysql_integration_test",
+      "reason": "SQL opt-in environment absent",
+      "separate_real_run": true
+    },
+    {
+      "test": "media_artifact_mysql_test",
+      "reason": "SQL opt-in environment absent",
+      "separate_real_run": true
+    },
+    {
+      "test": "route_generation_integration_test",
+      "reason": "Redis opt-in environment absent",
+      "separate_real_run": false
+    },
+    {
+      "test": "message_reservation_integration_test",
+      "reason": "SQL opt-in environment absent",
+      "separate_real_run": true
+    },
+    {
+      "test": "media_processing_http_test",
+      "reason": "SQL/Redis opt-in environment absent",
+      "separate_real_run": true
+    },
+    {
+      "test": "redis_sequence_integration_test",
+      "reason": "Redis opt-in environment absent",
+      "separate_real_run": false
+    },
+    {
+      "test": "space_mysql_integration_test",
+      "reason": "SQL opt-in environment absent",
+      "separate_real_run": true
+    }
+  ],
+  "review": {
+    "reviewer": "Third-round PASS WITH NOTES; actual functions/SQL supplied by parent, no child test execution",
+    "tester": "Foundation evidence review passed, including final GC transaction failure; parent executed all commands"
+  },
+  "corrected_findings": [
+    "Clean all unfinished indices before writing a new index, to avoid chunks accumulating across repeated crashes",
+    "Mark an already-installed index uninstalled durably before replay IO, so its crash leftovers are also reclaimed",
+    "MySQL CREATE TRIGGER cannot use the prepared-statement protocol: test-only fixed DDL uses mysql_query",
+    "Observe the isolated sleeping connection without assuming PROCESSLIST INFO preserves the outer UPDATE inside a trigger"
+  ],
+  "not_completed": [
+    "Media pipeline claim selection and approved composite fingerprint",
+    "Full manifest/coverage validation, sealed actual charge and atomic publication",
+    "Authorized derived image reads, member revocation and publication generation checks",
+    "Long-running worker heartbeat, process-death adoption, scheduled GC and source deletion",
+    "Native Pi/Hermes PDF/audio/video tools, durable extracted tasks, shared room chat context and Web E2E"
+  ],
+  "artifacts": [
+    {
+      "path": "docs/benchmarks/2026-11-01-media-artifact-storage/mysql.txt",
+      "sha256": "17c406f75aef8d482dd8569693ca27159085a892ae7d85aa99d4a2ec2b3689ea"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-media-artifact-storage/ctest.txt",
+      "sha256": "69e645462dee87fbb01da4c16130ec391cc291963674e320a36ff7d6647af92a"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-media-artifact-storage/ctest.xml",
+      "sha256": "d137f7fe53f234ee102b670a0644079027e262c99a4b0d82795403e40b93e85e"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-media-artifact-storage/build.txt",
+      "sha256": "3ab79a0bb1098b42350e0f79cd45207512fe14d8273543fcd213daa1422474d8"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-media-artifact-storage/test-build.txt",
+      "sha256": "4eb3700a7721f6a3029afd926dde65b70a0d8aa7a6e21added247e6c400dd6f2"
+    },
+    {
+      "path": "docs/benchmarks/2026-11-01-media-artifact-storage/sync-check.txt",
+      "sha256": "6bce1a61aea5c376aa689eb08e2cd56882849e14966824610c6a729a63dcc11c"
+    }
+  ]
+}

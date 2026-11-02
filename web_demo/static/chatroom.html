@@ -330,6 +330,9 @@
       <div data-error style="color:var(--status-error)"></div>
       <pre data-streams style="white-space:pre-wrap;"></pre>
     </details>
+    <details id="room-materials" style="padding:8px 24px;max-height:45vh;overflow:auto;">
+      <summary>房间资料 · 文档、图片、录音与视频</summary><div id="room-materials-content"></div>
+    </details>
     <div id="msgs">
        <div style="text-align:center; margin-top:50px; color:#ccc;">请先在左侧加入或选择一个房间</div>
     </div>
@@ -343,6 +346,7 @@
   <script src="room_agent_channel.js"></script>
   <script src="room_agents.js"></script>
   <script src="spaces.js"></script>
+  <script src="room_media.js"></script>
   <script>
     const logicBase = window.SparkEndpoints?.apiBase ?? (location.protocol + '//' + location.hostname + ':9101');
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -358,12 +362,18 @@
     });
     const roomAgents=new RoomAgents(document.getElementById('room-agents'),document.getElementById('msg-input'),document.getElementById('agent-mention-choices'),async(path,body)=>{
       const response=await fetch(logicBase+path,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
-      const result=await response.json();if(result.code!==0)throw new Error(result.message||'Agent 请求失败');return result.data;
-    },(...args)=>appendMsg(...args));
+      const result=await response.json();if(result.code!==0)throw Object.assign(new Error(result.message||'Agent 请求失败'),{code:result.code});return result.data;
+    },(...args)=>appendMsg(...args),{sourceDenied:room=>clearSpace(room)});
     const spaces = new SpacePanel(document.getElementById('space-panel'), async(path,body)=>{
       const response=await fetch(logicBase+path,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
       const result=await response.json();if(result.code!==0) throw new Error(result.message || '空间请求失败');return result.data;
     },()=>uid,()=>loadMyRooms(),room=>clearSpace(room));
+    const roomMedia=new RoomMedia(document.getElementById('room-materials-content'),async(path,body,options={})=>{
+      const response=await fetch(logicBase+path,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body),signal:options.signal});
+      const result=await response.json();if(result.code!==0)throw Object.assign(new Error(result.message||'资料请求失败'),{code:result.code});return result.data;
+    },roomAgents,document.getElementById('msg-input'),{denied:room=>clearSpace(room)});
+    roomAgents.options.openSource=(request,source)=>{document.getElementById('room-materials').open=true;roomMedia.openSource(request,source);};
+    document.getElementById('room-materials').ontoggle=()=>{if(document.getElementById('room-materials').open)roomMedia.refresh();};
     function clearSpace(room) {
       if(Number(room)!==Number(currentRoom)) return;
       ++roomViewGeneration;
@@ -371,7 +381,7 @@
       if(onlineRefreshTimer) { clearInterval(onlineRefreshTimer);onlineRefreshTimer=null; }
       if(ws && ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify({type:'chatroom_leave',group_id:Number(room)}));
       currentRoom=null;currentSessionId=null;roomHistoryReady=false;pendingRoomMessages=[];renderedRoomMessages.clear();
-      roomAgents.select(0);roomAgent.select(0);document.querySelector('[data-task]').textContent='';
+      roomAgents.select(0);roomAgent.select(0);roomMedia.select(0);document.querySelector('[data-task]').textContent='';
       document.getElementById('msgs').replaceChildren();document.getElementById('room-title').textContent='未选择空间';
       document.getElementById('online-count').textContent='';spaces.select(0,'');
     }
@@ -614,6 +624,7 @@
          groupId,
          senderId,
          agentId: agent?.agent_id || "",
+         requestId: msg.request_id||contentObj.request_id||'',
          senderName: agent ? '🤖 '+agent.name+' · 发起人 '+(msg.actor_user_id||contentObj.actor_user_id) : senderName,
          msgId: String(msg.msg_id || contentObj.msg_id || ''),
          clientMsgId: String(msg.client_msg_id || contentObj.client_msg_id || ''),
@@ -679,7 +690,7 @@
            (Number(other.dataset.messageSeq)>parsed.seq || Number(other.dataset.messageSeq)<=0));
          if(next)container.insertBefore(node,next);else container.appendChild(node);
        }
-       if(parsed.agentId) node.dataset.agentIdentity=parsed.agentId;
+       if(parsed.agentId){node.dataset.agentIdentity=parsed.agentId;roomAgents.timelineSources(node,parsed.requestId);}
        keys.forEach(key => renderedRoomMessages.set(key, node));
        while (renderedRoomMessages.size > 20000) {
          renderedRoomMessages.delete(renderedRoomMessages.keys().next().value);
@@ -881,7 +892,7 @@
        currentRoom = rid;
        if(ws && ws.readyState===WebSocket.OPEN) ws.send(JSON.stringify({type:'chatroom_join',group_id:Number(rid)}));
        spaces.select(rid,el?.dataset.role || '');
-       roomAgent.select(rid);const agentsReady=roomAgents.select(rid);
+       roomAgent.select(rid);roomMedia.select(rid);const agentsReady=roomAgents.select(rid);
        currentRoomName = rname || ('房间 '+rid);
        document.getElementById('room-title').textContent = currentRoomName;
        document.getElementById('msgs').innerHTML = ''; // 清空旧消息

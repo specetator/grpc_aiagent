@@ -1,0 +1,133 @@
+{
+  "date": "2026-11-01",
+  "phase": "member-source-links-and-task-references",
+  "status": "implemented_with_targeted_validation",
+  "overall_goal_complete": false,
+  "git_head": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "scope": "Uncommitted source changes; not a release or deployment. Existing spark-push:media-web image predates this phase.",
+  "implementation": [
+    "Current members can resolve paginated or explicitly selected source receipts from an original request",
+    "Server verifies canonical room/request, context generation, source identity/hash/range and current publication; unavailable items withhold old metadata/content",
+    "New tasks store up to 32 source IDs in existing task/history JSON; shared SQL resolver validates again inside the save transaction with room/user/member locks",
+    "Updates retain immutable source IDs and remain possible after source invalidation; membership and assignment permissions checked on save",
+    "Formal and legacy Web clients open a fixed source with pre/post revalidation, display invalidation and preserve sources from task proposals"
+  ],
+  "migration": "None; reuses room_context_source and existing collaboration task/history JSON. Earlier context migrations are still required.",
+  "validation": {
+    "build": {
+      "passed": true,
+      "targets": [
+        "logic_server",
+        "media_processing_http_probe",
+        "room_agent_service_test",
+        "media_context_service_test",
+        "space_mysql_integration_test"
+      ],
+      "logs": [
+        "spark-source-links-build.log",
+        "spark-source-links-probe-build.log"
+      ],
+      "scope": "space SQL executable compiled but not run in this narrowed invocation"
+    },
+    "services": {
+      "passed": 2,
+      "failed": 0,
+      "log": "spark-source-links-services.log",
+      "command": "ctest --test-dir build-wsl -R '^(room_agent_service_test|media_context_service_test)$' --output-on-failure"
+    },
+    "browser": {
+      "kind": "mock_browser_contract",
+      "passed": 23,
+      "log": "spark-source-links-browser-final.log",
+      "command": "SPARK_PLAYWRIGHT_MODULE=/path/to/playwright node tests/collaboration_browser_test.cjs",
+      "scope": "Controlled HTTP/WS in real Chromium; original source preview with pre/post lookup, task source preservation and disabled withdrawn link. Later changes only clarify metadata/directory labels."
+    },
+    "real_http_sql": {
+      "passed": true,
+      "check_groups": 13,
+      "seconds": 12.14,
+      "report": "spark-source-links-http-final.json",
+      "log": "spark-source-links-http-final.log",
+      "command": "SPARK_TEST_MYSQL_CONTEXT_ONLY=1 SPARK_TEST_CONTEXT_REPORT=/tmp/spark-source-links-http-final.json python3 tests/run_mysql_review_tests.py build-wsl",
+      "scope": "Owned MySQL/Redis, real authentication/API/text worker and HTTP process restart; message/request fixtures inserted via SQL; no Kafka or native model"
+    },
+    "earlier_failures": [
+      {
+        "log": "spark-source-links-browser.log",
+        "cause": "Test tried to click a source link inside a collapsed task detail after reload; test now opens the detail"
+      },
+      {
+        "log": "spark-source-links-http.log",
+        "cause": "HTTP probe omitted existing OperatorTaskService wiring, causing generic handler 503; probe now composes the existing service"
+      }
+    ],
+    "review": "Independent read-only architect/reviewer inspected lock boundaries and compatibility; no blocking implementation finding. Review is not executed race evidence."
+  },
+  "remaining_and_limits": [
+    "No final-message source_refs protocol; source list records reads rather than claims of model understanding or factual correctness",
+    "Task creation still uses a random ID: UI prevents concurrent save and never auto-retries, but repeated user confirmations may create multiple tasks",
+    "No actual shared asset deletion API yet; withdrawal/generation changes in this HTTP test use controlled SQL mutations",
+    "No separate fault injection between task preflight and SaveTask; atomicity is enforced in code and reviewed, not claimed as an executed timing test",
+    "This run did not enable optional real image parsing or Pi TypeScript client branches",
+    "No full CTest, model rerun or three-browser real media E2E in this phase per feature-first instruction",
+    "Previous Pi visual and ASR owner/action accuracy failures remain unresolved; video full-chain and media-specific recovery still outstanding",
+    "New source changes are not in a deployed service or container image"
+  ],
+  "source_sha256": {
+    "logic/services/room_task_service.cpp": "80cd7400152e7f0c2d775cdc8f89e8ed9c0addb7386c23733b298b8e333603cd",
+    "logic/services/room_agent_service.h": "1f4735b1610c1e7983e13920a707d03a0745fa17e28815e9fb14fc969c3e2556",
+    "logic/repositories/room_agent_repository.h": "a4b7e2a63015c9bdd1e2eb5f1dcf93468d509edf666a4982b7b537bd1fd61373",
+    "logic/repositories/room_agent_repository.cpp": "85f0e5e2add37377e9e539ac99aaaa614d063f79674a17c089f0b9128c2ab198",
+    "logic/repositories/media_context_repository.cpp": "84d6ab7b894712a817e3c7484272ad88e7550306a37eb6abd1f6e3e00929ebba",
+    "logic/repositories/room_context_source_sql.h": "d2f7ef34841669ba6f5e38329c6d5d250bfbf462fd170f13b2901a807b210d6f",
+    "logic/http_server.cpp": "2bc47f522ed68a1322f0fe89968753cbc2aa410494e5b05e1502fc71fa646d65",
+    "web_demo/static/room_agents.js": "f22cccd13c29b611c91b61066db8bc1d327bd2fb0770d20b1b7f08d0e8dcfbfb",
+    "web_demo/static/room_media.js": "858b365f9a9cb549f9d98558a9d0015ce83ffcec2839610ccc2b7dab2b81aab1",
+    "web_demo/static/collaboration_ui.js": "ae566a32bc8b2a28a12d7a2fabcf67df3d82aeee49428aa9946bceb50b601808",
+    "web_demo/static/chatroom.html": "7e67cc6727ed3de017aea1f33a47b84fa35865e81111b49206936cba2d7fdaa7",
+    "tests/media_context_http_test.py": "f2dbe7d572fa139c8aa6660236cdc09d903a70ea6e1d5d0b021d3766a5904c7d",
+    "tests/media_processing_http_probe.cpp": "ece9635696dcc45e6249e3b30c963b6ebe055927be1f29b2947740fa995f2108",
+    "tests/collaboration_browser_test.cjs": "97658ea6f30d2cafad91531c10ac94be91b77e1fc36692f5ec9eaf298bc7da4d",
+    "tests/run_mysql_review_tests.py": "64cdc7a5d1e33cfe02912c95c835fc04a38b98304e507c0efdfb2daecba73da0"
+  },
+  "artifact_directory": "2026-11-01-source-links",
+  "artifact_sha256": {
+    "spark-source-links-browser-final.log": "0023be2270637ca9b48fe361e87b954da19f4c4e62eb4a762ba4045b15e8fe05",
+    "spark-source-links-browser.log": "a574da72fd0174e9f9f3505f13128492fd4e8473e287ad9cf0c4ed021065b5a9",
+    "spark-source-links-build.log": "2a608be9dcb53b0491290514681f41389f78b5c351100f162eee18d051301525",
+    "spark-source-links-http-final.json": "86fb13c912d9c5a29a33f64c293e03ecfbc19fbae33fe5d4c3c4bc976af3ddc4",
+    "spark-source-links-http-final.log": "2ea59f5735d465d2eec2032090cb736257bac3a74ecacd9f8236f9e065c87ba4",
+    "spark-source-links-http.log": "16529d4daa08ce73e1ec504a281ff2ed8cb40d42ef5dbe7b5c31da191f17c814",
+    "spark-source-links-probe-build.log": "bf13576b550502a4f637f988ce882ba4514341f8618633e7c263918eae266fee",
+    "spark-source-links-services.log": "1eec35e24981fc3986b9ed6a64b9587e166062427406edb6ed30bf81955a6151"
+  },
+  "web_follow_up": {
+    "date": "2026-11-01",
+    "implementation": [
+      "Keyword search over authorized published material fragments; fixed-revision match preview and Agent draft entry",
+      "Source lookup directly below attributed final Agent messages, using the existing persisted request identity",
+      "Search text rendered literally; cleared/new-room views reject late search replies; timeline source controls deduplicated"
+    ],
+    "validation": {
+      "kind": "mock_browser_contract",
+      "checks": 25,
+      "passed": true
+    },
+    "log": "spark-material-search-browser.log",
+    "log_sha256": "27f266b79e0b8ff4427753f9e1038ce7a28073d671f4b4afb70b8edaf6771a37",
+    "source_sha256": {
+      "web_demo/static/index.html": "905e2e49a588c6b7e747450673f97ed7795d9dee561a5c377e1c2c24b2da249e",
+      "web_demo/static/chatroom.html": "2aa5f719bca485b255b900d0d71e78761059644f78c3c4e3b03eedc72d982f19",
+      "web_demo/static/room_agents.js": "fc829ce3987303bad7b2cf8d2a03df618ac10e5c2986cc274d0a3f8338990142",
+      "web_demo/static/room_media.js": "bfefec4c5463213257d403939a766a4fda4267d2e763b20a53074edd3c9bd2b0",
+      "web_demo/static/collaboration_ui.css": "a48ed3f2752c9682b72b33ffe7f21593ffdb8a0dd093ed31fad9c0fda6cb166a",
+      "tests/collaboration_browser_test.cjs": "3dc6b8d67756f85ff85af1c55738f1b23bb4bf628d5218ed4db500fcc6613d33"
+    },
+    "scope": "Front-end only. Existing real SQL source/search evidence remains separate. No full CTest, backend rebuild or real model E2E rerun. No deployment.",
+    "limits": [
+      "Literal substring search, not semantic search; at most 20 matching fragments per query",
+      "Timeline source button lists server-observed reads, not a new final-message source_refs wire field",
+      "No real three-browser media E2E; previous audio/vision failures remain unresolved"
+    ]
+  }
+}

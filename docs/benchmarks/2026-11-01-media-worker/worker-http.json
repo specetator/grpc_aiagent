@@ -1,0 +1,1353 @@
+{
+  "scope": "Opt-in real worker/Docker parser/HTTP/MySQL/Redis recovery.\n\nSynthetic media with real CPU ASR; transparent transport gates/drop faults and\nowned SQL quota fixtures are identified explicitly. No native Agent/Web/Kafka.\n",
+  "status": "passed",
+  "configuration": {
+    "pipeline_sha256": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+    "parser_sha256": "e29263d81f71583e3c49cd6cc8d5d0a5cfb2bcbed36c40482b171d90c8c10188",
+    "image_id": "sha256:4c2e26418ad4ec59d0d57bdf2a15af30826c14de5d253d39bf96be2de2b38120",
+    "model_sha256": "b2f73aed0684edce51988a894b0a40f3ef581f63d4e50bea7e2daa414dda9a8e"
+  },
+  "checks": [
+    {
+      "name": "worker_publish_diagram.png",
+      "passed": true,
+      "revision": "82c5157a305809ed81a454b179ee2e3129e90ffd7173a17cb400fa388fd87f17",
+      "result": {
+        "artifact_bytes": 13618,
+        "artifact_count": 1,
+        "coverage": {
+          "images": 1,
+          "kind": "image"
+        },
+        "fragment_count": 1,
+        "id": "att_9a00321583b3e87e6004b29b",
+        "line_count": 0,
+        "manifest_sha256": "b335bbdfdc1c5f442f796c283727ee9ff4bc5f16cb4089c938fe2f67ca090ff4",
+        "pipeline_kind": "media-parser-v1",
+        "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+        "revision": "82c5157a305809ed81a454b179ee2e3129e90ffd7173a17cb400fa388fd87f17",
+        "state": "ready",
+        "text_bytes": 12
+      }
+    },
+    {
+      "name": "worker_publish_design.pdf",
+      "passed": true,
+      "revision": "7c4e21f4575b1c3f010900eb182c2896cc031a1ce83b1b87fef7b402a980a0e9",
+      "result": {
+        "artifact_bytes": 131336,
+        "artifact_count": 3,
+        "coverage": {
+          "kind": "pdf",
+          "page_count": 3,
+          "rendered_pages": 3
+        },
+        "fragment_count": 3,
+        "id": "att_c79f44a39e677253861c4c16",
+        "line_count": 0,
+        "manifest_sha256": "d2f174ebe7b6dcc43eb8ab30cf7069619943edc80d4b053d5111c1efef6cbfd6",
+        "pipeline_kind": "media-parser-v1",
+        "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+        "revision": "7c4e21f4575b1c3f010900eb182c2896cc031a1ce83b1b87fef7b402a980a0e9",
+        "state": "ready",
+        "text_bytes": 61
+      }
+    },
+    {
+      "name": "worker_publish_notes.docx",
+      "passed": true,
+      "revision": "6b14cf3e30bcd8ba6d7d8be64c7ad90e428339208f6ca65c51d0fa4348e44072",
+      "result": {
+        "artifact_bytes": 13618,
+        "artifact_count": 1,
+        "coverage": {
+          "kind": "docx",
+          "paragraphs": 2,
+          "sections": [
+            "document"
+          ]
+        },
+        "fragment_count": 3,
+        "id": "att_4f46b05a11576f27725ec428",
+        "line_count": 0,
+        "manifest_sha256": "2c5c4a29e37a13bfc61dc1be01a1f66c9a0a1f389ac0a95e390296884ee9711e",
+        "pipeline_kind": "media-parser-v1",
+        "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+        "revision": "6b14cf3e30bcd8ba6d7d8be64c7ad90e428339208f6ca65c51d0fa4348e44072",
+        "state": "ready",
+        "text_bytes": 91
+      }
+    },
+    {
+      "name": "worker_publish_incident.mp4",
+      "passed": true,
+      "revision": "be3efca3df02aedf8998d63d49ea165d1f08f0446b0f19bf08f8f15d2a6a7d9a",
+      "result": {
+        "artifact_bytes": 61260,
+        "artifact_count": 2,
+        "coverage": {
+          "audio": {
+            "decoded_samples": 69846,
+            "duration_ms": 4365,
+            "language": "en",
+            "offset_ms": 1953,
+            "sample_rate": 16000,
+            "segments": 1,
+            "speaker_labels": false,
+            "track_end_ms": 6318
+          },
+          "container_duration_ms": 10000,
+          "duration_ms": 10000,
+          "kind": "video",
+          "source_origin_ms": 0,
+          "video": {
+            "first_frame_ms": 0,
+            "frames": 2,
+            "last_frame_ms": 5000,
+            "sample_interval_ms": 5000,
+            "track_end_ms": 10000
+          }
+        },
+        "fragment_count": 1,
+        "id": "att_fc3d827d1c2775429e00e7f5",
+        "line_count": 0,
+        "manifest_sha256": "5f775db956685bac8e50693a55aa25ef2877ea9ab755c6d3c202064c75572cf3",
+        "pipeline_kind": "media-parser-v1",
+        "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+        "revision": "be3efca3df02aedf8998d63d49ea165d1f08f0446b0f19bf08f8f15d2a6a7d9a",
+        "state": "ready",
+        "text_bytes": 73
+      }
+    },
+    {
+      "name": "worker_publish_speech.wav",
+      "passed": true,
+      "revision": "873d89483509af723e1cf721b7a061a5a4c214bdf65e15d1d0beac67c86dd5f8",
+      "result": {
+        "artifact_bytes": 0,
+        "artifact_count": 0,
+        "coverage": {
+          "audio": {
+            "decoded_samples": 68491,
+            "duration_ms": 4281,
+            "language": "en",
+            "offset_ms": 0,
+            "sample_rate": 16000,
+            "segments": 2,
+            "speaker_labels": false,
+            "track_end_ms": 4281
+          },
+          "container_duration_ms": 4281,
+          "duration_ms": 4281,
+          "kind": "audio",
+          "source_origin_ms": 0
+        },
+        "fragment_count": 2,
+        "id": "att_9613db7f10180fdb38373ccb",
+        "line_count": 0,
+        "manifest_sha256": "e7294b9b56732c7858016d3f96769b5db03bb7616d92755765ba7d9b7ee13acb",
+        "pipeline_kind": "media-parser-v1",
+        "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+        "revision": "873d89483509af723e1cf721b7a061a5a4c214bdf65e15d1d0beac67c86dd5f8",
+        "state": "ready",
+        "text_bytes": 72
+      }
+    },
+    {
+      "name": "claim_media_lost_three_replies_same_assignment",
+      "passed": true,
+      "attempt": 1
+    },
+    {
+      "name": "reserve_lost_three_replies_same_assignment",
+      "passed": true,
+      "attempt": 1
+    },
+    {
+      "name": "partial_upload_kill_tamper_and_foreign_container_recovery",
+      "passed": true,
+      "same_revision": true,
+      "parser_restarted": false
+    },
+    {
+      "name": "published_reply_lost_recovers_without_parser",
+      "passed": true
+    },
+    {
+      "name": "real_capacity_wait_renews_then_resumes_original_assignment",
+      "passed": true
+    },
+    {
+      "name": "kill_after_docker_create_before_id_return",
+      "passed": true,
+      "exact_orphan_removed": true
+    },
+    {
+      "name": "encrypted_pdf_failed_without_publication_and_reclaimed",
+      "passed": true
+    },
+    {
+      "name": "continuous_worker_idle_then_two_distinct_jobs_and_sigterm",
+      "passed": true
+    },
+    {
+      "name": "kill_during_asr_then_full_20min_worker_recovery",
+      "passed": true,
+      "seconds": 201.386,
+      "fragments": 395,
+      "heartbeats": 11,
+      "coverage": {
+        "audio": {
+          "decoded_samples": 19199651,
+          "duration_ms": 1199978,
+          "language": "en",
+          "offset_ms": 0,
+          "sample_rate": 16000,
+          "segments": 395,
+          "speaker_labels": false,
+          "track_end_ms": 1199978
+        },
+        "container_duration_ms": 1199978,
+        "duration_ms": 1199978,
+        "kind": "audio",
+        "source_origin_ms": 0
+      }
+    },
+    {
+      "name": "running_asr_lease_revocation_stops_container_without_stage_or_publish",
+      "passed": true
+    },
+    {
+      "name": "gc_published_protection_and_user_denial",
+      "passed": true
+    }
+  ],
+  "worker_events": [
+    {
+      "run": "worker-1.log",
+      "exit_code": 0,
+      "events": [
+        {
+          "event": "assigned",
+          "id": "att_9a00321583b3e87e6004b29b",
+          "execution_id": "7f01a96106212eaac9a7e05fb5cd44fb",
+          "state": "running"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_9a00321583b3e87e6004b29b",
+          "count": 1
+        },
+        {
+          "event": "source_ready",
+          "id": "att_9a00321583b3e87e6004b29b"
+        },
+        {
+          "event": "parser_start",
+          "id": "att_9a00321583b3e87e6004b29b",
+          "execution_id": "7f01a96106212eaac9a7e05fb5cd44fb"
+        },
+        {
+          "event": "bundle_ready",
+          "id": "att_9a00321583b3e87e6004b29b"
+        },
+        {
+          "event": "artifact_staged",
+          "id": "att_9a00321583b3e87e6004b29b",
+          "index": 0
+        },
+        {
+          "event": "published",
+          "id": "att_9a00321583b3e87e6004b29b",
+          "revision": "82c5157a305809ed81a454b179ee2e3129e90ffd7173a17cb400fa388fd87f17",
+          "heartbeats": 1
+        },
+        {
+          "event": "result",
+          "artifact_bytes": 13618,
+          "artifact_count": 1,
+          "coverage": {
+            "images": 1,
+            "kind": "image"
+          },
+          "fragment_count": 1,
+          "id": "att_9a00321583b3e87e6004b29b",
+          "manifest_sha256": "b335bbdfdc1c5f442f796c283727ee9ff4bc5f16cb4089c938fe2f67ca090ff4",
+          "pipeline_kind": "media-parser-v1",
+          "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+          "revision": "82c5157a305809ed81a454b179ee2e3129e90ffd7173a17cb400fa388fd87f17",
+          "state": "ready",
+          "text_bytes": 12
+        }
+      ]
+    },
+    {
+      "run": "worker-2.log",
+      "exit_code": 0,
+      "events": [
+        {
+          "event": "assigned",
+          "id": "att_c79f44a39e677253861c4c16",
+          "execution_id": "699e075e5abc98012feac6b52f4e9f2c",
+          "state": "running"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_c79f44a39e677253861c4c16",
+          "count": 1
+        },
+        {
+          "event": "source_ready",
+          "id": "att_c79f44a39e677253861c4c16"
+        },
+        {
+          "event": "parser_start",
+          "id": "att_c79f44a39e677253861c4c16",
+          "execution_id": "699e075e5abc98012feac6b52f4e9f2c"
+        },
+        {
+          "event": "bundle_ready",
+          "id": "att_c79f44a39e677253861c4c16"
+        },
+        {
+          "event": "artifact_staged",
+          "id": "att_c79f44a39e677253861c4c16",
+          "index": 0
+        },
+        {
+          "event": "artifact_staged",
+          "id": "att_c79f44a39e677253861c4c16",
+          "index": 1
+        },
+        {
+          "event": "artifact_staged",
+          "id": "att_c79f44a39e677253861c4c16",
+          "index": 2
+        },
+        {
+          "event": "published",
+          "id": "att_c79f44a39e677253861c4c16",
+          "revision": "7c4e21f4575b1c3f010900eb182c2896cc031a1ce83b1b87fef7b402a980a0e9",
+          "heartbeats": 1
+        },
+        {
+          "event": "result",
+          "artifact_bytes": 131336,
+          "artifact_count": 3,
+          "coverage": {
+            "kind": "pdf",
+            "page_count": 3,
+            "rendered_pages": 3
+          },
+          "fragment_count": 3,
+          "id": "att_c79f44a39e677253861c4c16",
+          "manifest_sha256": "d2f174ebe7b6dcc43eb8ab30cf7069619943edc80d4b053d5111c1efef6cbfd6",
+          "pipeline_kind": "media-parser-v1",
+          "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+          "revision": "7c4e21f4575b1c3f010900eb182c2896cc031a1ce83b1b87fef7b402a980a0e9",
+          "state": "ready",
+          "text_bytes": 61
+        }
+      ]
+    },
+    {
+      "run": "worker-3.log",
+      "exit_code": 0,
+      "events": [
+        {
+          "event": "assigned",
+          "id": "att_4f46b05a11576f27725ec428",
+          "execution_id": "5dcf716cfefe026e76b8c3e73b5c278f",
+          "state": "running"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_4f46b05a11576f27725ec428",
+          "count": 1
+        },
+        {
+          "event": "source_ready",
+          "id": "att_4f46b05a11576f27725ec428"
+        },
+        {
+          "event": "parser_start",
+          "id": "att_4f46b05a11576f27725ec428",
+          "execution_id": "5dcf716cfefe026e76b8c3e73b5c278f"
+        },
+        {
+          "event": "bundle_ready",
+          "id": "att_4f46b05a11576f27725ec428"
+        },
+        {
+          "event": "artifact_staged",
+          "id": "att_4f46b05a11576f27725ec428",
+          "index": 0
+        },
+        {
+          "event": "published",
+          "id": "att_4f46b05a11576f27725ec428",
+          "revision": "6b14cf3e30bcd8ba6d7d8be64c7ad90e428339208f6ca65c51d0fa4348e44072",
+          "heartbeats": 1
+        },
+        {
+          "event": "result",
+          "artifact_bytes": 13618,
+          "artifact_count": 1,
+          "coverage": {
+            "kind": "docx",
+            "paragraphs": 2,
+            "sections": [
+              "document"
+            ]
+          },
+          "fragment_count": 3,
+          "id": "att_4f46b05a11576f27725ec428",
+          "manifest_sha256": "2c5c4a29e37a13bfc61dc1be01a1f66c9a0a1f389ac0a95e390296884ee9711e",
+          "pipeline_kind": "media-parser-v1",
+          "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+          "revision": "6b14cf3e30bcd8ba6d7d8be64c7ad90e428339208f6ca65c51d0fa4348e44072",
+          "state": "ready",
+          "text_bytes": 91
+        }
+      ]
+    },
+    {
+      "run": "worker-4.log",
+      "exit_code": 0,
+      "events": [
+        {
+          "event": "assigned",
+          "id": "att_fc3d827d1c2775429e00e7f5",
+          "execution_id": "506dc14eef6fac5b199d9ca0a8de2a3f",
+          "state": "running"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_fc3d827d1c2775429e00e7f5",
+          "count": 1
+        },
+        {
+          "event": "source_ready",
+          "id": "att_fc3d827d1c2775429e00e7f5"
+        },
+        {
+          "event": "parser_start",
+          "id": "att_fc3d827d1c2775429e00e7f5",
+          "execution_id": "506dc14eef6fac5b199d9ca0a8de2a3f"
+        },
+        {
+          "event": "parser_stage",
+          "id": "att_fc3d827d1c2775429e00e7f5",
+          "stage": "asr_running"
+        },
+        {
+          "event": "bundle_ready",
+          "id": "att_fc3d827d1c2775429e00e7f5"
+        },
+        {
+          "event": "artifact_staged",
+          "id": "att_fc3d827d1c2775429e00e7f5",
+          "index": 0
+        },
+        {
+          "event": "artifact_staged",
+          "id": "att_fc3d827d1c2775429e00e7f5",
+          "index": 1
+        },
+        {
+          "event": "published",
+          "id": "att_fc3d827d1c2775429e00e7f5",
+          "revision": "be3efca3df02aedf8998d63d49ea165d1f08f0446b0f19bf08f8f15d2a6a7d9a",
+          "heartbeats": 1
+        },
+        {
+          "event": "result",
+          "artifact_bytes": 61260,
+          "artifact_count": 2,
+          "coverage": {
+            "audio": {
+              "decoded_samples": 69846,
+              "duration_ms": 4365,
+              "language": "en",
+              "offset_ms": 1953,
+              "sample_rate": 16000,
+              "segments": 1,
+              "speaker_labels": false,
+              "track_end_ms": 6318
+            },
+            "container_duration_ms": 10000,
+            "duration_ms": 10000,
+            "kind": "video",
+            "source_origin_ms": 0,
+            "video": {
+              "first_frame_ms": 0,
+              "frames": 2,
+              "last_frame_ms": 5000,
+              "sample_interval_ms": 5000,
+              "track_end_ms": 10000
+            }
+          },
+          "fragment_count": 1,
+          "id": "att_fc3d827d1c2775429e00e7f5",
+          "manifest_sha256": "5f775db956685bac8e50693a55aa25ef2877ea9ab755c6d3c202064c75572cf3",
+          "pipeline_kind": "media-parser-v1",
+          "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+          "revision": "be3efca3df02aedf8998d63d49ea165d1f08f0446b0f19bf08f8f15d2a6a7d9a",
+          "state": "ready",
+          "text_bytes": 73
+        }
+      ]
+    },
+    {
+      "run": "worker-5.log",
+      "exit_code": 0,
+      "events": [
+        {
+          "event": "assigned",
+          "id": "att_9613db7f10180fdb38373ccb",
+          "execution_id": "4002fb703f613c41fe491a1b3639f5d2",
+          "state": "running"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_9613db7f10180fdb38373ccb",
+          "count": 1
+        },
+        {
+          "event": "source_ready",
+          "id": "att_9613db7f10180fdb38373ccb"
+        },
+        {
+          "event": "parser_start",
+          "id": "att_9613db7f10180fdb38373ccb",
+          "execution_id": "4002fb703f613c41fe491a1b3639f5d2"
+        },
+        {
+          "event": "parser_stage",
+          "id": "att_9613db7f10180fdb38373ccb",
+          "stage": "asr_running"
+        },
+        {
+          "event": "bundle_ready",
+          "id": "att_9613db7f10180fdb38373ccb"
+        },
+        {
+          "event": "published",
+          "id": "att_9613db7f10180fdb38373ccb",
+          "revision": "873d89483509af723e1cf721b7a061a5a4c214bdf65e15d1d0beac67c86dd5f8",
+          "heartbeats": 1
+        },
+        {
+          "event": "result",
+          "artifact_bytes": 0,
+          "artifact_count": 0,
+          "coverage": {
+            "audio": {
+              "decoded_samples": 68491,
+              "duration_ms": 4281,
+              "language": "en",
+              "offset_ms": 0,
+              "sample_rate": 16000,
+              "segments": 2,
+              "speaker_labels": false,
+              "track_end_ms": 4281
+            },
+            "container_duration_ms": 4281,
+            "duration_ms": 4281,
+            "kind": "audio",
+            "source_origin_ms": 0
+          },
+          "fragment_count": 2,
+          "id": "att_9613db7f10180fdb38373ccb",
+          "manifest_sha256": "e7294b9b56732c7858016d3f96769b5db03bb7616d92755765ba7d9b7ee13acb",
+          "pipeline_kind": "media-parser-v1",
+          "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+          "revision": "873d89483509af723e1cf721b7a061a5a4c214bdf65e15d1d0beac67c86dd5f8",
+          "state": "ready",
+          "text_bytes": 72
+        }
+      ]
+    },
+    {
+      "run": "worker-6.log",
+      "exit_code": 1,
+      "events": [
+        {
+          "event": "deferred",
+          "error_type": "BackendError",
+          "code": 503
+        }
+      ]
+    },
+    {
+      "run": "worker-7.log",
+      "exit_code": 0,
+      "events": [
+        {
+          "event": "assigned",
+          "id": "att_e3d3f22647b2220f66f8a52a",
+          "execution_id": "e42cc18e4593df1e4def1e5c93c7ebf3",
+          "state": "running"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_e3d3f22647b2220f66f8a52a",
+          "count": 1
+        },
+        {
+          "event": "source_ready",
+          "id": "att_e3d3f22647b2220f66f8a52a"
+        },
+        {
+          "event": "parser_start",
+          "id": "att_e3d3f22647b2220f66f8a52a",
+          "execution_id": "e42cc18e4593df1e4def1e5c93c7ebf3"
+        },
+        {
+          "event": "bundle_ready",
+          "id": "att_e3d3f22647b2220f66f8a52a"
+        },
+        {
+          "event": "artifact_staged",
+          "id": "att_e3d3f22647b2220f66f8a52a",
+          "index": 0
+        },
+        {
+          "event": "published",
+          "id": "att_e3d3f22647b2220f66f8a52a",
+          "revision": "7c248c3820ffee971fc1378a8d125c14e8b37d0cc8d7499c7f7e76760365a6fe",
+          "heartbeats": 1
+        },
+        {
+          "event": "result",
+          "artifact_bytes": 13618,
+          "artifact_count": 1,
+          "coverage": {
+            "images": 1,
+            "kind": "image"
+          },
+          "fragment_count": 1,
+          "id": "att_e3d3f22647b2220f66f8a52a",
+          "manifest_sha256": "b335bbdfdc1c5f442f796c283727ee9ff4bc5f16cb4089c938fe2f67ca090ff4",
+          "pipeline_kind": "media-parser-v1",
+          "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+          "revision": "7c248c3820ffee971fc1378a8d125c14e8b37d0cc8d7499c7f7e76760365a6fe",
+          "state": "ready",
+          "text_bytes": 12
+        }
+      ]
+    },
+    {
+      "run": "worker-8.log",
+      "exit_code": 1,
+      "events": [
+        {
+          "event": "assigned",
+          "id": "att_7aff14be38f52611c57a0bd3",
+          "execution_id": "aee65ed852ed06736c86537fbe19768d",
+          "state": "running"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_7aff14be38f52611c57a0bd3",
+          "count": 1
+        },
+        {
+          "event": "deferred",
+          "error_type": "BackendError",
+          "code": 503
+        }
+      ]
+    },
+    {
+      "run": "worker-9.log",
+      "exit_code": 0,
+      "events": [
+        {
+          "event": "assigned",
+          "id": "att_7aff14be38f52611c57a0bd3",
+          "execution_id": "aee65ed852ed06736c86537fbe19768d",
+          "state": "running"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_7aff14be38f52611c57a0bd3",
+          "count": 1
+        },
+        {
+          "event": "source_ready",
+          "id": "att_7aff14be38f52611c57a0bd3"
+        },
+        {
+          "event": "parser_start",
+          "id": "att_7aff14be38f52611c57a0bd3",
+          "execution_id": "aee65ed852ed06736c86537fbe19768d"
+        },
+        {
+          "event": "bundle_ready",
+          "id": "att_7aff14be38f52611c57a0bd3"
+        },
+        {
+          "event": "artifact_staged",
+          "id": "att_7aff14be38f52611c57a0bd3",
+          "index": 0
+        },
+        {
+          "event": "published",
+          "id": "att_7aff14be38f52611c57a0bd3",
+          "revision": "e5317efcaee968469fd760ca81ccbae4d3148ab97be5907ae92f40a8563178c6",
+          "heartbeats": 1
+        },
+        {
+          "event": "result",
+          "artifact_bytes": 13618,
+          "artifact_count": 1,
+          "coverage": {
+            "images": 1,
+            "kind": "image"
+          },
+          "fragment_count": 1,
+          "id": "att_7aff14be38f52611c57a0bd3",
+          "manifest_sha256": "b335bbdfdc1c5f442f796c283727ee9ff4bc5f16cb4089c938fe2f67ca090ff4",
+          "pipeline_kind": "media-parser-v1",
+          "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+          "revision": "e5317efcaee968469fd760ca81ccbae4d3148ab97be5907ae92f40a8563178c6",
+          "state": "ready",
+          "text_bytes": 12
+        }
+      ]
+    },
+    {
+      "run": "worker-11.log",
+      "exit_code": 1,
+      "events": [
+        {
+          "event": "assigned",
+          "id": "att_1ee2b2939c3e7fce313ab1be",
+          "execution_id": "62c787890654d4349a0c340b55f280f2",
+          "state": "running"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_1ee2b2939c3e7fce313ab1be",
+          "count": 1
+        },
+        {
+          "event": "deferred",
+          "error_type": "SandboxError",
+          "code": "invalid_parser_bundle"
+        }
+      ]
+    },
+    {
+      "run": "worker-12.log",
+      "exit_code": 1,
+      "events": [
+        {
+          "event": "assigned",
+          "id": "att_1ee2b2939c3e7fce313ab1be",
+          "execution_id": "62c787890654d4349a0c340b55f280f2",
+          "state": "running"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_1ee2b2939c3e7fce313ab1be",
+          "count": 1
+        },
+        {
+          "event": "deferred",
+          "error_type": "SandboxError",
+          "code": "parser_identity_mismatch"
+        }
+      ]
+    },
+    {
+      "run": "worker-13.log",
+      "exit_code": 0,
+      "events": [
+        {
+          "event": "assigned",
+          "id": "att_1ee2b2939c3e7fce313ab1be",
+          "execution_id": "62c787890654d4349a0c340b55f280f2",
+          "state": "running"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_1ee2b2939c3e7fce313ab1be",
+          "count": 1
+        },
+        {
+          "event": "bundle_recovered",
+          "id": "att_1ee2b2939c3e7fce313ab1be"
+        },
+        {
+          "event": "bundle_ready",
+          "id": "att_1ee2b2939c3e7fce313ab1be"
+        },
+        {
+          "event": "artifact_staged",
+          "id": "att_1ee2b2939c3e7fce313ab1be",
+          "index": 0
+        },
+        {
+          "event": "artifact_staged",
+          "id": "att_1ee2b2939c3e7fce313ab1be",
+          "index": 1
+        },
+        {
+          "event": "artifact_staged",
+          "id": "att_1ee2b2939c3e7fce313ab1be",
+          "index": 2
+        },
+        {
+          "event": "published",
+          "id": "att_1ee2b2939c3e7fce313ab1be",
+          "revision": "24b1b02a112d150388e78ca0b5ddc027d7ca21ca4ff10cb384ebdb80a9e4ad42",
+          "heartbeats": 1
+        },
+        {
+          "event": "result",
+          "artifact_bytes": 131336,
+          "artifact_count": 3,
+          "coverage": {
+            "kind": "pdf",
+            "page_count": 3,
+            "rendered_pages": 3
+          },
+          "fragment_count": 3,
+          "id": "att_1ee2b2939c3e7fce313ab1be",
+          "manifest_sha256": "d2f174ebe7b6dcc43eb8ab30cf7069619943edc80d4b053d5111c1efef6cbfd6",
+          "pipeline_kind": "media-parser-v1",
+          "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+          "revision": "24b1b02a112d150388e78ca0b5ddc027d7ca21ca4ff10cb384ebdb80a9e4ad42",
+          "state": "ready",
+          "text_bytes": 61
+        }
+      ]
+    },
+    {
+      "run": "worker-14.log",
+      "exit_code": 1,
+      "events": [
+        {
+          "event": "assigned",
+          "id": "att_b0d50ff6f4d40447ac6b375b",
+          "execution_id": "006685973e2fa5e8164aa5640f0c07d4",
+          "state": "running"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_b0d50ff6f4d40447ac6b375b",
+          "count": 1
+        },
+        {
+          "event": "source_ready",
+          "id": "att_b0d50ff6f4d40447ac6b375b"
+        },
+        {
+          "event": "parser_start",
+          "id": "att_b0d50ff6f4d40447ac6b375b",
+          "execution_id": "006685973e2fa5e8164aa5640f0c07d4"
+        },
+        {
+          "event": "bundle_ready",
+          "id": "att_b0d50ff6f4d40447ac6b375b"
+        },
+        {
+          "event": "artifact_staged",
+          "id": "att_b0d50ff6f4d40447ac6b375b",
+          "index": 0
+        },
+        {
+          "event": "deferred",
+          "error_type": "BackendError",
+          "code": 503
+        }
+      ]
+    },
+    {
+      "run": "worker-15.log",
+      "exit_code": 0,
+      "events": [
+        {
+          "event": "assigned",
+          "id": "att_b0d50ff6f4d40447ac6b375b",
+          "execution_id": "006685973e2fa5e8164aa5640f0c07d4",
+          "state": "ready"
+        },
+        {
+          "event": "result",
+          "id": "att_b0d50ff6f4d40447ac6b375b",
+          "state": "ready"
+        }
+      ]
+    },
+    {
+      "run": "worker-16.log",
+      "exit_code": 0,
+      "events": [
+        {
+          "event": "assigned",
+          "id": "att_d7155e37b644743da83df83f",
+          "execution_id": "2a291f72b2317520cb98c44a9858bb45",
+          "state": "running"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_d7155e37b644743da83df83f",
+          "count": 1
+        },
+        {
+          "event": "waiting_capacity",
+          "id": "att_d7155e37b644743da83df83f"
+        },
+        {
+          "event": "waiting_capacity",
+          "id": "att_d7155e37b644743da83df83f"
+        },
+        {
+          "event": "waiting_capacity",
+          "id": "att_d7155e37b644743da83df83f"
+        },
+        {
+          "event": "waiting_capacity",
+          "id": "att_d7155e37b644743da83df83f"
+        },
+        {
+          "event": "waiting_capacity",
+          "id": "att_d7155e37b644743da83df83f"
+        },
+        {
+          "event": "waiting_capacity",
+          "id": "att_d7155e37b644743da83df83f"
+        },
+        {
+          "event": "waiting_capacity",
+          "id": "att_d7155e37b644743da83df83f"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_d7155e37b644743da83df83f",
+          "count": 2
+        },
+        {
+          "event": "source_ready",
+          "id": "att_d7155e37b644743da83df83f"
+        },
+        {
+          "event": "parser_start",
+          "id": "att_d7155e37b644743da83df83f",
+          "execution_id": "2a291f72b2317520cb98c44a9858bb45"
+        },
+        {
+          "event": "bundle_ready",
+          "id": "att_d7155e37b644743da83df83f"
+        },
+        {
+          "event": "artifact_staged",
+          "id": "att_d7155e37b644743da83df83f",
+          "index": 0
+        },
+        {
+          "event": "published",
+          "id": "att_d7155e37b644743da83df83f",
+          "revision": "0156dadd16b18f625cb95fd8363e12f710ca0275bc6060b1dbaba97f2e8cf74f",
+          "heartbeats": 2
+        },
+        {
+          "event": "result",
+          "artifact_bytes": 13618,
+          "artifact_count": 1,
+          "coverage": {
+            "images": 1,
+            "kind": "image"
+          },
+          "fragment_count": 1,
+          "id": "att_d7155e37b644743da83df83f",
+          "manifest_sha256": "b335bbdfdc1c5f442f796c283727ee9ff4bc5f16cb4089c938fe2f67ca090ff4",
+          "pipeline_kind": "media-parser-v1",
+          "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+          "revision": "0156dadd16b18f625cb95fd8363e12f710ca0275bc6060b1dbaba97f2e8cf74f",
+          "state": "ready",
+          "text_bytes": 12
+        }
+      ]
+    },
+    {
+      "run": "worker-18.log",
+      "exit_code": 0,
+      "events": [
+        {
+          "event": "assigned",
+          "id": "att_02a11bdd66560c6b6b4c2e05",
+          "execution_id": "49e7aced1bf6fb173cf0fd91076b8960",
+          "state": "running"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_02a11bdd66560c6b6b4c2e05",
+          "count": 1
+        },
+        {
+          "event": "parser_recovered",
+          "execution_id": "49e7aced1bf6fb173cf0fd91076b8960"
+        },
+        {
+          "event": "parser_start",
+          "id": "att_02a11bdd66560c6b6b4c2e05",
+          "execution_id": "49e7aced1bf6fb173cf0fd91076b8960"
+        },
+        {
+          "event": "bundle_ready",
+          "id": "att_02a11bdd66560c6b6b4c2e05"
+        },
+        {
+          "event": "artifact_staged",
+          "id": "att_02a11bdd66560c6b6b4c2e05",
+          "index": 0
+        },
+        {
+          "event": "published",
+          "id": "att_02a11bdd66560c6b6b4c2e05",
+          "revision": "2bc87d2f5b4faa5cf133fb991e1302b1cb5f60ce3a94b8ccdc58aa58cc6943d6",
+          "heartbeats": 1
+        },
+        {
+          "event": "result",
+          "artifact_bytes": 13618,
+          "artifact_count": 1,
+          "coverage": {
+            "images": 1,
+            "kind": "image"
+          },
+          "fragment_count": 1,
+          "id": "att_02a11bdd66560c6b6b4c2e05",
+          "manifest_sha256": "b335bbdfdc1c5f442f796c283727ee9ff4bc5f16cb4089c938fe2f67ca090ff4",
+          "pipeline_kind": "media-parser-v1",
+          "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+          "revision": "2bc87d2f5b4faa5cf133fb991e1302b1cb5f60ce3a94b8ccdc58aa58cc6943d6",
+          "state": "ready",
+          "text_bytes": 12
+        }
+      ]
+    },
+    {
+      "run": "worker-19.log",
+      "exit_code": 1,
+      "events": [
+        {
+          "event": "assigned",
+          "id": "att_2f7a359556439aabfdb7a4f3",
+          "execution_id": "4c55379accbc5e671304c3ff80e73c0c",
+          "state": "running"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_2f7a359556439aabfdb7a4f3",
+          "count": 1
+        },
+        {
+          "event": "source_ready",
+          "id": "att_2f7a359556439aabfdb7a4f3"
+        },
+        {
+          "event": "parser_start",
+          "id": "att_2f7a359556439aabfdb7a4f3",
+          "execution_id": "4c55379accbc5e671304c3ff80e73c0c"
+        },
+        {
+          "event": "result",
+          "state": "failed",
+          "id": "att_2f7a359556439aabfdb7a4f3"
+        }
+      ]
+    },
+    {
+      "run": "worker-20.log",
+      "exit_code": 1,
+      "events": [
+        {
+          "event": "result",
+          "state": "idle"
+        },
+        {
+          "event": "assigned",
+          "id": "att_c222b7ace401be56b4e5463d",
+          "execution_id": "b8a0b1afcac6c3d02ff5648f120ff5ed",
+          "state": "running"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_c222b7ace401be56b4e5463d",
+          "count": 1
+        },
+        {
+          "event": "source_ready",
+          "id": "att_c222b7ace401be56b4e5463d"
+        },
+        {
+          "event": "parser_start",
+          "id": "att_c222b7ace401be56b4e5463d",
+          "execution_id": "b8a0b1afcac6c3d02ff5648f120ff5ed"
+        },
+        {
+          "event": "bundle_ready",
+          "id": "att_c222b7ace401be56b4e5463d"
+        },
+        {
+          "event": "artifact_staged",
+          "id": "att_c222b7ace401be56b4e5463d",
+          "index": 0
+        },
+        {
+          "event": "published",
+          "id": "att_c222b7ace401be56b4e5463d",
+          "revision": "4b2406461a8aeb143d5da7a7155ed1696583c2b7e7b273795024f89fbeddebda",
+          "heartbeats": 1
+        },
+        {
+          "event": "result",
+          "artifact_bytes": 13618,
+          "artifact_count": 1,
+          "coverage": {
+            "images": 1,
+            "kind": "image"
+          },
+          "fragment_count": 1,
+          "id": "att_c222b7ace401be56b4e5463d",
+          "manifest_sha256": "b335bbdfdc1c5f442f796c283727ee9ff4bc5f16cb4089c938fe2f67ca090ff4",
+          "pipeline_kind": "media-parser-v1",
+          "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+          "revision": "4b2406461a8aeb143d5da7a7155ed1696583c2b7e7b273795024f89fbeddebda",
+          "state": "ready",
+          "text_bytes": 12
+        },
+        {
+          "event": "assigned",
+          "id": "att_eab27cc4ad1c58b937e35b18",
+          "execution_id": "7a42ab388a042d9619ee899420398601",
+          "state": "running"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_eab27cc4ad1c58b937e35b18",
+          "count": 1
+        },
+        {
+          "event": "source_ready",
+          "id": "att_eab27cc4ad1c58b937e35b18"
+        },
+        {
+          "event": "parser_start",
+          "id": "att_eab27cc4ad1c58b937e35b18",
+          "execution_id": "7a42ab388a042d9619ee899420398601"
+        },
+        {
+          "event": "bundle_ready",
+          "id": "att_eab27cc4ad1c58b937e35b18"
+        },
+        {
+          "event": "artifact_staged",
+          "id": "att_eab27cc4ad1c58b937e35b18",
+          "index": 0
+        },
+        {
+          "event": "published",
+          "id": "att_eab27cc4ad1c58b937e35b18",
+          "revision": "759d9767a5c906bb6fb4c9a4daa5a7cd0ab71a16c2daea9a4544ec54a3aed2ea",
+          "heartbeats": 1
+        },
+        {
+          "event": "result",
+          "artifact_bytes": 13618,
+          "artifact_count": 1,
+          "coverage": {
+            "images": 1,
+            "kind": "image"
+          },
+          "fragment_count": 1,
+          "id": "att_eab27cc4ad1c58b937e35b18",
+          "manifest_sha256": "b335bbdfdc1c5f442f796c283727ee9ff4bc5f16cb4089c938fe2f67ca090ff4",
+          "pipeline_kind": "media-parser-v1",
+          "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+          "revision": "759d9767a5c906bb6fb4c9a4daa5a7cd0ab71a16c2daea9a4544ec54a3aed2ea",
+          "state": "ready",
+          "text_bytes": 12
+        }
+      ]
+    },
+    {
+      "run": "worker-22.log",
+      "exit_code": 0,
+      "events": [
+        {
+          "event": "assigned",
+          "id": "att_3fdd1afe5deb2470f12e250f",
+          "execution_id": "19e1fcdeb443c05ddc2d55ce284709e5",
+          "state": "running"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_3fdd1afe5deb2470f12e250f",
+          "count": 1
+        },
+        {
+          "event": "parser_recovered",
+          "execution_id": "19e1fcdeb443c05ddc2d55ce284709e5"
+        },
+        {
+          "event": "parser_start",
+          "id": "att_3fdd1afe5deb2470f12e250f",
+          "execution_id": "19e1fcdeb443c05ddc2d55ce284709e5"
+        },
+        {
+          "event": "parser_stage",
+          "id": "att_3fdd1afe5deb2470f12e250f",
+          "stage": "asr_running"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_3fdd1afe5deb2470f12e250f",
+          "count": 2
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_3fdd1afe5deb2470f12e250f",
+          "count": 3
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_3fdd1afe5deb2470f12e250f",
+          "count": 4
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_3fdd1afe5deb2470f12e250f",
+          "count": 5
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_3fdd1afe5deb2470f12e250f",
+          "count": 6
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_3fdd1afe5deb2470f12e250f",
+          "count": 7
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_3fdd1afe5deb2470f12e250f",
+          "count": 8
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_3fdd1afe5deb2470f12e250f",
+          "count": 9
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_3fdd1afe5deb2470f12e250f",
+          "count": 10
+        },
+        {
+          "event": "bundle_ready",
+          "id": "att_3fdd1afe5deb2470f12e250f"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_3fdd1afe5deb2470f12e250f",
+          "count": 11
+        },
+        {
+          "event": "published",
+          "id": "att_3fdd1afe5deb2470f12e250f",
+          "revision": "fa42089ce74c8b67a65c97ef92564e24693b6248405ac70d0c85703626be3821",
+          "heartbeats": 11
+        },
+        {
+          "event": "result",
+          "artifact_bytes": 0,
+          "artifact_count": 0,
+          "coverage": {
+            "audio": {
+              "decoded_samples": 19199651,
+              "duration_ms": 1199978,
+              "language": "en",
+              "offset_ms": 0,
+              "sample_rate": 16000,
+              "segments": 395,
+              "speaker_labels": false,
+              "track_end_ms": 1199978
+            },
+            "container_duration_ms": 1199978,
+            "duration_ms": 1199978,
+            "kind": "audio",
+            "source_origin_ms": 0
+          },
+          "fragment_count": 395,
+          "id": "att_3fdd1afe5deb2470f12e250f",
+          "manifest_sha256": "43e2e536801b0c3b1375ff54d0c4c7769c2f4fbe1419302bb280977d0f2de006",
+          "pipeline_kind": "media-parser-v1",
+          "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+          "revision": "fa42089ce74c8b67a65c97ef92564e24693b6248405ac70d0c85703626be3821",
+          "state": "ready",
+          "text_bytes": 24004
+        }
+      ]
+    },
+    {
+      "run": "worker-23.log",
+      "exit_code": 1,
+      "events": [
+        {
+          "event": "assigned",
+          "id": "att_bf7fdea21fdafcd161fee1ca",
+          "execution_id": "78abf7c70383df6133bcbae9ab9bee4a",
+          "state": "running"
+        },
+        {
+          "event": "heartbeat",
+          "id": "att_bf7fdea21fdafcd161fee1ca",
+          "count": 1
+        },
+        {
+          "event": "source_ready",
+          "id": "att_bf7fdea21fdafcd161fee1ca"
+        },
+        {
+          "event": "parser_start",
+          "id": "att_bf7fdea21fdafcd161fee1ca",
+          "execution_id": "78abf7c70383df6133bcbae9ab9bee4a"
+        },
+        {
+          "event": "parser_stage",
+          "id": "att_bf7fdea21fdafcd161fee1ca",
+          "stage": "asr_running"
+        },
+        {
+          "event": "deferred",
+          "error_type": "SandboxError",
+          "code": "parser_cancelled"
+        }
+      ]
+    },
+    {
+      "run": "worker-24.log",
+      "exit_code": 1,
+      "events": [
+        {
+          "event": "assigned",
+          "id": "att_bf7fdea21fdafcd161fee1ca",
+          "execution_id": "78abf7c70383df6133bcbae9ab9bee4a",
+          "state": "running"
+        },
+        {
+          "event": "result",
+          "id": "att_bf7fdea21fdafcd161fee1ca",
+          "state": "expired"
+        }
+      ]
+    }
+  ]
+}

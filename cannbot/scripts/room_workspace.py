@@ -37,6 +37,15 @@ def digest(value):
 
 def execution_namespace(scope):
     base = f"roomagent_{scope['room_id']}_{scope['agent_id']}"
+    context = scope.get('context_generation')
+    if 'context_generation' in scope:
+        if (type(context) is not int or not 0 <= context < 2**53 or
+                'workspace_generation' not in scope):
+            raise ValueError('invalid room context generation')
+        # Explicit epochs never import old native history/todo or Router context.
+        # Existing requests without this field keep their original namespace.
+        return base + '_c' + digest([scope['generation'], scope['workspace_generation'],
+                                    scope.get('project_id', ''), context])[:24]
     # Old persisted requests retain their old tool-free native session.
     if 'workspace_generation' not in scope:
         return base

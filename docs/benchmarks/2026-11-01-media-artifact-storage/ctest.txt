@@ -1,0 +1,157 @@
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+Test project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+      Start 28: kafka_failure_integration_test
+      Start 46: collaboration_browser_test
+ 1/71 Test #46: collaboration_browser_test ..............   Passed   10.38 sec
+      Start 29: kafka_parallel_integration_test
+ 2/71 Test #28: kafka_failure_integration_test ..........   Passed   16.07 sec
+      Start 30: kafka_native_control_integration_test
+ 3/71 Test #29: kafka_parallel_integration_test .........   Passed   13.65 sec
+      Start 51: user_agent_connections_test
+ 4/71 Test #30: kafka_native_control_integration_test ...   Passed   12.45 sec
+      Start 70: public_agent_mode_test
+ 5/71 Test #70: public_agent_mode_test ..................   Passed    3.12 sec
+      Start 37: comet_stream_timeout_test
+ 6/71 Test #51: user_agent_connections_test .............   Passed    9.62 sec
+      Start 50: agent_router_test
+ 7/71 Test #37: comet_stream_timeout_test ...............   Passed    6.95 sec
+      Start 36: comet_network_integration_test
+ 8/71 Test #50: agent_router_test .......................   Passed    6.84 sec
+      Start 68: runtime_archive_test
+ 9/71 Test #68: runtime_archive_test ....................   Passed    2.11 sec
+      Start 34: media_processing_http_test
+10/71 Test #34: media_processing_http_test ..............***Skipped   0.04 sec
+      Start 54: hermes_native_gateway_test
+11/71 Test #36: comet_network_integration_test ..........   Passed    6.68 sec
+      Start 53: hermes_native_test
+12/71 Test #54: hermes_native_gateway_test ..............   Passed    3.98 sec
+      Start 49: pi_gateway_test
+13/71 Test #53: hermes_native_test ......................   Passed    2.47 sec
+      Start 66: public_runtime_lifecycle_test
+14/71 Test #66: public_runtime_lifecycle_test ...........   Passed    1.28 sec
+      Start 62: generic_room_agent_test
+15/71 Test #49: pi_gateway_test .........................   Passed    3.38 sec
+      Start 14: media_artifact_mysql_test
+16/71 Test #14: media_artifact_mysql_test ...............***Skipped   0.00 sec
+      Start 13: media_mysql_integration_test
+17/71 Test #13: media_mysql_integration_test ............***Skipped   0.00 sec
+      Start 71: release_contract_test
+18/71 Test #71: release_contract_test ...................   Passed    0.43 sec
+      Start 65: public_runtime_startup_test
+19/71 Test #62: generic_room_agent_test .................   Passed    1.71 sec
+      Start 39: user_agent_http_integration_test
+20/71 Test #65: public_runtime_startup_test .............   Passed    1.07 sec
+      Start 40: room_agent_test
+21/71 Test #39: user_agent_http_integration_test ........   Passed    1.21 sec
+      Start  7: inference_vllm_adapter_contract_test
+22/71 Test #40: room_agent_test .........................   Passed    1.19 sec
+      Start  6: inference_llamacpp_adapter_test
+23/71 Test  #7: inference_vllm_adapter_contract_test ....   Passed    1.10 sec
+      Start 43: kernel_subagents_integration_test
+24/71 Test  #6: inference_llamacpp_adapter_test .........   Passed    1.08 sec
+      Start 33: media_parser_test
+25/71 Test #43: kernel_subagents_integration_test .......   Passed    0.78 sec
+      Start 63: room_project_snapshot_test
+26/71 Test #33: media_parser_test .......................   Passed    0.14 sec
+      Start 42: kernel_subagents_test
+27/71 Test #63: room_project_snapshot_test ..............   Passed    0.61 sec
+      Start  5: inference_tests
+28/71 Test #42: kernel_subagents_test ...................   Passed    0.59 sec
+      Start 48: agent_control_integration_test
+29/71 Test  #5: inference_tests .........................   Passed    0.71 sec
+      Start 67: backup_contract_test
+30/71 Test #48: agent_control_integration_test ..........   Passed    0.68 sec
+      Start 19: mysql_pool_recovery_test
+31/71 Test #67: backup_contract_test ....................   Passed    0.31 sec
+      Start 12: media_blob_store_test
+32/71 Test #19: mysql_pool_recovery_test ................   Passed    0.36 sec
+      Start 69: cann_document_export_test
+33/71 Test #12: media_blob_store_test ...................   Passed    0.15 sec
+      Start 64: hermes_public_workspace_contract_test
+34/71 Test #69: cann_document_export_test ...............   Passed    0.09 sec
+      Start  8: security_test
+35/71 Test #64: hermes_public_workspace_contract_test ...   Passed    0.08 sec
+      Start 21: logic_business_service_test
+36/71 Test  #8: security_test ...........................   Passed    0.10 sec
+      Start 61: space_mysql_integration_test
+37/71 Test #61: space_mysql_integration_test ............***Skipped   0.00 sec
+      Start 59: redis_sequence_integration_test
+38/71 Test #59: redis_sequence_integration_test .........***Skipped   0.00 sec
+      Start 38: http_api_integration_test
+39/71 Test #21: logic_business_service_test .............   Passed    0.11 sec
+      Start 35: dlq_replay_test
+40/71 Test #38: http_api_integration_test ...............   Passed    0.08 sec
+      Start 20: message_reservation_integration_test
+41/71 Test #20: message_reservation_integration_test ....***Skipped   0.00 sec
+      Start 41: deployment_endpoints_test
+42/71 Test #35: dlq_replay_test .........................   Passed    0.04 sec
+      Start 47: logic_layer_contract_test
+43/71 Test #41: deployment_endpoints_test ...............   Passed    0.02 sec
+      Start 44: cursor_recovery_test
+44/71 Test #47: logic_layer_contract_test ...............   Passed    0.02 sec
+      Start 55: client_reliability_contract_test
+45/71 Test #44: cursor_recovery_test ....................   Passed    0.02 sec
+      Start 45: room_agent_channel_test
+46/71 Test #55: client_reliability_contract_test ........   Passed    0.02 sec
+      Start 16: route_generation_integration_test
+47/71 Test #16: route_generation_integration_test .......***Skipped   0.00 sec
+      Start 32: hermes_sse_parser_test
+48/71 Test #45: room_agent_channel_test .................   Passed    0.02 sec
+      Start 15: logging_rotation_test
+49/71 Test #32: hermes_sse_parser_test ..................   Passed    0.02 sec
+      Start 18: internal_rpc_test
+50/71 Test #18: internal_rpc_test .......................   Passed    0.01 sec
+      Start 22: room_agent_service_test
+51/71 Test #22: room_agent_service_test .................   Passed    0.01 sec
+      Start 27: hermes_reply_test
+52/71 Test #27: hermes_reply_test .......................   Passed    0.01 sec
+      Start 52: agent_connection_service_test
+53/71 Test #52: agent_connection_service_test ...........   Passed    0.00 sec
+      Start 31: hermes_native_config_test
+54/71 Test #31: hermes_native_config_test ...............   Passed    0.05 sec
+      Start 11: message_acceptance_test
+55/71 Test #15: logging_rotation_test ...................   Passed    0.09 sec
+      Start 60: space_service_test
+56/71 Test #11: message_acceptance_test .................   Passed    0.01 sec
+      Start 57: knowledge_catalog_test
+57/71 Test #60: space_service_test ......................   Passed    0.00 sec
+      Start 23: config_test
+58/71 Test #57: knowledge_catalog_test ..................   Passed    0.00 sec
+      Start  1: inference_cuda_probe_success
+59/71 Test #23: config_test .............................   Passed    0.00 sec
+      Start  2: inference_cuda_probe_init
+60/71 Test  #1: inference_cuda_probe_success ............   Passed    0.00 sec
+      Start  4: inference_cuda_probe_nvml
+61/71 Test  #2: inference_cuda_probe_init ...............   Passed    0.00 sec
+      Start  3: inference_cuda_probe_sample
+62/71 Test  #4: inference_cuda_probe_nvml ...............   Passed    0.00 sec
+      Start  9: broadcast_fanout_test
+63/71 Test  #3: inference_cuda_probe_sample .............   Passed    0.00 sec
+      Start 26: hermes_command_test
+64/71 Test  #9: broadcast_fanout_test ...................   Passed    0.00 sec
+      Start 10: queue_capacity_test
+65/71 Test #26: hermes_command_test .....................   Passed    0.00 sec
+      Start 25: rate_limiter_test
+66/71 Test #10: queue_capacity_test .....................   Passed    0.00 sec
+      Start 17: http_parser_test
+67/71 Test #25: rate_limiter_test .......................   Passed    0.00 sec
+      Start 56: citation_validation_test
+68/71 Test #17: http_parser_test ........................   Passed    0.00 sec
+      Start 58: websocket_utils_test
+69/71 Test #56: citation_validation_test ................   Passed    0.00 sec
+      Start 24: image_attachment_test
+70/71 Test #58: websocket_utils_test ....................   Passed    0.00 sec
+71/71 Test #24: image_attachment_test ...................   Passed    0.00 sec
+
+100% tests passed, 0 tests failed out of 71
+
+Total Test time (real) =  56.02 sec
+
+The following tests did not run:
+	 13 - media_mysql_integration_test (Skipped)
+	 14 - media_artifact_mysql_test (Skipped)
+	 16 - route_generation_integration_test (Skipped)
+	 20 - message_reservation_integration_test (Skipped)
+	 34 - media_processing_http_test (Skipped)
+	 59 - redis_sequence_integration_test (Skipped)
+	 61 - space_mysql_integration_test (Skipped)

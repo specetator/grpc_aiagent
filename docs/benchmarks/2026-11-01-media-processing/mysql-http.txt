@@ -1,0 +1,21 @@
+Real MySQL: pre-media upgrade and repeated migration preserved the old attachment row
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+Test project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+    Start 32: media_processing_http_test
+1/1 Test #32: media_processing_http_test .......   Passed    4.32 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   4.32 sec
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+Test project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+    Start 13: media_mysql_integration_test
+1/3 Test #13: media_mysql_integration_test ...........   Passed    2.67 sec
+    Start 19: message_reservation_integration_test
+2/3 Test #19: message_reservation_integration_test ...   Passed    0.18 sec
+    Start 59: space_mysql_integration_test
+3/3 Test #59: space_mysql_integration_test ...........   Passed    0.31 sec
+
+100% tests passed, 0 tests failed out of 3
+
+Total Test time (real) =   3.17 sec

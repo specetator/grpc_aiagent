@@ -8,6 +8,7 @@ const net=require('node:net');
 const {chromium}=require(process.env.SPARK_PLAYWRIGHT_MODULE||'playwright');
 const args=process.argv.slice(2),arg=name=>args[args.indexOf(name)+1];
 const base=arg('--base'),out=arg('--out'),control=arg('--control'),screenshots=arg('--screenshots'),agents=args.includes('--agents');
+const mediaOnly=args.includes('--media-only');
 const receipt={ok:false,mode:'real three-browser Web UI '+(agents?'with actual public Pi/Hermes':'with Agents disabled'),checks:[]};
 const browsers=[],pages=[],contexts=[],errors=[];
 const bobFrames=[];
@@ -65,6 +66,73 @@ async function history(page,allowMissing=false){return page.evaluate(async allow
   for(const user of users.slice(1)){await a.locator('[data-invite-space] [name=account]').fill(user.account);await a.getByRole('button',{name:'发送邀请',exact:true}).click();await a.getByText('邀请已发出，等待对方接受。',{exact:true}).waitFor();await a.waitForFunction(()=>document.querySelector('[data-invite-space] input').value==='');}
   for(const page of [b,c]){await page.locator('#manage-spaces-btn').click();await page.getByRole('button',{name:'接受邀请',exact:true}).click();await page.locator('#spaces-dialog [data-close-dialog]').click();await openRoom(page);}
   check('Alice creates a private space, invites Bob and Carol by account, both accept without numeric IDs');
+  if(args.includes('--media-analysis')){
+   await require('./collaboration_web_media_analysis.cjs')({a,b,c,pages,browsers,contexts,users,receipt,errors,taskCreates,bobFrames,
+    base,relayBase,control,screenshots,arg,check,wait,details,timeline,login,openRoom,chromium});
+   assert.deepEqual(errors,[]);receipt.ok=true;return;
+  }
+  if(mediaOnly){
+   receipt.media={scope:'Real browser uploads/playback/download/relogin/revocation only; parser and Agent execution are not configured or tested',assets:[]};
+   const names=['design.pdf','meeting-20min.wav','incident.mp4'];
+   const library=async page=>{await details(page,'media');await page.getByRole('button',{name:'刷新资料',exact:true}).click();};
+   const row=(page,name)=>page.locator('[data-media-list] [data-media-id]').filter({has:page.locator('strong',{hasText:name})});
+   const request=async(page,endpoint,body)=>page.evaluate(async({endpoint,body})=>{
+    const response=await fetch(logicBase+endpoint,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
+    return response.json();
+   },{endpoint,body});
+   for(let i=0;i<pages.length;i++){
+    const file=path.join(arg('--media-fixtures'),names[i]),bytes=await fs.readFile(file);
+    await library(pages[i]);await pages[i].locator('[data-media-file]').setInputFiles(file);
+    await row(pages[i],names[i]).waitFor({timeout:120000});
+    await pages[i].waitForFunction(()=>!collaboration.media.busy);
+    receipt.media.assets.push({name:names[i],id:await row(pages[i],names[i]).getAttribute('data-media-id'),bytes:bytes.length,sha256:crypto.createHash('sha256').update(bytes).digest('hex')});
+   }
+   const verifyLibrary=async page=>{await library(page);for(const asset of receipt.media.assets){await row(page,asset.name).waitFor();assert.equal(await row(page,asset.name).getAttribute('data-media-id'),asset.id);}};
+   for(const page of pages)await verifyLibrary(page);
+   const room=await a.evaluate(()=>Number(currentConversation.room_id));
+   assert.deepEqual((await request(a,'/api/chatroom/agents/list',{room_id:room})).data.requests,[],'sharing media must not trigger models');
+   check('three real browsers upload PDF, 20-minute WAV and video through the UI; all see the same server-backed library without model calls');
+   const play=async(page,name,kind,seconds)=>{
+    await row(page,name).getByRole('button',{name:kind==='audio'?'播放录音':'播放视频',exact:true}).click();
+    await page.waitForFunction(({kind,seconds})=>{const player=document.querySelector('[data-media-preview] '+kind);return player&&Math.abs(player.duration-seconds)<1;},{kind,seconds},{timeout:120000});
+    const player=page.locator('[data-media-preview] '+kind);assert.equal(await player.evaluate(node=>node.paused),true);
+    await player.scrollIntoViewIfNeeded();await player.press('Space');
+    await page.waitForFunction(kind=>{const player=document.querySelector('[data-media-preview] '+kind);return player&&!player.paused&&!player.error&&player.currentTime>.2;},kind);
+    await player.press('Space');assert.equal(await player.evaluate(node=>node.paused),true);
+   };
+   await play(b,names[1],'audio',1200);await play(c,names[2],'video',10);
+   for(let i=0;i<pages.length;i++){
+    const [download]=await Promise.all([pages[i].waitForEvent('download'),row(pages[i],names[0]).getByRole('button',{name:'下载原文件',exact:true}).click()]);
+    assert.equal(download.suggestedFilename(),names[0]);
+    const target=path.join(control,'pdf-'+i);await download.saveAs(target);
+    assert.equal(crypto.createHash('sha256').update(await fs.readFile(target)).digest('hex'),receipt.media.assets[0].sha256);
+   }
+   await b.screenshot({path:path.join(screenshots,'media-audio.png'),fullPage:true});await c.screenshot({path:path.join(screenshots,'media-video.png'),fullPage:true});
+   check('real browsers decode the original long WAV and video without autoplay; all three download byte-identical PDF content');
+   await fs.writeFile(path.join(control,'restart.request'),'restart');
+   await wait(async()=>{try{await fs.access(path.join(control,'restart.ready'));return true;}catch{return false;}},240000);
+   await Promise.all(browsers.map(browser=>browser.close()));
+   for(let i=0;i<3;i++){
+    const browser=await chromium.launch({headless:true});browsers.push(browser);
+    const context=await browser.newContext({viewport:{width:1440,height:1000}});contexts[i]=context;
+    const page=await context.newPage();page.acceptanceBase=i===1?relayBase:base;pages[i]=page;page.on('pageerror',e=>errors.push({user:i,message:e.message}));
+    await login(page,users[i]);await openRoom(page);await verifyLibrary(page);
+   }
+   await play(pages[1],names[1],'audio',1200);
+   check('full service restart and fresh browser profiles restore the same media IDs and playable original recording');
+   await details(pages[0],'members');await pages[0].locator('[data-space-members]>div').filter({hasText:'Bob'}).getByRole('button',{name:'移除',exact:true}).click();
+   await pages[1].locator('#chat-window').waitFor({state:'hidden',timeout:30000});
+   assert.equal(await pages[1].locator('[data-media-preview] audio').count(),0,'revocation clears the active player');
+   const denied={};for(const asset of receipt.media.assets){
+    denied[asset.name]=(await request(pages[1],'/api/room/media/read',{id:asset.id,offset:0,length:1})).code;
+    assert.equal(denied[asset.name],403);
+   }
+   assert.equal((await request(pages[1],'/api/room/media/list',{room_id:room})).code,403);
+   assert.equal((await request(pages[2],'/api/room/media/read',{id:receipt.media.assets[0].id,offset:0,length:1})).code,0);
+   receipt.media.removed_member_read_codes=denied;
+   check('removing Bob clears his player and denies every original file plus listing; Carol retains access');
+   assert.deepEqual(errors,[]);receipt.ok=true;return;
+  }
   await c.locator('#manage-spaces-btn').click();await c.locator('[data-create-space] [name=name]').fill('公开交流测试');await c.locator('[data-create-space] [name=visibility]').selectOption('public');await c.getByRole('button',{name:'创建空间',exact:true}).click();await c.waitForFunction(()=>document.getElementById('chat-title').textContent==='公开交流测试'&&historyReady);
   for(const page of [a,b]){await page.locator('#manage-spaces-btn').click();await page.locator('[data-public-spaces]>div').filter({hasText:'公开交流测试'}).getByRole('button',{name:'加入空间',exact:true}).click();await page.waitForFunction(()=>document.getElementById('chat-title').textContent==='公开交流测试'&&historyReady);}
   await send(c,'公开空间交流，与私有讨论隔离。');await wait(async()=>{for(const page of pages)if(!(await timeline(page)).some(row=>row.text==='公开空间交流，与私有讨论隔离。'))return false;return true;});

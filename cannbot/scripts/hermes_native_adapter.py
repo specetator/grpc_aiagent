@@ -121,7 +121,12 @@ class HermesNativeAdapter(HermesHttpAdapter):
             catalog=self._json('/toolsets',timeout=min(timeout,3))
             rows=catalog.get('data') if isinstance(catalog,dict) else None
             workspace=self.config.get('room_workspace_contract')==1
-            allowed={'todo','spark_workspace'} if workspace else {'todo'}
+            context_tools=self.config.get('room_context_contract')==1
+            if 'room_context_contract' in self.config and (type(self.config['room_context_contract']) is not int or not context_tools or not workspace):
+                raise ValueError('公共 Hermes 资料合同配置无效')
+            allowed=({'todo','spark_workspace'} if workspace else {'todo'}) | ({'spark_room_context'} if context_tools else set())
+            from room_context import TOOL_NAMES
+            allowed_tools={'todo_list','workspace_read'} | (TOOL_NAMES if context_tools else set())
             # todo_list belongs to this AIAgent's own plan. No filesystem,
             # terminal, memory search, cross-session tools or delegation.
             if (not isinstance(rows,list) or any(not isinstance(row,dict) or
@@ -131,8 +136,12 @@ class HermesNativeAdapter(HermesHttpAdapter):
                     not any(row.get('name')=='spark_workspace' and row.get('enabled') is True and
                             row.get('tools')==['workspace_read'] for row in rows) or
                     any(row.get('enabled') is True and not set(row.get('tools',[]))<=
-                        {'todo_list','workspace_read'} for row in rows)):
+                        allowed_tools for row in rows)):
                 raise ValueError('公共 Hermes 未确认受限工作区合同')
+            if context_tools and (features.get('spark_room_context_v1') is not True or
+                not any(row.get('name')=='spark_room_context' and row.get('enabled') is True and
+                    isinstance(row.get('tools'),list) and len(row['tools'])==len(TOOL_NAMES) and set(row['tools'])==TOOL_NAMES for row in rows)):
+                raise ValueError('公共 Hermes 未确认受限房间资料合同')
         return value
 
     def is_ready(self):

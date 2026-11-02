@@ -1,6 +1,8 @@
 #include <cstdlib>
 #include <iostream>
 #include <thread>
+#include <future>
+#include <chrono>
 #include <stdexcept>
 #include <fstream>
 #include "repositories/space_repository.h"
@@ -14,6 +16,35 @@
 #include <openssl/sha.h>
 using namespace sparkpush;
 void Require(bool ok,const std::string& why) { if(!ok) throw std::runtime_error(why); }
+// Pause only after the real Service policy evaluated under the real Repository
+// locks. The hook never changes the policy decision or substitutes SQL behavior.
+class GatedPublicationRepository : public MySqlRoomAgentRepository {
+ public:
+    using MySqlRoomAgentRepository::MySqlRoomAgentRepository;
+    std::promise<void> decided,release;
+    bool Publication(const nlohmann::json& request,const std::string& digest,
+        const PublicationMatch& match,const PublicationDecision& decide,nlohmann::json* out,
+        std::string* error,bool* existing=nullptr)override {
+        auto resume=release.get_future();
+        return MySqlRoomAgentRepository::Publication(request,digest,match,[&](const nlohmann::json& state){
+            auto result=decide(state);decided.set_value();resume.wait();return result;
+        },out,error,existing);
+    }
+};
+bool WaitForRoomLock(MySqlConnectionPool& pool,int64_t room) {
+    const auto deadline=std::chrono::steady_clock::now()+std::chrono::seconds(5);
+    while(std::chrono::steady_clock::now()<deadline) {
+        auto guard=pool.Acquire();
+        const auto rows=room_sql::Query(guard.get(),
+            "SELECT 1 FROM performance_schema.data_lock_waits w JOIN performance_schema.data_locks l "
+            "ON l.ENGINE_LOCK_ID=w.REQUESTING_ENGINE_LOCK_ID AND l.ENGINE=w.ENGINE "
+            "WHERE l.OBJECT_SCHEMA=DATABASE() AND l.OBJECT_NAME='im_group' AND l.LOCK_DATA=?",
+            {std::to_string(room)});
+        if(!rows.empty())return true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    return false;
+}
 int main() {
     if(!std::getenv("SPARK_PUSH_RUN_MYSQL_TESTS")) return 77;
     MySqlConfig config;config.host="127.0.0.1";config.user="root";config.db="spark_review_test";
@@ -167,6 +198,126 @@ int main() {
      Require(rows.size()==1 && rows[0][0].find("private code")==std::string::npos,"denied ledger stores safe error only");}
     Require(multi.SetWorkspace(a,room,{{"project_id","spark-push"},{"generation",4}},&loaded).ok(),"regrant after cancellation");
     Require(multi.PublishReply(batch[1],revokedFinal,"original rejected body",&concurrent,&error) && concurrent==denied,"regrant cannot rewrite cancellation");
+
+    // Context epoch uses real SQL; no model/broker execution is claimed here.
+    source.msg_seq=250;source.msg_id=source.session_id+"-250";
+    Json epochRequests;
+    Require(multi.BuildRequests(source,{},&epochRequests,&error),"new requests persist explicit context generation");
+    Require(epochRequests[0]["collaboration"]["context_generation"]==0,"missing context row is original epoch");
+    auto legacyEpoch=epochRequests[1];legacyEpoch["collaboration"].erase("context_generation");
+    Require(multi.CheckDispatch(legacyEpoch).ok(),"persisted workspace request without epoch is zero");
+    for(const auto* field:{"workspace_generation","project_id"})legacyEpoch["collaboration"].erase(field);
+    {auto guard=pool.Acquire();room_sql::Query(guard.get(),"UPDATE room_agent_request SET payload=? WHERE request_id=?",
+        {legacyEpoch.dump(),legacyEpoch["request_id"]});}
+    {
+        auto guard=pool.Acquire();room_sql::Transaction transaction(guard.get());
+        room_sql::Query(guard.get(),"SELECT id FROM im_group WHERE id=? FOR UPDATE",{std::to_string(room)});
+        room_sql::Query(guard.get(),"INSERT INTO room_context(room_id,generation) VALUES(?,1)",{std::to_string(room)});
+        transaction.Commit();
+    }
+    Require(multi.CheckDispatch(epochRequests[0]).code==403 && multi.CheckDispatch(legacyEpoch).code==403,"epoch advance fences explicit and legacy scopes");
+    Require(multi.AuthorizeWorkspace(std::string(48,'k'),{{"request_id",epochRequests[0]["request_id"]}},&loaded).code==403,"canonical connector authorization rejects old epoch");
+    Json epochReplay;Require(multi.BuildRequests(source,{},&epochReplay,&error) && epochReplay[0]==epochRequests[0] && epochReplay[1]==legacyEpoch,"stored request replay never upgrades epoch");
+    auto epochFinal=finalReply(epochRequests[0]);
+    Require(multi.PublishReply(epochRequests[0],epochFinal,"epoch protected body",&denied,&error) && denied["terminal_status"]=="cancelled" &&
+        denied.dump().find("private code")==std::string::npos,"first stale publication persists only cancellation");
+    auto earliestFinal=finalReply(legacyEpoch);
+    Require(multi.PublishReply(legacyEpoch,earliestFinal,"pre-workspace body",&denied,&error) && denied["terminal_status"]=="cancelled",
+        "pre-workspace generic first publication cannot bypass context fence");
+    Require(restarted.PublishReply(batch[0],final,replayPrepared.message.content_json,&concurrent,&error) && concurrent==canonical,"previous committed publication survives context advance");
+    source.msg_seq=251;source.msg_id=source.session_id+"-251";
+    Json nextEpoch;Require(multi.BuildRequests(source,{},&nextEpoch,&error) && nextEpoch[0]["collaboration"]["context_generation"]==1,"new request captures new epoch");
+    Require(multi.CheckDispatch(nextEpoch[0]).ok(),"current epoch dispatch remains available");
+    // Missing migration/query failure cannot silently grant epoch zero. Existing
+    // publication decisions do not need the context table to recover.
+    {auto guard=pool.Acquire();room_sql::Query(guard.get(),"RENAME TABLE room_context TO room_context_unavailable");}
+    Require(multi.CheckDispatch(nextEpoch[0]).code==503,"missing context schema is retryable unavailable");
+    source.msg_seq=252;source.msg_id=source.session_id+"-252";
+    Require(!multi.BuildRequests(source,{},&epochReplay,&error),"new request denied when context cannot be read");
+    Require(restarted.PublishReply(batch[0],final,replayPrepared.message.content_json,&concurrent,&error) && concurrent==canonical,"committed publication independent of missing context schema");
+    auto unavailableFinal=finalReply(nextEpoch[0]);
+    Require(!multi.PublishReply(nextEpoch[0],unavailableFinal,"unavailable context",&concurrent,&error),"context outage does not commit false cancellation");
+    {auto guard=pool.Acquire();room_sql::Query(guard.get(),"RENAME TABLE room_context_unavailable TO room_context");
+     Require(room_sql::Query(guard.get(),"SELECT request_id FROM room_agent_publication WHERE request_id=?",{nextEpoch[0]["request_id"]}).empty(),"unavailable publication remains undecided");}
+    Require(multi.CheckDispatch(nextEpoch[0]).ok(),"schema recovery restores current epoch authorization");
+
+    // Simulate an actually persisted pre-workspace generic final: its old IM
+    // identity, durable result and bytes must survive adopting the new ledger.
+    source.msg_seq=253;source.msg_id=source.session_id+"-253";
+    Json legacyBatch;Require(multi.BuildRequests(source,{},&legacyBatch,&error),"legacy generic fixture identity");
+    auto legacyRequest=legacyBatch[0];
+    for(const auto* field:{"context_generation","workspace_generation","project_id"})legacyRequest["collaboration"].erase(field);
+    {auto guard=pool.Acquire();room_sql::Query(guard.get(),"UPDATE room_agent_request SET payload=? WHERE request_id=?",{legacyRequest.dump(),legacyRequest["request_id"]});}
+    auto oldFinal=finalReply(legacyRequest);PreparedHermesReply oldPrepared;
+    Require(PrepareHermesReply(oldFinal.dump(),legacyRequest["bot_user_id"],legacyRequest["agent_name"],&oldPrepared,&error,&legacyRequest),"prepare old generic final");
+    MySqlMessageReservations legacyReservations(&pool);Message oldStored;bool oldFresh=false;
+    Require(legacyReservations.Reserve(oldPrepared.message,&oldStored,&oldFresh,&error)&&oldFresh,"reserve old generic message");
+    auto oldContent=Json::parse(oldStored.content_json);
+    oldContent["msg_id"]=oldStored.msg_id;oldContent["msg_seq"]=oldStored.msg_seq;oldContent["create_time"]=oldStored.timestamp_ms;
+    {auto guard=pool.Acquire();room_sql::Query(guard.get(),"INSERT INTO message(session_id,msg_seq,sender_id,msg_type,content_json,timestamp_ms,client_msg_id) VALUES(?,?,?,?,?,?,?)",
+        {oldStored.session_id,std::to_string(oldStored.msg_seq),std::to_string(oldStored.sender_id),oldStored.msg_type,oldContent.dump(),std::to_string(oldStored.timestamp_ms),oldStored.client_msg_id});
+     room_sql::Query(guard.get(),"UPDATE message_reservation SET stage=3 WHERE session_id=? AND msg_seq=?",{oldStored.session_id,std::to_string(oldStored.msg_seq)});}
+    Require(multi.Complete(oldFinal,&error),"persist old generic result without publication ledger");
+    auto oldReplay=oldFinal;oldReplay["completed_at_ms"]=999999;
+    PreparedHermesReply oldReplayPrepared;
+    Require(PrepareHermesReply(oldReplay.dump(),legacyRequest["bot_user_id"],legacyRequest["agent_name"],&oldReplayPrepared,&error,&legacyRequest),"prepare old generic retransmission");
+    bool requireOld=false;
+    Require(restarted.PublishReply(legacyRequest,oldReplay,oldReplayPrepared.message.content_json,&concurrent,&error,&requireOld) &&
+        requireOld && concurrent==oldFinal,"adopt proven old generic final after epoch revocation");
+    {auto guard=pool.Acquire();room_sql::Query(guard.get(),"DELETE FROM message_reservation WHERE session_id=? AND msg_seq=?",{oldStored.session_id,std::to_string(oldStored.msg_seq)});}
+    Require(restarted.PublishReply(legacyRequest,oldReplay,oldReplayPrepared.message.content_json,&concurrent,&error,&requireOld) &&
+        requireOld && concurrent==oldFinal,"legacy generic replay survives reservation GC using original history");
+    Message oldSame;oldFresh=true;
+    Require(legacyReservations.ReservePublished(oldPrepared.message,&oldSame,&oldFresh,&error,requireOld) && !oldFresh && oldSame.msg_seq==oldStored.msg_seq,
+        "legacy generic adoption cannot allocate a second message sequence");
+    std::string originalLegacyResult;
+    {auto guard=pool.Acquire();originalLegacyResult=room_sql::Query(guard.get(),"SELECT result FROM room_agent_request WHERE request_id=?",{legacyRequest["request_id"]})[0][0];
+     room_sql::Query(guard.get(),"DELETE FROM room_agent_publication WHERE request_id=?",{legacyRequest["request_id"]});
+     room_sql::Query(guard.get(),"UPDATE room_agent_request SET result=JSON_SET(result,'$.text','mismatched old result') WHERE request_id=?",{legacyRequest["request_id"]});}
+    Require(!restarted.PublishReply(legacyRequest,oldReplay,oldReplayPrepared.message.content_json,&concurrent,&error),"old generic result/history mismatch cannot be adopted");
+    {auto guard=pool.Acquire();Require(room_sql::Query(guard.get(),"SELECT request_id FROM room_agent_publication WHERE request_id=?",{legacyRequest["request_id"]}).empty(),"ambiguous legacy result does not commit a fabricated decision");
+     room_sql::Query(guard.get(),"UPDATE room_agent_request SET result=? WHERE request_id=?",{originalLegacyResult,legacyRequest["request_id"]});}
+    Require(restarted.PublishReply(legacyRequest,oldReplay,oldReplayPrepared.message.content_json,&concurrent,&error) && concurrent==oldFinal,"verified old generic result remains recoverable");
+
+    // Revoke first: hold the room row until the actual publication SQL is
+    // observed waiting in MySQL, then commit epoch 2 before it can decide.
+    {
+        auto guard=pool.Acquire();room_sql::Transaction transaction(guard.get());
+        room_sql::Query(guard.get(),"SELECT id FROM im_group WHERE id=? FOR UPDATE",{std::to_string(room)});
+        auto raceFinal=finalReply(nextEpoch[0]);Json raceResult;std::string raceError;bool published=false;
+        std::thread publisher([&]{published=multi.PublishReply(nextEpoch[0],raceFinal,"racing first reply",&raceResult,&raceError);});
+        bool waiting=false;std::exception_ptr probeError;
+        try {waiting=WaitForRoomLock(pool,room);
+            room_sql::Query(guard.get(),"UPDATE room_context SET generation=2 WHERE room_id=?",{std::to_string(room)});
+            transaction.Commit();
+        } catch(...) {probeError=std::current_exception();mysql_rollback(guard.get());}
+        publisher.join();if(probeError)std::rethrow_exception(probeError);
+        Require(waiting && published && raceResult["terminal_status"]=="cancelled","real room lock: epoch change wins before first publication");
+    }
+    // Publish first: the genuine Service decision holds the room lock. Observe
+    // the epoch writer waiting, release publication to commit, then revoke.
+    source.msg_seq=254;source.msg_id=source.session_id+"-254";
+    Json raceRequests;Require(multi.BuildRequests(source,{},&raceRequests,&error),"current race epoch request");
+    GatedPublicationRepository gated(&pool,&groups,&members);
+    RoomAgentService gatedService(&gated,900000000001LL,true,{{"public-pi","Pi","pi_rpc",900000000401LL,true}});
+    gatedService.SetProjectCatalog({{"spark-push","Spark Push"}},std::string(48,'k'));
+    auto decisionReady=gated.decided.get_future();auto raceFinal=finalReply(raceRequests[0]);
+    Json raceCanonical;std::string raceError;bool racePublished=false,epochCommitted=false;
+    std::thread publisher([&]{racePublished=gatedService.PublishReply(raceRequests[0],raceFinal,"publish before revoke",&raceCanonical,&raceError);});
+    const bool reached=decisionReady.wait_for(std::chrono::seconds(5))==std::future_status::ready;
+    std::thread changer([&]{try {
+        auto guard=pool.Acquire();room_sql::Transaction transaction(guard.get());
+        room_sql::Query(guard.get(),"SELECT id FROM im_group WHERE id=? FOR UPDATE",{std::to_string(room)});
+        room_sql::Query(guard.get(),"UPDATE room_context SET generation=3 WHERE room_id=?",{std::to_string(room)});
+        transaction.Commit();epochCommitted=true;
+    }catch(...) {}});
+    bool waiting=false;std::exception_ptr probeError;
+    try {waiting=WaitForRoomLock(pool,room);}catch(...) {probeError=std::current_exception();}
+    gated.release.set_value();publisher.join();changer.join();if(probeError)std::rethrow_exception(probeError);
+    Require(reached && waiting && racePublished && epochCommitted && raceCanonical==raceFinal,"real room lock: first publication commits before epoch writer");
+    Require(restarted.PublishReply(raceRequests[0],raceFinal,"publish before revoke",&concurrent,&error) && concurrent==raceCanonical,
+        "race winner canonical remains immutable after epoch advance");
+    std::cout << "Real MySQL context: both room-lock publication/revocation orders observed and verified\n";
 
     // Real SQL compatibility fixtures, not broker or model execution evidence.
     Require(agent_repo.CheckPublicationSchema(&error),"CANN-only publication schema");

@@ -1,0 +1,42 @@
+Real MySQL: repeated context migration preserved the existing epoch
+Real MySQL: repeated source migration preserved the existing receipt
+Real MySQL: pre-media upgrade and repeated migration preserved the old attachment row
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+UpdateCTestConfiguration  from :/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/DartConfiguration.tcl
+Parse Config file:/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/DartConfiguration.tcl
+UpdateCTestConfiguration  from :/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/DartConfiguration.tcl
+Parse Config file:/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/DartConfiguration.tcl
+Test project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 38
+    Start 38: media_context_http_test
+
+38: Test command: /usr/bin/python3 "/home/peco/cppcode/fenbushi/sparkpush_project/tests/media_context_http_test.py" "/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests/media_processing_http_probe"
+38: Working Directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests
+38: Test timeout computed to be: 240
+38: real room context passed: literal SQL search; pre-LIMIT epoch filter; canonical room and message ceiling
+38: real room context passed: member source lookup, exact Unicode excerpt, pagination, forged/cross-request/foreign-room denial and task sources across real HTTP restart
+38: real room context passed: Unicode bounded read; deterministic durable receipts; actual HTTP process restart
+38: real room context passed: two observed SQL lock waiters compete for last receipt slot; no overrun; duplicate at capacity; request-bound IDs
+38: real room context passed: literal fragment search locates long-text tail with real line anchor and stable read receipt
+38: real room context passed: real text upload/worker/publication; fixed revision; cross-room read denied even for dual member
+38: real room context passed: source withdrawal while HTTP read waits; fragment payload/hash mismatch rejected
+38: real room context passed: actual HTTP read blocked on room lock; epoch commit fences receipt and protected response
+38: real room context passed: context change hides old source payload and refuses new attachment; existing task remains editable with its original source IDs
+38: real room context passed: public runtime tool clients read real Logic sources and reject authoritative member revocation; no model
+38: real room context passed: actual in-flight HTTP member revocation; final authorization withholds source data
+38: real room context passed: member removal, never-member, uninstalled Agent and stale epoch denied
+38: real room context passed: missing receipt migration fails closed; old receipts remain unchanged
+1/1 Test #38: media_context_http_test ..........   Passed   12.14 sec
+
+The following tests passed:
+	media_context_http_test
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =  12.15 sec

@@ -75,8 +75,8 @@ CREATE TABLE IF NOT EXISTS `attachment` (
   `owner_user_id` BIGINT NOT NULL,
   `session_id` VARCHAR(128) NOT NULL DEFAULT '',
   `display_name` VARCHAR(256) NOT NULL DEFAULT '',
-  `mime` VARCHAR(64) NOT NULL,
-  `bytes` INT NOT NULL,
+  `mime` VARCHAR(128) NOT NULL,
+  `bytes` BIGINT UNSIGNED NOT NULL,
   `sha256` CHAR(64) NOT NULL,
   `storage_key` VARCHAR(128) NOT NULL,
   `status` VARCHAR(16) NOT NULL DEFAULT 'ready',
@@ -254,4 +254,132 @@ CREATE TABLE IF NOT EXISTS room_agent_publication (
  input_digest CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
  reply JSON NOT NULL,
  created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+) ENGINE=InnoDB;
+
+-- Room media originals, resumable uploads and durable processing jobs.
+CREATE TABLE IF NOT EXISTS room_media_asset (
+  asset_id VARCHAR(72) NOT NULL PRIMARY KEY,
+  ordinal BIGINT UNSIGNED NOT NULL AUTO_INCREMENT UNIQUE,
+  upload_key CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL UNIQUE,
+  kind VARCHAR(16) NOT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS room_media_chunk (
+  asset_id VARCHAR(72) NOT NULL,
+  chunk_index INT UNSIGNED NOT NULL,
+  bytes INT UNSIGNED NOT NULL,
+  sha256 CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  PRIMARY KEY(asset_id,chunk_index)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS room_media_job (
+  job_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+  asset_id VARCHAR(72) NOT NULL UNIQUE,
+  pipeline VARCHAR(64) NOT NULL,
+  state VARCHAR(16) NOT NULL,
+  attempt INT UNSIGNED NOT NULL DEFAULT 0,
+  lease_token CHAR(64) NOT NULL DEFAULT '',
+  lease_until DATETIME(3) NULL,
+  error_code VARCHAR(64) NOT NULL DEFAULT '',
+  error_message VARCHAR(256) NOT NULL DEFAULT '',
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+  INDEX pending_media(state,lease_until,job_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Apply after 20261101_room_media.sql. Immutable assignment/revision history
+-- fences lost responses and expired workers. No old data is removed.
+CREATE TABLE IF NOT EXISTS room_media_claim (
+  claim_key CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,
+  revision_id CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT '',
+  pipeline_sha CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS room_media_revision (
+  revision_id CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,
+  asset_id VARCHAR(72) NOT NULL,
+  attempt INT UNSIGNED NOT NULL,
+  pipeline_sha CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  lease_token CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  state VARCHAR(16) NOT NULL,
+  manifest_sha CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT '',
+  fragment_count INT UNSIGNED NOT NULL DEFAULT 0,
+  text_bytes BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  line_count BIGINT UNSIGNED NOT NULL DEFAULT 0,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  UNIQUE(asset_id,attempt)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS room_media_fragment (
+  revision_id CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  fragment_index INT UNSIGNED NOT NULL,
+  sha256 CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  payload JSON NOT NULL,
+  text MEDIUMTEXT NOT NULL,
+  text_bytes INT UNSIGNED NOT NULL,
+  PRIMARY KEY(revision_id,fragment_index)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS room_media_publication (
+  asset_id VARCHAR(72) NOT NULL PRIMARY KEY,
+  revision_id CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL UNIQUE,
+  published_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Apply after 20261101_media_processing.sql. No original or session is changed.
+-- Reservations survive lost SQL responses and file writes. GC releases bytes
+-- only after confirmed durable file cleanup. A failed attempt keeps its charge.
+CREATE TABLE IF NOT EXISTS room_media_revision_storage (
+  revision_id CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,
+  asset_id VARCHAR(72) NOT NULL,
+  room_id BIGINT NOT NULL,
+  charged_bytes BIGINT UNSIGNED NOT NULL,
+  state VARCHAR(16) NOT NULL,
+  created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+  reclaimed_at DATETIME(3) NULL,
+  INDEX room_storage(room_id,state),
+  INDEX asset_storage(asset_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+CREATE TABLE IF NOT EXISTS room_media_artifact (
+  revision_id CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  artifact_index INT UNSIGNED NOT NULL,
+  artifact_id VARCHAR(72) CHARACTER SET ascii COLLATE ascii_bin NOT NULL UNIQUE,
+  sha256 CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  bytes INT UNSIGNED NOT NULL,
+  metadata JSON NOT NULL,
+  installed BOOLEAN NOT NULL DEFAULT FALSE,
+  PRIMARY KEY(revision_id,artifact_index)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Media profiles are additive. Revisions without a profile retain text-v1's
+-- exact source reconstruction and original completion digest contract.
+CREATE TABLE IF NOT EXISTS room_media_revision_profile (
+  revision_id CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL PRIMARY KEY,
+  pipeline_kind VARCHAR(32) NOT NULL,
+  parser_sha CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  coverage JSON NULL,
+  artifact_count INT UNSIGNED NOT NULL DEFAULT 0,
+  artifact_bytes BIGINT UNSIGNED NOT NULL DEFAULT 0
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Additive authorization epoch; no existing request, task or session is rewritten.
+-- Missing room row means original epoch 0; missing table must fail closed.
+-- Future revocation writers must lock im_group before room_context. Do not expose
+-- revocation until native tools, history filtering and final publication agree.
+CREATE TABLE IF NOT EXISTS room_context (
+ room_id BIGINT NOT NULL PRIMARY KEY,
+ generation BIGINT NOT NULL DEFAULT 0,
+ updated_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
+ CONSTRAINT room_context_generation_range CHECK (generation >= 0 AND generation <= 9007199254740991)
+) ENGINE=InnoDB;
+
+-- Additive source receipts; preserves requests, messages and native sessions.
+-- A receipt records a server-observed range, not model correctness or client ACK.
+CREATE TABLE IF NOT EXISTS room_context_source (
+ request_id VARCHAR(121) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ source_id VARCHAR(68) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+ room_id BIGINT NOT NULL,
+ context_generation BIGINT NOT NULL,
+ reference JSON NOT NULL,
+ created_at TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+ PRIMARY KEY(request_id,source_id),
+ INDEX room_context_sources(room_id,context_generation),
+ CONSTRAINT room_context_source_generation CHECK(context_generation>=0 AND context_generation<=9007199254740991)
 ) ENGINE=InnoDB;

@@ -87,3 +87,57 @@
 - `docs/optional-agent-connector.md`：可选 Connector overlay、独立授权回连、凭据导出及配置故障隔离；正式公共 Runtime 与完整浏览器验收状态见交付跟踪。
 - `tests/public_cross_room_scenario.py`：正式公共启动器下的两私有空间、原生工具与会话隔离专项；复用 `tests/public_room_runtime_e2e.py --cross-room`，消费屏障和冷重启后核对原始执行记录。
 - `docs/benchmarks/2026-11-01-public-cross-room.json`：两个真实公共 Agent、四个原生会话、聊天与执行并存、Kafka 重投/冷重启的限定回执；逐项列出未覆盖的主动越权读取及上下文断言方向。
+
+## 多模态资料（当前交付图文，音视频暂缓）
+
+- `docs/benchmarks/2026-11-02-document-scope.json`：用户明确暂缓音频/视频；当前入口聚焦图文，27 项受控浏览器检查通过。旧 ASR 失败仍保留，但不再阻塞此阶段，也不再要求录音输入。
+
+- `docs/media-agent-context.md`：已实现 context generation、请求/授权、首次发布、背景筛选与 namespace，以及服务端资料 API/来源回执；Native 资料工具、真实视觉、最终/任务引用仍待接入。
+- `docs/room-context-tools.md`、`logic/services/media_context_service.*`、`logic/repositories/media_context_repository.*`：canonical request 驱动的房间聊天/媒体搜索、固定版本片段/JPEG 读取、事务来源复验与回执；无代码项目也可授权资料。
+- `sql/migrations/20261101_media_context_sources.sql`：增量来源回执表；不清理旧 request、消息或 Session。
+- `tests/media_context_service_test.cpp`、`tests/media_context_http_test.py`：受控撤权合同与真实 HTTP/MySQL/Redis/资料解析分列；聊天/request 由夹具建立，不代表 Kafka/Native/Web E2E。
+- `docs/benchmarks/2026-11-01-room-context-tools.json`：资料 API 阶段的命令、源文件指纹、实际行锁竞争、来源预算/摘要/重启测试与未覆盖项。
+- `docs/benchmarks/2026-11-01-media-context.json`：代次合同与真实 SQL 迁移、发布/撤销锁竞争、旧 generic 结果收养和回归；不等于共享删除、Native 媒体或 Web 完成。
+- `cannbot/media/parser.py`、`cannbot/media/sandbox.py`：隔离文档/图片/音视频解析、输出复验与精确 execution 回收；真实 HTTP 发布和持久 worker 接管已贯通。
+- `cannbot/media/provision_asr.py`：管理员预置固定版本的公共 ASR 模型，校验 Git/LFS 身份；运行时禁网且不使用私人模型配置。
+- `tests/media_parser_test.py`、`tests/media_parser_e2e.py`：输出边界合同与真实解码/ASR（合成资料）；不等于原生 Agent 或多人浏览器 E2E。
+- `docs/multimodal-collaboration.md`：全范围设计、上传 API、权限与尚未完成的解析/原生理解/Web 验收。
+- `logic/services/media_service.cpp`、`logic/repositories/media_repository.cpp`、`logic/repositories/media_blob_store.cpp`：有界分片、正式成员授权、原文件与处理任务入队。
+- `tests/media_blob_store_test.cpp`、`tests/media_mysql_integration_test.cpp`：真实文件及真实 SQL 范围，不等于多模态模型 E2E。
+- `logic/services/media_processing_service.cpp`、`logic/repositories/media_processing_repository.cpp`：内部领取/租约、片段与原文验证、原子发布，正式成员可查当前索引。
+- `cannbot/scripts/media_text_worker.py`：本地 UTF-8/Markdown pipeline、持久领取身份与崩溃恢复；不是 PDF/ASR/视频或 Agent Loop。
+- `tests/media_processing_http_test.py`、`docs/benchmarks/2026-11-01-media-processing.json`：真实 HTTP/MySQL/Redis、正式登录/成员、worker 强杀与控制到期测试，逐项列出证据限制。
+- `tests/pi_media_capability_probe.py`、`docs/benchmarks/2026-11-01-pi-media-capability.json`：隔离 Pi 原生工具传递真实图像；不代表 Hermes Native 或房间媒体 E2E。
+
+- `logic/repositories/media_artifact_repository.cpp`、`sql/migrations/20261101_media_artifacts.sql`：派生物持久预留、确定性身份、失败回收、完整发布与原件聚合配额；有限候选扫描仍经 Reclaim 复查。
+- `tests/media_artifact_mysql_test.cpp`：真实 SQL 连接终止、配额并发/锁等待、GC 失败及文件恢复。
+- `docs/benchmarks/2026-11-01-media-parser.json`：12 项边界单测、22 项真实解析 E2E、20 分钟合成语音完整转写及各项限制。
+- `docs/benchmarks/2026-11-01-media-artifact-storage.json`：实际 SQL 断连、GC 回执失败、配额竞争与回归；基础仓储通过不等于媒体发布/原生工具完成。
+- `docs/media-publication.md`、`sql/migrations/20261101_media_publication.sql`：独立媒体 profile/批准指纹、claim/reserve、原子 manifest 发布、正式成员派生物读取。
+- `logic/services/media_manifest.cpp`、`tests/media_manifest_test.cpp`：页/节/图/音视频覆盖、引用和规范摘要合同。
+- `tests/media_pipeline_http_test.py`、`tests/media_large_payload_test.py`：真实解析→HTTP→SQL/文件→授权读取，20 分钟合成录音与大 JPEG；不等于生产 worker 或原生 Agent E2E。
+- `docs/benchmarks/2026-11-01-media-publication.json`：发布阶段源码、命令、真实回执、跳过与未覆盖边界。
+- `cannbot/scripts/media_worker.py`、`docs/media-worker.md`：独立生产 worker CLI、持久 claim/execution、续租硬期限、配额等待、原 bundle 复验、丢回执恢复与有限派生物 GC；尚未加入 Compose 默认启动。
+- `docs/media-worker-operations.md`、`scripts/ops/media.sh`、`deploy/media-worker.json.example`：私有配置与批准指纹、sparkctl 独立启停、systemd 用户进程管理；不加载个人环境，不隐式随基础 IM 启停。
+- `tests/media_worker_test.py`、`tests/media_worker_http_test.py`：假时间/传输的合同测试，与真实 Docker/HTTP/MySQL/Redis 强杀恢复分开；无完整 bundle 时允许重新做只读解析。
+- `docs/benchmarks/2026-11-01-media-worker.json`：16 项实际 worker 场景（含完整 20 分钟合成语音及运行中 fencing）、全量回归和逐项范围；不等于原生媒体理解、Web 或完整产品验收。
+
+## 原生房间资料工具（开发工作树）
+
+- `logic/services/room_task_service.cpp`、`logic/repositories/room_context_source_sql.h`：当前成员按原 request 查询服务端来源；任务 JSON/历史保存 source_ids，事务内复验，失效后允许更新既有任务。
+- `docs/benchmarks/2026-11-01-source-links.json`：来源预览/持久任务阶段的定向构建、2 项 Service 回归、23 项受控浏览器检查和 13 组真实 HTTP/MySQL/Redis；没有模型/Kafka/三浏览器新媒体验收。
+- `web_demo/static/room_media.js`、`docs/web-collaboration-client.md`：正式页与旧聊天室共用的资料上传/续传、状态、预览、下载与结构化 Agent Mention 草稿；网页 256 MiB 上限，不自动调用模型。
+- `docs/benchmarks/2026-11-01-multimodal-service.json`：真实服务部分成功与失败、受控浏览器检查和本地镜像交付；会议负责人识别、视频整链路及媒体恢复尚未通过，不代表多模态目标完成。
+- `docs/multimodal-service-e2e.md`、`tests/public_media_scenario.py`：现有三用户真实 Runtime harness 的可选媒体场景，独立 worker 凭据与内部完整路径接线；合成素材协议验收不等于浏览器验收。
+- `docs/benchmarks/2026-11-02-audio-task-recovery.json`：同次真实模型输出中合格音频任务的保存、来源与内容恢复；整份回答仍因术语错误失败，不代表音频语义或浏览器端到端验收通过。
+- `docs/benchmarks/2026-11-02-web-media-analysis.json`、`tests/collaboration_web_media_analysis.cjs`：三浏览器 PDF 上传→真实 Hermes 分析→图片来源→保存交接→重启/撤权的 7 组定向检查；保留前两次断言失败，不覆盖 Pi 或音视频网页分析。
+- `docs/benchmarks/2026-11-02-web-video-analysis.json`、`tests/collaboration_web_video_analysis.cjs`：复用网页上传入口与真实视听校验，7 组检查覆盖画面来源、原视频定位播放、重启与撤权；只选短合成视频，不代表长录音准确性通过。
+- `docs/benchmarks/2026-11-02-asr-domain-context.json`：相同短录音及 turbo 模型加入通用技术会议背景仍识别错误，未改变正式 parser；没有向模型提供预期姓名或正确术语。
+
+- `docs/room-context-native-tools.md`：Pi/Hermes 三工具、显式配置、原生去图错误、todo hydration 兼容与真实失败边界。
+- `cannbot/room-context-tools.json`、`cannbot/scripts/room_context.py`、`cannbot/pi/extensions/room-context.ts`：共享模型参数、受信 request 注入、有界传输和原生图像输出。
+- `cannbot/scripts/hermes_public_workspace.py`：Native 精确工具集、ContextVar 隔离及实例级恢复兼容；不修改私人源或新造 Loop。
+- `tests/room_context_runtime_probe.py`：真实 Pi/Hermes 模型、provider 图片/来源对应、同图复跑、原生历史/todo 隔离；HTTP authority 是夹具。
+- `tests/room_context_native_policy_test.py`：已安装 Native 的真实 converter/strip 合同，能力谓词受控，不是 provider E2E。
+- `tests/room_context_http_client.cjs`、`tests/media_context_http_test.py`：真实客户端→Logic→MySQL/Redis/资料解析与撤权；不含模型/Kafka/Web。
+- `docs/benchmarks/2026-11-01-room-context-native.json`：原始失败图片与回执、当前验证范围；Pi 视觉语义未通过，不能将图像送达当作整体验收通过。

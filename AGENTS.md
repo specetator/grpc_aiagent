@@ -67,6 +67,25 @@
 
 ## Common validation
 
+Current scope (user update, 2026-11-02): ship text, PDF/DOCX and image collaboration.
+Audio/video features and acceptance are deferred. Preserve their stored data,
+implementation and historical receipts; do not resume ASR tuning or audio/video
+model runs unless the user brings that scope back. Existing audio failures are
+historical limitations, not blockers for the current document/image increment.
+
+Prioritize a usable feature increment, then validate its affected path. The
+commands below are a reference, not a checklist to rerun after every edit.
+
+- Documentation or minor UI changes: syntax/link checks and an existing focused
+  browser check when behavior changes; no full CTest or model calls.
+- Service/SQL changes: build affected targets and run the relevant service or
+  database test. Changes to authorization or delivery must keep their checks.
+- Native/media changes: choose the affected integration case (for example
+  `--media-case pdf`); do not repeat unrelated model runs or deferred audio/video cases.
+- Run full regression at a phase integration boundary or when an unresolved
+  cross-component risk justifies it. Keep failed, skipped, mocked and unexecuted
+  validation explicit; a narrower run does not satisfy full release acceptance.
+
 ```bash
 python3 cannbot/scripts/validate_knowledge.py --strict
 python3 cannbot/scripts/sync_pi_agent.py --check

@@ -1,0 +1,26 @@
+formal Native capabilities and HTTP whitelist deny chat/profile/tool/session bypasses
+three independent users exchange real messages; normal chat does not invoke models
+public-pi reads the real nonce and C++ file; all three clients see its attributed durable final
+public-hermes reads the real nonce and C++ file; all three clients see its attributed durable final
+original Native room broker receipt succeeds and both consumers commit without dead letters
+selected media uploaded through real chunk APIs and published by production worker: audio
+audio semantic gate FAILED; independent task and recovery observations may continue, overall acceptance remains failed
+members persist an independently validated audio task, review notes and sources through real APIs
+real native tool transcripts confirm file contents; Agents use separate sessions and share one IM timeline
+Native process restart reuses the owned Profile without rewriting config, model auth or identity
+tasks and handoff are persisted; duplicate client messages preserve completed execution records
+Kafka redelivery after revoke, catalog disable and Connector/Bridge restart preserves one original result
+full Compose restart and fresh login retain final messages, claimed task and membership revocation
+selected media sources and attributed finals survive Kafka replay and full Compose restart; removed member is denied
+{"ok": false, "checks": 14}
+Traceback (most recent call last):
+  File "/home/peco/cppcode/fenbushi/sparkpush_project/tests/public_room_runtime_e2e.py", line 589, in <module>
+    if __name__=='__main__':main()
+                            ^^^^^^
+  File "/home/peco/cppcode/fenbushi/sparkpush_project/tests/public_room_runtime_e2e.py", line 556, in main
+    if media:media.assert_complete()
+             ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/peco/cppcode/fenbushi/sparkpush_project/tests/public_media_scenario.py", line 400, in assert_complete
+    assert not self.evidence['case_failures'], ('media quality failed', self.evidence['case_failures'])
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: ('media quality failed', {'audio': "AssertionError: ('silver lantern', 'Alice', 'action differs from checkpoint')"})

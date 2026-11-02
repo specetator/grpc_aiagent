@@ -1,0 +1,319 @@
+{
+  "ok": false,
+  "mode": "real Compose + public launchers + actual Pi/Hermes models; three HTTP/WS clients, not browsers",
+  "source_commit": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "scenario": "public_runtime",
+  "checks": [
+    "formal Native capabilities and HTTP whitelist deny chat/profile/tool/session bypasses",
+    "three independent users exchange real messages; normal chat does not invoke models",
+    "public-pi reads the real nonce and C++ file; all three clients see its attributed durable final",
+    "public-hermes reads the real nonce and C++ file; all three clients see its attributed durable final",
+    "original Native room broker receipt succeeds and both consumers commit without dead letters",
+    "three users upload PDF, continuous synthetic 20-minute audio and video through real chunk APIs; production worker publishes all three"
+  ],
+  "image_id": "sha256:52155be669cca93bb73ad402cd2694b96f93b6adb6d9e2865e70c32c2664874c",
+  "source_sha256": {
+    "Dockerfile": "fdf93ceb6d3751d1a665f1f283a27d6aafc33cd171741a465cf548bf7f65440a",
+    "tools/dlq_replay.cpp": "23770989c65a2efe74517d0c8f1ae6ed5080a6464b455fa02824e45d544106f1",
+    "cannbot/scripts/public_runtime.py": "61354793e71a93e2a4880e48dedd44790a873c3eb35eab7ace50678f097fc925",
+    "cannbot/scripts/public_runtime_archive.py": "f5a3ed240e45973b6db3a59df96631b5f1ee07a9b122823d5525c9261774a045",
+    "cannbot/scripts/public_runtime_maintenance.py": "50c7e13306235d08d992e123080c92f0bce0aa9d6097073558ef6af1b71ee275",
+    "cannbot/scripts/public_agent_gateway.py": "002681db0d7b614a03c76e9f3fe151b286cc4ff16c13083482262b21cc1425f5",
+    "cannbot/scripts/hermes_public_gateway.py": "e82fae9bf9ea643dd0a9e52ca1f29e1e622ac52e9ab4607b0021a3cb74c58ecc",
+    "cannbot/scripts/agent_router.py": "577a1a132b31905b3059a90f10c11ceb503e2a3ce0c80a92f5a1f6e8789cbe1f",
+    "cannbot/scripts/hermes_native_adapter.py": "8f932e375f4e7b04e9e0498a545584c89a000afc9994fffb434935918c252c86",
+    "scripts/spark_backup.py": "2ff538952ff7aa518562316938c9da1324ced340c18f63718b0bbe1a54039b04",
+    "scripts/spark_team_backup.py": "391a9ac97d62c0d779767f21b738bc22fe67a89b12a5462756ccec699d2d9fcc",
+    "scripts/verify_public_agent_mode.py": "fa66253998b709104fb937e4f0194b0eea90beafc1a5686ea9ba7219258ee3e7",
+    "docker-compose.agents.yml": "b34077208006c9981879db2fcdf039bc6269909573d6577505e18b785caab6dd",
+    "common/config.cpp": "fedb5544afd6a922010c8368dde09b112c8d0205337fa47749a1ff0e7dff7ca9",
+    "logic/services/room_agent_service.cpp": "b774c678e5c189d5cc151cc936ca2802f2bf887c08cdfbbc4077263f1a3d1dd2",
+    "tests/public_runtime_fixture.py": "779738b57194a08cad69c685587b5ec209259d410df37334ee4a8fcbab0dd476",
+    "tests/hermes_room_runtime_fixture.py": "8c82f644ff83cb38ff07413d19fe5457dc09073d383f0c091307761c9eba8ed3",
+    "tests/team_backup_scenario.py": "c8e03d063a0bd0f8a1ca5e338005d849b0babcaa330be0569694b3189d3d14f1",
+    "tests/public_cross_room_scenario.py": "649867a6aacb6eabd6733dd7db1a16b4195551700ce05eb5bea9c41ddf113443",
+    "tests/public_room_runtime_e2e.py": "a79fb59673b40ee8e29cabf479d7a309a99bdad6470e27d69f3d390a745e5c60",
+    "tests/public_media_scenario.py": "7701cb13ea37a4de375a6698c008eba10b4ca9634d70e23face57bd5875a8d17",
+    "tests/media_parser_fixtures.py": "65ae374f3193deb3a6d217d0db255ce2ba6a7adf618cf23a4ebf82530e469cea",
+    "deploy/Caddyfile.agents": "fa77d20c0a766dbec137e29edb31e6831109618c455d183cfbed7942a75ce9fa",
+    "deploy/Caddyfile": "273565ee564c9c45aec515c6e7706ca3ac4d8afb134808f244c726a16109c7fe",
+    "cannbot/room-context-tools.json": "538dbf2cee52ce64ae02b063b469622cceb5ed1e7964a38dde978abc49e04a64",
+    "cannbot/scripts/room_context.py": "f2deeb4ca967b463abb4b610fe06dc41e6f957922f4b0f5f9a7706c9095a6b4b",
+    "cannbot/pi/extensions/room-context.ts": "13c45132923f294f2c301b101924c460995cb59f16e5e985df87cfd6acd8a148",
+    "cannbot/scripts/media_worker.py": "767d19de5c46494ad1c07baf1a0fdc47a6dc018fc28ad0a90c6eca26d80e061c",
+    "cannbot/scripts/media_text_worker.py": "2a0666e491e70aaf92945e47549bc817129b3e73e07a1fd9241523a16c392c6e",
+    "cannbot/media/parser.py": "e29263d81f71583e3c49cd6cc8d5d0a5cfb2bcbed36c40482b171d90c8c10188",
+    "cannbot/media/sandbox.py": "4b3e24fcbfe95da6cd0af4f12389eb1bd37b65a36bc0e4cfc0347975bbbf3bbd",
+    "logic/services/media_context_service.cpp": "82381848ae4d2c55a01a4f4e75c2c44c819449728f42abc792b2fabae6fd689a",
+    "logic/repositories/media_context_repository.cpp": "4b54bec9d26f7671ce633db7522b358fa258b1426d36a5fdb16d2d3976bed03e"
+  },
+  "media": {
+    "scope": "Real user uploads -> production media worker -> native room tools -> IM.\n\nInvoked by public_room_runtime_e2e; no SQL writes or simulated runtimes. Inputs\nare synthetic fixtures. Native tool transcripts are distinct from provider\npayload inspection, and HTTP/WS clients are not browser acceptance.\n",
+    "configuration": {
+      "pipeline_sha256": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+      "parser_sha256": "e29263d81f71583e3c49cd6cc8d5d0a5cfb2bcbed36c40482b171d90c8c10188",
+      "image_id": "sha256:4c2e26418ad4ec59d0d57bdf2a15af30826c14de5d253d39bf96be2de2b38120",
+      "model_sha256": "b2f73aed0684edce51988a894b0a40f3ef581f63d4e50bea7e2daa414dda9a8e"
+    },
+    "assets": [
+      {
+        "id": "att_8797a9404a9622b2411b5ea3",
+        "name": "design.pdf",
+        "uploader": 900000000403,
+        "sha256": "bd303ae02828649fe3af4873f014dc041d1d201eea47496f078d8d144e076dd7",
+        "bytes": 13522,
+        "revision": "2caca0a7e573975943bf544f82014e92b0274fb768f0894e93cd4ee70fb5d16c",
+        "processing": {
+          "attempt": 1,
+          "error_code": "",
+          "id": "att_8797a9404a9622b2411b5ea3",
+          "job_state": "completed",
+          "result": {
+            "artifact_bytes": 139941,
+            "artifact_count": 3,
+            "coverage": {
+              "kind": "pdf",
+              "page_count": 3,
+              "rendered_pages": 3
+            },
+            "fragment_count": 3,
+            "id": "att_8797a9404a9622b2411b5ea3",
+            "line_count": 0,
+            "manifest_sha256": "14ec05c4ab8087cc06be3a83e870f58f0bea56dbb6abbe7c3078f868174ca2b1",
+            "pipeline_kind": "media-parser-v1",
+            "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+            "revision": "2caca0a7e573975943bf544f82014e92b0274fb768f0894e93cd4ee70fb5d16c",
+            "state": "ready",
+            "text_bytes": 76
+          },
+          "revision": "2caca0a7e573975943bf544f82014e92b0274fb768f0894e93cd4ee70fb5d16c",
+          "state": "ready",
+          "text_pipeline_supported": false
+        }
+      },
+      {
+        "id": "att_1e9a763b7847ccee39b30c60",
+        "name": "meeting-20min.wav",
+        "uploader": 900000000404,
+        "sha256": "121b03712aa51ffa453e7fa1b3b2f54c358cc6ad07eb1e5a4cfee9dc5f2fd041",
+        "bytes": 38399392,
+        "revision": "9c5a1da848bd3da32fc36f2a25b0a828d5e93ada2aeeb6fa696a105cd7646051",
+        "processing": {
+          "attempt": 1,
+          "error_code": "",
+          "id": "att_1e9a763b7847ccee39b30c60",
+          "job_state": "completed",
+          "result": {
+            "artifact_bytes": 0,
+            "artifact_count": 0,
+            "coverage": {
+              "audio": {
+                "decoded_samples": 19199657,
+                "duration_ms": 1199979,
+                "language": "en",
+                "offset_ms": 0,
+                "sample_rate": 16000,
+                "segments": 413,
+                "speaker_labels": false,
+                "track_end_ms": 1199979
+              },
+              "container_duration_ms": 1199979,
+              "duration_ms": 1199979,
+              "kind": "audio",
+              "source_origin_ms": 0
+            },
+            "fragment_count": 413,
+            "id": "att_1e9a763b7847ccee39b30c60",
+            "line_count": 0,
+            "manifest_sha256": "6cbf9ac3092890c7d16a0eaf8a6d331a57d89335f44cc39ba4a8fc0f51488ae7",
+            "pipeline_kind": "media-parser-v1",
+            "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+            "revision": "9c5a1da848bd3da32fc36f2a25b0a828d5e93ada2aeeb6fa696a105cd7646051",
+            "state": "ready",
+            "text_bytes": 24215
+          },
+          "revision": "9c5a1da848bd3da32fc36f2a25b0a828d5e93ada2aeeb6fa696a105cd7646051",
+          "state": "ready",
+          "text_pipeline_supported": false
+        }
+      },
+      {
+        "id": "att_1ca9b4dfe81fdb7d93d7cc32",
+        "name": "incident.mp4",
+        "uploader": 900000000405,
+        "sha256": "44c6d6589fa7cd687f635ca1cc2b434755911a75bc0011c0b286552127409c65",
+        "bytes": 47705,
+        "revision": "2e63fe7acafe49fbce9d3d0c335f79127aba43afdba9bc44a4d166fdeb6d37d1",
+        "processing": {
+          "attempt": 1,
+          "error_code": "",
+          "id": "att_1ca9b4dfe81fdb7d93d7cc32",
+          "job_state": "completed",
+          "result": {
+            "artifact_bytes": 61260,
+            "artifact_count": 2,
+            "coverage": {
+              "audio": {
+                "decoded_samples": 69846,
+                "duration_ms": 4365,
+                "language": "en",
+                "offset_ms": 1953,
+                "sample_rate": 16000,
+                "segments": 1,
+                "speaker_labels": false,
+                "track_end_ms": 6318
+              },
+              "container_duration_ms": 10000,
+              "duration_ms": 10000,
+              "kind": "video",
+              "source_origin_ms": 0,
+              "video": {
+                "first_frame_ms": 0,
+                "frames": 2,
+                "last_frame_ms": 5000,
+                "sample_interval_ms": 5000,
+                "track_end_ms": 10000
+              }
+            },
+            "fragment_count": 1,
+            "id": "att_1ca9b4dfe81fdb7d93d7cc32",
+            "line_count": 0,
+            "manifest_sha256": "5f775db956685bac8e50693a55aa25ef2877ea9ab755c6d3c202064c75572cf3",
+            "pipeline_kind": "media-parser-v1",
+            "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+            "revision": "2e63fe7acafe49fbce9d3d0c335f79127aba43afdba9bc44a4d166fdeb6d37d1",
+            "state": "ready",
+            "text_bytes": 73
+          },
+          "revision": "2e63fe7acafe49fbce9d3d0c335f79127aba43afdba9bc44a4d166fdeb6d37d1",
+          "state": "ready",
+          "text_pipeline_supported": false
+        }
+      }
+    ],
+    "requests": [],
+    "checks": [],
+    "routing": [
+      {
+        "listener": "public",
+        "path": "/internal/room-agent/context/search",
+        "method": "POST",
+        "http_status": 404,
+        "code": null
+      },
+      {
+        "listener": "public",
+        "path": "/internal/media/claim_media",
+        "method": "POST",
+        "http_status": 404,
+        "code": null
+      },
+      {
+        "listener": "internal",
+        "path": "/internal/room-agent/context/search",
+        "method": "GET",
+        "http_status": 404,
+        "code": null
+      },
+      {
+        "listener": "internal",
+        "path": "/internal/media/unknown",
+        "method": "POST",
+        "http_status": 404,
+        "code": null
+      },
+      {
+        "listener": "internal",
+        "path": "/internal/room-agent/context/search",
+        "method": "POST",
+        "http_status": 401,
+        "code": 401
+      },
+      {
+        "listener": "internal",
+        "path": "/internal/media/claim_media",
+        "method": "POST",
+        "http_status": 401,
+        "code": 401
+      }
+    ],
+    "audio": {
+      "seconds": 1199.9785625,
+      "kind": "continuous synthetic speech, decision checkpoints near start/middle/end",
+      "expected_codes": [
+        "silver lantern",
+        "cobalt bridge",
+        "magenta harbor"
+      ],
+      "asr_code_checks": {
+        "silver lantern": true,
+        "cobalt bridge": true,
+        "magenta harbor": false
+      },
+      "fragment_count": 413
+    },
+    "processing_seconds": 280.97535742699984
+  },
+  "release_services": null,
+  "running_application_images": {
+    "/spark-public-3bbdba2c3971-agent-bridge-1": "sha256:52155be669cca93bb73ad402cd2694b96f93b6adb6d9e2865e70c32c2664874c",
+    "/spark-public-3bbdba2c3971-comet-1": "sha256:52155be669cca93bb73ad402cd2694b96f93b6adb6d9e2865e70c32c2664874c",
+    "/spark-public-3bbdba2c3971-job-1": "sha256:52155be669cca93bb73ad402cd2694b96f93b6adb6d9e2865e70c32c2664874c",
+    "/spark-public-3bbdba2c3971-logic-1": "sha256:52155be669cca93bb73ad402cd2694b96f93b6adb6d9e2865e70c32c2664874c",
+    "/spark-public-3bbdba2c3971-web-1": "sha256:52155be669cca93bb73ad402cd2694b96f93b6adb6d9e2865e70c32c2664874c"
+  },
+  "authorization_denials": [
+    {
+      "path": "/api/chatroom/join",
+      "http_status": 403,
+      "wire_code": 403,
+      "actor_user_id": 900000000406,
+      "room_id": 1,
+      "session_id": null
+    },
+    {
+      "path": "/api/chatroom/workspace/set",
+      "http_status": 403,
+      "wire_code": 403,
+      "actor_user_id": 900000000404,
+      "room_id": 1,
+      "session_id": null
+    },
+    {
+      "path": "/api/room/media/processing",
+      "http_status": 403,
+      "wire_code": 403,
+      "actor_user_id": 900000000406,
+      "room_id": null,
+      "session_id": null
+    },
+    {
+      "path": "/api/room/media/processing",
+      "http_status": 403,
+      "wire_code": 403,
+      "actor_user_id": 900000000406,
+      "room_id": null,
+      "session_id": null
+    },
+    {
+      "path": "/api/room/media/processing",
+      "http_status": 403,
+      "wire_code": 403,
+      "actor_user_id": 900000000406,
+      "room_id": null,
+      "session_id": null
+    }
+  ],
+  "cleanup": {
+    "owned_compose_resources_removed": true,
+    "private_pi_model_files_unchanged": true,
+    "original_windows_profile_unchanged": true,
+    "owned_native_profile_removed": true
+  },
+  "limitations": [
+    "not browser acceptance",
+    "Windows shared storage does not prove OS read-only mounts",
+    "CANN/private Agent regression is separate; no arbitrary side-effecting tool execution",
+    "unknown-run failure injection is separate"
+  ]
+}

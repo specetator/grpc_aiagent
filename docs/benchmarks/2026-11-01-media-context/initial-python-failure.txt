@@ -1,0 +1,31 @@
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+Test project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+    Start 66: generic_room_agent_test
+1/2 Test #66: generic_room_agent_test ..........***Failed    1.90 sec
+...F................
+======================================================================
+FAIL: test_context_epoch_isolates_runtime_and_persisted_projection (__main__.GenericRoomTest)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/peco/cppcode/fenbushi/sparkpush_project/cannbot/scripts/test_generic_room_agent.py", line 87, in test_context_epoch_isolates_runtime_and_persisted_projection
+    self.assertEqual(answer,'new-authorized-context')
+AssertionError: '【Kernel Agent】\n\nnew-authorized-context' != 'new-authorized-context'
+- 【Kernel Agent】
+- 
+  new-authorized-context
+
+----------------------------------------------------------------------
+Ran 20 tests in 1.779s
+
+FAILED (failures=1)
+
+    Start 67: room_project_snapshot_test
+2/2 Test #67: room_project_snapshot_test .......   Passed    0.62 sec
+
+50% tests passed, 1 tests failed out of 2
+
+Total Test time (real) =   2.53 sec
+
+The following tests FAILED:
+	 66 - generic_room_agent_test (Failed)
+Errors while running CTest

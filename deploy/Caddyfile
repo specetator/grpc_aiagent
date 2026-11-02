@@ -16,6 +16,10 @@
         header Cache-Control "no-store"
         respond "window.SparkEndpointConfig = {sameOrigin: true};" 200
     }
+    @internal path /internal /internal/*
+    handle @internal {
+        respond "not found" 404
+    }
     handle /api/* {
         reverse_proxy logic:9101
     }

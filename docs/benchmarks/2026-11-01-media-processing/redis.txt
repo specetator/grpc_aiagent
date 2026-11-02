@@ -1,0 +1,10 @@
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+Test project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+    Start 15: route_generation_integration_test
+1/2 Test #15: route_generation_integration_test ...   Passed    0.04 sec
+    Start 57: redis_sequence_integration_test
+2/2 Test #57: redis_sequence_integration_test .....   Passed    0.11 sec
+
+100% tests passed, 0 tests failed out of 2
+
+Total Test time (real) =   0.15 sec

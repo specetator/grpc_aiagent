@@ -1,0 +1,162 @@
+{
+  "date": "2026-11-01",
+  "phase": "multimodal-service-and-web",
+  "status": "usable_web_entry_with_partial_real_service_evidence",
+  "overall_goal_complete": false,
+  "git_head": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "scope": "Uncommitted development worktree; not a new release, deployment or MVP acceptance. Real service, synthetic assertion and mock browser evidence are distinct.",
+  "implementation": [
+    "Authenticated shared Web material library in index.html and legacy chatroom.html",
+    "256 MiB browser upload with SHA-256, 1 MiB chunks, pause/resume and own-draft cancellation",
+    "Processing state, page/time text preview, first 20 image/frame entries and original download",
+    "Installed Agent choice creates structured mention and editable prompt; uploads never call a model automatically",
+    "Completed Agent tasks[] suggestions can be edited and saved through existing task APIs",
+    "Separate worker and Connector credentials; exact internal paths; public /internal explicitly denied"
+  ],
+  "validation": {
+    "latest_web": {
+      "kind": "mock_browser_contract",
+      "checks": 21,
+      "passed": true,
+      "log": "spark-media-web-delivery-smoke.log",
+      "scope": "Chromium with controlled HTTP/WS; resume after lost chunk receipt, preview, structured Agent choice and existing collaboration flows; not real services"
+    },
+    "syntax_and_diff": {
+      "passed": true,
+      "scope": "node --check on room_media/room_agents/collaboration_ui; Python compile on two edited E2E harnesses; git diff --check"
+    },
+    "image": {
+      "tag": "spark-push:media-web",
+      "built": true,
+      "packaging": {
+        "kind": "packaged_static_assets",
+        "passed": true,
+        "image": "sha256:3e114fba43f91de3a40281a6ac3ac510457c988eb9fa25c34c7f87836a06ca4c",
+        "sha256": {
+          "index.html": "b8e6b6e2589896e2bda8ae94c72fa4e9dc22b9354ce8757e5594e36d94b5f007",
+          "chatroom.html": "2bdd6be3131fdb2812e0b0afd69eecb143eacb7dcdeb098a4ee485c46fc0a1a3",
+          "room_media.js": "187d2c2920ca403a18e6105c797c3ce8e1f4213bd3a831d13b1087fa2ab08be2",
+          "room_agents.js": "daf29fe85784ca165c9a7c3587f731a9ce8de7c513ffa1c626d59b48ad598adf",
+          "collaboration_ui.js": "36cb9b4f48f8c1e0db5aeefed52430ef4093a6f3fe553456ef60eeba7ec8b782",
+          "collaboration_ui.css": "f9e21bb2bc3cffae142135af6056d32c52c9f7b657e148b1219a477f3770dc6c"
+        },
+        "scope": "Exact packaged asset hashes, not a service launch or deployment"
+      },
+      "log": "spark-media-web-image-build.log",
+      "deployed": false,
+      "pushed": false
+    },
+    "earlier_ctest": {
+      "registered": 78,
+      "passed": 67,
+      "skipped": 11,
+      "failed": 0,
+      "log": "spark-media-chain-ctest.log",
+      "scope": "Earlier run before final Web edits; not repeated for those changes"
+    },
+    "earlier_real_sql_http": {
+      "passed_entries": 6,
+      "log": "spark-media-chain-real-sql.log",
+      "names": [
+        "media_context_http_test",
+        "media_processing_http_test",
+        "media_mysql_integration_test",
+        "media_artifact_mysql_test",
+        "message_reservation_integration_test",
+        "space_mysql_integration_test"
+      ],
+      "scope": "Context HTTP includes 12 groups and actual Python/Pi tool clients; no models"
+    },
+    "earlier_assertion_contract": {
+      "passed": 9,
+      "log": "spark-media-assertions.log",
+      "scope": "Synthetic negative-answer assertions, not model evidence; run predates final prefix parser/presence guard changes"
+    },
+    "real_service_runs": [
+      {
+        "report": "spark-public-media-e2e-first.json",
+        "ok": false,
+        "stopped_at": "Public internal URL returned fallback 400 instead of explicit 404; proxy route corrected"
+      },
+      {
+        "report": "spark-public-media-e2e-second.json",
+        "ok": false,
+        "stopped_at": "Literal Magenta Harbor check rejected real ASR Harbour spelling; same-input diagnostic retained and exact spelling equivalence added"
+      },
+      {
+        "report": "spark-public-media-e2e-third.json",
+        "ok": false,
+        "observed": [
+          "Three real users exchanged messages; public Pi and Hermes baseline code reads produced attributed finals",
+          "PDF, 1199.9785625 second synthetic audio and video uploaded via real APIs and published by production worker",
+          "Hermes PDF/code answer and Pi audio answer delivered to all three HTTP/WS clients; source receipts retained"
+        ],
+        "stopped_at": "JSON parser rejected the existing Kernel Agent display prefix before semantic task validation",
+        "additional_unresolved_failure": "Raw ASR misrecognized Alice queue-backpressure assignment and Bob owns as Bob Owens; model accurately acknowledging uncertainty does not satisfy strict owner/action acceptance",
+        "not_reached": [
+          "audio task validation/create/claim",
+          "video Agent request",
+          "media request Kafka replay",
+          "media-specific restart and revoked artifact checks"
+        ],
+        "post_run_changes": "Known display headers are stripped and nonempty fragment/image presence is required. These changes were not rerun through the full real-model scenario."
+      }
+    ]
+  },
+  "testing_policy": "Prioritize usable features. One relevant fast browser check plus syntax/build packaging for final Web changes; do not repeat full CTest/SQL/models for unrelated UI edits. Preserve unmet real acceptance.",
+  "limitations": [
+    "Web smoke is controlled fixtures, not three-browser real media E2E",
+    "Audio is continuous synthetic speech, not a real meeting; owner recognition remains inaccurate",
+    "Prior Pi visual semantic failure remains unresolved; image delivery alone is insufficient",
+    "Shared asset withdrawal/deletion and context generation fencing remain to implement",
+    "Final/task source_refs are not validated or persistently bound; model-suggested tasks require human editing",
+    "Agent prompt locates material by filename; duplicate names need confirmation; no structured asset binding",
+    "Browser hashing uses whole-file memory with 256 MiB cap; cancellation then reupload requires renaming",
+    "Video analysis, media request replay and media restart not reached in latest full run",
+    "No CANN/private Agent regression rerun in this phase; unknown execution fault recovery is separate",
+    "Production worker still needs administrator setup; local image build does not deploy it"
+  ],
+  "preservation": {
+    "owned_compose_resources_removed": true,
+    "private_pi_model_files_unchanged": true,
+    "original_windows_profile_unchanged": true,
+    "owned_native_profile_removed": true
+  },
+  "current_source_sha256": {
+    "web_demo/static/room_media.js": "187d2c2920ca403a18e6105c797c3ce8e1f4213bd3a831d13b1087fa2ab08be2",
+    "web_demo/static/room_agents.js": "daf29fe85784ca165c9a7c3587f731a9ce8de7c513ffa1c626d59b48ad598adf",
+    "web_demo/static/collaboration_ui.js": "36cb9b4f48f8c1e0db5aeefed52430ef4093a6f3fe553456ef60eeba7ec8b782",
+    "web_demo/static/collaboration_ui.css": "f9e21bb2bc3cffae142135af6056d32c52c9f7b657e148b1219a477f3770dc6c",
+    "web_demo/static/index.html": "b8e6b6e2589896e2bda8ae94c72fa4e9dc22b9354ce8757e5594e36d94b5f007",
+    "web_demo/static/chatroom.html": "2bdd6be3131fdb2812e0b0afd69eecb143eacb7dcdeb098a4ee485c46fc0a1a3",
+    "tests/collaboration_browser_test.cjs": "16de2c732c3bedd89d34dfe7ce472ad211e3ac9aed72a2839b34b64a150ad0c0",
+    "tests/public_room_runtime_e2e.py": "a79fb59673b40ee8e29cabf479d7a309a99bdad6470e27d69f3d390a745e5c60",
+    "tests/public_media_scenario.py": "9f46590114f0122ae11e6e3be40df73df9fab96b034d4610980fb36c223cf9f7",
+    "tests/public_media_scenario_test.py": "b8b05d1e80fb53cc76d9590112d7b2078f8985516ae382d6e4d753cd91d95354",
+    "tests/media_parser_fixtures.py": "3a22c34c1b68078751960fa23959533870210a79ef2264b2fea5c5610c13003b",
+    "deploy/Caddyfile": "273565ee564c9c45aec515c6e7706ca3ac4d8afb134808f244c726a16109c7fe",
+    "deploy/Caddyfile.agents": "fa77d20c0a766dbec137e29edb31e6831109618c455d183cfbed7942a75ce9fa",
+    "docker-compose.agents.yml": "b34077208006c9981879db2fcdf039bc6269909573d6577505e18b785caab6dd"
+  },
+  "source_note": "Current hashes describe delivery files. Each historical real run retains its own source_sha256 and image ID; do not treat current harness changes as rerun evidence.",
+  "artifact_directory": "2026-11-01-multimodal-service",
+  "artifact_sha256": {
+    "asr-diagnostic-manifest.json": "76d728563c59c5f3c721cb868b65b496d622d63177a0081e94200751be7b39f1",
+    "first-fixtures.json": "7288fb5633349d874102f62ca5ecb267f1e92216c32ffc7b0bd5d8d47becd779",
+    "spark-media-asr-diagnostic.json": "c93e9afabf70513207192efd4cd5a57ffa06b5766dfb95a3ef067063e02ec9ac",
+    "spark-media-assertions.log": "d9d734ee1c2de67b748aeef1c4126433aa438ad8375ca953916f12b1df11414d",
+    "spark-media-chain-ctest.log": "6d515ac8d46976d5435fd4ec8f1bcfb82f057d01b4a855cc9cb6b02260adef02",
+    "spark-media-chain-real-sql.log": "07e0db7c5da94af659c9bab21b63fddf617b91da5ee72c52a14d55815afa203d",
+    "spark-media-chain-targeted-ctest.log": "849ea50c413496330a86491b4488700afec30bdf039e50963f8e89edd62646e5",
+    "spark-media-context-image-build-final.log": "18982b5c06afad4c813e91da4b5f8284733e0c8f8cdca9c328529baf48e3ad76",
+    "spark-media-web-delivery-smoke.log": "fd33248030385f67679ce1fb4deb3202487dec29681ee51c641024956cc38388",
+    "spark-media-web-image-build.log": "c862467ef2ce8d9387f66ba33d60e7ff2428e6822a1ce57c48323384d08d7d78",
+    "spark-media-web-package.json": "0829c7f8f04baf7e444ce9807793946ae1bdbbc0e6edeee2134b6716a4a06505",
+    "spark-public-media-e2e-first.json": "b43c90321f14b6004adcdf3a5e9959c334d67ee639e5abce04e72ecc589a721e",
+    "spark-public-media-e2e-second.json": "2ea72b68f5c03a49d3b0c5dad6df66b887d08079527ea45e31c4f05fa4f0f288",
+    "spark-public-media-e2e-third.audio-transcript.json": "8cc274db8ebada2deb586d70b24688322f816835b47ddcdbfbf330abe3701060",
+    "spark-public-media-e2e-third.json": "8420a3b2d1876e83c0bc140b256fe6a946ae83e13ca6b0fc013010d266287697",
+    "strengthened-fixtures.json": "1a208600334a3b081db37b0c8857240a3cd62df779d897d7f93e82f02b75d0e3",
+    "synthetic-meeting-script.txt": "bf6338c086e857bab0e996c2e858998a4b0037cf672fa9a3653d743f6689891c"
+  }
+}

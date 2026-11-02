@@ -1,0 +1,133 @@
+{
+  "kind": "real-native-capability-probe",
+  "runtime": "pi",
+  "provider": "openai-codex",
+  "model": "gpt-6-luna",
+  "passed": true,
+  "probe_sha256": "471693eaa1b6ea703cf50ecd4c30c17114239ffae007bdc09b5055b5c906537d",
+  "scope": "three synthetic no-text images through native tool results; no room/IM authorization",
+  "diagnostic": "",
+  "terminal": {
+    "stopReason": "stop",
+    "errorMessage": null,
+    "model": "gpt-6-luna",
+    "provider": "openai-codex"
+  },
+  "event_types": [
+    "agent_end",
+    "agent_settled",
+    "agent_start",
+    "message_end",
+    "message_start",
+    "message_update",
+    "session",
+    "tool_execution_end",
+    "tool_execution_start",
+    "turn_end",
+    "turn_start"
+  ],
+  "exit_code": 0,
+  "tool_results": 1,
+  "image_blocks": 3,
+  "image_sha256": [
+    "0aa1370966eb14c9033994eb1f843dceb97a84077a2a587c27cb7e926a152377",
+    "9563e396d46e2eb87a4bcd19e347e06cc660c265aec084adb70d6805f23d80c5",
+    "c406b7747326b0f3200b268ab9efbeac944ece0b05917ae333a0960166b5bdd8"
+  ],
+  "expected": [
+    {
+      "left": {
+        "shape": "square",
+        "color": "red"
+      },
+      "right": {
+        "shape": "triangle",
+        "color": "green"
+      },
+      "lower": {
+        "shape": "circle",
+        "color": "blue"
+      }
+    },
+    {
+      "left": {
+        "shape": "square",
+        "color": "blue"
+      },
+      "right": {
+        "shape": "circle",
+        "color": "red"
+      },
+      "lower": {
+        "shape": "triangle",
+        "color": "green"
+      }
+    },
+    {
+      "left": {
+        "shape": "circle",
+        "color": "green"
+      },
+      "right": {
+        "shape": "square",
+        "color": "blue"
+      },
+      "lower": {
+        "shape": "triangle",
+        "color": "red"
+      }
+    }
+  ],
+  "answer": [
+    {
+      "left": {
+        "shape": "square",
+        "color": "red"
+      },
+      "right": {
+        "shape": "triangle",
+        "color": "green"
+      },
+      "lower": {
+        "shape": "circle",
+        "color": "blue"
+      }
+    },
+    {
+      "left": {
+        "shape": "square",
+        "color": "blue"
+      },
+      "right": {
+        "shape": "circle",
+        "color": "red"
+      },
+      "lower": {
+        "shape": "triangle",
+        "color": "green"
+      }
+    },
+    {
+      "left": {
+        "shape": "circle",
+        "color": "green"
+      },
+      "right": {
+        "shape": "square",
+        "color": "blue"
+      },
+      "lower": {
+        "shape": "triangle",
+        "color": "red"
+      }
+    }
+  ],
+  "image_files": [
+    "2026-11-01-pi-media-capability-images/0aa1370966eb14c9033994eb1f843dceb97a84077a2a587c27cb7e926a152377.png",
+    "2026-11-01-pi-media-capability-images/9563e396d46e2eb87a4bcd19e347e06cc660c265aec084adb70d6805f23d80c5.png",
+    "2026-11-01-pi-media-capability-images/c406b7747326b0f3200b268ab9efbeac944ece0b05917ae333a0960166b5bdd8.png"
+  ],
+  "source_model_config_unchanged": true,
+  "credential_source": "explicit Hermes model-only fixture; no refresh state",
+  "private_hermes_profile_unchanged": true
+}

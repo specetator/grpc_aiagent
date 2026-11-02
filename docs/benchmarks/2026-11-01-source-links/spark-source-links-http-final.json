@@ -1,0 +1,21 @@
+{
+  "scope": "Real HTTP/MySQL/Redis context authority; seeded message/request fixtures.\n\nUploads and text parsing use real services. Optional image uses the production\nDocker parser worker. No Kafka, native model, browser or tool-execution claim.\n",
+  "checks": [
+    "literal SQL search; pre-LIMIT epoch filter; canonical room and message ceiling",
+    "member source lookup, exact Unicode excerpt, pagination, forged/cross-request/foreign-room denial and task sources across real HTTP restart",
+    "Unicode bounded read; deterministic durable receipts; actual HTTP process restart",
+    "two observed SQL lock waiters compete for last receipt slot; no overrun; duplicate at capacity; request-bound IDs",
+    "literal fragment search locates long-text tail with real line anchor and stable read receipt",
+    "real text upload/worker/publication; fixed revision; cross-room read denied even for dual member",
+    "source withdrawal while HTTP read waits; fragment payload/hash mismatch rejected",
+    "actual HTTP read blocked on room lock; epoch commit fences receipt and protected response",
+    "context change hides old source payload and refuses new attachment; existing task remains editable with its original source IDs",
+    "public runtime tool clients read real Logic sources and reject authoritative member revocation; no model",
+    "actual in-flight HTTP member revocation; final authorization withholds source data",
+    "member removal, never-member, uninstalled Agent and stale epoch denied",
+    "missing receipt migration fails closed; old receipts remain unchanged"
+  ],
+  "status": "passed",
+  "pi_extension_check": "not executed: SPARK_TEST_CONTEXT_PI_NODE required",
+  "image_check": "not executed: SPARK_TEST_CONTEXT_IMAGE and model directory required"
+}

@@ -778,6 +778,7 @@
   <script src="spaces.js"></script>
   <script src="room_agents.js"></script>
   <script src="room_agent_channel.js"></script>
+  <script src="room_media.js"></script>
   <script src="collaboration_ui.js"></script>
   <link rel="stylesheet" href="collaboration_ui.css">
 </head>
@@ -980,9 +981,9 @@
     const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const cometWsUrl = window.SparkEndpoints?.websocket ?? (wsProtocol + '//' + location.hostname + ':9000/ws');
 
-    async function clientApi(path,body) {
+    async function clientApi(path,body,options={}) {
       const epoch=authEpoch,credential=token,room=Number(body.room_id||0),access=roomAccessEpoch.get(room)||0;
-      const response=await fetch(logicBase+path,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+credential},body:JSON.stringify(body)});
+      const response=await fetch(logicBase+path,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+credential},body:JSON.stringify(body),signal:options.signal});
       const result=await response.json();
       if(epoch!==authEpoch || credential!==token || access!==(roomAccessEpoch.get(room)||0))throw Object.assign(new Error('操作所属会话已结束'),{code:499});
       if(result.code!==0){if(result.code===401)doLogout('登录已失效，请重新登录');throw Object.assign(new Error(result.message||'操作失败'),{code:result.code});}
@@ -1640,6 +1641,7 @@
       const cann=!envelope.agent_id && envelope.request_id && Number(envelope.from_user_id)===hermesBotUserId;
       if(!agent&&!cann)return;
       row.dataset.agentIdentity=agent?.agent_id||'cann';row.dataset.agentRequest=envelope.request_id||'';row.dataset.sourceMessage=envelope.source_msg_id||'';
+      if(agent)collaboration.agents.timelineSources(row.querySelector('.msg-content-wrapper'),envelope.request_id);
       row.querySelector('.msg-avatar').textContent=agent?.runtime==='hermes_native'?'H':'π';
       row.querySelector('.msg-name').textContent=(agent?.name||'Kernel Agent')+' · '+(collaboration?.memberName(envelope.actor_user_id)||'成员')+' 发起';
       const meta=getMsgContentMeta(message);

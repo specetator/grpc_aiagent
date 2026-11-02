@@ -1,0 +1,10 @@
+locator.click: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for getByRole('button', { name: '查看任务来源', exact: true })[22m
+
+    at /home/peco/cppcode/fenbushi/sparkpush_project/tests/collaboration_browser_test.cjs:127:83 {
+  log: [
+    "  - waiting for getByRole('button', { name: '查看任务来源', exact: true })"
+  ],
+  name: 'TimeoutError'
+}

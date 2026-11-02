@@ -1,0 +1,133 @@
+{
+  "date": "2026-11-01",
+  "base_commit": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "worktree": "uncommitted additive media upgrade; personal configurations preserved",
+  "scope": "Authenticated media publication and member read/search, using real isolated parsers and CPU ASR; not production media worker or native Agent/Web E2E",
+  "status": "media_publication_passed",
+  "full_multimodal_goal_complete": false,
+  "source_sha256": {
+    "logic/main.cpp": "7ed8e46036bef610388f1737c8989f3e9ba00345520384d8bb6a1c3466330cf8",
+    "logic/http_server.cpp": "53b5cd3f659e6c526f03041d17eb31a129682f3a78ecce1d86a40c7200420bd6",
+    "logic/http_server.h": "1c8130b4758b68fe67f45510e3fea6edd9ec736460523659bb98d276bf794645",
+    "logic/CMakeLists.txt": "60fba700a05fdb339e7069420ca2dc476feb854b4e2b15441a5320d290fc0af6",
+    "logic/services/media_processing_service.cpp": "bc0d7f811b157c73c25c445a0d8c6eada0b67a70b5603f361464b6f6aa42c1d4",
+    "logic/services/media_processing_service.h": "72b384a1f88ab3041c93d46309b8d801f1090d699dbbf75d54b58e88044a78de",
+    "logic/services/media_manifest.cpp": "2d1894d800fb7073fd1dafd48136a03940bd95e5e7658cf2343583eaef30d633",
+    "logic/services/media_manifest.h": "0ae661296e45e38a6295b84d65432a6662dc3425f70a6702711271d2573a5721",
+    "logic/repositories/media_processing_repository.cpp": "f6a819f8a217fea3e3eb4e156896f0643eac49e8ef8668b8ba922d3d7f5e38d6",
+    "logic/repositories/media_processing_repository.h": "d758095972cbf6bdef43c108917d45adb70bd86a5e828e78829fbbc0f1ebcaf8",
+    "logic/repositories/media_artifact_repository.cpp": "e4baf0c9c4a2adb9fa8d471a115694736c9e8dbacf19ee2482e923602400e9bd",
+    "logic/repositories/media_artifact_repository.h": "30489930a0cfac8c0cbc6a0561fdfd78e4e888d5ce426f1632bc61832100376b",
+    "logic/repositories/media_storage_quota.h": "77002ea05b2ca9b38ffabbf5f9117d698039dd190f8fa909dcff1af0c6d9646d",
+    "logic/repositories/media_blob_store.cpp": "d05a3c06872e2fa96ef1328bce9aa0113b7719c6ac5a41bb54ee28abbce32400",
+    "logic/repositories/media_repository.cpp": "8d94abde6a17052c7fda61e245b60b967bae2295bdf81f146c10cee2cb060319",
+    "sql/schema.sql": "c982b7cbe6ca5dd0dc7186f2c3879a69796afe694ea43267df360b1ff7d7a672",
+    "sql/migrations/20261101_media_publication.sql": "826e562f953fb00f2d5fb78c42239a241887a35a852bde6ea6b66664ae12f7c2",
+    "tests/CMakeLists.txt": "05ea1f9ee93931e4a5fd794658f8ca2ec71a3eb1135485c1b18e8fdfcebe9770",
+    "tests/media_manifest_test.cpp": "2c6311b595478fe923365a70db26ee9d059d42ec2ff41f5fa92aa29e7abaa415",
+    "tests/media_pipeline_http_test.py": "6d012d51b6994bf3c997621b590d72f08a7a8ad572a71ae90618417315a2e13e",
+    "tests/media_large_payload_test.py": "3337493de41b5731c34f5e84febe9071fe28052aa947a2d28dab943961e02101",
+    "tests/media_processing_http_probe.cpp": "a7aa3a9f07356499065a30f9979d2c7b45b8cb9bd3af17e29d65cc68c8e07687",
+    "tests/run_mysql_review_tests.py": "3f6b0aa5d01fe2a415aeb6ad86e933f8b5fce973c497f9ebbf326a4aa7d3fd67",
+    "cannbot/media/parser.py": "e29263d81f71583e3c49cd6cc8d5d0a5cfb2bcbed36c40482b171d90c8c10188",
+    "cannbot/media/sandbox.py": "64c8ba7519a7bcb5be4fc5ef25c05c4dfa0b54772f5c89a88b6659a466fb1d53"
+  },
+  "validation": [
+    {
+      "command": "cmake --build build-wsl -j2",
+      "exit_code": 0
+    },
+    {
+      "command": "ctest --test-dir build-wsl --output-on-failure -R '^media_manifest_test$'",
+      "exit_code": 0,
+      "passed": 1,
+      "note": "Includes contract-only audio-before-video and silent-video coverage; not real reverse-offset decoder E2E"
+    },
+    {
+      "command": "SPARK_PLAYWRIGHT_MODULE=/tmp/spark-spaces-browser/node_modules/playwright ctest --test-dir build-wsl --output-on-failure -j2 --output-junit /tmp/spark-media-publication-ctest.xml",
+      "exit_code": 0,
+      "registered": 73,
+      "passed": 65,
+      "skipped": 8,
+      "note": "Product source unchanged since this full run; additional manifest unit assertions ran separately afterward"
+    },
+    {
+      "command": "SPARK_TEST_MEDIA_IMAGE=spark-media:development SPARK_TEST_MEDIA_FIXTURES=/tmp/spark-media-fixtures-nhdss1hi SPARK_TEST_MEDIA_MODEL=/tmp/spark-media-asr-small SPARK_TEST_MEDIA_LONG_AUDIO=1 SPARK_TEST_MEDIA_REPORT=/tmp/spark-media-publication-e2e-verified.json python3 tests/run_mysql_review_tests.py build-wsl",
+      "exit_code": 0,
+      "real_http_suites": 2,
+      "real_sql_tests": 4,
+      "media_cases": 7,
+      "driver_sha256": "8c5b9ca845896810cd0c02e560a5feed054d4301d9aa8464c36998a7a7173c1f",
+      "note": "Archived driver precedes added legal alternate-summary assertion; that assertion is covered by the subsequent real large-payload suite."
+    },
+    {
+      "command": "SPARK_TEST_MEDIA_IMAGE=spark-media:development SPARK_TEST_MEDIA_FIXTURES=/tmp/spark-media-fixtures-nhdss1hi SPARK_TEST_MEDIA_MODEL=/tmp/spark-media-asr-small python3 tests/media_large_payload_test.py --build build-wsl --out /tmp/spark-media-large-http-canonical.json",
+      "exit_code": 0,
+      "real_media_cases": 6,
+      "http_body_bytes": 397354,
+      "also_runs": "old text HTTP and four SQL regressions"
+    },
+    {
+      "command": "python3 cannbot/scripts/validate_knowledge.py --strict",
+      "exit_code": 0,
+      "sources": 162
+    },
+    {
+      "command": "python3 cannbot/scripts/test_pi_citations.py",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 cannbot/scripts/sync_pi_agent.py --check",
+      "exit_code": 1,
+      "note": "Read-only check; no private settings or installed skills synchronized"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "checks": [
+    "Incremental upgrade from pre-media schema and repeated four migrations preserve existing attachment",
+    "Separate media/text configuration and immutable approved parser/pipeline",
+    "Stable claim replay, unreserved fragment/image/complete denied, reserve receipt replay",
+    "Real empty OCR image remains visually available; PDF all pages; DOCX; video frames plus ASR; short and 20-minute audio",
+    "Canonical Python/C++ manifest agreement; missing image and forged dimensions rejected",
+    "SQL publication failure rolls back state, pointer and charge; retry converges",
+    "Identical complete replay stable; different valid canonical summary with recomputed digest returns conflict",
+    "Only artifact body limit enlarged; >2MiB rejected before SQL artifact writes",
+    "Staged fragments/images/search unavailable before publication",
+    "Member reads verify actual bytes; nonmember rejected; removed member loses original/fragments/images/search access",
+    "Publication withdrawn between requests rejects old revision (controlled SQL fixture, not concurrent IO race)",
+    "Actual HTTP server killed/restarted after publication; content still readable",
+    "Legacy exact text pipeline and existing SQL reservation/spaces regression"
+  ],
+  "independent_review": {
+    "reviewer_round": 1,
+    "result": "PASS WITH NOTES",
+    "tester": "PASS for media HTTP publication scope; independent read-only review of parent-executed evidence, no child-executed tests"
+  },
+  "limitations": [
+    "No production media worker crash adoption or automatic global GC",
+    "Harness heartbeats cover parser duration; do not prove production end-to-end heartbeat",
+    "Restart is HTTP server after publication, not interrupted parser/worker recovery",
+    "No Native Pi/Hermes, browser, WS, Kafka or final media-to-task validation",
+    "Synthetic continuous English speech; no real/noisy/multilingual meeting accuracy claim",
+    "Video uses 5-second samples, can miss brief events",
+    "Revocation/withdrawal tests are between requests, not a deterministic mid-read race",
+    "Two independent Redis tests skipped here; real Redis used for HTTP authentication is a different scope",
+    "Room quota is logical for new media library, not legacy images or physical disk limits"
+  ],
+  "artifacts": {
+    "build.txt": "ad20b338dbd05bd9b5a9dceced3633ed5635bcae169e33936e2585e0beaa4a68",
+    "citations.txt": "01a43506d267a7a8c1fa33c62440e0f358f234ab91c15370875742cf02a9f8d4",
+    "ctest.txt": "1f2e187de13fc7f6c953bc93d0f4ce6ea5371cd1911e80a0cb40ce7e3092e2d8",
+    "ctest.xml": "8a2827d2b815cc94248c4cc8871c07753136418b8e8d3a35dece267f682ba41e",
+    "http-large.json": "0a8cdcee3102ce967156695e07d58d00b475ade12b71e203dc5837b837761e01",
+    "http-long-driver.py.txt": "8c5b9ca845896810cd0c02e560a5feed054d4301d9aa8464c36998a7a7173c1f",
+    "http-long.json": "ff48250b50b87fd361f536c685d6c4281c93000a02ed69d930eb5293abee3114",
+    "knowledge.txt": "c06e625bb9e1d73715757e6e9121e4e0cc6fa5b385d1e259942bff2009555e27",
+    "large-http.txt": "3e7d433375aaebb2d02dcbd42b9e1f9f78be0c6e1b9cfafa26a36f9be60297fd",
+    "manifest-unit.txt": "0a89bfa40d009b16c72c6e7ff539fcfd679b0634eabe5f3a60fc12b300f9feef",
+    "mysql-http.txt": "1a641bb1c4f92fd150c2e1deff72c6ad3b793ec10f9cb5355d748a8a2913b2b7"
+  }
+}

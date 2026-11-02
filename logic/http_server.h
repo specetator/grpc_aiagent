@@ -7,6 +7,9 @@
 
 #include "services/admin_service.h"
 #include "services/attachment_service.h"
+#include "services/media_service.h"
+#include "services/media_processing_service.h"
+#include "services/media_context_service.h"
 #include "services/conversation_service.h"
 #include "services/danmaku_service.h"
 #include "services/knowledge_service.h"
@@ -41,6 +44,9 @@ struct LogicHttpServices {
     RoomAgentService* room_agents{nullptr};
     OperatorTaskService* operator_tasks{nullptr};
     AgentConnectionService* agent_connections{nullptr};
+    RoomMediaService* media{nullptr};
+    MediaProcessingService* media_processing{nullptr};
+    MediaContextService* media_context{nullptr};
 };
 
 // HTTP adapter: request parsing, bearer extraction and response serialization.
@@ -70,6 +76,13 @@ class HttpApiServer {
     void start();
 
    private:
+    void handleMedia(const muduo::net::HttpRequest&, muduo::net::HttpResponse*);
+    RoomMediaService* media_service_;
+    MediaProcessingService* media_processing_service_;
+    MediaContextService* media_context_service_;
+    void handleMediaContext(const muduo::net::HttpRequest&, muduo::net::HttpResponse*);
+    void handleMediaProcessing(const muduo::net::HttpRequest&, muduo::net::HttpResponse*);
+    void handleMediaWorker(const muduo::net::HttpRequest&, muduo::net::HttpResponse*);
     void handleWorkspaceAuthorization(const muduo::net::HttpRequest&, muduo::net::HttpResponse*);
     void handleSpaces(const muduo::net::HttpRequest&, muduo::net::HttpResponse*);
     void handleContactLookup(const muduo::net::HttpRequest&, muduo::net::HttpResponse*);

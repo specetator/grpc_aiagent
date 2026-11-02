@@ -1,0 +1,35 @@
+{
+  "date": "2026-11-02",
+  "phase": "Bounded generic-context ASR diagnostic",
+  "overall_goal_complete": false,
+  "kind": "actual no-network CPU ASR on the unchanged 30-second excerpt; no IM, Agent or full-audio rerun",
+  "decoder_completed": true,
+  "semantic_gate_passed": false,
+  "exit_code": 1,
+  "initial_prompt": "This is a technical meeting about software development and distributed systems.",
+  "expected_names_or_terms_supplied": false,
+  "model": "existing large-v3-turbo; no new model downloaded",
+  "model_hash_scope": "model_sha256 in raw receipt hashes model.bin only, not the directory inventory digest used by Configuration",
+  "input_sha256": "816b109b133eaf3b1ddf8b81f45ce173ea8a9427e239e4626881b0abcf66473c",
+  "seconds": 34.924,
+  "faster_whisper_version": "1.2.1",
+  "result": "Alice owns QBAC pressure review; the queue backpressure term remains incorrect",
+  "production_adopted": false,
+  "preflight_failure": "Initial invocation used Python 3.10 and stopped at hashlib.file_digest before starting ASR; rerun used the existing Python 3.11 test environment",
+  "primary_parameter_reference": "https://github.com/SYSTRAN/faster-whisper/blob/master/faster_whisper/transcribe.py",
+  "remaining_dependency": "Representative real technical meeting recording and human-checkable decisions/tasks; existing synthetic failure remains recorded",
+  "source_sha256": {
+    "cannbot/media/parser.py": "e29263d81f71583e3c49cd6cc8d5d0a5cfb2bcbed36c40482b171d90c8c10188",
+    "cannbot/media/sandbox.py": "4b3e24fcbfe95da6cd0af4f12389eb1bd37b65a36bc0e4cfc0347975bbbf3bbd",
+    "web_demo/static/room_media.js": "1b2a98361458addb613d2b4c97e6eaf9d9fa41bc586276b70f29f82e3085e918",
+    "web_demo/static/room_agents.js": "1abc56df1cf054c13f97d4744746d3b55ee104e1296bdf9da259d68cd4abae3c"
+  },
+  "artifact_directory": "2026-11-02-asr-domain-context",
+  "artifact_sha256": {
+    "spark-asr-domain-context.json": "adcbb9c74d6935b37eb5314392f901053685bff2d676d38e45d709c0535ddc28",
+    "spark-asr-domain-context.log": "46046334db0d01a361f37e824403a93f53ba040274999782e137d35206bbaba3",
+    "spark-asr-domain-context-probe.py": "04029c828089b408750738680509a20cffcd8bf02a74fa104559bbc5ed70c52e",
+    "spark-asr-domain-context-python310.log": "49123cad0f46b249a0e71ad7f645cec403da6938aa799c5db5909b7fe93ce947",
+    "domain-context-decoder.py": "a2d0f5a1bf86fd1a8eb75c3faaa3dd9bb9db6756a5b4fd26b62b24d2846ac4ab"
+  }
+}

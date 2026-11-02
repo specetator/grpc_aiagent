@@ -1,0 +1,12 @@
+{
+  "image": "sha256:875afac308df1c78205a6189905fe23621dd3970337bb4e9cbb558da6a945620",
+  "static_sha256": {
+    "index.html": "905e2e49a588c6b7e747450673f97ed7795d9dee561a5c377e1c2c24b2da249e",
+    "chatroom.html": "2aa5f719bca485b255b900d0d71e78761059644f78c3c4e3b03eedc72d982f19",
+    "room_media.js": "bfefec4c5463213257d403939a766a4fda4267d2e763b20a53074edd3c9bd2b0",
+    "room_agents.js": "fc829ce3987303bad7b2cf8d2a03df618ac10e5c2986cc274d0a3f8338990142",
+    "collaboration_ui.js": "ae566a32bc8b2a28a12d7a2fabcf67df3d82aeee49428aa9946bceb50b601808",
+    "collaboration_ui.css": "a48ed3f2752c9682b72b33ffe7f21593ffdb8a0dd093ed31fad9c0fda6cb166a"
+  },
+  "passed": true
+}

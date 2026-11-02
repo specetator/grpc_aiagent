@@ -1,0 +1,7 @@
+[  7%] Built target spark_push_proto
+[ 28%] Built target muduo_base
+[ 42%] Built target spark_push_common
+[ 96%] Built target spark_push_logic
+[ 96%] Building CXX object tests/CMakeFiles/media_artifact_mysql_test.dir/media_artifact_mysql_test.cpp.o
+[100%] Linking CXX executable media_artifact_mysql_test
+[100%] Built target media_artifact_mysql_test

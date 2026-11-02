@@ -22,6 +22,12 @@ class MemoryRepository : public RoomAgentRepository {
     std::map<std::string, Json> requests, results;
     Json bindings=Json::array();
     Json workspace={{"project_id",""},{"generation",0}};
+    int64_t context_generation=0;
+    bool context_unavailable=false;
+    bool ContextGeneration(int64_t,int64_t* out,std::string* error)override {
+        if(context_unavailable){if(error)*error="context query failed";return false;}
+        *out=context_generation;return !fail;
+    }
     bool Workspace(int64_t,Json* out,std::string*)override{*out=workspace;return !fail;}
     bool SetWorkspace(int64_t,int64_t,int64_t generation,const std::string& id,std::string*)override{
         if(workspace["generation"]!=generation)return false;
@@ -38,7 +44,8 @@ class MemoryRepository : public RoomAgentRepository {
             if(publications[id]["digest"]!=digest && !matches(publications[id]["digest"],publications[id]["reply"]))return false;
             *out=publications[id]["reply"];return true;
         }
-        *out=decide({{"member",!removed},{"bindings",bindings},{"workspace",workspace},
+        if(request.contains("agent_id") && context_unavailable)return false;
+        *out=decide({{"member",!removed},{"bindings",bindings},{"workspace",workspace},{"context_generation",context_generation},
             {"task",task},{"original_message",legacy_original},{"original_result",legacy_result}});
         if(!out->is_object())return false;
         publications[id]={{"digest",digest},{"reply",*out}};return true;
@@ -362,6 +369,64 @@ int main() {
     Check(generic.SetWorkspace(7,1,{{"project_id","spark-push"},{"generation",2}},&out).ok() && out["workspace"]["generation"]==3,"rebind does not reuse old generation");
     Check(generic.AuthorizeWorkspace(workspaceKey,{{"request_id",scopedId}},&out).code==403,"old request cannot inherit new grant");
     Check(generic.Control(8,1,{{"request_id",scopedId},{"operation","recover"}},&out).code==403,"revoked request recovery cannot execute tools");
+    {
+        MemoryRepository epochs;RoomAgentService rooms(&epochs,99,true,catalog,false);
+        rooms.SetProjectCatalog({},workspaceKey);
+        Check(rooms.Install(7,1,{{"agent_id","public-pi"}},true).ok(),"context install Pi");
+        Check(rooms.Install(7,1,{{"agent_id","second-pi"}},true).ok(),"context install second");
+        Message source;source.session_id="r_1";source.msg_seq=20;source.msg_id="r_1-20";
+        source.sender_id=8;source.client_msg_id="context-source";source.content_json=mention.dump();
+        Json initial;Check(rooms.BuildRequests(source,{},&initial,&error),"context initial request");
+        Check(initial.size()==2 && initial[0]["collaboration"]["context_generation"]==0,"explicit original epoch");
+        Json final;for(const auto* key:{"request_id","session_id","user_id","bot_user_id","collaboration"})final[key]=initial[0][key];
+        final["ok"]=true;final["text"]="old private result";final["completed_at_ms"]=100;
+        Json admitted;Check(rooms.PublishReply(initial[0],final,"original bytes",&admitted,&error)&&admitted==final,"first epoch publication");
+        auto old=initial[1];for(const auto* field:{"context_generation","workspace_generation","project_id"})old["collaboration"].erase(field);
+        epochs.requests[old["request_id"]]=old;
+        Check(rooms.CheckDispatch(old).ok(),"old missing epoch is zero");
+        epochs.context_generation=1;
+        Check(rooms.CheckDispatch(initial[0]).code==403 && rooms.CheckDispatch(old).code==403,"old explicit and implicit epochs revoked");
+        Check(rooms.AuthorizeWorkspace(workspaceKey,{{"request_id",old["request_id"]}},&out).code==403,"canonical authority fences old epoch");
+        Json redelivery;Check(rooms.BuildRequests(source,{},&redelivery,&error) && redelivery[0]==initial[0] && redelivery[1]==old,"replay never upgrades stored scope");
+        Check(rooms.PublishReply(initial[0],final,"original bytes",&out,&error)&&out==admitted,"old committed publication stays identical");
+        Json late;for(const auto* key:{"request_id","session_id","user_id","bot_user_id","collaboration"})late[key]=old[key];
+        late["ok"]=true;late["text"]="unpublished secret";late["completed_at_ms"]=101;
+        Check(rooms.PublishReply(old,late,"late bytes",&out,&error) && out["terminal_status"]=="cancelled" &&
+              out.dump().find("unpublished secret")==std::string::npos,"stale first publication strips content");
+        Message human=source;human.msg_seq=18;human.msg_id="r_1-18";human.content_json=text("current human discussion");
+        Message derived=source;derived.msg_seq=19;derived.msg_id="r_1-19";
+        derived.sender_id=initial[0]["bot_user_id"];derived.client_msg_id="hermes:"+initial[0]["request_id"].get<std::string>();
+        derived.content_json=Json{{"request_id",initial[0]["request_id"]},{"context_generation",1},{"content","OLD_AGENT_SECRET"}}.dump();
+        source.msg_seq=21;source.msg_id="r_1-21";
+        Json fresh;Check(rooms.BuildRequests(source,{derived,human},&fresh,&error),"new epoch request");
+        Check(fresh[0]["collaboration"]["context_generation"]==1 && fresh[0].dump().find("OLD_AGENT_SECRET")==std::string::npos &&
+              fresh[0].dump().find("current human discussion")!=std::string::npos,"canonical epoch filters derived history but preserves human discussion");
+        Check(rooms.CheckDispatch(fresh[0]).ok(),"new epoch dispatch admitted");
+        for(const auto& invalid:std::vector<Json>{nullptr,true,-1,9007199254740992ULL,"1",1.5}) {
+            auto malformed=fresh[0];malformed["collaboration"]["context_generation"]=invalid;
+            Check(rooms.CheckDispatch(malformed).code==403,"explicit malformed context cannot become legacy zero");
+        }
+        epochs.requests.erase(fresh[1]["request_id"]);epochs.context_generation=2;
+        Check(!rooms.BuildRequests(source,{},&out,&error),"partial multi Agent request cannot span epochs");
+        epochs.context_unavailable=true;source.msg_seq=22;source.msg_id="r_1-22";
+        Check(!rooms.BuildRequests(source,{},&out,&error) && rooms.CheckDispatch(fresh[0]).code==503,"context lookup failure does not become epoch zero");
+        Check(rooms.PublishReply(initial[0],final,"original bytes",&out,&error)&&out==admitted,"committed replay does not depend on context storage");
+        Check(rooms.Trigger(8,1,text("ordinary discussion"),&trigger).ok()&&!trigger,"context outage leaves ordinary chat available");
+        epochs.context_unavailable=false;
+        for(const int64_t generation:{4294967296LL,9007199254740991LL}) {
+            epochs.context_generation=generation;source.msg_seq++;source.msg_id="r_1-"+std::to_string(source.msg_seq);
+            Json complete;Check(rooms.BuildRequests(source,{},&complete,&error),"full width context request");
+            epochs.requests.erase(complete[1]["request_id"]);
+            Check(rooms.BuildRequests(source,{},&out,&error) && out==complete && rooms.CheckDispatch(out[1]).ok(),"partial rebuild keeps full width integer epoch");
+        }
+        epochs.context_generation=0;source.msg_seq++;source.msg_id="r_1-"+std::to_string(source.msg_seq);
+        Json valid;Check(rooms.BuildRequests(source,{},&valid,&error),"partial malformed fixture");
+        for(const auto& invalid:std::vector<Json>{nullptr,true,false,0.0,"0"}) {
+            auto malformed=valid[0];malformed["collaboration"]["context_generation"]=invalid;
+            epochs.requests[malformed["request_id"]]=malformed;epochs.requests.erase(valid[1]["request_id"]);
+            Check(!rooms.BuildRequests(source,{},&out,&error),"partial malformed epoch cannot coerce to zero");
+        }
+    }
     const auto savedRequests=repo.requests, savedPublications=repo.publications;
     generic.DisableConfiguration();
     Check(generic.Agents(8,1,&out).code==503 && generic.Workspace(8,1,&out).code==503,"invalid optional configuration is visible as unavailable");

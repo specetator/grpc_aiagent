@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/home/peco/cppcode/fenbushi/sparkpush_project/cannbot/media/provision_asr.py", line 140, in <module>
+    print(json.dumps(provision(args.directory, args.model), indent=2))
+  File "/home/peco/cppcode/fenbushi/sparkpush_project/cannbot/media/provision_asr.py", line 131, in provision
+    return _provision(directory, staging, model)
+  File "/home/peco/cppcode/fenbushi/sparkpush_project/cannbot/media/provision_asr.py", line 91, in _provision
+    item = verify(temporary, entry); item["file"] = name
+  File "/home/peco/cppcode/fenbushi/sparkpush_project/cannbot/media/provision_asr.py", line 41, in verify
+    raise ValueError("invalid model file")
+ValueError: invalid model file

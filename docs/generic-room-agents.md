@@ -80,7 +80,8 @@ IM 会话仍为 `r_<room_id>`。通用 Agent Runtime key 为
 | `/api/chatroom/agents/uninstall` | agent_id | 停用并使旧 generation 失效 |
 | `/api/chatroom/agents/control` | request_id、operation | status/stop/approve/deny/recover 的真实回执 |
 | `/api/chatroom/tasks/list` | 无 | 任务与修改历史 |
-| `/api/chatroom/tasks/create` | request_id、title、description、steps[] | 关联源消息的任务 |
+| `/api/chatroom/agents/sources` | request_id、可选 source_ids[] 或 after/limit | 当前成员回查原请求的有效读取来源；详见[来源 API](room-context-tools.md#成员回查与任务来源) |
+| `/api/chatroom/tasks/create` | request_id、title、description、steps[]、可选 source_ids[] | 关联源消息与经校验来源的任务，来源保存在现有 JSON/历史中 |
 | `/api/chatroom/tasks/update` | task_id、revision、可选 claim/status/summary | 新 revision；冲突返回 409 |
 
 `recover` 校验原请求发起者/管理员、当前成员关系和 binding generation，重新排队

@@ -3,11 +3,18 @@
     auto_https off
 }
 :9011 {
-    @authorize {
+    @authority {
         method POST
-        path /internal/room-agent/authorize
+        path /internal/room-agent/authorize /internal/room-agent/context/search /internal/room-agent/context/read /internal/room-agent/context/media
     }
-    handle @authorize {
+    handle @authority {
+        reverse_proxy logic:9101
+    }
+    @media_worker {
+        method POST
+        path /internal/media/claim /internal/media/claim_media /internal/media/reserve /internal/media/stage_artifact /internal/media/reclaim /internal/media/reclaim_candidates /internal/media/check /internal/media/heartbeat /internal/media/source /internal/media/stage /internal/media/complete /internal/media/fail
+    }
+    handle @media_worker {
         reverse_proxy logic:9101
     }
     handle {

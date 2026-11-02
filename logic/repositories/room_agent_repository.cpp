@@ -1,5 +1,7 @@
 #include "repositories/room_agent_repository.h"
 #include "repositories/room_sql.h"
+#include "repositories/room_context_source_sql.h"
+#include "repositories/media_storage_quota.h"
 namespace sparkpush {
 namespace {
 using Json=nlohmann::json;
@@ -17,9 +19,9 @@ Json One(MYSQL* conn,const char* sql,const std::vector<std::string>& values) {
     const auto rows=Query(conn,sql,values);
     return rows.empty() || rows[0][0].empty() ? Json(nullptr) : Json::parse(rows[0][0]);
 }
-// Read the old CANN publication evidence without changing history. The message
+// Read legacy CANN/pre-workspace generic evidence without changing history. The message
 // table remains authoritative after the short-lived reservation is collected.
-Json CannOriginal(MYSQL* conn,const Json& request) {
+Json LegacyOriginal(MYSQL* conn,const Json& request) {
     const std::string sid=request.at("session_id"), client="hermes:"+request.at("request_id").get<std::string>();
     const auto bot=Id(request.at("bot_user_id"));
     const auto reservations=Query(conn,"SELECT original_message,stage FROM message_reservation WHERE session_id=? AND sender_id=? AND client_msg_id=? FOR UPDATE",{sid,bot,client});
@@ -182,6 +184,14 @@ bool MySqlRoomAgentRepository::SetWorkspace(int64_t room,int64_t owner,int64_t g
         transaction.Commit();return true;
     });
 }
+bool MySqlRoomAgentRepository::ContextGeneration(int64_t room,int64_t* generation,std::string* error) {
+    return Run(pool_,error,[&](MYSQL* conn){
+        const auto rows=Query(conn,"SELECT generation FROM room_context WHERE room_id=?",{Id(room)});
+        const int64_t current=rows.empty()?0:std::stoll(rows[0][0]);
+        if(current<0 || current>9007199254740991LL)return false;
+        *generation=current;return true;
+    });
+}
 bool MySqlRoomAgentRepository::Publication(const Json& request,const std::string& digest,
     const PublicationMatch& matches,const PublicationDecision& decide,Json* output,std::string* error,bool* require_existing) {
     if(require_existing)*require_existing=false;
@@ -196,11 +206,12 @@ bool MySqlRoomAgentRepository::Publication(const Json& request,const std::string
         const auto user=Query(conn,"SELECT status,deleted_at IS NULL FROM `user` WHERE id=? FOR UPDATE",{actor});
         if(One(conn,"SELECT payload FROM room_agent_request WHERE request_id=? FOR UPDATE",{id})!=request)return false;
         const bool cann=!request.contains("agent_id");
-        const Json original=cann?CannOriginal(conn,request):Json(nullptr);
+        const bool legacy=cann || !request.at("collaboration").contains("workspace_generation");
+        const Json original=legacy?LegacyOriginal(conn,request):Json(nullptr);
         if(require_existing)*require_existing=original.is_object();
-        const Json result=cann?One(conn,"SELECT result FROM room_agent_request WHERE request_id=?",{id}):Json(nullptr);
-        if(cann && result.is_object() && original.is_null()) {
-            if(error)*error="completed CANN publication has no original message";return false;
+        const Json result=legacy?One(conn,"SELECT result FROM room_agent_request WHERE request_id=?",{id}):Json(nullptr);
+        if(legacy && result.is_object() && original.is_null()) {
+            if(error)*error="completed legacy publication has no original message";return false;
         }
         const auto saved=Query(conn,"SELECT input_digest,reply FROM room_agent_publication WHERE request_id=? FOR UPDATE",{id});
         if(!saved.empty()) {
@@ -212,16 +223,22 @@ bool MySqlRoomAgentRepository::Publication(const Json& request,const std::string
             transaction.Commit();return true;
         }
         const auto member=Query(conn,"SELECT role FROM group_member WHERE group_id=? AND user_id=? FOR UPDATE",{room,actor});
+        // Context mutations must take im_group first, just like membership and
+        // workspace changes. Existing decisions above never depend on this read.
+        const auto context=cann?std::vector<std::vector<std::string>>{}:
+            Query(conn,"SELECT generation FROM room_context WHERE room_id=? FOR UPDATE",{room});
         const auto workspace=cann?std::vector<std::vector<std::string>>{}:Query(conn,"SELECT project_id,generation FROM room_workspace WHERE room_id=? FOR UPDATE",{room});
         Json bindings=Json::array();
         if(!cann)for(const auto& row:Query(conn,"SELECT agent_id,installed,generation FROM room_agent_binding WHERE room_id=? FOR UPDATE",{room}))
                 bindings.push_back({{"agent_id",row[0]},{"installed",row[1]=="1"},{"generation",std::stoll(row[2])}});
         const bool active=!group.empty() && group[0][0]=="1" && !user.empty() && user[0][0]=="1" && user[0][1]=="1" &&
             !member.empty() && std::stoi(member[0][0])>=0 && std::stoi(member[0][0])<=2;
-        Json state={{"member",active},{"bindings",bindings},{"workspace",workspace.empty()?Json{{"project_id",""},{"generation",0}}:
+        Json state={{"member",active},{"bindings",bindings},{"context_generation",context.empty()?0:std::stoll(context[0][0])},{"workspace",workspace.empty()?Json{{"project_id",""},{"generation",0}}:
             Json{{"project_id",workspace[0][0]},{"generation",std::stoll(workspace[0][1])}}}};
         if(cann) {
             state["task"]=One(conn,"SELECT payload FROM room_agent_task WHERE room_id=? FOR UPDATE",{room});
+        }
+        if(legacy) {
             state["original_message"]=original;state["original_result"]=result;
         }
         *output=decide(state);
@@ -282,11 +299,43 @@ bool MySqlRoomAgentRepository::Tasks(int64_t room,Json* result,std::string* erro
 }
 bool MySqlRoomAgentRepository::SaveTask(int64_t room,int64_t revision,const Json& task,std::string* error) {
     return Run(pool_,error,[&](MYSQL* conn){
+        media_storage::NextTransactionCurrent(conn);
         room_sql::Transaction transaction(conn);uint64_t affected=0;const auto id=task.at("task_id").get<std::string>();
+        const auto actor=Id(task.at("last_actor_user_id"));
+        const auto group=Query(conn,"SELECT group_type FROM im_group WHERE id=? FOR UPDATE",{Id(room)});
+        const auto user=Query(conn,"SELECT status,deleted_at IS NULL FROM `user` WHERE id=? FOR UPDATE",{actor});
+        const auto member=Query(conn,"SELECT role FROM group_member WHERE group_id=? AND user_id=? FOR UPDATE",{Id(room),actor});
+        if(group.empty() || group[0][0]!="1" || user.empty() || user[0][0]!="1" || user[0][1]!="1" ||
+           member.empty() || std::stoi(member[0][0])<0 || std::stoi(member[0][0])>2)return false;
+        const auto ids=task.value("source_ids",Json::array());
+        if(revision==0 && !ids.empty()) {
+            Json sources;const auto status=room_context_sql::Resolve(conn,room,task.at("request_id"),ids,"",32,&sources);
+            if(!status.ok() || sources.at("items").size()!=ids.size())return false;
+            for(const auto& source:sources.at("items"))if(!source.at("available").get<bool>())return false;
+        }
+        if(revision!=0) {
+            const auto previous=One(conn,"SELECT payload FROM room_collaboration_task WHERE task_id=? AND room_id=? FOR UPDATE",{id,Id(room)});
+            if(!previous.is_object() || previous.value("source_ids",Json::array())!=ids ||
+               previous.at("request_id")!=task.at("request_id"))return false;
+            const int64_t assignee=previous.value("assignee_user_id",0LL),actor_id=task.at("last_actor_user_id").get<int64_t>();
+            if(std::stoi(member[0][0])<1 && (task.at("assignee_user_id")!=actor_id ||
+                (assignee!=actor_id && assignee!=0)))return false;
+        }
         if(revision==0)Query(conn,"INSERT INTO room_collaboration_task(task_id,room_id,revision,payload) VALUES(?,?,1,?)",{id,Id(room),task.dump()},&affected);
         else Query(conn,"UPDATE room_collaboration_task SET revision=revision+1,payload=? WHERE task_id=? AND room_id=? AND revision=?",{task.dump(),id,Id(room),Id(revision)},&affected);
         if(affected!=1)return false;
         Query(conn,"INSERT INTO room_collaboration_task_history(task_id,revision,payload) VALUES(?,?,?)",{id,Id(revision+1),task.dump()});transaction.Commit();return true;
     });
+}
+ServiceStatus MySqlRoomAgentRepository::Sources(int64_t room,const std::string& id,const Json& ids,
+        const std::string& after,uint64_t limit,Json* output) {
+    try {
+        auto guard=pool_->Acquire();auto* conn=guard.get();media_storage::NextTransactionCurrent(conn);
+        room_sql::Transaction transaction(conn);
+        if(Query(conn,"SELECT id FROM im_group WHERE id=? FOR UPDATE",{Id(room)}).empty())return {404,"room not found"};
+        Json result;auto status=room_context_sql::Resolve(conn,room,id,ids,after,limit,&result);
+        if(!status.ok())return status;
+        transaction.Commit();*output=std::move(result);return {};
+    }catch(const std::exception&){return {503,"room source storage unavailable"};}
 }
 }

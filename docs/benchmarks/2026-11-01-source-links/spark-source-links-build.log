@@ -1,0 +1,49 @@
+[  5%] Built target spark_push_proto
+[ 21%] Built target muduo_base
+[ 34%] Built target spark_push_common
+[ 52%] Built target muduo_net
+[ 55%] Built target muduo_http
+[ 55%] Building CXX object logic/CMakeFiles/spark_push_logic.dir/services/room_agent_service.cpp.o
+[ 57%] Building CXX object logic/CMakeFiles/spark_push_logic.dir/repositories/room_agent_repository.cpp.o
+[ 57%] Building CXX object logic/CMakeFiles/spark_push_logic.dir/services/room_agent_catalog.cpp.o
+[ 60%] Building CXX object logic/CMakeFiles/spark_push_logic.dir/services/room_workspace_service.cpp.o
+[ 60%] Building CXX object logic/CMakeFiles/spark_push_logic.dir/services/room_task_service.cpp.o
+[ 60%] Building CXX object logic/CMakeFiles/spark_push_logic.dir/services/media_context_service.cpp.o
+[ 63%] Building CXX object logic/CMakeFiles/spark_push_logic.dir/services/message_service.cpp.o
+[ 63%] Linking CXX static library libspark_push_logic.a
+[ 94%] Built target spark_push_logic
+[ 97%] Building CXX object logic/CMakeFiles/logic_server.dir/main.cpp.o
+[ 97%] Building CXX object logic/CMakeFiles/logic_server.dir/http_server.cpp.o
+[100%] Linking CXX executable logic_server
+[100%] Built target logic_server
+[  5%] Built target spark_push_proto
+[ 21%] Built target muduo_base
+[ 35%] Built target spark_push_common
+[ 54%] Built target muduo_net
+[ 56%] Built target muduo_http
+[ 97%] Built target spark_push_logic
+[100%] Building CXX object tests/CMakeFiles/media_processing_http_probe.dir/__/logic/http_server.cpp.o
+[100%] Building CXX object tests/CMakeFiles/media_processing_http_probe.dir/media_processing_http_probe.cpp.o
+[100%] Linking CXX executable media_processing_http_probe
+[100%] Built target media_processing_http_probe
+[  6%] Built target spark_push_proto
+[ 27%] Built target muduo_base
+[ 44%] Built target spark_push_common
+[ 96%] Built target spark_push_logic
+[100%] Building CXX object tests/CMakeFiles/room_agent_service_test.dir/room_agent_service_test.cpp.o
+[100%] Linking CXX executable room_agent_service_test
+[100%] Built target room_agent_service_test
+[  6%] Built target spark_push_proto
+[ 27%] Built target muduo_base
+[ 44%] Built target spark_push_common
+[ 96%] Built target spark_push_logic
+[100%] Building CXX object tests/CMakeFiles/media_context_service_test.dir/media_context_service_test.cpp.o
+[100%] Linking CXX executable media_context_service_test
+[100%] Built target media_context_service_test
+[  6%] Built target spark_push_proto
+[ 27%] Built target muduo_base
+[ 44%] Built target spark_push_common
+[ 96%] Built target spark_push_logic
+[ 96%] Building CXX object tests/CMakeFiles/space_mysql_integration_test.dir/space_mysql_integration_test.cpp.o
+[100%] Linking CXX executable space_mysql_integration_test
+[100%] Built target space_mysql_integration_test

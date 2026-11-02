@@ -10,6 +10,12 @@ services:
       SPARK_PUSH_ROOM_PROJECT_CATALOG: /run/spark-agent-config/projects.json
       SPARK_PUSH_HERMES_API_KEY: ${SPARK_PUSH_HERMES_API_KEY:-}
       SPARK_PUSH_WORKSPACE_AUTH_KEY: ${SPARK_PUSH_WORKSPACE_AUTH_KEY:-}
+      # Separate operator credential and approved parser fingerprints. Blank
+      # values leave processing unavailable; ordinary IM remains usable.
+      SPARK_PUSH_MEDIA_WORKER_KEY: ${SPARK_PUSH_MEDIA_WORKER_KEY:-}
+      SPARK_PUSH_MEDIA_PIPELINE_SHA256: ${SPARK_PUSH_MEDIA_PIPELINE_SHA256:-}
+      SPARK_PUSH_MEDIA_PARSER_PIPELINE_SHA256: ${SPARK_PUSH_MEDIA_PARSER_PIPELINE_SHA256:-}
+      SPARK_PUSH_MEDIA_PARSER_SHA256: ${SPARK_PUSH_MEDIA_PARSER_SHA256:-}
       SPARK_PUSH_AGENT_GATEWAY_ORIGIN: ${SPARK_PUSH_AGENT_GATEWAY_ORIGIN:-http://host.docker.internal:8643}
     extra_hosts: [host.docker.internal:host-gateway]
     volumes:

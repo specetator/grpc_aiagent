@@ -1,0 +1,5371 @@
+[
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1140,
+        "part": 0,
+        "start_ms": 0
+      },
+      "kind": "transcript",
+      "text": "Decision Checkpoint 1"
+    },
+    "index": 0,
+    "sha256": "8465e2de87315f3e5e086832b597b3377f22323fa75a69850a4f163880f87726"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 2860,
+        "part": 0,
+        "start_ms": 1140
+      },
+      "kind": "transcript",
+      "text": "The code name is Silver Lantern"
+    },
+    "index": 1,
+    "sha256": "44521095e867a0fb92779190d091409d860126c1bd36bb2ad934f77aed598065"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 4600,
+        "part": 0,
+        "start_ms": 2860
+      },
+      "kind": "transcript",
+      "text": "AliSone's Cuback Pressure Review"
+    },
+    "index": 2,
+    "sha256": "813af10eba5235508d68f7d66d025cd2817dfee6c1b54817c84219ceb9aa378b"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 6280,
+        "part": 0,
+        "start_ms": 4600
+      },
+      "kind": "transcript",
+      "text": "This is Discussion Item 1"
+    },
+    "index": 3,
+    "sha256": "2a8351952ca315206203faab8be72cd9c69ace9d52bbb976a054c21c06b7b523"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 9320,
+        "part": 0,
+        "start_ms": 6280
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery"
+    },
+    "index": 4,
+    "sha256": "9ae5ce9fe6bc805dd19f1bca2e8b09e8da43c52c20f29d65ab3bb054cf992bdc"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 12720,
+        "part": 0,
+        "start_ms": 9320
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message"
+    },
+    "index": 5,
+    "sha256": "d2ec09c5cd4bfaf1c175ef037137db1684b6df9894687e9c544f59725c355027"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 15280,
+        "part": 0,
+        "start_ms": 12720
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying"
+    },
+    "index": 6,
+    "sha256": "f64e48de3062f83c0f7e19c37ae0f70b04cfe9893f153420bfd7d239af229a02"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 17860,
+        "part": 0,
+        "start_ms": 15280
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs"
+    },
+    "index": 7,
+    "sha256": "64f2c4d0bc6518cd9dd1cad51f977337d4506d20b813986dce7841eeb52e66a9"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 21080,
+        "part": 0,
+        "start_ms": 17860
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision"
+    },
+    "index": 8,
+    "sha256": "23aba998036dce4cd149781dea6ecb27fa1cc56dfbce593aef2f980a06809740"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 24000,
+        "part": 0,
+        "start_ms": 21080
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms"
+    },
+    "index": 9,
+    "sha256": "f21d4c4849da15131570d6f8e42198f4fa0d212c2f84b54d84660194dd187afd"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 25620,
+        "part": 0,
+        "start_ms": 24000
+      },
+      "kind": "transcript",
+      "text": "This is Discussion Item 2"
+    },
+    "index": 10,
+    "sha256": "9325204848099425c84845c9b089b5e14fd35a6ee13cb94a265d7555bc5cb37b"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 28640,
+        "part": 0,
+        "start_ms": 25620
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery"
+    },
+    "index": 11,
+    "sha256": "32852ca94d4e0c808543aefc2f9588e5b06dcfd356ac6bd6025ba08a929dad76"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 31960,
+        "part": 0,
+        "start_ms": 28640
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 12,
+    "sha256": "cc9a55504f71faaa290ee3548fd2462bfa6cbc9b6e3d56102c1787ca1f6a8820"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 34560,
+        "part": 0,
+        "start_ms": 32320
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 13,
+    "sha256": "76a3f2f35b6e7c76bc7197e272b90f52c4d1eb94e28c0156fe617b16748cbcda"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 37140,
+        "part": 0,
+        "start_ms": 34920
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 14,
+    "sha256": "93bcc6dbf0f75d0e8741638a71c3c0d397b90fa9ea8082a161e110bc90fcaa04"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 40360,
+        "part": 0,
+        "start_ms": 37440
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 15,
+    "sha256": "a61215c1073ad3a054f1d24a9def75d52b4782a232c06d8558748794f5f1c3aa"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 43280,
+        "part": 0,
+        "start_ms": 40740
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 16,
+    "sha256": "498129eb84b708b1a61e185ff7bd6d986ddbf4206be30358a77139c036fda7a1"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 44920,
+        "part": 0,
+        "start_ms": 43620
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 3."
+    },
+    "index": 17,
+    "sha256": "8c05c8856675976b59c474a1b9309a864780cc7f719f49774bae29a8256cd692"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 47900,
+        "part": 0,
+        "start_ms": 45200
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 18,
+    "sha256": "895538fc37e2f12892706ce50edea919eda5ad1bd7003011bd378e3339c6f16e"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 51260,
+        "part": 0,
+        "start_ms": 48220
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 19,
+    "sha256": "7564411cd8a60407f59a6d78f83b77e98ba55c81e30bebfdf2aa7b94db83d903"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 53900,
+        "part": 0,
+        "start_ms": 51600
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 20,
+    "sha256": "634fa974ad7369dd7914adbdf969cb04f34b73c8581c23348e808adc9eb2935a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 56460,
+        "part": 0,
+        "start_ms": 54260
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 21,
+    "sha256": "04b7ff17fcf81be853feb3a3d480986b58c30a1424245e76cb46862d08efd5ff"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 59680,
+        "part": 0,
+        "start_ms": 56460
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 22,
+    "sha256": "449b87e4ba15dfecd0d276337e115ba9f2b963fc8caf710ec4f7340f1775f1d1"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 62580,
+        "part": 0,
+        "start_ms": 60060
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 23,
+    "sha256": "a247b3c9e75a7b8cb9453b836a9494e2fb00f646a88bf80dcd6301404789d875"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 64260,
+        "part": 0,
+        "start_ms": 62940
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 4."
+    },
+    "index": 24,
+    "sha256": "1c458f2899204ce95a27d5b080ff5282b22f5521050fa0a365d0d6546a0d832d"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 67260,
+        "part": 0,
+        "start_ms": 64660
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 25,
+    "sha256": "70d488b565fbacf1141290c5875d47e9ebfa4e0c4e13e57fa262210486a3036a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 70620,
+        "part": 0,
+        "start_ms": 67540
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 26,
+    "sha256": "aa5d8c218573d96d8b749ca4ee64381b5545d14a543787354cd4acee854d74b6"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 73220,
+        "part": 0,
+        "start_ms": 71000
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 27,
+    "sha256": "c674a49393a84a3d36adaaf75b47fbb3c65be68b3058304ccf5495b88fa8e426"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 75800,
+        "part": 0,
+        "start_ms": 73640
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 28,
+    "sha256": "a4d7f4a48b1421cb60b6f116bea05de679d552a97a79a4f6b37d6d7516e982ec"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 79080,
+        "part": 0,
+        "start_ms": 76180
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 29,
+    "sha256": "523f55e35b1053b533d1703e4a782acbf92a3e4bcdc2cd2afe2fc2bcb7ec9fe8"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 81960,
+        "part": 0,
+        "start_ms": 79380
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 30,
+    "sha256": "ef34da0180ecd5a77282d7787495a877ac1a7558b23fb38992932e2d13b5e136"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 83620,
+        "part": 0,
+        "start_ms": 82260
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 5."
+    },
+    "index": 31,
+    "sha256": "c2464232e8f53e2210711b6e1321ae84ed8dfe8f6cde8a64197827e1fb2ca9ab"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 86680,
+        "part": 0,
+        "start_ms": 83620
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 32,
+    "sha256": "dd95da7963260e48fa2bebfd15356b2122d460939c318aa3d8e3be3d97137c04"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 90020,
+        "part": 0,
+        "start_ms": 86980
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 33,
+    "sha256": "423d1400b96fa07ee04efc4362205d7d06f134e19d5e97122e19eea6ea2d98ea"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 92620,
+        "part": 0,
+        "start_ms": 90400
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 34,
+    "sha256": "779b167be4f5cfd67ccf8d0bef5c7888e6bf40b7a6c5ed1a8e0423235cac597a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 95200,
+        "part": 0,
+        "start_ms": 93040
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 35,
+    "sha256": "6de82391736cc8ae731d8a24ca6dee384049586ef00ec3e8509fb79e6d2c3523"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 98440,
+        "part": 0,
+        "start_ms": 95540
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 36,
+    "sha256": "74b335609ac50299c11be8e73352a53780bd818bb0171c4572f59723ce31cc26"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 101360,
+        "part": 0,
+        "start_ms": 98820
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 37,
+    "sha256": "b3111c269eb5a218ca84ddc9d5f4c59ab93cd2f3a16412f60e65b2b0fc940300"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 103020,
+        "part": 0,
+        "start_ms": 101680
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 6."
+    },
+    "index": 38,
+    "sha256": "854878c9664330a78d5f5ac8975cbc169803b5a65ceb5be977704f8eea4b43d5"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 106080,
+        "part": 0,
+        "start_ms": 103380
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 39,
+    "sha256": "0467f1742e4ca2774138c7e2b192ad260f67dd654765ccb5a35ae96e53203265"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 109420,
+        "part": 0,
+        "start_ms": 106340
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 40,
+    "sha256": "f5b371f6305e54d88d64713d18604fec8759e3126460cbaac2907ef4e8f05d60"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 112060,
+        "part": 0,
+        "start_ms": 109760
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 41,
+    "sha256": "e5bec9b570ed26b40cfa999890ed340e2643b91cd948db8a5bf78b6746556a79"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 114600,
+        "part": 0,
+        "start_ms": 112060
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 42,
+    "sha256": "43603281ef1dbbc6a98c6aa8dd3873c9909a163cf4be766eb9a7934ab4850ce4"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 117860,
+        "part": 0,
+        "start_ms": 114920
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 43,
+    "sha256": "ced5e53089b53156ab58818b3fab7e870f15b92c5d159e38209bb44835de028f"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 120740,
+        "part": 0,
+        "start_ms": 118200
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 44,
+    "sha256": "7d9c083eff4d3bf654f84a8ae1089f6d7da6389245cc763fa5cbc9837fcc798a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 122440,
+        "part": 0,
+        "start_ms": 121100
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 7."
+    },
+    "index": 45,
+    "sha256": "9bf6cf1a534046380a8a5d7cf0e28941cfe8078b3512a4900db7a3587be41c4e"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 125500,
+        "part": 0,
+        "start_ms": 122800
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 46,
+    "sha256": "cfe20dcda2fb6f1666444f7c9c622779f5829c4ff493e72907fd346e141c379e"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 128840,
+        "part": 0,
+        "start_ms": 125760
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 47,
+    "sha256": "f3c13c827638db2f546b0f00c2f0763b7bb89554384c2a7342bb2cf867592f0a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 131460,
+        "part": 0,
+        "start_ms": 129220
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 48,
+    "sha256": "decac4351799669fc2ef2f8b221588f7e7dea318ea22245f736b63bc74c609b1"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 134060,
+        "part": 0,
+        "start_ms": 131860
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 49,
+    "sha256": "6bae5de734b6d5897c2bb81968f4a5852fd6b6abfa3e3a45bb1f06a7e958c9e0"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 137300,
+        "part": 0,
+        "start_ms": 134360
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 50,
+    "sha256": "a18a12c4e4fd1d4630eb4ed6f5d9e4202571795bf352fc7872bd6b7977ec4282"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 140180,
+        "part": 0,
+        "start_ms": 137600
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 51,
+    "sha256": "32fc7cbbbd55522b5dfc17f33189687c93b08f4005c143a138cef7db8d14b92a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 144740,
+        "part": 0,
+        "start_ms": 140180
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 8. We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 52,
+    "sha256": "a9d996899820f36ca42e78bc82bd4db51608a806da184aa4a6de4511558d36a4"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 148080,
+        "part": 0,
+        "start_ms": 145040
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 53,
+    "sha256": "40dad164b9b4be279489aa0f7e9bec71f65c777a764cd92c8dd9cf4c3d2c145f"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 150700,
+        "part": 0,
+        "start_ms": 148480
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 54,
+    "sha256": "686da0de4fc83a2c3ef31a4dea379135ad2805d85d3d9b458cb70adddaa4892d"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 153280,
+        "part": 0,
+        "start_ms": 151120
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 55,
+    "sha256": "ceec3851246ceacad65eadebb2a234c681658b1f0899dfca25c616a4a6fa7973"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 156520,
+        "part": 0,
+        "start_ms": 153600
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 56,
+    "sha256": "73278f93df23247b070e7bc75803e9a883daa43f71bdb61c543d2bd57bbdb4af"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 159380,
+        "part": 0,
+        "start_ms": 156860
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 57,
+    "sha256": "809b6eda8234ca07b894ef490a770f615c1c309f1085b75367e9bc43e2d1cef6"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 164120,
+        "part": 0,
+        "start_ms": 159760
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 9. We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 58,
+    "sha256": "3bc46d78960f136c91a6fdc4542f28df3bfcec575362ad77045e0b733444beea"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 167480,
+        "part": 0,
+        "start_ms": 164360
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 59,
+    "sha256": "d62c630a24cb87605da808df96efa99eb4f0a4cf1e4b1e2c1038086d6c53d965"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 170100,
+        "part": 0,
+        "start_ms": 167480
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 60,
+    "sha256": "44ff8bde62c962139dd7231e07f45d6529f88b71fc09352f4f1b5d83f4154a97"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 172640,
+        "part": 0,
+        "start_ms": 170440
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 61,
+    "sha256": "9e52d678f87435666673cc614f8e245fde1769c06f515c6641f44ffab6949fb6"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 175900,
+        "part": 0,
+        "start_ms": 173000
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 62,
+    "sha256": "d437c217abf75f1903c3f615a657830714feaa6f138667f5b093186b8847348b"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 178800,
+        "part": 0,
+        "start_ms": 176260
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 63,
+    "sha256": "6907c0a9811f46fdebdb32c6ac0d672c6160736d88e71da545d6c07e200931f4"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 180480,
+        "part": 0,
+        "start_ms": 179160
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 10."
+    },
+    "index": 64,
+    "sha256": "e3b138ee9f2b6f501fb2000971aa7f5089b8ba48f9aef6626dcc44800d4b60ed"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 183440,
+        "part": 0,
+        "start_ms": 180780
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 65,
+    "sha256": "8767b64d161a41d6a829d49c56f80dc61947f792c0460cc152ff3d8ff96d5ba6"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 186800,
+        "part": 0,
+        "start_ms": 183720
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 66,
+    "sha256": "149d4ccf404253e1eafbec299f1b5e3b1420602c954a8d72a599f81f7a25020f"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 189460,
+        "part": 0,
+        "start_ms": 187160
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 67,
+    "sha256": "1ba4e5e20c7ed3cbbdf6ad625045870ff359e2aab4d7b1f7add74f2f172eaa9e"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 192020,
+        "part": 0,
+        "start_ms": 189800
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 68,
+    "sha256": "d66c4ef8ddf5eceac3a5669718b0bc2d383e7bb1f4ed1624a46dea8bd77d13fb"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 195260,
+        "part": 0,
+        "start_ms": 192300
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 69,
+    "sha256": "c41a76e2af8641ea6011ce86d564bafb13698099c989a6d81aa216869b1a319f"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 199780,
+        "part": 0,
+        "start_ms": 195260
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms. This is discussion item 11."
+    },
+    "index": 70,
+    "sha256": "0345804960a8587871acf0998343a1970c7181687029f8aeaee671a7de977f72"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 206200,
+        "part": 0,
+        "start_ms": 200240
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery. A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 71,
+    "sha256": "89daf6e4027459086185f7fcf2603aca59a8037773d14dbafe19f39d7fe01790"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 211380,
+        "part": 0,
+        "start_ms": 206560
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying. Check the database history and the worker logs."
+    },
+    "index": 72,
+    "sha256": "a9ab43bbfa779fe0ec7023a700e42123b14662feef92fb85f36db08458e6ea01"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 214600,
+        "part": 0,
+        "start_ms": 211740
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 73,
+    "sha256": "fa7b6725b17a290a0db927b768b48c853461059b75e80c9c69d7d5f3871bd28c"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 219220,
+        "part": 0,
+        "start_ms": 214960
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms. This is discussion item 12."
+    },
+    "index": 74,
+    "sha256": "6ae08e0f7a2401773bfc2035209823e311c97bd3ec190757eb3b93b3f4593bd2"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 222300,
+        "part": 0,
+        "start_ms": 219220
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 75,
+    "sha256": "32f48f7e325074dc1818674de4938b31df4bfe2187f91ef7c152c5d606c32a28"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 225660,
+        "part": 0,
+        "start_ms": 222600
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 76,
+    "sha256": "91b4fe98e2ae964ee9a8dc4d88904d9a669d5b1a79700d97bd81a25439632eb7"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 228240,
+        "part": 0,
+        "start_ms": 226040
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 77,
+    "sha256": "0d296664d8c0c907c775d038301fcca792d902c1ba222547bc482a829b0fccb3"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 230820,
+        "part": 0,
+        "start_ms": 228660
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 78,
+    "sha256": "ac6c15df71b1f752896d337e8f204259df425882e7f94d00ccbd7a19a3353923"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 234060,
+        "part": 0,
+        "start_ms": 231160
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 79,
+    "sha256": "51837fd7f6d5c27313a9f80bb3f012e70f5a77114976c6d6c9400b2b055255e5"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 237000,
+        "part": 0,
+        "start_ms": 234420
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 80,
+    "sha256": "260eccb77451b01e21492cd5cbf43c44c4016bf7886415a5f8a8a49502038ce6"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 238740,
+        "part": 0,
+        "start_ms": 237320
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 13."
+    },
+    "index": 81,
+    "sha256": "a13099477dc6f8998cfff5d5d84614daa14104fecab6bf19459e5be2f2236f0a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 241800,
+        "part": 0,
+        "start_ms": 239120
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 82,
+    "sha256": "059632e344691f38e646ac283de78dfd59ea415f9072bef0d699b6bf593489bf"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 245180,
+        "part": 0,
+        "start_ms": 242060
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 83,
+    "sha256": "1cea6e00242c194f91790d54ea78c806b2d55e1c98da824725b3b69012d34c62"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 247780,
+        "part": 0,
+        "start_ms": 245480
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 84,
+    "sha256": "cc340aa1fc9d73d60f7015678794006e1cf91667ae9f45a49d1ff6f99df725de"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 250340,
+        "part": 0,
+        "start_ms": 247780
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 85,
+    "sha256": "b98128d9b0e8149ab373bebfef5ae5e187ff5d32436d050b7c22eee4963416b5"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 253560,
+        "part": 0,
+        "start_ms": 250660
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 86,
+    "sha256": "d06cd17fb3bdd2d3b8ebcee7a4c1cb0d7f632172d7d1feb09134f0589313611a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 256460,
+        "part": 0,
+        "start_ms": 253900
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 87,
+    "sha256": "f2578861dd0605fec4ad6ee8b21398b259c070fda2ab38ac03d622b976d11a68"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 258220,
+        "part": 0,
+        "start_ms": 256800
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 14."
+    },
+    "index": 88,
+    "sha256": "762e303fd29a7c6d1cd4ab5604d43fed6c755950606ab7850536ba81a0c0cb57"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 261260,
+        "part": 0,
+        "start_ms": 258600
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 89,
+    "sha256": "9c365ed4e70d1ee9d1509439fd82fbfe4d68d19fe1acb1762b01c5988cd6a626"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 264640,
+        "part": 0,
+        "start_ms": 261560
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 90,
+    "sha256": "0baf1450b1fb375e2665a89f7810ff2cd9b46b31572b95a207124f142416537b"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 267240,
+        "part": 0,
+        "start_ms": 264980
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 91,
+    "sha256": "93edceec1f37024f28915078138dbd31ba65e6a77466dfe6be61826f61db36f8"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 269840,
+        "part": 0,
+        "start_ms": 267640
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 92,
+    "sha256": "298bf377bf538bcca00a9159a75b8f5a80bec05bd472126466e4ef008d3ede8d"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 273080,
+        "part": 0,
+        "start_ms": 270140
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 93,
+    "sha256": "6012d42931a47e86a423464c8b12967482c0fb13ea101a3f2e8186437d3861ce"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 275980,
+        "part": 0,
+        "start_ms": 273360
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 94,
+    "sha256": "fdf150fdcb59101f5cb9b1efb182f53f5a27db29bfbe901a5c1999de78348e7e"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 277720,
+        "part": 0,
+        "start_ms": 275980
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 15."
+    },
+    "index": 95,
+    "sha256": "0941e6bb2cb259fe935d312f0337ddd572856f4449a605efbb4a0a2c22d01089"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 280780,
+        "part": 0,
+        "start_ms": 278080
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 96,
+    "sha256": "2cfc51ea2e0e551f06eac3f2ea4d36f077ac25c55886c16f238b0f104bc193ae"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 284100,
+        "part": 0,
+        "start_ms": 281060
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 97,
+    "sha256": "26250c7cca50237bb276fc9f10017961900d29555bc3ee0581b1638e72178d5b"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 286720,
+        "part": 0,
+        "start_ms": 284480
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 98,
+    "sha256": "9de130cba79625f213ba412267b857e445fb6104b6b1f2c7ce9ca37ab8750f7c"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 289300,
+        "part": 0,
+        "start_ms": 287120
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 99,
+    "sha256": "3e1d7e7ee094856545a040ff3a8a1629ccb6b66e54bab262ed5ce5cdc3dcf339"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 292520,
+        "part": 0,
+        "start_ms": 289620
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 100,
+    "sha256": "763263f7d6082aa4552598c06ca40903bf93645633fe2308133d47acf76c1db3"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 295440,
+        "part": 0,
+        "start_ms": 292900
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 101,
+    "sha256": "b84eaf90b1529b1d6da25b1179ad9c78100e93ad3f2a9797349cedf7373458c9"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 297220,
+        "part": 0,
+        "start_ms": 295780
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 16."
+    },
+    "index": 102,
+    "sha256": "83b15e45e46eab3fca73a4760ea2f681f1cfce6a2c95594aab496b239eac17c5"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 300340,
+        "part": 0,
+        "start_ms": 297620
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 103,
+    "sha256": "926f3b71e26c2491d7709c32de46e363e03c2424242bc45fffafd1fb8be8fd8a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 303720,
+        "part": 0,
+        "start_ms": 300580
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 104,
+    "sha256": "5f08912cf0b60a14372594ee8ece5421e9439f52756f04f5ca788540ed0c8967"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 306320,
+        "part": 0,
+        "start_ms": 303720
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 105,
+    "sha256": "5f6b68ce211c1e30ae0a5a1802e67d0eb01e1589c8b9bf9bc59f5198590a2bff"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 308880,
+        "part": 0,
+        "start_ms": 306680
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 106,
+    "sha256": "e06717019b4aef0dc8aa36215e03658ac7a621506559756fd95a98fa99ad62ad"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 312120,
+        "part": 0,
+        "start_ms": 309200
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 107,
+    "sha256": "b31553d428f837553980feb4be76f83c8b8b27ebd98b69c1b33a5d4e9bd30098"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 315020,
+        "part": 0,
+        "start_ms": 312460
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 108,
+    "sha256": "36dc9e35f39b14d225d4d2100a1522e71f671d3c0c4dc19ec28f56db66b72e9b"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 316900,
+        "part": 0,
+        "start_ms": 315380
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 17."
+    },
+    "index": 109,
+    "sha256": "b96a5d66b8f57726c8ebf34061382a350e5ebcaae48121e255de91ade5c8e8e4"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 319960,
+        "part": 0,
+        "start_ms": 317280
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 110,
+    "sha256": "794a74eb2f4d0a692800fdd4480eaa598592bab641fc8094693a985c5e4110a5"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 323280,
+        "part": 0,
+        "start_ms": 320220
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 111,
+    "sha256": "0bae9ea8ad97c61d5fed1beaec0dfbdd1951afcf4887095d2ed8ffe8fe835798"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 325940,
+        "part": 0,
+        "start_ms": 323660
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 112,
+    "sha256": "59a9b21304cac3be078d2c72c4ad67303b97a84bbe3c34bf6a8aecd87b2b3a4d"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 328500,
+        "part": 0,
+        "start_ms": 326300
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 113,
+    "sha256": "fe6ce470d07c080f78337537f9ca1d01fd5367c208c170e316bf916442279f18"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 331780,
+        "part": 0,
+        "start_ms": 328800
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 114,
+    "sha256": "f23ad6a7b6878dfedc4d34554973fc876ebfefd7a822b9a352d8db7e0aac5649"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 334660,
+        "part": 0,
+        "start_ms": 331780
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 115,
+    "sha256": "5315e7d6e1922385880a46617749855ae3abe86fb0b9ab09c1a65ffea991a12e"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 336260,
+        "part": 0,
+        "start_ms": 335020
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 18."
+    },
+    "index": 116,
+    "sha256": "79c342ccc8a05e0fdd48bd412a99afe170c940e727c03ab729ef0c84b87b4826"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 339320,
+        "part": 0,
+        "start_ms": 336700
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 117,
+    "sha256": "d5f3a457e5d332a93f38f0c3b0876bde710015017cbfe588bcb8b21c82b067c1"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 342700,
+        "part": 0,
+        "start_ms": 339640
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 118,
+    "sha256": "2407897d75766b5572cd8353b0044c106458e1c0bf3228e7dab6450f6a4e1fcc"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 345300,
+        "part": 0,
+        "start_ms": 343060
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 119,
+    "sha256": "046a3caf0a71e31c347b42ad3f99b872cf1936e2a313af1066dac1c3f2188935"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 347880,
+        "part": 0,
+        "start_ms": 345700
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 120,
+    "sha256": "2b3d1a766eb2b6285066f1f1040fc6d17109dc9a51257085e4bfab056c3603cf"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 351100,
+        "part": 0,
+        "start_ms": 348240
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 121,
+    "sha256": "5d61c356fcaf5122401c79754c3895b4578fd844b43a390eaeb2a15629b33d1c"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 354040,
+        "part": 0,
+        "start_ms": 351460
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 122,
+    "sha256": "02418a1ef5e2a37831ca16dc33a2aa6f1bf6829e98326e13e95f043d13f9b617"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 355760,
+        "part": 0,
+        "start_ms": 354340
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 19."
+    },
+    "index": 123,
+    "sha256": "c28454801853f95a138217bc6b4f10353b8fc0d764fa21033c91a61cacbc8cda"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 358860,
+        "part": 0,
+        "start_ms": 356140
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 124,
+    "sha256": "d09cd839ac287b07e5a74f90f2d6d6150467e2526b92f9bca5661714a3252235"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 362200,
+        "part": 0,
+        "start_ms": 358860
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 125,
+    "sha256": "9bab22c8a0f9931e13fcf38b4dac8c382301d685f0d5827b8c0e1a435b5e6f23"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 364820,
+        "part": 0,
+        "start_ms": 362560
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 126,
+    "sha256": "3c7696b6fe6f9dfaf0df8f5f19beeaf1f853adb5eb1cb03a0418bb6ec5dad399"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 367360,
+        "part": 0,
+        "start_ms": 365180
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 127,
+    "sha256": "ab942a17c31433a54d8eea919418dd97492922b05696f12c279b25af3b3d63b8"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 370620,
+        "part": 0,
+        "start_ms": 367680
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 128,
+    "sha256": "bd68751bd270a8e5316259f61afad176796aad64ca5dcc182dcb0f0c8fe19bcd"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 373520,
+        "part": 0,
+        "start_ms": 370980
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 129,
+    "sha256": "054770695b13c5746f6ce80f2b23dee758845409373cf59d6127f7e71555837c"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 375360,
+        "part": 0,
+        "start_ms": 373860
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 20."
+    },
+    "index": 130,
+    "sha256": "7a899541643564a55e0127acfd5f18872387081a21e2fd544820b1d33e32bfa5"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 378340,
+        "part": 0,
+        "start_ms": 375600
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 131,
+    "sha256": "8791fdd74ccd44446c4c79585ce34eb6ad31fe4cfa88d0e7cabf00803906fc27"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 381700,
+        "part": 0,
+        "start_ms": 378660
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 132,
+    "sha256": "0a116062a1010d01ada513eb3768af64849603e7c63b92c2d6bba1eb39634d40"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 384340,
+        "part": 0,
+        "start_ms": 382060
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 133,
+    "sha256": "77d30b9ef568fb930a47d192e706180e961ce8057fa450759e506c8d8bee75f3"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 386920,
+        "part": 0,
+        "start_ms": 384700
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 134,
+    "sha256": "5c9e3e480fef04de57912c0ee1f4dcf340a2f25cdee582799f4d5819107e5051"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 390160,
+        "part": 0,
+        "start_ms": 386920
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 135,
+    "sha256": "4369b97093db03f70933afd7e53083f3e1b082f37cae4763dd881e4fe038560c"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 393040,
+        "part": 0,
+        "start_ms": 390480
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 136,
+    "sha256": "9904156ba9704f9473cf11e89479900f9462227a17d6f2e6901e9f20e5f1e6a4"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 394980,
+        "part": 0,
+        "start_ms": 393380
+      },
+      "kind": "transcript",
+      "text": "This is Discussion Item 21."
+    },
+    "index": 137,
+    "sha256": "cf9820822fa06f126a9a2b81080508518ba5d6b604ea913db111a0944486e533"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 398080,
+        "part": 0,
+        "start_ms": 395400
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 138,
+    "sha256": "b0b7f12ce2cde19772d8f917ed15a049508f99ac143a0dc83b8d8a90d833f6ce"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 401460,
+        "part": 0,
+        "start_ms": 398360
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 139,
+    "sha256": "62a79f71974f3f5a800c9b9a7831b9e2e95e7e4d6f6c84057132e708e5f92413"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 404060,
+        "part": 0,
+        "start_ms": 401820
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 140,
+    "sha256": "9de79b15b435d0f2282bdfa67ed6ca9f4c7c0304744907ed81e368fd457db16e"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 406640,
+        "part": 0,
+        "start_ms": 404440
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 141,
+    "sha256": "bd70a1ff0fe77a88842eeb9e8d983324d1465b3bc62176fee6b37c05d4bbeb48"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 409880,
+        "part": 0,
+        "start_ms": 407000
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 142,
+    "sha256": "1957e4e1e3f9059e144e78e90a5ecf668bbd3c42eb1ca113c4569b1fddd3d29b"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 412780,
+        "part": 0,
+        "start_ms": 410200
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 143,
+    "sha256": "6945c133237c6954bec50a020764b8d304c54c20b2472b12bdec0f70257c92fa"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 414700,
+        "part": 0,
+        "start_ms": 413080
+      },
+      "kind": "transcript",
+      "text": "This is Discussion Item 22."
+    },
+    "index": 144,
+    "sha256": "ff334a7a809403db3dec0bc13c60a071d039c7ebcaa8d3ebda26db6344850c67"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 419000,
+        "part": 0,
+        "start_ms": 414700
+      },
+      "kind": "transcript",
+      "text": "2. We are reviewing the messaging service and its failure recovery. A broker acknowledgment"
+    },
+    "index": 145,
+    "sha256": "4d40d69511f72874683df21c699d534d699856846f685cc8e44daf1d659865d8"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 422820,
+        "part": 0,
+        "start_ms": 419000
+      },
+      "kind": "transcript",
+      "text": "does not mean the browser has displayed the message. Keep the original request identified"
+    },
+    "index": 146,
+    "sha256": "4b0013b504ec38958fd88bc72d43f0d0b3f681bfe405a2cf97102ecac41cbb06"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 427400,
+        "part": 0,
+        "start_ms": 422820
+      },
+      "kind": "transcript",
+      "text": "when retrying. Check the database history and the worker logs. The release owner will"
+    },
+    "index": 147,
+    "sha256": "4428492c020da8b73af739b52da7301dd990fd24d3ecd642adb9114daa82193f"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 431240,
+        "part": 0,
+        "start_ms": 427400
+      },
+      "kind": "transcript",
+      "text": "collect the test evidence before making a decision. We must keep the private room"
+    },
+    "index": 148,
+    "sha256": "3935dd2189ebcd16a12508b29d10035b4e6f9bad0be10f2cf273a641a407556b"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 435760,
+        "part": 0,
+        "start_ms": 431240
+      },
+      "kind": "transcript",
+      "text": "isolated from other rooms. This is discussion item 23. We are reviewing the messaging"
+    },
+    "index": 149,
+    "sha256": "73e9d041eea9f0db3ab5d6467535a41c8ec0d336dbea13f30797e8275b3678e9"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 439680,
+        "part": 0,
+        "start_ms": 435760
+      },
+      "kind": "transcript",
+      "text": "service and its failure recovery. A broker acknowledgment does not mean the browser"
+    },
+    "index": 150,
+    "sha256": "0b3cbb9c7b3aec122de6b3b8815eb4c0e253ebc2e86a039ad46c5cc1df34b364"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 444040,
+        "part": 0,
+        "start_ms": 439680
+      },
+      "kind": "transcript",
+      "text": "has displayed the message. Keep the original request identified when retrying. Check"
+    },
+    "index": 151,
+    "sha256": "7b1c01a4c4f32f90fb231101d05c7740cb358b85e3fd94e00f0aa15a37c5b63d"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 446020,
+        "part": 0,
+        "start_ms": 444040
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 152,
+    "sha256": "6f76767702b07c5e7b86de76c6b03607990183ff0491c5e3856c30d96132e7c5"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 449260,
+        "part": 0,
+        "start_ms": 446340
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 153,
+    "sha256": "fd5682990c20bdb4f60f02e4f0abdeb875ef26e77142e077fcc28ca415a982d9"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 452160,
+        "part": 0,
+        "start_ms": 449600
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 154,
+    "sha256": "c2981abdeb7625178921502de2098ef772c39d751cb2449ac99accae754b29c0"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 454040,
+        "part": 0,
+        "start_ms": 452460
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 24."
+    },
+    "index": 155,
+    "sha256": "79e419d5e7f1fdbf6ee73b111ff713bc39224aab983ba1b977a7d840a106cde3"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 457220,
+        "part": 0,
+        "start_ms": 454520
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 156,
+    "sha256": "fe73ffe4e6e3cb0b2869b0546c3887b0dedbc1135510e2303e794c7b12bd2ed1"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 460580,
+        "part": 0,
+        "start_ms": 457480
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 157,
+    "sha256": "4402221405205bfa52595adeb29a4fda007377681ba51cb288989828e5e9a49b"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 463200,
+        "part": 0,
+        "start_ms": 460940
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 158,
+    "sha256": "c8fae01be98b781910b24ab58a3e649b8352df8cfd0d505661fffbc8276d789b"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 465780,
+        "part": 0,
+        "start_ms": 463580
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 159,
+    "sha256": "03e2670484791797c6a5dc6c964d972449abe089229475c0e8ca6783c043109c"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 469020,
+        "part": 0,
+        "start_ms": 466080
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 160,
+    "sha256": "c8fff4607f3666a0d845993cf1551150b98fa54f0a85abc0a558bbfefeb546b9"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 471920,
+        "part": 0,
+        "start_ms": 469300
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 161,
+    "sha256": "146cc677dc3d7ba80fd2d0f2bfaffa8c046a70e0978e93aa6179125c639de3d2"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 477000,
+        "part": 0,
+        "start_ms": 471920
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 25. We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 162,
+    "sha256": "3b58432774cdb33c3187a883855d66bda7bbd63041da4c7aa19dcd9c8c4c7fef"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 480360,
+        "part": 0,
+        "start_ms": 477300
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 163,
+    "sha256": "f0dcdf89ca5d3a496b9279b819df7cf1be03853bbceffad29df26d288cafc37e"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 482960,
+        "part": 0,
+        "start_ms": 480720
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 164,
+    "sha256": "e418ab1f134d9361b769c108a7620bdb2467c836d320f53b679a97d69a623fb2"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 485540,
+        "part": 0,
+        "start_ms": 483340
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 165,
+    "sha256": "bfdfe487251979cd6b28aa7071bfc5b654d014db24fa6707c741c3db12e13b84"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 488780,
+        "part": 0,
+        "start_ms": 485880
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 166,
+    "sha256": "699122b13e492d86242bbfc0bf7394a994ff6611e763147b3154a9073b04ccc4"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 491660,
+        "part": 0,
+        "start_ms": 489100
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 167,
+    "sha256": "9d59e2c438770846d1cd54a17a969684510ef345112207a686225577484b5bf6"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 496760,
+        "part": 0,
+        "start_ms": 492020
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 26. We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 168,
+    "sha256": "a7a3625337130cc053a6da12e0fe5181b8df2742101537ea2faff3b43b1e9c2e"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 500160,
+        "part": 0,
+        "start_ms": 497040
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 169,
+    "sha256": "30b2083926bd4b62fa9ffca8de9c7abd8070d53bfd628542a5f7b4d092e8b3d3"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 502740,
+        "part": 0,
+        "start_ms": 500160
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 170,
+    "sha256": "a6a7b10d253a25f74260c2ac075489736878c89154810415726192a7fedfefa7"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 505300,
+        "part": 0,
+        "start_ms": 503100
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 171,
+    "sha256": "c9662bf0541cd50edefe85d7fcd9020672797815c144b7775471df038489a9ec"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 508540,
+        "part": 0,
+        "start_ms": 505640
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 172,
+    "sha256": "0486155b61eeb69800a3a0013a3887c5a33c881e1fdaf56b72d86028fa58f915"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 511460,
+        "part": 0,
+        "start_ms": 508900
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 173,
+    "sha256": "06204fc3cbead3b4508d8da31b5dd357482d5f27020e33c98cf8664bfa1bbbc7"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 513320,
+        "part": 0,
+        "start_ms": 511820
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 27."
+    },
+    "index": 174,
+    "sha256": "61d1581f1e4fc7dc2e183b1d000533098fdc001cc53aaf791b4cd0920e2386ab"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 516580,
+        "part": 0,
+        "start_ms": 513880
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 175,
+    "sha256": "5908a7c170bee7754b5223147d24898b8fe855161f1fc6078a868023f40764c4"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 519900,
+        "part": 0,
+        "start_ms": 516840
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 176,
+    "sha256": "d877d359c7e8dd26a431fc3f78f87ddd8e91e6df8641ef708d5cf47ad9348e5a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 522560,
+        "part": 0,
+        "start_ms": 520280
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 177,
+    "sha256": "dfce1e71a5e92ad2f0a066aa49fb3ade94c160e8d17f19f0509a96049fff7f04"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 525120,
+        "part": 0,
+        "start_ms": 522940
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 178,
+    "sha256": "233fb172276348a3981f4ad7e2826be8715a92ee2a29d45a552f94c5462afe65"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 528400,
+        "part": 0,
+        "start_ms": 525420
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 179,
+    "sha256": "267926daaf4199f7dff36f469e3cc233ce3702a208812449dca42f5adc50f665"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 531280,
+        "part": 0,
+        "start_ms": 528400
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 180,
+    "sha256": "b9a5101407f997160532145199cb4e83a4771efa5be2926c7879a9f4e5d755f1"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 533140,
+        "part": 0,
+        "start_ms": 531660
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 28."
+    },
+    "index": 181,
+    "sha256": "1eb81cb690f76ed395a1b6765c481b0b142a4a30a15edde28aa47eb3480bf7b1"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 536200,
+        "part": 0,
+        "start_ms": 533580
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 182,
+    "sha256": "da58ab1f648391edfac744289fa37965ba72df8ec231b826b94211e81417d3be"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 539600,
+        "part": 0,
+        "start_ms": 536520
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 183,
+    "sha256": "9c11fe3e36f1d92493b9a90142af6f9afe793b342eb804623041c56a19659f76"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 542200,
+        "part": 0,
+        "start_ms": 539980
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 184,
+    "sha256": "dd33798c690a6e0bb25ccec2cbc591da9bb02a7a9e0669725f4965924169bf65"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 544760,
+        "part": 0,
+        "start_ms": 542580
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 185,
+    "sha256": "1c607b51e8a99647e842bc21e446d8f1e8d73cbaa046ad7acbb43e34d739f52a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 548000,
+        "part": 0,
+        "start_ms": 545100
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 186,
+    "sha256": "b71c5ee7c23feab9c2f04af6f2f6cc63ad0eeff42a8ef70b737dbd9f2eef3a25"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 550920,
+        "part": 0,
+        "start_ms": 548360
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 187,
+    "sha256": "871e48c220608a7061ec7eec1d57537d8f415119a19577827254273469e95b34"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 552820,
+        "part": 0,
+        "start_ms": 551220
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 29."
+    },
+    "index": 188,
+    "sha256": "823a292ac52637a992ade72e5ed71694b0707f5992839e185c2dc29072b84f8f"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 555980,
+        "part": 0,
+        "start_ms": 553280
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 189,
+    "sha256": "619fa3aa2dc5fafed56dd3c8f99521d56761c656062b4a2d4c28ee3ed84bcd63"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 559340,
+        "part": 0,
+        "start_ms": 555980
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 190,
+    "sha256": "c366a9c3d343a5bbf7ee9f3cadf68c85c5852245b6034822e329f91cf331a88c"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 561940,
+        "part": 0,
+        "start_ms": 559680
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 191,
+    "sha256": "7a5071e14c3fc16deb28ef14d702270a05f166eeb7b0c8881c1da994817e24c3"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 564500,
+        "part": 0,
+        "start_ms": 562320
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 192,
+    "sha256": "9953c0df034205d0638ee962104750be54c2145cf3cbbf5e4b7a65483953c037"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 567740,
+        "part": 0,
+        "start_ms": 564820
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 193,
+    "sha256": "cadb35bf99d621b60fd6d150c67d7a6fb95f144208ce0f463850fbba3446ca64"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 570660,
+        "part": 0,
+        "start_ms": 568120
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 194,
+    "sha256": "d072be5356a5797a6db6d1159af5ba613d89595e400efd87560fe4df3c8fb820"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 572400,
+        "part": 0,
+        "start_ms": 571000
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 30."
+    },
+    "index": 195,
+    "sha256": "7cad508be22c50ef01239422e7acfca76d29fd55d48d325ab474951d0447ae0a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 575380,
+        "part": 0,
+        "start_ms": 572680
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 196,
+    "sha256": "bd353f1235d9d71891d0b7677af5519f8d1ceaa6f8941a27f0e97b45b1cbbd20"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 578760,
+        "part": 0,
+        "start_ms": 575680
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 197,
+    "sha256": "9874e9cc18712ae3f1b22ec0c67cdaf6bf6849ba3fd5475d1359454d24c70ada"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 581380,
+        "part": 0,
+        "start_ms": 579100
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 198,
+    "sha256": "e892857157aabbc3af9ea9b645adc3fa02694addb275b9001bf2408815023c3c"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 583940,
+        "part": 0,
+        "start_ms": 581740
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 199,
+    "sha256": "f412a7dbfb9df16d05b30c883b62c143f9a7b16afef98a0e868f9152df6fbba8"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 587160,
+        "part": 0,
+        "start_ms": 583940
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 200,
+    "sha256": "03998cf8c646c4f5cbe4486e5575b8ca9b11c8afca48afaca548444c908f2ccd"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 590080,
+        "part": 0,
+        "start_ms": 587500
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 201,
+    "sha256": "d11a448654046a27c29800b9da796976be54c6008e40e39eac2164160383f953"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 591600,
+        "part": 0,
+        "start_ms": 590400
+      },
+      "kind": "transcript",
+      "text": "Decision check point 2."
+    },
+    "index": 202,
+    "sha256": "c41062a68904af2294bb277a7504e1e714930fc2323d33d8f979a70f356c3696"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 593340,
+        "part": 0,
+        "start_ms": 591940
+      },
+      "kind": "transcript",
+      "text": "The code name is Cobalt Bridge."
+    },
+    "index": 203,
+    "sha256": "66bfa3786a869a538c54059a92c274ed2dfadf1e12ff3a027262ae7e2465d75c"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 595540,
+        "part": 0,
+        "start_ms": 593620
+      },
+      "kind": "transcript",
+      "text": "Bob Owens database recovery verification."
+    },
+    "index": 204,
+    "sha256": "3c77064f1e0e8aa2aa0eec9f12cd28a82796dac0e893296afe1063216b1c18bd"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 597500,
+        "part": 0,
+        "start_ms": 596000
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 31."
+    },
+    "index": 205,
+    "sha256": "f88e894d00b02fb87c95d760b401469b0f87d878d77a34ac4d3d9786052ce012"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 600620,
+        "part": 0,
+        "start_ms": 597920
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 206,
+    "sha256": "a4fd3a021eed849d7b50b5719d43060d36c0f610d2eaf468796428b7609c098d"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 603960,
+        "part": 0,
+        "start_ms": 600860
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 207,
+    "sha256": "a1c2e8389217634a09db0001a0e15beb404be826f999fb820c6759c744b346d2"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 606560,
+        "part": 0,
+        "start_ms": 604340
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 208,
+    "sha256": "491bbaf71fdd5da76f768efc8e13bf0f64098d00c33b314a183425b3c451167e"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 609120,
+        "part": 0,
+        "start_ms": 606960
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 209,
+    "sha256": "c2fb1ba75fa90715edc8d5614cbf384cb23af6460887f482572686c851027700"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 612400,
+        "part": 0,
+        "start_ms": 609500
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 210,
+    "sha256": "9bf21311348b3070e154462848f0e0bcd8a0e9543048ac66f33fd7c102d74098"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 615300,
+        "part": 0,
+        "start_ms": 612400
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 211,
+    "sha256": "d47a878031e0d0363ca41d93888ca15c6567b190c47cdea069a9b448b6dd1974"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 617140,
+        "part": 0,
+        "start_ms": 615680
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 32."
+    },
+    "index": 212,
+    "sha256": "e1aea19b41a3e9d7d4c6227e4f6d5345ef68ddffcffdf7871ad1ffc1c7ca02d0"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 620200,
+        "part": 0,
+        "start_ms": 617600
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 213,
+    "sha256": "c2b6fab391b5f55a392cae1be66f66404ddf3403b077c03c21b576092978e11a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 623560,
+        "part": 0,
+        "start_ms": 620500
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 214,
+    "sha256": "cf6eaadd158a129e27b68bbe219a60bfda7b63a35aad70c1a310135b8175fba6"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 626180,
+        "part": 0,
+        "start_ms": 623960
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 215,
+    "sha256": "6eff367e568ed1488f91e7cb6738a0f9cda6c49dde8a3fe4523d0d178a573d0a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 628740,
+        "part": 0,
+        "start_ms": 626560
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 216,
+    "sha256": "e859f098ea1900f81cae9785f6c2b73deb57ffdb82e0c1f9adb7e3b03843bd36"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 631960,
+        "part": 0,
+        "start_ms": 629060
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 217,
+    "sha256": "1435dc49aa40a4287b2663bdb0caa68cffc1c371c2a91300dc2c969710ca02b2"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 634880,
+        "part": 0,
+        "start_ms": 632320
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 218,
+    "sha256": "c47bf85bbc08aa7b0d94e8517f144ee134e0f2ce028143f067d9776df787e8b9"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 636760,
+        "part": 0,
+        "start_ms": 635200
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 33."
+    },
+    "index": 219,
+    "sha256": "afabe106694dfc6517ada9e11e2432ce3e253da9471a76368c6b28de9d993575"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 639860,
+        "part": 0,
+        "start_ms": 637120
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 220,
+    "sha256": "2b39a83d3c811dafc56a1216ac2f4d04787a96772a60fc49a955844b285e9f9c"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 643220,
+        "part": 0,
+        "start_ms": 639860
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 221,
+    "sha256": "78ba610636804d526eeb3f99ba95b449f869a6de85277b9c57bfe938e0724fb7"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 645840,
+        "part": 0,
+        "start_ms": 643560
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 222,
+    "sha256": "6e16b0eb25140be64f9968b3c05d8f71b023e14c629b5179a3b7f515f2fced92"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 648400,
+        "part": 0,
+        "start_ms": 646200
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 223,
+    "sha256": "a6ab15ddb4ef3a858386997459223f4db39ceb89994916246f83732e88a7c033"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 651620,
+        "part": 0,
+        "start_ms": 648720
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 224,
+    "sha256": "720ccf96b271fc41e7ed12af535c8b012d51ca7d7dac2ae1b5c9c68ec7a135ad"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 654540,
+        "part": 0,
+        "start_ms": 652000
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 225,
+    "sha256": "de90dc06a91af43f1af167136d0ec822416e6168fdf3cc0bbf5a0cdd5ac98744"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 656400,
+        "part": 0,
+        "start_ms": 654880
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 34."
+    },
+    "index": 226,
+    "sha256": "c9d5b3c96b1e888e53e695562db3c597dace6f8a6ca6a42c29fc24d20aa9dfb0"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 659500,
+        "part": 0,
+        "start_ms": 656780
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 227,
+    "sha256": "c071a4e0c51e1d86f36e1ac3e9066f247f1a96a04a34a4d0394efc9829d00882"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 662860,
+        "part": 0,
+        "start_ms": 659820
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 228,
+    "sha256": "c03c2f135ae959b5ec5fd490db3551502c84b8f32b5294895a87ead9fad254f0"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 665480,
+        "part": 0,
+        "start_ms": 663200
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 229,
+    "sha256": "eb1b87907d1e4d1438f157852436cf9a5b0a9b036d34536ec0cee75149a708c1"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 668060,
+        "part": 0,
+        "start_ms": 665860
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 230,
+    "sha256": "0268e0c27475934aff261d5bbbde9f27e711a0805cee550fb39daa22a9a89d61"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 671280,
+        "part": 0,
+        "start_ms": 668060
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 231,
+    "sha256": "90ef78160466311c799762d0b2878225c796b97ea155d1675c21deb197f9e9f2"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 674180,
+        "part": 0,
+        "start_ms": 671660
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 232,
+    "sha256": "8648254271d17fc95952079d45cf2d4cf729cd196ea65cb64e9abada7d628e22"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 676020,
+        "part": 0,
+        "start_ms": 674520
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 35."
+    },
+    "index": 233,
+    "sha256": "25a04a3d578f6c3f221ae4ff9fa2dc34753a930b5463ca70c681ae94e22d8fc8"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 679260,
+        "part": 0,
+        "start_ms": 676560
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 234,
+    "sha256": "49c907b42bf2c4ed6df0e3ac82766fafb7ae5bdcc8210e79666ff18d2cfaaaca"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 682620,
+        "part": 0,
+        "start_ms": 679520
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 235,
+    "sha256": "a5e02570d6bb6c90c19d291b28be042f93dcad9de567b7d12e73e4bc67d67097"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 685220,
+        "part": 0,
+        "start_ms": 682980
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 236,
+    "sha256": "770c32eaf1c51b4f40c27bee71f40f4d03e23e1216bc8d02d9635895062ddd92"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 687780,
+        "part": 0,
+        "start_ms": 685600
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 237,
+    "sha256": "5f97972319f67013fee2507a18fbd159541e97fc31ac32b03cd918e42194bf07"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 691060,
+        "part": 0,
+        "start_ms": 688160
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 238,
+    "sha256": "5fd41d7a1073e3c2990e3529eb07e61f3c2903b4b0790fad4af2937276cc75fc"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 693960,
+        "part": 0,
+        "start_ms": 691380
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 239,
+    "sha256": "d6d86ddcf85435d4309f1fad6a80a33bca74b010b9afff4e3256c642dc624644"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 695840,
+        "part": 0,
+        "start_ms": 694240
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 36."
+    },
+    "index": 240,
+    "sha256": "451bc389d1e9f3736125ba19ce6aad301fe1ea34eaa031d66fbe5404497e8a23"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 699000,
+        "part": 0,
+        "start_ms": 695840
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 241,
+    "sha256": "0e70141adb3f949ac0c03b97dbe9056c78c263ae03834ebf3a911988523632c3"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 702340,
+        "part": 0,
+        "start_ms": 699280
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 242,
+    "sha256": "23e45948900b5143dad6875a4d1fc1c58db93c11a2a403731a078b802087087a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 704940,
+        "part": 0,
+        "start_ms": 702700
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 243,
+    "sha256": "6f80e4a5a2e3d741703e5777b50ac4ed3a7173a75bcce6ff15c2a6fd21aab99d"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 707520,
+        "part": 0,
+        "start_ms": 705360
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 244,
+    "sha256": "eac4ac6f6850f4c36a3e29c9aa32c40d3f1959455e7cf381b36b735dc4a2547f"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 710760,
+        "part": 0,
+        "start_ms": 707860
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 245,
+    "sha256": "d5110e560883a8b3fa23c32c19a94cceddfc65cf4f12c9ceec78cd1c4ea3d315"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 713660,
+        "part": 0,
+        "start_ms": 711100
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 246,
+    "sha256": "aaec4ffa9b846a11cc4eef1fcbce780611ae257a401774d8b7621beffaf6453a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 715440,
+        "part": 0,
+        "start_ms": 713980
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 37."
+    },
+    "index": 247,
+    "sha256": "64fffefbe0cef3b9fa42f17a89300f00d30cfaaee72c33f858d1a641b0a705d5"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 718740,
+        "part": 0,
+        "start_ms": 716020
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 248,
+    "sha256": "fceb5730b6ab66e8c35305c97c606e006714875af0ca7e1c4fbc94600355ad2e"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 722100,
+        "part": 0,
+        "start_ms": 718980
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 249,
+    "sha256": "7c328a1014bab6f448a69e81d2d7b3a7c2f6743ede3e2ce305b0ff089bf5bab4"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 724720,
+        "part": 0,
+        "start_ms": 722420
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 250,
+    "sha256": "ba83f44be0abe4da59d6522f6edf431fad4f4767884fc8bc617fb4cc6dad34c7"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 727280,
+        "part": 0,
+        "start_ms": 724720
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 251,
+    "sha256": "9a86ee0a622a050e2df4951d424fa705e9e321e7556ff0bf5cdf79eb902c752a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 730500,
+        "part": 0,
+        "start_ms": 727600
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 252,
+    "sha256": "8d80680b12ea9edc0bae996268a846c88ebb274b0cb42ea295d0bea82ce0275d"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 733420,
+        "part": 0,
+        "start_ms": 730840
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 253,
+    "sha256": "1ee62b8aba1da1c7e2f688497aa094498ab4bcbfbaac2337fb8111c0719a6a07"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 735240,
+        "part": 0,
+        "start_ms": 733740
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 38."
+    },
+    "index": 254,
+    "sha256": "8c4455f6e9d965f296c70440bf3ca1a8060c6706af5ac29a69dfb7a4767cd6b1"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 738340,
+        "part": 0,
+        "start_ms": 735660
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 255,
+    "sha256": "99471851d32195a018345f175089e942a653f32f69604c46c1d887ba5866beea"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 741700,
+        "part": 0,
+        "start_ms": 738600
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 256,
+    "sha256": "6cdc682270a4982c0e6b2d9578c7401bd7a56e96d63c0c7ec6c8d2709626aefa"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 744300,
+        "part": 0,
+        "start_ms": 742060
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 257,
+    "sha256": "3d88761751e9a1bdb8e46377f671c1f9e91d5597aaf1031a5b1c240936d89f44"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 746920,
+        "part": 0,
+        "start_ms": 744700
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 258,
+    "sha256": "26aff2d13decc9a2a143ce9384e88f1d5f1b46dd14d446480e31a14028d26529"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 750160,
+        "part": 0,
+        "start_ms": 747220
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 259,
+    "sha256": "1cae92c547fb0c423dc81d9d22daffe7c7818d227b815d6d8d3d43592fbe8ebc"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 753040,
+        "part": 0,
+        "start_ms": 750440
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 260,
+    "sha256": "06d041bc3fbe1f32cb1a6fd02cf3e6d987c954f91042d27a7aa4ec1be4122346"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 754940,
+        "part": 0,
+        "start_ms": 753040
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 39."
+    },
+    "index": 261,
+    "sha256": "5b954ab08cc7541aaf432586d17f1a5527eb86d137872b22bdc982280a9ed8e5"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 758060,
+        "part": 0,
+        "start_ms": 755380
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 262,
+    "sha256": "db378a1e952f7716a609e501829e5ac8d0b3d58f4c26f9ec37f3bb353c275a79"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 761420,
+        "part": 0,
+        "start_ms": 758380
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 263,
+    "sha256": "d41acf276c1ff6300b487c98c923a6bf9c14f8fe1eaba467c8cd6c300de7c7a9"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 764040,
+        "part": 0,
+        "start_ms": 761800
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 264,
+    "sha256": "d129fafe018d21a419dc1ff9e98917eda7c318036190a5dd2ca501760d351078"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 766600,
+        "part": 0,
+        "start_ms": 764420
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 265,
+    "sha256": "7d2865694be0342fc5fe306c9683788135762b03f43793908943e76aa4b1a6b0"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 769840,
+        "part": 0,
+        "start_ms": 766940
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 266,
+    "sha256": "a792465242113589f751ed835f253f477ef0a9cc54dbabafd1d16ff9ec436ede"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 772740,
+        "part": 0,
+        "start_ms": 770200
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 267,
+    "sha256": "f60c6b764f093d7384053f4b74f25166a1bf2507d8c601cd22ee0a7ffe322b5d"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 774480,
+        "part": 0,
+        "start_ms": 773100
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 40."
+    },
+    "index": 268,
+    "sha256": "c9a71120614a8e0868255d3c3de3c1277982c233b193dc6ee634410bd748a376"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 777540,
+        "part": 0,
+        "start_ms": 774800
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 269,
+    "sha256": "ad40c7d76d6c86408e10de3425d15c45786922ea73ab884eea72a7fb8b5f089e"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 780900,
+        "part": 0,
+        "start_ms": 777780
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 270,
+    "sha256": "15002d559cea2a836eea58e99a19d53b16c18bc5fb96ec44f81ed470eb33b374"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 783500,
+        "part": 0,
+        "start_ms": 780900
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 271,
+    "sha256": "319da345703e647daf6fff14279fbdd8de82525c74da348ae7bc766db1f9132d"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 786060,
+        "part": 0,
+        "start_ms": 783880
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 272,
+    "sha256": "bd59b3eeb9dbe29837a5fe6e8f41644f554738ee912c9fa11527d9f50958908a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 789300,
+        "part": 0,
+        "start_ms": 786380
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 273,
+    "sha256": "56f2d162a3a8b9af5d36361e5405c75ef673b51f96464e133eac231afca4d720"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 792200,
+        "part": 0,
+        "start_ms": 789660
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 274,
+    "sha256": "dd326920f3d73f1035a3476ff4e705f485505d02bc9dc3e2c88f966eed647753"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 793980,
+        "part": 0,
+        "start_ms": 792560
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 41."
+    },
+    "index": 275,
+    "sha256": "e1ca0c3b23db2c0d9d69afae362bceb35ae3a70f51f96bf9b0c802d8d67bf541"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 797200,
+        "part": 0,
+        "start_ms": 794520
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 276,
+    "sha256": "1788a0d0c1c42848557077d0c540f10d35ee1704752cd7cf7baf91701372fc2d"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 800540,
+        "part": 0,
+        "start_ms": 797480
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 277,
+    "sha256": "cd142702bd47fef061ad2a96fb83b8836b603a104a94c8abdac82bd2e6e3d311"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 803180,
+        "part": 0,
+        "start_ms": 800920
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 278,
+    "sha256": "82a21add909f875692a460cf1adf4bc143271f23b0609e9147ec04576bfdf1ac"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 805760,
+        "part": 0,
+        "start_ms": 803560
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 279,
+    "sha256": "da2c2d8c63f1a7e787e060ac43505a6abfb8d50ca5fcd8a81b75eb25eafe6d90"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 809020,
+        "part": 0,
+        "start_ms": 806060
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 280,
+    "sha256": "ae8765ce84792b1b8bc08ac4e66a26c6bb5958846302b90b5dbeb7bb6c5f6d33"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 811880,
+        "part": 0,
+        "start_ms": 809020
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 281,
+    "sha256": "910399ff7fb801c0f143f7dc9ba8525608b8b13e0f947fa5ae658091b4476691"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 813740,
+        "part": 0,
+        "start_ms": 812280
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 42."
+    },
+    "index": 282,
+    "sha256": "8b00bb50dd27d6556aad25f18ec1f5a174cd389dd620c3276cbdf22cff883721"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 816820,
+        "part": 0,
+        "start_ms": 814220
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 283,
+    "sha256": "3c2777d5f15d220a246add5e22a55a9733188452b35fc3d3164ba3960424638a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 820200,
+        "part": 0,
+        "start_ms": 817120
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 284,
+    "sha256": "aff790f7afbe29a6bc908649a5232fd51df5130b52ffccc72ce53e7687148e6d"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 822780,
+        "part": 0,
+        "start_ms": 820560
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 285,
+    "sha256": "8db7a94845b1877a86ddbc8c55e71a03822bdc9a09bc92e6f403b1ca93d103a1"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 825360,
+        "part": 0,
+        "start_ms": 823180
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 286,
+    "sha256": "86ba48c3e1e247b56489fcb99b1528050df79140486c76fc3ac94ca514fa5853"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 828600,
+        "part": 0,
+        "start_ms": 825700
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 287,
+    "sha256": "f74ca5bf3a828f652608de605f93fe128aff257c70fd05764ac3fbed2830bfc8"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 831540,
+        "part": 0,
+        "start_ms": 828960
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 288,
+    "sha256": "d6abdc931d128eb9e1b170383220390a10944b2913abdd0b5d04f2458ac0f42a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 833400,
+        "part": 0,
+        "start_ms": 831820
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 43."
+    },
+    "index": 289,
+    "sha256": "31b20612018ceaad443f7ea46208f660b3862f1938c66614886032b51a22bc7c"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 836500,
+        "part": 0,
+        "start_ms": 833780
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 290,
+    "sha256": "90535e335da96962b3575a693e6aed505ffc7f159630d53cc50d6b1f72509828"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 839840,
+        "part": 0,
+        "start_ms": 836500
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 291,
+    "sha256": "8c9450a59c1c94bdc9fb18a1fa33d1fddcf8689b71edd2b5870049952c244958"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 842460,
+        "part": 0,
+        "start_ms": 840200
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 292,
+    "sha256": "e9e20300f389b48e167ec90615fc5327dafbb8ec00d78884d4edb35f44a5153b"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 845020,
+        "part": 0,
+        "start_ms": 842820
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 293,
+    "sha256": "45512dfa0b709ecfff30a23be867f05204cc995673d7b0478957eeb1389c811d"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 848260,
+        "part": 0,
+        "start_ms": 845340
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 294,
+    "sha256": "c0ac31fee91a1ab62921eff5730a78e6244952e48819d5be829bdea51bf80738"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 851180,
+        "part": 0,
+        "start_ms": 848640
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 295,
+    "sha256": "178018ef892a50804c60337132364eab3154a7845971a5dbfe048d449cf129f8"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 853000,
+        "part": 0,
+        "start_ms": 851500
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 44."
+    },
+    "index": 296,
+    "sha256": "1afde55fc2fbdae4b70a92d863e4b2efabb362047ef966c6e42e468d104d4545"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 856140,
+        "part": 0,
+        "start_ms": 853420
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 297,
+    "sha256": "5e610378c2b63b01cc0e2c187fb33e09568ba317fb2b249a75d53da3268f562a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 859500,
+        "part": 0,
+        "start_ms": 856460
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 298,
+    "sha256": "e419d063cc5a5da1311ed2136ac2ac232c04121ec0bff3ccd551123849ceabc5"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 862140,
+        "part": 0,
+        "start_ms": 859860
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 299,
+    "sha256": "4e6c3b5896fdb02b22a1f088fa49fad7d6c56c1429ec3621841703bffae8cd0b"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 864700,
+        "part": 0,
+        "start_ms": 862500
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 300,
+    "sha256": "ef4a164b10aea3ee08c733c9a658f572ea3d05f5b1c1fcb58079c7ca93a063ec"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 867940,
+        "part": 0,
+        "start_ms": 864700
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 301,
+    "sha256": "2ade406efe0853518edbc45ada55c5baea9253a3a6da348e754c606b6597fae7"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 870820,
+        "part": 0,
+        "start_ms": 868280
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 302,
+    "sha256": "ade6ed80736281148c81d5dffb47a710922c8bb02a1339a9869d73dc35ed38ea"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 872720,
+        "part": 0,
+        "start_ms": 871180
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 45."
+    },
+    "index": 303,
+    "sha256": "730c6484904db208deca84e6603102dea6b003b8a1548207ded3b967c4b7bd93"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 875900,
+        "part": 0,
+        "start_ms": 873240
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 304,
+    "sha256": "95eb0fc716fb65752e861a540076b7ccb3dabd51dce0bf541a69a8502503fc71"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 879260,
+        "part": 0,
+        "start_ms": 876180
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 305,
+    "sha256": "6a845a4248d427c5ae05430699a9c98a28841d13e7102220f6834c632a46c665"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 881860,
+        "part": 0,
+        "start_ms": 879620
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 306,
+    "sha256": "acbd304dc6cd33989721c1efb46e8bd0a276c00256f03746a7303da68c8acf3c"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 884440,
+        "part": 0,
+        "start_ms": 882260
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 307,
+    "sha256": "5a7c8c49089b79e302d47c55cc30f72a8f0c8b6e5f369e321ac1ebda1ed97a5b"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 887720,
+        "part": 0,
+        "start_ms": 884800
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 308,
+    "sha256": "83de04711c81e54bd7ff59d53a9d720d6b0e51ee00bce35fa15846da3e2d9dc1"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 890620,
+        "part": 0,
+        "start_ms": 888040
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 309,
+    "sha256": "1d4adcf746c010c955a1cf5e34c0b1d86ee17431141eab4590b15f9475fb80c9"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 892520,
+        "part": 0,
+        "start_ms": 890900
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 46."
+    },
+    "index": 310,
+    "sha256": "280f8d8264536c16a05621c0cf88d8ec631ebff0310693ff90d8af5eefd6261d"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 895660,
+        "part": 0,
+        "start_ms": 892520
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 311,
+    "sha256": "e8bf2f1dbf8b2d4d24d2d29b37d99db8ad14e2c870902f0e59d477e20e38bc32"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 899020,
+        "part": 0,
+        "start_ms": 895960
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 312,
+    "sha256": "40081e58024d5116c1b45c0f627823dbb583721f36aaf61e4af9496d8c1aa77f"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 901620,
+        "part": 0,
+        "start_ms": 899400
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 313,
+    "sha256": "568ac33f0e9b226058b429bb6a0cfa6903fabdfe162fa9a6cc6485e2b8f960d1"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 904220,
+        "part": 0,
+        "start_ms": 902040
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 314,
+    "sha256": "f08b0e6e73b5854680f99b19665164dbce086570f58c21e33d74dbd97d0824c7"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 907440,
+        "part": 0,
+        "start_ms": 904540
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 315,
+    "sha256": "eb843c510dfcf46132dbed423e3b3608c5ed4cf989c6c8401d311c2a9a892565"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 910360,
+        "part": 0,
+        "start_ms": 907800
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 316,
+    "sha256": "0451b48cac6c969b894ffa3723f1d278aa5c234379358b30aff45e7d58170c1f"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 912140,
+        "part": 0,
+        "start_ms": 910680
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 47."
+    },
+    "index": 317,
+    "sha256": "cde678f133b0098e9187e25113891c5958b5bcf50a75b6ad46bf6f5d23429364"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 915440,
+        "part": 0,
+        "start_ms": 912720
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 318,
+    "sha256": "be776aa28a355a634bd50e80f78df1d8fa529bc34193881161f9cc140a5a56d0"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 918800,
+        "part": 0,
+        "start_ms": 915680
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 319,
+    "sha256": "ad84da8868974ca5df150362a9e6404e89826d4ee24f06af60c8d1979f5eb278"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 921420,
+        "part": 0,
+        "start_ms": 919120
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 320,
+    "sha256": "ced3c8dbedd7edcdc4b403bd082e87f2c174e0f7f23fc13d972bbb8e157a78cd"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 923960,
+        "part": 0,
+        "start_ms": 921420
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 321,
+    "sha256": "013f2e86090d89a633064805bf5eca22a083b99978e4d6eb2def33b7b169298c"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 927200,
+        "part": 0,
+        "start_ms": 924320
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 322,
+    "sha256": "c009b8d00a3aff028f4a3ce044f6b07598d70884a318900a80c67b3f060b2576"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 930100,
+        "part": 0,
+        "start_ms": 927560
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 323,
+    "sha256": "897904f42f14cea5cb47e980654c4e0c7031c5d0cdde03590108a5acc4a08d70"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 931900,
+        "part": 0,
+        "start_ms": 930460
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 48."
+    },
+    "index": 324,
+    "sha256": "f65a0a7207adb1aa3a40f3c77052500fbbe84e480c3200ec9733c0f4e39df3df"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 935020,
+        "part": 0,
+        "start_ms": 932360
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 325,
+    "sha256": "753dc2587fc533a3c0f6f292183a11652d93b09cc116bfb08148807a7c5edbfc"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 938420,
+        "part": 0,
+        "start_ms": 935340
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 326,
+    "sha256": "11da912b95e4523dda1f89af878a25e9d89bf7af5ee92d633ba1c04d649c38f4"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 941020,
+        "part": 0,
+        "start_ms": 938780
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 327,
+    "sha256": "841ec5220a5370afc647cfc47f91348ac5c56d06f469546d76ab37b1f0153705"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 943620,
+        "part": 0,
+        "start_ms": 941400
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 328,
+    "sha256": "ebcd3a5aec959902833146bd886b5aea0cad470f202ceff7a871a7b8769bbbde"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 946840,
+        "part": 0,
+        "start_ms": 943920
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 329,
+    "sha256": "952aa9342507f8ad32da609b9cb6716b48ba0cddb6c6e0f04e54de4a295dc31c"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 949740,
+        "part": 0,
+        "start_ms": 947120
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 330,
+    "sha256": "6b349d44c450e38e7fd9f437170c257a2e5b72705616f5bd5452d2cd8cdbb481"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 951600,
+        "part": 0,
+        "start_ms": 949740
+      },
+      "kind": "transcript",
+      "text": "This is Discussion Item 49."
+    },
+    "index": 331,
+    "sha256": "142604ec84bf035e8838779ae5167d8e961089a60977ff1412b2ebff500dffab"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 954780,
+        "part": 0,
+        "start_ms": 952080
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 332,
+    "sha256": "3657631ea27280e12a52a98bafe9e98f6da2f93baa29b99b48b4f2eea0c45864"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 958120,
+        "part": 0,
+        "start_ms": 955080
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 333,
+    "sha256": "9433143fe1b4d53d54030638b22f1b9d6c45ab371a3a236e555e774e33f1bf97"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 960740,
+        "part": 0,
+        "start_ms": 958500
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 334,
+    "sha256": "40861b96e505f0cb4426d37ffb9f9c7b7b27c6cc98949128bb4662888c63363e"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 963320,
+        "part": 0,
+        "start_ms": 961140
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 335,
+    "sha256": "34ed7ab2a44b1bc772adc58a27dfc9d0503e35f61bce4b60b09d06a88514b4f7"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 966560,
+        "part": 0,
+        "start_ms": 963640
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 336,
+    "sha256": "0248af649b74c583a9ea26039136211e02577f27e2f7b0239fb1a3845dc89b35"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 969480,
+        "part": 0,
+        "start_ms": 966920
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 337,
+    "sha256": "ee73211ca2f2f54e07fce58649c10739e0eab9e996ed181d385aaa9818cdc0b3"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 971160,
+        "part": 0,
+        "start_ms": 969820
+      },
+      "kind": "transcript",
+      "text": "This is Discussion Item 50."
+    },
+    "index": 338,
+    "sha256": "c44bb196edbfc510afd95206a6b296691dc6b73b1a42aa79d25340b5bfae69b6"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 974240,
+        "part": 0,
+        "start_ms": 971500
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 339,
+    "sha256": "1b1d247a99c4be5cff9188d340e6afc59a5cd17cc0d5baf27f7359847c6c2315"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 977600,
+        "part": 0,
+        "start_ms": 974480
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 340,
+    "sha256": "e98fc9ff63482d0edec15ca1bbd8b9bb82b0c9d1fd6a33a3d9b2cb03a207740a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 980200,
+        "part": 0,
+        "start_ms": 977600
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 341,
+    "sha256": "b0b6223c73b1d05506fb57d5969b351ff2d5c42617fcbce3d560133aa26ca234"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 982760,
+        "part": 0,
+        "start_ms": 980560
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 342,
+    "sha256": "19c9c7804c51fc3f7c14cd0381b6be7c41644f23187e3d648265a9f0c918ccef"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 986000,
+        "part": 0,
+        "start_ms": 983080
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 343,
+    "sha256": "854ce3c37caa1a067bb0b48f996b5851ae907c9cad3515d3cad57c7bed532322"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 988920,
+        "part": 0,
+        "start_ms": 986340
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 344,
+    "sha256": "cc8863207d780eb27c34febe91f5f0c9b6567b499dfa25983f1d60947f38f3dd"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 990720,
+        "part": 0,
+        "start_ms": 989260
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 51."
+    },
+    "index": 345,
+    "sha256": "a6b96d850d0b92668991ffa154ed20d10327d7182f0738cbd127ae8c173dfaba"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 993900,
+        "part": 0,
+        "start_ms": 991220
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 346,
+    "sha256": "68f810be1e5e64487abe79f8837e20d72aada3c0a7a615650440d70d5d0573d4"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 997260,
+        "part": 0,
+        "start_ms": 994180
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 347,
+    "sha256": "0afd40a8a9e37088659389462435c8933e73026a99904e12d4960e4f0c62f0e5"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 999900,
+        "part": 0,
+        "start_ms": 997640
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 348,
+    "sha256": "208a26bbbec50872291f479fbae26c8c751e026116289b9ac04eed480118fd1f"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1002460,
+        "part": 0,
+        "start_ms": 1000260
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 349,
+    "sha256": "69720036cc4370aba459456d48e97563c21a92e1291077210da1dbc7c6228a35"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1005720,
+        "part": 0,
+        "start_ms": 1002780
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 350,
+    "sha256": "729d80b68094124187bb16527e1563c64fc9e31b35d17c285a4d1ff944c1cbe9"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1010440,
+        "part": 0,
+        "start_ms": 1005720
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms. This is discussion item 52."
+    },
+    "index": 351,
+    "sha256": "2065749cdbebe726837bf130c79eea8e2eff1ab562a9e294568796929009476e"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1016940,
+        "part": 0,
+        "start_ms": 1010980
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery. A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 352,
+    "sha256": "632b692922576e39699db083fa98e0ee19f9eb4fa154fa6e0b606a509a38f63d"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1022120,
+        "part": 0,
+        "start_ms": 1017320
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying. Check the database history and the worker logs."
+    },
+    "index": 353,
+    "sha256": "eda9698ec774c95bab89bd5efea270e29a2c244f21d409bd07b52a3a0b15a472"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1025340,
+        "part": 0,
+        "start_ms": 1022460
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 354,
+    "sha256": "4cb8f9387416a0c0fece3bab23c81240d19a935286a63913c91c612c115a8498"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1030140,
+        "part": 0,
+        "start_ms": 1025700
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms. This is discussion item 53."
+    },
+    "index": 355,
+    "sha256": "06124beab5e8c21e264cf127a5884ed4f5251b88c5e33f67e72d23e1b9fc9fd2"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1033260,
+        "part": 0,
+        "start_ms": 1030140
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 356,
+    "sha256": "df920c1cbc15a9aec5a5ae365886660938e8a4ccc838e86df513f2ff0a1c4dc9"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1036600,
+        "part": 0,
+        "start_ms": 1033560
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 357,
+    "sha256": "b50c67a1a0424793023fd34dc0cc81586bb37530926210e7509a3702344a5692"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1039200,
+        "part": 0,
+        "start_ms": 1036960
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 358,
+    "sha256": "8ab041ee7f61fe5c9dff8ef7970d85c4cd8d42b6f9e4a0c51bcfcdb77fcae90b"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1041780,
+        "part": 0,
+        "start_ms": 1039600
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 359,
+    "sha256": "9af390e0a1c8ebc7669944fe298c0fa6e338da98b84d8f1a429f39b854d820bb"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1045020,
+        "part": 0,
+        "start_ms": 1042120
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 360,
+    "sha256": "502e182a22bffd5a85420371f3fccb540d6e7e816e90d213244b836e1bb96e11"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1047920,
+        "part": 0,
+        "start_ms": 1045380
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 361,
+    "sha256": "a90f301f204a4f8c1292524a3ca4abef33eee7d5244375843dc8efcf705068b7"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1049780,
+        "part": 0,
+        "start_ms": 1048260
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 54."
+    },
+    "index": 362,
+    "sha256": "21216f2afee8437f3bec2a52b9ed8b6a8753a84b1615a840eb9dfd6979c79ea6"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1052980,
+        "part": 0,
+        "start_ms": 1050260
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 363,
+    "sha256": "144d932c3e31106d28125636060a0d1b00e3b5853eed53cb0a0beee01cb18d91"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1056360,
+        "part": 0,
+        "start_ms": 1053220
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 364,
+    "sha256": "3f953ecf577aa1ef190be290963bf51e95ddccf44528f101bcff5f71e999141e"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1058940,
+        "part": 0,
+        "start_ms": 1056680
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 365,
+    "sha256": "a1ae4e85bf7bb4dbc4656d09e781d9356be0f3a1cb88f938baa408d9d1d32624"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1064720,
+        "part": 0,
+        "start_ms": 1058940
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs. The release owner will collect the test evidence before making a decision."
+    },
+    "index": 366,
+    "sha256": "9c9b0a20f559f2117a6bfca8cf4bdd3e142fc51c535bce7fcc5c55358536769b"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1069440,
+        "part": 0,
+        "start_ms": 1065060
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms. This is discussion item 55."
+    },
+    "index": 367,
+    "sha256": "a33cb167a05d885d884d7f2b283809223cb0e17448f2d1512b42a83286ad19c9"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1072720,
+        "part": 0,
+        "start_ms": 1070020
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 368,
+    "sha256": "22a9e879a10a1c4b1697d607a10304cebbf9733399eabc59608dab3c935758d6"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1078680,
+        "part": 0,
+        "start_ms": 1073000
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message. Keep the original request identified when retrying."
+    },
+    "index": 369,
+    "sha256": "2bcdfdee977c92717d5fbfd69f6503e05f280b20dc73b9db7d21e2c1f29afd5c"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1084500,
+        "part": 0,
+        "start_ms": 1079080
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs. The release owner will collect the test evidence before making a decision."
+    },
+    "index": 370,
+    "sha256": "e891a4d2207f275732ff2e050b303f255e30d64f65cceb5b26767c1bb2b56f26"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1087380,
+        "part": 0,
+        "start_ms": 1084820
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 371,
+    "sha256": "4bd657e374cc1a8192192be8218503e34a06e789efc5b772dfe309fde70d117d"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1089320,
+        "part": 0,
+        "start_ms": 1087380
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 56."
+    },
+    "index": 372,
+    "sha256": "f35f4d0b128514b5bb4a1003f287d265cd054e72333ec7b395c3f2a9210aaa80"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1092420,
+        "part": 0,
+        "start_ms": 1089740
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 373,
+    "sha256": "21b5031c67d74bd126c3710cdfc20882c87b50ebe0e155fdada3e6ec1701f2e0"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1095740,
+        "part": 0,
+        "start_ms": 1092720
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 374,
+    "sha256": "4249fd41b54d38d4e58b3613402aca1c7d6e978135c4b5d7afd282e65fcf69e4"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1098360,
+        "part": 0,
+        "start_ms": 1096140
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 375,
+    "sha256": "f27c3c8de52102a6a460daee058d639221640dcb208a46327d6fe51b92828785"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1100960,
+        "part": 0,
+        "start_ms": 1098780
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 376,
+    "sha256": "ac5ea02717f352cdb34488763a472e3cf3f282cd1a06d45d5476e95e2f4c91dd"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1104180,
+        "part": 0,
+        "start_ms": 1101280
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 377,
+    "sha256": "667714471d7b6681dc58d4fe0b62a38b58d4a82c28b23e39b4d9f66959e5f027"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1107080,
+        "part": 0,
+        "start_ms": 1104540
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 378,
+    "sha256": "4cb21683eeec3a5d5a8ccf0900ae879db6af3e823c23c317b948bbd115ac6fa7"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1108960,
+        "part": 0,
+        "start_ms": 1107460
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 57."
+    },
+    "index": 379,
+    "sha256": "748398e42381824a4106f8b81806693531b6dd1538315362e3106a637893979a"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1112200,
+        "part": 0,
+        "start_ms": 1109500
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 380,
+    "sha256": "e9408ae5e1255ffa94f232185675b1c7b285a2e3ab438cb4ef3ed365035aaa71"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1115580,
+        "part": 0,
+        "start_ms": 1112440
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 381,
+    "sha256": "51acc03330d133df8446f86f93ece2130c159fce8a60248b4425ae6d5c944aa8"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1118180,
+        "part": 0,
+        "start_ms": 1115580
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 382,
+    "sha256": "c84ea9b6efddffcd6752d467dbced826c2527db6ceed62c9278d8c7c48514e14"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1120720,
+        "part": 0,
+        "start_ms": 1118520
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 383,
+    "sha256": "873b6021a963cbfaeceed11078e1791cf0210deb0af439a2c2c233d318168fe8"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1123940,
+        "part": 0,
+        "start_ms": 1121040
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 384,
+    "sha256": "43b58cf918980fe59e04f37ba61494386611d4fcf1d23f03f44e88a48c0eb5ff"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1126860,
+        "part": 0,
+        "start_ms": 1124300
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 385,
+    "sha256": "ddbadef6be01809213f468eabb4130e090254c18cc9c20b2c32ebf80ba85949c"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1128680,
+        "part": 0,
+        "start_ms": 1127200
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 58."
+    },
+    "index": 386,
+    "sha256": "38cd15ec4903cb73388ba0cfaa0e50f0dc5677744958dc08b431da0796f291e5"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1131800,
+        "part": 0,
+        "start_ms": 1129140
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 387,
+    "sha256": "767add3bc187697749e510a6dd1b5393be10ae24de8a3b61d7a253be4969843b"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1135160,
+        "part": 0,
+        "start_ms": 1132080
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 388,
+    "sha256": "9bf0d74f888fd84deb76921d781d1a11a66e921b1a45cfc2e69c7a8119579445"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1137780,
+        "part": 0,
+        "start_ms": 1135500
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 389,
+    "sha256": "8bd0b3f3f7f1ebb94c5a71087efbdcc17fd4b6a8b9f0a8bf0faf0bf8ff4bbbbe"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1140360,
+        "part": 0,
+        "start_ms": 1138160
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 390,
+    "sha256": "608af1ffb733aefff09ffcb21c6834408655f28e28d796fba5ac05c212cbec86"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1143620,
+        "part": 0,
+        "start_ms": 1140680
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 391,
+    "sha256": "c81b2efcc26466b780e9226edf6097537a8f5f90527bdbe9fe9945128a16e1b5"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1146500,
+        "part": 0,
+        "start_ms": 1143620
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 392,
+    "sha256": "f8740566cc5e0c19c28960ee58441157fd4352f00153b4aca477027e2d69ee39"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1148360,
+        "part": 0,
+        "start_ms": 1146880
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 59."
+    },
+    "index": 393,
+    "sha256": "e2546bf0679081eba55da697f5d1c392958d18915b9b286f9d76469effa25c17"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1151520,
+        "part": 0,
+        "start_ms": 1148920
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 394,
+    "sha256": "5fcb68d8ef234457742b6c02817e2c7afced90dfaaf2acd91893af09de7fed90"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1154900,
+        "part": 0,
+        "start_ms": 1151820
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 395,
+    "sha256": "35065388102ff659ec6c6398d8888ddf7ccba5c21574c1cf0fa3ec25f4d7eee5"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1157500,
+        "part": 0,
+        "start_ms": 1155260
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 396,
+    "sha256": "720db24fdc1ea3e88361085ad424dda63b6970c8a9ac6f55cedf26281ed662c1"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1160080,
+        "part": 0,
+        "start_ms": 1157880
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 397,
+    "sha256": "a94228cf40795ebbd1f3f21ccf0017bdd74f18d4c70724f8dfc6cdf537df1619"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1163300,
+        "part": 0,
+        "start_ms": 1160420
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 398,
+    "sha256": "b7536165c92379767cb2c0137723246e2590566704a23aaa65eae06ab551f333"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1166240,
+        "part": 0,
+        "start_ms": 1163660
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 399,
+    "sha256": "22ced18497df073e32fd49239856bdd668422e7fcd65fb44cb7d9b98aa343fd7"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1167940,
+        "part": 0,
+        "start_ms": 1166540
+      },
+      "kind": "transcript",
+      "text": "This is discussion item 60."
+    },
+    "index": 400,
+    "sha256": "26d9611c9dab153eb9bdce9dc1d90cb711754b20b70ab3886025434f8a0c8fc4"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1171000,
+        "part": 0,
+        "start_ms": 1168300
+      },
+      "kind": "transcript",
+      "text": "We are reviewing the messaging service and its failure recovery."
+    },
+    "index": 401,
+    "sha256": "3a619f0132ff7eae3e0db5f1a172f19b8dd9c90c39cc60b4f9f6240ebb015674"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1174440,
+        "part": 0,
+        "start_ms": 1171000
+      },
+      "kind": "transcript",
+      "text": "A broker acknowledgement does not mean the browser has displayed the message."
+    },
+    "index": 402,
+    "sha256": "fcaddc28a00b245da0559c47ae311ab8c6754f80507418ea5e5d269305aea716"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1176980,
+        "part": 0,
+        "start_ms": 1174720
+      },
+      "kind": "transcript",
+      "text": "Keep the original request identified when retrying."
+    },
+    "index": 403,
+    "sha256": "1d555715c46c288e7013aa12f82ac7b960256d2952276a6e674e8dc100339ac9"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1179540,
+        "part": 0,
+        "start_ms": 1177360
+      },
+      "kind": "transcript",
+      "text": "Check the database history and the worker logs."
+    },
+    "index": 404,
+    "sha256": "3bee7c4a9e20cdd0899b880e065728d92eab07384863332d2fcf16dd5d653f0b"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1182760,
+        "part": 0,
+        "start_ms": 1179860
+      },
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    "index": 405,
+    "sha256": "19f991ec7e1e4e4525360bbe8301c27d56457d3e0624af74d114826672ef1e78"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1185680,
+        "part": 0,
+        "start_ms": 1183140
+      },
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    "index": 406,
+    "sha256": "82b0b2c9e41bcf16db4d8949939fb273e0d67d56b4e599d4565bd4950cbb666f"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1187200,
+        "part": 0,
+        "start_ms": 1186020
+      },
+      "kind": "transcript",
+      "text": "Decision check point three."
+    },
+    "index": 407,
+    "sha256": "3c2020750d2b261fe769d3e6dd4f7cf619dd0912a2618163217ddb7cc507d877"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1189940,
+        "part": 0,
+        "start_ms": 1187500
+      },
+      "kind": "transcript",
+      "text": "The final decision uses the code name Magenta Harbour."
+    },
+    "index": 408,
+    "sha256": "f11c97eacd5176307974407adeff9f6f2eb1b8e70672db43121ad5aad7790b3d"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1191340,
+        "part": 0,
+        "start_ms": 1190220
+      },
+      "kind": "transcript",
+      "text": "Keep the rollout paused."
+    },
+    "index": 409,
+    "sha256": "e35735cbe1caca7f5d66ec8ae52897b0b0662f6d9a7adf825ebc2f5272787aa6"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1193700,
+        "part": 0,
+        "start_ms": 1191660
+      },
+      "kind": "transcript",
+      "text": "Alice will investigate the duplicate delivery."
+    },
+    "index": 410,
+    "sha256": "6b03cc4d1180e816cd03328b55cbbe0dec44db8e8252ffa80990b51424fcac11"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1195860,
+        "part": 0,
+        "start_ms": 1194000
+      },
+      "kind": "transcript",
+      "text": "Bob will verify the recovery test tomorrow."
+    },
+    "index": 411,
+    "sha256": "8d16fb82dd8571cb820683c0b03fd44cd3b57db167a6b7bcb743a9a6d23c794b"
+  },
+  {
+    "content": {
+      "anchor": {
+        "end_ms": 1199620,
+        "part": 0,
+        "start_ms": 1196140
+      },
+      "kind": "transcript",
+      "text": "Do not enable automatic tool retries when the execution result is unknown."
+    },
+    "index": 412,
+    "sha256": "f731b5c747db40fc0b1e2e231da3c2ee27178468305cdf8cbe98102dcfe3c8e8"
+  }
+]

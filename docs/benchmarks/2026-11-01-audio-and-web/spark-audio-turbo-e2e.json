@@ -1,0 +1,913 @@
+{
+  "ok": false,
+  "mode": "real Compose + public launchers + actual Pi/Hermes models; three HTTP/WS clients, not browsers",
+  "source_commit": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "scenario": "public_runtime",
+  "checks": [
+    "formal Native capabilities and HTTP whitelist deny chat/profile/tool/session bypasses",
+    "three independent users exchange real messages; normal chat does not invoke models",
+    "public-pi reads the real nonce and C++ file; all three clients see its attributed durable final",
+    "public-hermes reads the real nonce and C++ file; all three clients see its attributed durable final",
+    "original Native room broker receipt succeeds and both consumers commit without dead letters",
+    "selected media uploaded through real chunk APIs and published by production worker: audio"
+  ],
+  "image_id": "sha256:875afac308df1c78205a6189905fe23621dd3970337bb4e9cbb558da6a945620",
+  "source_sha256": {
+    "Dockerfile": "fdf93ceb6d3751d1a665f1f283a27d6aafc33cd171741a465cf548bf7f65440a",
+    "tools/dlq_replay.cpp": "23770989c65a2efe74517d0c8f1ae6ed5080a6464b455fa02824e45d544106f1",
+    "cannbot/scripts/public_runtime.py": "61354793e71a93e2a4880e48dedd44790a873c3eb35eab7ace50678f097fc925",
+    "cannbot/scripts/public_runtime_archive.py": "f5a3ed240e45973b6db3a59df96631b5f1ee07a9b122823d5525c9261774a045",
+    "cannbot/scripts/public_runtime_maintenance.py": "50c7e13306235d08d992e123080c92f0bce0aa9d6097073558ef6af1b71ee275",
+    "cannbot/scripts/public_agent_gateway.py": "002681db0d7b614a03c76e9f3fe151b286cc4ff16c13083482262b21cc1425f5",
+    "cannbot/scripts/hermes_public_gateway.py": "e82fae9bf9ea643dd0a9e52ca1f29e1e622ac52e9ab4607b0021a3cb74c58ecc",
+    "cannbot/scripts/agent_router.py": "577a1a132b31905b3059a90f10c11ceb503e2a3ce0c80a92f5a1f6e8789cbe1f",
+    "cannbot/scripts/hermes_native_adapter.py": "8f932e375f4e7b04e9e0498a545584c89a000afc9994fffb434935918c252c86",
+    "scripts/spark_backup.py": "2ff538952ff7aa518562316938c9da1324ced340c18f63718b0bbe1a54039b04",
+    "scripts/spark_team_backup.py": "391a9ac97d62c0d779767f21b738bc22fe67a89b12a5462756ccec699d2d9fcc",
+    "scripts/verify_public_agent_mode.py": "fa66253998b709104fb937e4f0194b0eea90beafc1a5686ea9ba7219258ee3e7",
+    "docker-compose.agents.yml": "b34077208006c9981879db2fcdf039bc6269909573d6577505e18b785caab6dd",
+    "common/config.cpp": "fedb5544afd6a922010c8368dde09b112c8d0205337fa47749a1ff0e7dff7ca9",
+    "logic/services/room_agent_service.cpp": "b774c678e5c189d5cc151cc936ca2802f2bf887c08cdfbbc4077263f1a3d1dd2",
+    "tests/public_runtime_fixture.py": "779738b57194a08cad69c685587b5ec209259d410df37334ee4a8fcbab0dd476",
+    "tests/hermes_room_runtime_fixture.py": "8c82f644ff83cb38ff07413d19fe5457dc09073d383f0c091307761c9eba8ed3",
+    "tests/team_backup_scenario.py": "c8e03d063a0bd0f8a1ca5e338005d849b0babcaa330be0569694b3189d3d14f1",
+    "tests/public_cross_room_scenario.py": "649867a6aacb6eabd6733dd7db1a16b4195551700ce05eb5bea9c41ddf113443",
+    "tests/public_room_runtime_e2e.py": "c94e87fcc5fbbf4fda61920217dec6096a2ceb4a6f95165dfca237bc14424078",
+    "tests/public_media_scenario.py": "cf880c28d8d10913f1cd97d10d523b3808530bfc00e3c4cf16c67e62a492ae3b",
+    "tests/room_context_runtime_probe.py": "d7c597046ce60a194b376c6512ddbb18e6972d2d08783c74086f99823d308f3e",
+    "tests/media_parser_fixtures.py": "3a22c34c1b68078751960fa23959533870210a79ef2264b2fea5c5610c13003b",
+    "deploy/Caddyfile.agents": "fa77d20c0a766dbec137e29edb31e6831109618c455d183cfbed7942a75ce9fa",
+    "deploy/Caddyfile": "273565ee564c9c45aec515c6e7706ca3ac4d8afb134808f244c726a16109c7fe",
+    "cannbot/room-context-tools.json": "538dbf2cee52ce64ae02b063b469622cceb5ed1e7964a38dde978abc49e04a64",
+    "cannbot/scripts/room_context.py": "f2deeb4ca967b463abb4b610fe06dc41e6f957922f4b0f5f9a7706c9095a6b4b",
+    "cannbot/pi/extensions/room-context.ts": "13c45132923f294f2c301b101924c460995cb59f16e5e985df87cfd6acd8a148",
+    "cannbot/scripts/media_worker.py": "2b0ebae9525cc50676e36da686edf28c8ebbe6ab85e9467027b407f100bfe32d",
+    "cannbot/scripts/media_text_worker.py": "2a0666e491e70aaf92945e47549bc817129b3e73e07a1fd9241523a16c392c6e",
+    "cannbot/media/parser.py": "e29263d81f71583e3c49cd6cc8d5d0a5cfb2bcbed36c40482b171d90c8c10188",
+    "cannbot/media/sandbox.py": "4b3e24fcbfe95da6cd0af4f12389eb1bd37b65a36bc0e4cfc0347975bbbf3bbd",
+    "logic/services/media_context_service.cpp": "82381848ae4d2c55a01a4f4e75c2c44c819449728f42abc792b2fabae6fd689a",
+    "logic/repositories/media_context_repository.cpp": "84d6ab7b894712a817e3c7484272ad88e7550306a37eb6abd1f6e3e00929ebba",
+    "logic/services/room_task_service.cpp": "80cd7400152e7f0c2d775cdc8f89e8ed9c0addb7386c23733b298b8e333603cd",
+    "logic/repositories/room_agent_repository.cpp": "85f0e5e2add37377e9e539ac99aaaa614d063f79674a17c089f0b9128c2ab198",
+    "logic/repositories/room_context_source_sql.h": "d2f7ef34841669ba6f5e38329c6d5d250bfbf462fd170f13b2901a807b210d6f",
+    "web_demo/static/room_media.js": "4a66e2f01a6c68ff95d83acc2b80f199cefb6ad323703fc2f9277e2ac31d7138",
+    "web_demo/static/room_agents.js": "fc829ce3987303bad7b2cf8d2a03df618ac10e5c2986cc274d0a3f8338990142",
+    "web_demo/static/index.html": "905e2e49a588c6b7e747450673f97ed7795d9dee561a5c377e1c2c24b2da249e"
+  },
+  "media": {
+    "scope": "Real user uploads -> production media worker -> native room tools -> IM.\n\nInvoked by public_room_runtime_e2e; no SQL writes or simulated runtimes. Inputs\nare synthetic fixtures. Image hashes are observed in actual Native tool and\nprovider requests; HTTP/WS clients are not browser acceptance.\n",
+    "configuration": {
+      "pipeline_sha256": "c47258ccba18973552c62580fc8a54511ac4f2266b409ea01341817a95935886",
+      "parser_sha256": "e29263d81f71583e3c49cd6cc8d5d0a5cfb2bcbed36c40482b171d90c8c10188",
+      "image_id": "sha256:4c2e26418ad4ec59d0d57bdf2a15af30826c14de5d253d39bf96be2de2b38120",
+      "model_sha256": "02e8ad144c5a1e9441bbd2aab66e62a1b2627c4b0f1936a7cdc68878c9767227"
+    },
+    "assets": [
+      {
+        "case": "audio",
+        "id": "att_664f0b8a45e6d2491c305edc",
+        "name": "meeting-20min.wav",
+        "uploader": 900000000404,
+        "sha256": "121b03712aa51ffa453e7fa1b3b2f54c358cc6ad07eb1e5a4cfee9dc5f2fd041",
+        "bytes": 38399392,
+        "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e",
+        "processing": {
+          "attempt": 1,
+          "error_code": "",
+          "id": "att_664f0b8a45e6d2491c305edc",
+          "job_state": "completed",
+          "result": {
+            "artifact_bytes": 0,
+            "artifact_count": 0,
+            "coverage": {
+              "audio": {
+                "decoded_samples": 19199657,
+                "duration_ms": 1199979,
+                "language": "en",
+                "offset_ms": 0,
+                "sample_rate": 16000,
+                "segments": 381,
+                "speaker_labels": false,
+                "track_end_ms": 1199979
+              },
+              "container_duration_ms": 1199979,
+              "duration_ms": 1199979,
+              "kind": "audio",
+              "source_origin_ms": 0
+            },
+            "fragment_count": 381,
+            "id": "att_664f0b8a45e6d2491c305edc",
+            "line_count": 0,
+            "manifest_sha256": "a114826fd7025272135ddb995676d96fc45002882e88c910646e97fe07cc990d",
+            "pipeline_kind": "media-parser-v1",
+            "pipeline_sha": "c47258ccba18973552c62580fc8a54511ac4f2266b409ea01341817a95935886",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e",
+            "state": "ready",
+            "text_bytes": 24239
+          },
+          "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e",
+          "state": "ready",
+          "text_pipeline_supported": false
+        },
+        "first_fragment_sha256": "c5b4f8be28c2b1d590c6bc9af5ae69f04296aa39f220b135c5d1b74c2d2422ef",
+        "expects_image": false
+      }
+    ],
+    "requests": [
+      {
+        "request_id": "ra_f57be5765102386d978d50b4be0a5132e7e03bcd242ebef02ab4c3ba06d07da6",
+        "agent_id": "public-pi",
+        "actor_user_id": 900000000404,
+        "room_id": 1,
+        "payload": {
+          "type": "chatroom",
+          "group_id": 1,
+          "client_msg_id": "988c809d17b62371675a59240b552ca0",
+          "content": {
+            "text": "Read meeting-20min.wav transcripts using room_search and room_read. Find all decision checkpoints at the beginning, middle and end; refine fragment searches if needed. Return ONLY a JSON object with decisions:[{code,actions:[{owner,action}],source_ids:[string]}] and tasks:[{decision_code,owner,title,description,steps:[string],source_ids:[string]}]. Include every named owner/action at each checkpoint, copy the code names, and cite the specific audio fragments. Propose related follow-up tasks with concise titles; do not execute tools other than room reads, or claim tests have run."
+          },
+          "agent_mentions": [
+            "public-pi"
+          ]
+        },
+        "final_statuses": [
+          {
+            "user_id": 900000000403,
+            "status": "completed"
+          },
+          {
+            "user_id": 900000000404,
+            "status": "completed"
+          },
+          {
+            "user_id": 900000000405,
+            "status": "completed"
+          }
+        ],
+        "answer": "【Kernel Agent】\n\n```json\n{\n  \"decisions\": [\n    {\n      \"code\": \"Silver Lantern\",\n      \"actions\": [\n        {\"owner\": \"Alice\", \"action\": \"owns QBAC Pressure Review\"},\n        {\"owner\": \"release owner\", \"action\": \"will collect the test evidence before making a decision\"},\n        {\"owner\": null, \"action\": \"treat a broker acknowledgement as not meaning the browser has displayed the message\"},\n        {\"owner\": null, \"action\": \"keep the original request identifier when retrying, and check the database history and the worker logs\"}\n      ],\n      \"source_ids\": [\n        \"src_a4d208d35f7d0e1ee2093642fc6114543a4471110652bbf618b4c20b1fd2b98d\",\n        \"src_96f730d1371eeee61a2647ca7e598467eb9be2fc34ca66069d2958c01b0ea7fb\",\n        \"src_3aefcd0ec2cacf9ea310c638f6720a7508ebbbbf190c97dc9450f793e6afc9ca\",\n        \"src_e9fd4ee934278a1a8f2aa4052f8fb9e66b45e67d963cbb19e2678ed5469a08e3\",\n        \"src_ee5523bd57b018287b809b0928da0a7d818c21740d4c7f81c9ae74043e34d1b6\"\n      ]\n    },\n    {\n      \"code\": \"Cobalt Bridge\",\n      \"actions\": [\n        {\"owner\": \"Bob\", \"action\": \"owns database recovery verification\"},\n        {\"owner\": \"release owner\", \"action\": \"will collect the test evidence before making a decision\"},\n        {\"owner\": null, \"action\": \"keep the private room isolated from other rooms\"}\n      ],\n      \"source_ids\": [\n        \"src_b42c3aa8b5333b8dff9d6cc71980a229b155854d6b4796c097b5b9cfdbb177b7\",\n        \"src_fb371ba4c319fff2919c5d4274f6bbfa1a0e32d641e82285ad3bd347cab2bd37\",\n        \"src_29383d9b50ac0f1cbc7fc02384d7432515347dd283d86f516f22d1a96627262e\",\n        \"src_b1045b726901747cbe266d53ddeb2aefc0336e31c5973f604db9d5ede62678a0\"\n      ]\n    },\n    {\n      \"code\": \"Magenta Harbor\",\n      \"actions\": [\n        {\"owner\": null, \"action\": \"keep the rollout paused\"},\n        {\"owner\": \"Alice\", \"action\": \"will investigate the duplicate delivery\"},\n        {\"owner\": \"Bob\", \"action\": \"will verify the recovery test tomorrow\"},\n        {\"owner\": null, \"action\": \"do not enable automatic tool retries when the execution result is unknown\"},\n        {\"owner\": \"release owner\", \"action\": \"will collect the test evidence before making a decision\"}\n      ],\n      \"source_ids\": [\n        \"src_9ae9904817e147b393858f300e226077ec6818db2ccdd44fb5478f6f45e58cfc\",\n        \"src_21b97b0e684b93f712838cd9dd8f970325839814bd3005511adef4a7f62f4428\",\n        \"src_3d586acf69d61610a5aceee0328ac8a72bb4f5d6d8ad3119c91ed49dd8a1a569\",\n        \"src_5e87c81a44e3c84cc6b27900d3ceb492a5535d92482a1fc07ad1d012c4ec25df\",\n        \"src_92d6d9258c0cf2b8dec067ebefa04f4f24a79798b4e45802b31532ff0d5acaa5\",\n        \"src_430d6e5aa6707171e11529abc8683e989f8f6573802f34d3b26d7847ffe6d28a\",\n        \"src_5bc1f6e8cda9f95565805109c55799f388b4acde9528803959a6041daa82b537\"\n      ]\n    }\n  ],\n  \"tasks\": [\n    {\n      \"decision_code\": \"Silver Lantern\",\n      \"owner\": \"Alice\",\n      \"title\": \"QBAF/QBAC pressure review for failure recovery\",\n      \"description\": \"Checkpoint 1 (audio 0–4620 ms) assigns the codename Silver Lantern and hands ownership of QBAC Pressure Review to Alice; no test evidence has been recorded in the room.\",\n      \"steps\": [\n        \"Re-read the Checkpoint 1 segment to confirm the review scope before starting.\",\n        \"Draft the QBAC Pressure Review checklist covering failure-recovery retry and acknowledgement semantics.\",\n        \"Record review findings and hand them to the release owner as test evidence.\"\n      ],\n      \"source_ids\": [\n        \"src_a4d208d35f7d0e1ee2093642fc6114543a4471110652bbf618b4c20b1fd2b98d\",\n        \"src_96f730d1371eeee61a2647ca7e598467eb9be2fc34ca66069d2958c01b0ea7fb\"\n      ]\n    },\n    {\n      \"decision_code\": \"Cobalt Bridge\",\n      \"owner\": \"Bob\",\n      \"title\": \"Write the database recovery verification plan\",\n      \"description\": \"Checkpoint 2 (audio 590340–597440 ms) names Cobalt Bridge and assigns database recovery verification to Bob, with the room-isolation constraint stated just before it.\",\n      \"steps\": [\n        \"Enumerate what 'database history' must be checked after a retry, including preserved request identifiers.\",\n        \"Define pass/fail criteria for recovery verification and the evidence to capture from worker logs.\",\n        \"Publish the plan so the release owner can attach it to the decision record.\"\n      ],\n      \"source_ids\": [\n        \"src_b42c3aa8b5333b8dff9d6cc71980a229b155854d6b4796c097b5b9cfdbb177b7\",\n        \"src_fb371ba4c319fff2919c5d4274f6bbfa1a0e32d641e82285ad3bd347cab2bd37\",\n        \"src_b1045b726901747cbe266d53ddeb2aefc0336e31c5973f604db9d5ede62678a0\"\n      ]\n    },\n    {\n      \"decision_code\": \"Magenta Harbor\",\n      \"owner\": \"Alice\",\n      \"title\": \"Investigate duplicate message delivery\",\n      \"description\": \"Final checkpoint (audio 1185980–1193700 ms) records Magenta Harbor, keeps the rollout paused, and asks Alice to investigate duplicate delivery.\",\n      \"steps\": [\n        \"Reproduce the duplicate delivery and log the message identifiers involved.\",\n        \"Trace whether duplicates come from retry handling with the original request identifier.\",\n        \"Report findings while the rollout remains paused.\"\n      ],\n      \"source_ids\": [\n        \"src_21b97b0e684b93f712838cd9dd8f970325839814bd3005511adef4a7f62f4428\",\n        \"src_3d586acf69d61610a5aceee0328ac8a72bb4f5d6d8ad3119c91ed49dd8a1a569\",\n        \"src_5e87c81a44e3c84cc6b27900d3ceb492a5535d92482a1fc07ad1d012c4ec25df\"\n      ]\n    },\n    {\n      \"decision_code\": \"Magenta Harbor\",\n      \"owner\": \"Bob\",\n      \"title\": \"Verify the recovery test tomorrow and gate automatic retries\",\n      \"description\": \"The final checkpoint also assigns Bob the recovery-test verification for the next day and states that automatic tool retries must stay disabled while the execution result is unknown.\",\n      \"steps\": [\n        \"Confirm recovery-test prerequisites are in place before tomorrow's run.\",\n        \"Run the recovery verification and capture the evidence for the release owner.\",\n        \"Keep automatic tool retries disabled for unknown execution results and document that setting.\"\n      ],\n      \"source_ids\": [\n        \"src_92d6d9258c0cf2b8dec067ebefa04f4f24a79798b4e45802b31532ff0d5acaa5\",\n        \"src_430d6e5aa6707171e11529abc8683e989f8f6573802f34d3b26d7847ffe6d28a\",\n        \"src_5bc1f6e8cda9f95565805109c55799f388b4acde9528803959a6041daa82b537\"\n      ]\n    }\n  ]\n}\n```",
+        "msg_seq": 10,
+        "source_receipts": [
+          {
+            "kind": "fragment",
+            "index": 374,
+            "anchor": {
+              "part": 0,
+              "end_ms": 1185720,
+              "start_ms": 1183060
+            },
+            "sha256": "9652e4c53a97593db25d1426ab74a30cd3fdc989d26e486919037d5dc6503e33",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 77,
+            "anchor": {
+              "part": 0,
+              "end_ms": 234080,
+              "start_ms": 231120
+            },
+            "sha256": "3ce40bcfca5d5d4c9fdafe16099bd406367e021b5a01294b3659c263a44c1042",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 376,
+            "anchor": {
+              "part": 0,
+              "end_ms": 1189900,
+              "start_ms": 1187340
+            },
+            "sha256": "a39dd5e1c42d97817a23f0d392d0a6d379e5b30877505def7aabfe102aad3db6",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 187,
+            "anchor": {
+              "part": 0,
+              "end_ms": 587160,
+              "start_ms": 583360
+            },
+            "sha256": "19d22c8967e2add69a2ead9560ee74e62c655be282c505f1f1987e99c6109953",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "message",
+            "length": 300,
+            "msg_id": "r_1-9",
+            "offset": 0,
+            "sha256": "c08348c608be24ca85de5dcac346b9f3406e0ed8ada700e3226f2450bdf8cb1a",
+            "msg_seq": 9,
+            "room_id": 1,
+            "source_sha256": "e5daf2d2877dca754cf9b709f6fd321088fcadfdadd59d94c630984068f1a6f4"
+          },
+          {
+            "kind": "fragment",
+            "index": 185,
+            "anchor": {
+              "part": 0,
+              "end_ms": 578820,
+              "start_ms": 575560
+            },
+            "sha256": "8b5be9c66991ee6ade571e17c7a37abf9de21da29e8af31daa39f4a27de081cf",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 50,
+            "anchor": {
+              "part": 0,
+              "end_ms": 156540,
+              "start_ms": 152720
+            },
+            "sha256": "1d4637e05308a21b37a9e4f34811e46757cb097bd580f17c84636eb8983c5bed",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 2,
+            "anchor": {
+              "part": 0,
+              "end_ms": 12720,
+              "start_ms": 9480
+            },
+            "sha256": "4bb0c11a549254357181d2853cfd13f83030501ab9ac15a1904b3ef2b3e39e3c",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 377,
+            "anchor": {
+              "part": 0,
+              "end_ms": 1191320,
+              "start_ms": 1190140
+            },
+            "sha256": "28780f1274cfd516d906cfa6fb5e3f2b2e8a89e90474803cf5530f975c773b0c",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 91,
+            "anchor": {
+              "part": 0,
+              "end_ms": 273060,
+              "start_ms": 270080
+            },
+            "sha256": "2e59f59bd031830602a987eaecaea2cf2db7bf83cff4acc6e425a28428dc8671",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 380,
+            "anchor": {
+              "part": 0,
+              "end_ms": 1199580,
+              "start_ms": 1196160
+            },
+            "sha256": "8f8cdf6024078af998b69fcbeab3a25c6b06dabc7999a79bf7eb1a48b416bc0b",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 371,
+            "anchor": {
+              "part": 0,
+              "end_ms": 1177040,
+              "start_ms": 1174380
+            },
+            "sha256": "d427394e50a98ee71fe1b6a91ac3d8a6a80bdf848bf618881e94f5e5719e40d0",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 113,
+            "anchor": {
+              "part": 0,
+              "end_ms": 351100,
+              "start_ms": 348160
+            },
+            "sha256": "b7ac12cc247a201c4ef42c7d2bc9277d19f24e40aed502faf0fd5429848e8daf",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 191,
+            "anchor": {
+              "part": 0,
+              "end_ms": 615320,
+              "start_ms": 597440
+            },
+            "sha256": "bb4aeca2ec5d4ac381e9232acb1da6973f59471649c8dc8f1bf83487ae919e92",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 7,
+            "anchor": {
+              "part": 0,
+              "end_ms": 32000,
+              "start_ms": 28580
+            },
+            "sha256": "c115fd40ae6a8eebc066e80e1864806cd4b9f5221ad890d07c11243983502c27",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 373,
+            "anchor": {
+              "part": 0,
+              "end_ms": 1182780,
+              "start_ms": 1179760
+            },
+            "sha256": "bfffef17c25b32e199a29e9acf39eb4636ea45a8ed8325ab0401b52e32d18a07",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 38,
+            "anchor": {
+              "part": 0,
+              "end_ms": 117840,
+              "start_ms": 114740
+            },
+            "sha256": "40bb5f70daa987f67b16521c1b6cf127acf64b03e04eb75e4a3e4dc41d1f2963",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 378,
+            "anchor": {
+              "part": 0,
+              "end_ms": 1193700,
+              "start_ms": 1191600
+            },
+            "sha256": "8f73c2147b54cff8eee1bb3212cbbb36273741903056637998d7cac7efe5c38f",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 17,
+            "anchor": {
+              "part": 0,
+              "end_ms": 59680,
+              "start_ms": 56440
+            },
+            "sha256": "5e83afa72f7eba7d4c872dc61e00efbca95e3d8af859fc5b52c771163ce40d48",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 10,
+            "anchor": {
+              "part": 0,
+              "end_ms": 40380,
+              "start_ms": 37400
+            },
+            "sha256": "ed2b820ab69d45bc77a1834f02b978413a6a94539d98b1af63716a95913c3feb",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 45,
+            "anchor": {
+              "part": 0,
+              "end_ms": 137280,
+              "start_ms": 134320
+            },
+            "sha256": "0cdfbaefc59279f0dff9524816c942e08f91e9a99de911e2b12134ba32374b42",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 379,
+            "anchor": {
+              "part": 0,
+              "end_ms": 1195840,
+              "start_ms": 1193940
+            },
+            "sha256": "e33ebcb1c582d8d4a4254800c6c3cee833972d0e16c52ac8d338c51d33c745e9",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 4,
+            "anchor": {
+              "part": 0,
+              "end_ms": 21080,
+              "start_ms": 17280
+            },
+            "sha256": "844e3e6c399b453427f82d4f8151c700ebc858613a4eea0e944587f1e20a7af2",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 192,
+            "anchor": {
+              "part": 0,
+              "end_ms": 620120,
+              "start_ms": 615320
+            },
+            "sha256": "fb35994ac6a4478b597353c0bc71df3f397a657963edebe2b9cdfb0cb98dcfb7",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 375,
+            "anchor": {
+              "part": 0,
+              "end_ms": 1187160,
+              "start_ms": 1185980
+            },
+            "sha256": "5793607fa39e66a7f8b899f9863cedfa05f9d9d742519965f29ac7215b5ab33a",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 0,
+            "anchor": {
+              "part": 0,
+              "end_ms": 4620,
+              "start_ms": 0
+            },
+            "sha256": "781880a44af09469140804883b7a716e12ae54ddf48cf2e8f404208c3c7e3a5c",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 120,
+            "anchor": {
+              "part": 0,
+              "end_ms": 370640,
+              "start_ms": 367620
+            },
+            "sha256": "0ee9dce5682640645ba00cc3bf6b605b4f46a26606ad228b524b98ce345bbade",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 193,
+            "anchor": {
+              "part": 0,
+              "end_ms": 623600,
+              "start_ms": 620400
+            },
+            "sha256": "ae9eff0bfd9810e5e15175a2747bdd69acce5d15a983a4fd908350267ab648da",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 188,
+            "anchor": {
+              "part": 0,
+              "end_ms": 590120,
+              "start_ms": 587440
+            },
+            "sha256": "390d9a5751b1c9d8264356feae202b9970396c09d4f621af058163eee28e602e",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 1,
+            "anchor": {
+              "part": 0,
+              "end_ms": 9240,
+              "start_ms": 4920
+            },
+            "sha256": "8e2375ea1a3ccd169cfd2e02d9c7c907d6917dee6378a6741b491db0c7b4debb",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 189,
+            "anchor": {
+              "part": 0,
+              "end_ms": 593320,
+              "start_ms": 590340
+            },
+            "sha256": "217acd0654822e72747b6ce2e92cf44f0a1b7d0f8b17b32733ea2155a8f5c149",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 6,
+            "anchor": {
+              "part": 0,
+              "end_ms": 28580,
+              "start_ms": 24280
+            },
+            "sha256": "1acdb791a0185481bbc388d410b4854d17de94f260b238c89c268061c76a9eaa",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 106,
+            "anchor": {
+              "part": 0,
+              "end_ms": 331720,
+              "start_ms": 328620
+            },
+            "sha256": "f43029cb41b8af7bcb2993e6e8f74f1dd8b9512390c3efdd80adfe1b637df76f",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 372,
+            "anchor": {
+              "part": 0,
+              "end_ms": 1179580,
+              "start_ms": 1177260
+            },
+            "sha256": "08162efb46f2bba1b7aee54adbc290ded28d96a4ac1e58404ea0406ee2510de7",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 194,
+            "anchor": {
+              "part": 0,
+              "end_ms": 628180,
+              "start_ms": 623760
+            },
+            "sha256": "e38470dfacfd34a27f006e75bfa19b0609627ecec9598b5fa34dc9b3d6e0d45c",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 24,
+            "anchor": {
+              "part": 0,
+              "end_ms": 79060,
+              "start_ms": 76080
+            },
+            "sha256": "5d8a1a25e3e8142dab5a15d36a00c754f41e70a23ebb4de36d758b34b8a88033",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 104,
+            "anchor": {
+              "part": 0,
+              "end_ms": 325960,
+              "start_ms": 306360
+            },
+            "sha256": "bb565844183888e497aa34531ebbf1924b11171c1f1db1da7937a182ac04665c",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "message",
+            "length": 42,
+            "msg_id": "r_1-8",
+            "offset": 0,
+            "sha256": "494bbd2fca9d20d73429b036e32237e14d7a0f2b343fe375c582cb2d129434a6",
+            "msg_seq": 8,
+            "room_id": 1,
+            "source_sha256": "494bbd2fca9d20d73429b036e32237e14d7a0f2b343fe375c582cb2d129434a6"
+          },
+          {
+            "kind": "fragment",
+            "index": 5,
+            "anchor": {
+              "part": 0,
+              "end_ms": 24000,
+              "start_ms": 21360
+            },
+            "sha256": "ac10b8481ceb7fcd56b31927be500364a773d5b561030e492b9b277babf5077c",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 370,
+            "anchor": {
+              "part": 0,
+              "end_ms": 1174380,
+              "start_ms": 1171200
+            },
+            "sha256": "3b70139f33db2a9127eba6f3111d2a60b68e321883f1f004f9b067707822a345",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 63,
+            "anchor": {
+              "part": 0,
+              "end_ms": 195240,
+              "start_ms": 192280
+            },
+            "sha256": "a20dcb4f5fe409d3bd19164c4bf2277a92dfffabfe6e050010767d75d6afb967",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 56,
+            "anchor": {
+              "part": 0,
+              "end_ms": 175880,
+              "start_ms": 172920
+            },
+            "sha256": "c27d015c8fdab231190910c318cc33515df8bdd04fc24544c69f7d946508fba7",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 84,
+            "anchor": {
+              "part": 0,
+              "end_ms": 253540,
+              "start_ms": 250320
+            },
+            "sha256": "4e2cdf1228715a105759036b0b27ae531ca0df1b76ea4d2c035da9d8683a736f",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 31,
+            "anchor": {
+              "part": 0,
+              "end_ms": 98440,
+              "start_ms": 95460
+            },
+            "sha256": "4be559ba8495a3603e0e0ef7b68d19fa6bbf267ebd12b74d292a41cb9cdec317",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 3,
+            "anchor": {
+              "part": 0,
+              "end_ms": 17280,
+              "start_ms": 12980
+            },
+            "sha256": "c645ee5f7d890a106d7de55bd9a9b9667d23faf42f854411f123affb1093bcb1",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 98,
+            "anchor": {
+              "part": 0,
+              "end_ms": 292560,
+              "start_ms": 289580
+            },
+            "sha256": "58fd4ff3968510c7be13f010958b880239f4b33fb42897a711560c8551291c6c",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "media",
+            "sha256": "a114826fd7025272135ddb995676d96fc45002882e88c910646e97fe07cc990d",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 186,
+            "anchor": {
+              "part": 0,
+              "end_ms": 583360,
+              "start_ms": 579100
+            },
+            "sha256": "58d7d51b8626d878a9c4dbb3a656fc0961f63ddc39b050716d4c566e146a5e7a",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 190,
+            "anchor": {
+              "part": 0,
+              "end_ms": 597440,
+              "start_ms": 593560
+            },
+            "sha256": "d77d43963845a391ad501a238e4d0ebcd70842f9378660d0e8db10084210ee3e",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          },
+          {
+            "kind": "fragment",
+            "index": 70,
+            "anchor": {
+              "part": 0,
+              "end_ms": 214620,
+              "start_ms": 211640
+            },
+            "sha256": "296fc97dc1bb1460bf5efc8b2fca11cefe4ebff8954a4ff815abe8c3394cae39",
+            "room_id": 1,
+            "asset_id": "att_664f0b8a45e6d2491c305edc",
+            "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e"
+          }
+        ]
+      }
+    ],
+    "checks": [],
+    "processing_timeout_seconds": 3600,
+    "selected_cases": [
+      "audio"
+    ],
+    "cases_passed": [],
+    "not_selected": [
+      "pdf",
+      "video"
+    ],
+    "routing": [
+      {
+        "listener": "public",
+        "path": "/internal/room-agent/context/search",
+        "method": "POST",
+        "http_status": 404,
+        "code": null
+      },
+      {
+        "listener": "public",
+        "path": "/internal/media/claim_media",
+        "method": "POST",
+        "http_status": 404,
+        "code": null
+      },
+      {
+        "listener": "internal",
+        "path": "/internal/room-agent/context/search",
+        "method": "GET",
+        "http_status": 404,
+        "code": null
+      },
+      {
+        "listener": "internal",
+        "path": "/internal/media/unknown",
+        "method": "POST",
+        "http_status": 404,
+        "code": null
+      },
+      {
+        "listener": "internal",
+        "path": "/internal/room-agent/context/search",
+        "method": "POST",
+        "http_status": 401,
+        "code": 401
+      },
+      {
+        "listener": "internal",
+        "path": "/internal/media/claim_media",
+        "method": "POST",
+        "http_status": 401,
+        "code": 401
+      }
+    ],
+    "audio": {
+      "seconds": 1199.9785625,
+      "kind": "continuous synthetic speech, decision checkpoints near start/middle/end",
+      "expected_codes": [
+        "silver lantern",
+        "cobalt bridge",
+        "magenta harbor"
+      ],
+      "transcript_artifact": "spark-audio-turbo-e2e.audio-transcript.json",
+      "transcript_sha256": "835fc838b7bd01bf82d03cfb4ad1f0e428afa06de40b04144d0650d31cfcd7ae",
+      "orthographic_equivalence": {
+        "harbour": "harbor"
+      },
+      "asr_code_checks": {
+        "silver lantern": true,
+        "cobalt bridge": true,
+        "magenta harbor": true
+      },
+      "fragment_count": 381
+    },
+    "processing_seconds": 574.9640487860015
+  },
+  "release_services": null,
+  "running_application_images": {
+    "/spark-public-a2d74dc211f9-agent-bridge-1": "sha256:875afac308df1c78205a6189905fe23621dd3970337bb4e9cbb558da6a945620",
+    "/spark-public-a2d74dc211f9-comet-1": "sha256:875afac308df1c78205a6189905fe23621dd3970337bb4e9cbb558da6a945620",
+    "/spark-public-a2d74dc211f9-job-1": "sha256:875afac308df1c78205a6189905fe23621dd3970337bb4e9cbb558da6a945620",
+    "/spark-public-a2d74dc211f9-logic-1": "sha256:875afac308df1c78205a6189905fe23621dd3970337bb4e9cbb558da6a945620",
+    "/spark-public-a2d74dc211f9-web-1": "sha256:875afac308df1c78205a6189905fe23621dd3970337bb4e9cbb558da6a945620"
+  },
+  "authorization_denials": [
+    {
+      "path": "/api/chatroom/join",
+      "http_status": 403,
+      "wire_code": 403,
+      "actor_user_id": 900000000406,
+      "room_id": 1,
+      "session_id": null
+    },
+    {
+      "path": "/api/chatroom/workspace/set",
+      "http_status": 403,
+      "wire_code": 403,
+      "actor_user_id": 900000000404,
+      "room_id": 1,
+      "session_id": null
+    },
+    {
+      "path": "/api/room/media/processing",
+      "http_status": 403,
+      "wire_code": 403,
+      "actor_user_id": 900000000406,
+      "room_id": null,
+      "session_id": null
+    }
+  ],
+  "cleanup": {
+    "owned_compose_resources_removed": true,
+    "private_pi_model_files_unchanged": true,
+    "original_windows_profile_unchanged": true,
+    "owned_native_profile_removed": true
+  },
+  "limitations": [
+    "not browser acceptance",
+    "Windows shared storage does not prove OS read-only mounts",
+    "CANN/private Agent regression is separate; no arbitrary side-effecting tool execution",
+    "unknown-run failure injection is separate"
+  ]
+}

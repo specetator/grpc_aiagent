@@ -1,0 +1,21 @@
+{
+  "expectations": {
+    "pdf_nonce": "50b8c4e06c956de43d966e6b",
+    "audio_codes": [
+      "silver lantern",
+      "cobalt bridge",
+      "magenta harbor"
+    ],
+    "audio_kind": "continuous synthetic speech, decision checkpoints near start/middle/end",
+    "video": {
+      "before": "red",
+      "after": "green",
+      "transition_seconds": 5
+    }
+  },
+  "files": {
+    "design.pdf": "bd303ae02828649fe3af4873f014dc041d1d201eea47496f078d8d144e076dd7",
+    "meeting-20min.wav": "121b03712aa51ffa453e7fa1b3b2f54c358cc6ad07eb1e5a4cfee9dc5f2fd041",
+    "incident.mp4": "44c6d6589fa7cd687f635ca1cc2b434755911a75bc0011c0b286552127409c65"
+  }
+}

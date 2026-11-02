@@ -1,0 +1,99 @@
+{
+  "date": "2026-11-02",
+  "phase": "Real Web PDF analysis and source-linked task workflow",
+  "overall_goal_complete": false,
+  "source_commit": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "image_id": "sha256:b9e09b890197cede40a2411c718a1f25b577a79c1a20d5e9de7fdaca34dafb17",
+  "kind": "real owned Compose, three independent Chromium processes, production parser and isolated Hermes Native; no authentication, HTTP, WS, tool or model response mocks",
+  "attempts": [
+    {
+      "artifact": "spark-web-media-analysis-e2e.json",
+      "ok": false,
+      "exit_code": 1,
+      "reason": "Test selected the first source receipt instead of the task citation; source IDs are not document order"
+    },
+    {
+      "artifact": "spark-web-media-analysis-second.json",
+      "ok": false,
+      "exit_code": 1,
+      "reason": "Test only accepted text fragments; actual Hermes cited a supported PDF page image"
+    },
+    {
+      "artifact": "spark-web-media-analysis-third.json",
+      "ok": true,
+      "exit_code": 0,
+      "browser_checks": 7,
+      "parent_checks": 3
+    }
+  ],
+  "implemented": [
+    "Focused --agents --media-analysis mode reuses the existing Web launcher and production media worker, processing only PDF",
+    "Source validation follows the model task citation by ID and accepts authorized text or actual image reads",
+    "Existing Native observation records actual image hashes without replacing responses; browser source preview bytes must match the cited hash"
+  ],
+  "verified": [
+    "three independent browser processes register and log in through the UI",
+    "Alice creates a private space, invites Bob and Carol by account, both accept without numeric IDs",
+    "PDF uploaded through the UI is parsed by the real worker, shared with three members and readable without a model call",
+    "explicit UI mention reaches isolated Hermes; actual PDF and code facts appear in the same attributed timeline for all three members",
+    "source preview opens exact PDF content; Alice saves the actual model proposal and Carol claims it with a persistent handoff",
+    "full service restart and fresh browser profiles recover the same timeline, task content/assignee/status/revision and source navigation",
+    "membership revocation clears source preview and denies original PDF, Agent sources and persisted task access"
+  ],
+  "task_fields_compared_after_full_restart": [
+    "title",
+    "description",
+    "steps",
+    "source_ids",
+    "summary",
+    "assignee_user_id",
+    "status",
+    "revision"
+  ],
+  "cited_image": {
+    "available": true,
+    "name": "design.pdf",
+    "reference": {
+      "anchor": {
+        "page": 2
+      },
+      "asset_id": "att_e09bb2a0eecd84d9953bf6d6",
+      "index": 1,
+      "kind": "image",
+      "revision": "972c3f669e29dcc3d879482f834835292eb53f065263d6d68e2e3db199758368",
+      "room_id": 1,
+      "sha256": "9f6efbe69bc4835f84860c6f4dfc9b1e1276a3bd8ab10ed92c98456c87630719"
+    },
+    "source_id": "src_d5a276e97f03008b249d31efc8ef8c074c56c3e0662ca833d0b7c75c6834bb50"
+  },
+  "image_evidence": "Exact cited page-2 JPEG hash occurs in real tool output and a successful provider request; opened browser Blob content matches that hash",
+  "privacy": "Only authorized model credentials used in owned runtime homes; no private logs or credentials included in these public receipts",
+  "limitations": [
+    "Audio and video not selected; previous ASR term error and overall audio semantic failure remain unresolved",
+    "No real human meeting accuracy claim",
+    "Only Hermes invoked in this Web scenario; Pi and multi-Agent runtime evidence remains separate",
+    "No production deployment, GitHub push, full CTest or standalone SQL rerun",
+    "No Chinese font or visual layout acceptance; test host previously lacks CJK fonts",
+    "The image receipt branch ran; the alternative text-citation branch was not selected by this actual model run"
+  ],
+  "command": "PATH=/home/peco/.local/node/bin:$PATH SPARK_PLAYWRIGHT_MODULE=/tmp/spark-spaces-browser/node_modules/playwright /tmp/spark-spaces-py311/bin/python tests/collaboration_web_e2e.py --image spark-push:media-review --agents --media-analysis --media-image spark-media:development --media-model /tmp/spark-media-asr-small --media-fixtures /tmp/spark-collaboration-fixtures-v2-DQVG8Q --out /tmp/spark-web-media-analysis-third.json",
+  "source_sha256": {
+    "tests/collaboration_web_e2e.py": "1658d6a4b04ac2ce645b7f1d9629b272992304dc1415bd022cd549c22c5b2ff3",
+    "tests/collaboration_web_live_browser_test.cjs": "53321c02fc3582c1d81057455a51884d666190402e841bb5c4051f9c4de2889f",
+    "tests/collaboration_web_media_analysis.cjs": "5d0aea91477f0be73e01ff38ea2ab148def31c5f1e31612d4ad95e8c678bd0b2",
+    "tests/public_media_scenario.py": "08f31befb94cb7ba54e3d4083064802ad8968a1016e0c19f6ab6a29481d7f8fc",
+    "tests/public_runtime_fixture.py": "779738b57194a08cad69c685587b5ec209259d410df37334ee4a8fcbab0dd476",
+    "tests/room_context_runtime_probe.py": "d7c597046ce60a194b376c6512ddbb18e6972d2d08783c74086f99823d308f3e",
+    "web_demo/static/room_media.js": "1b2a98361458addb613d2b4c97e6eaf9d9fa41bc586276b70f29f82e3085e918",
+    "web_demo/static/room_agents.js": "1abc56df1cf054c13f97d4744746d3b55ee104e1296bdf9da259d68cd4abae3c"
+  },
+  "artifact_directory": "2026-11-02-web-media-analysis",
+  "artifact_sha256": {
+    "spark-web-media-analysis-e2e.json": "f47dfc5805dbe03e99a62a78a9f07f74fb2185e326c07603f6ef53e3cdddd859",
+    "spark-web-media-analysis-e2e.log": "7d8477af22b84d6ff45d3970fa041e56bc453e4a86b427cf5b1b6196e8d52efb",
+    "spark-web-media-analysis-second.json": "9002827dba3b7761d03ddfa443608c09a781997ed784af112188be24d7622418",
+    "spark-web-media-analysis-second.log": "7d8477af22b84d6ff45d3970fa041e56bc453e4a86b427cf5b1b6196e8d52efb",
+    "spark-web-media-analysis-third.json": "10e547f240b5e4fbe06990ce8ef74e1d85211cea7dccc58cb7b0a55e8db76691",
+    "spark-web-media-analysis-third.log": "6c20854ba4091d425cd2013c56cea16c5547e99f0c1cde4bed0c7ca1a52c6eef"
+  }
+}

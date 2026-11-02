@@ -1,0 +1,8 @@
+..{"event": "published", "id": "att_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "revision": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "heartbeats": 3}
+.{"event": "heartbeat", "id": "att_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "count": 1}
+{"event": "heartbeat", "id": "att_aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "count": 2}
+....
+----------------------------------------------------------------------
+Ran 7 tests in 0.118s
+
+OK

@@ -1,0 +1,2 @@
+Installed Native image policy: 6 contract groups passed; no model/provider E2E.
+Tool room_read_media returned image content for non-vision model controlled-test-provider/controlled-test-model; falling back to text summary

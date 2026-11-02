@@ -1,0 +1,503 @@
+{
+  "ok": true,
+  "mode": "real Compose + public launchers + actual Pi/Hermes models; three HTTP/WS clients, not browsers",
+  "source_commit": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "scenario": "public_runtime",
+  "checks": [
+    "formal Native capabilities and HTTP whitelist deny chat/profile/tool/session bypasses",
+    "three independent users exchange real messages; normal chat does not invoke models",
+    "public-pi reads the real nonce and C++ file; all three clients see its attributed durable final",
+    "public-hermes reads the real nonce and C++ file; all three clients see its attributed durable final",
+    "original Native room broker receipt succeeds and both consumers commit without dead letters",
+    "selected media uploaded through real chunk APIs and published by production worker: video",
+    "Hermes video answer matches nonspoken image facts and audio; actual JPEGs observed in Native tool and provider requests",
+    "real native tool transcripts confirm file contents; Agents use separate sessions and share one IM timeline",
+    "Native process restart reuses the owned Profile without rewriting config, model auth or identity",
+    "tasks and handoff are persisted; duplicate client messages preserve completed execution records",
+    "Kafka redelivery after revoke, catalog disable and Connector/Bridge restart preserves one original result",
+    "full Compose restart and fresh login retain final messages, claimed task and membership revocation",
+    "selected media sources and attributed finals survive Kafka replay and full Compose restart; removed member is denied"
+  ],
+  "image_id": "sha256:875afac308df1c78205a6189905fe23621dd3970337bb4e9cbb558da6a945620",
+  "source_sha256": {
+    "Dockerfile": "fdf93ceb6d3751d1a665f1f283a27d6aafc33cd171741a465cf548bf7f65440a",
+    "tools/dlq_replay.cpp": "23770989c65a2efe74517d0c8f1ae6ed5080a6464b455fa02824e45d544106f1",
+    "cannbot/scripts/public_runtime.py": "61354793e71a93e2a4880e48dedd44790a873c3eb35eab7ace50678f097fc925",
+    "cannbot/scripts/public_runtime_archive.py": "f5a3ed240e45973b6db3a59df96631b5f1ee07a9b122823d5525c9261774a045",
+    "cannbot/scripts/public_runtime_maintenance.py": "50c7e13306235d08d992e123080c92f0bce0aa9d6097073558ef6af1b71ee275",
+    "cannbot/scripts/public_agent_gateway.py": "002681db0d7b614a03c76e9f3fe151b286cc4ff16c13083482262b21cc1425f5",
+    "cannbot/scripts/hermes_public_gateway.py": "e82fae9bf9ea643dd0a9e52ca1f29e1e622ac52e9ab4607b0021a3cb74c58ecc",
+    "cannbot/scripts/agent_router.py": "577a1a132b31905b3059a90f10c11ceb503e2a3ce0c80a92f5a1f6e8789cbe1f",
+    "cannbot/scripts/hermes_native_adapter.py": "8f932e375f4e7b04e9e0498a545584c89a000afc9994fffb434935918c252c86",
+    "scripts/spark_backup.py": "2ff538952ff7aa518562316938c9da1324ced340c18f63718b0bbe1a54039b04",
+    "scripts/spark_team_backup.py": "391a9ac97d62c0d779767f21b738bc22fe67a89b12a5462756ccec699d2d9fcc",
+    "scripts/verify_public_agent_mode.py": "fa66253998b709104fb937e4f0194b0eea90beafc1a5686ea9ba7219258ee3e7",
+    "docker-compose.agents.yml": "b34077208006c9981879db2fcdf039bc6269909573d6577505e18b785caab6dd",
+    "common/config.cpp": "fedb5544afd6a922010c8368dde09b112c8d0205337fa47749a1ff0e7dff7ca9",
+    "logic/services/room_agent_service.cpp": "b774c678e5c189d5cc151cc936ca2802f2bf887c08cdfbbc4077263f1a3d1dd2",
+    "tests/public_runtime_fixture.py": "779738b57194a08cad69c685587b5ec209259d410df37334ee4a8fcbab0dd476",
+    "tests/hermes_room_runtime_fixture.py": "8c82f644ff83cb38ff07413d19fe5457dc09073d383f0c091307761c9eba8ed3",
+    "tests/team_backup_scenario.py": "c8e03d063a0bd0f8a1ca5e338005d849b0babcaa330be0569694b3189d3d14f1",
+    "tests/public_cross_room_scenario.py": "649867a6aacb6eabd6733dd7db1a16b4195551700ce05eb5bea9c41ddf113443",
+    "tests/public_room_runtime_e2e.py": "c56f830c76957262885eb5f073802b7d98de2551784675658d009ac2477c4a8c",
+    "tests/public_media_scenario.py": "8bb8e3760fe056ab8b01aeb7374214804b146e0d9b8c945d727316fa18618d49",
+    "tests/room_context_runtime_probe.py": "d7c597046ce60a194b376c6512ddbb18e6972d2d08783c74086f99823d308f3e",
+    "tests/media_parser_fixtures.py": "3a22c34c1b68078751960fa23959533870210a79ef2264b2fea5c5610c13003b",
+    "deploy/Caddyfile.agents": "fa77d20c0a766dbec137e29edb31e6831109618c455d183cfbed7942a75ce9fa",
+    "deploy/Caddyfile": "273565ee564c9c45aec515c6e7706ca3ac4d8afb134808f244c726a16109c7fe",
+    "cannbot/room-context-tools.json": "538dbf2cee52ce64ae02b063b469622cceb5ed1e7964a38dde978abc49e04a64",
+    "cannbot/scripts/room_context.py": "f2deeb4ca967b463abb4b610fe06dc41e6f957922f4b0f5f9a7706c9095a6b4b",
+    "cannbot/pi/extensions/room-context.ts": "13c45132923f294f2c301b101924c460995cb59f16e5e985df87cfd6acd8a148",
+    "cannbot/scripts/media_worker.py": "767d19de5c46494ad1c07baf1a0fdc47a6dc018fc28ad0a90c6eca26d80e061c",
+    "cannbot/scripts/media_text_worker.py": "2a0666e491e70aaf92945e47549bc817129b3e73e07a1fd9241523a16c392c6e",
+    "cannbot/media/parser.py": "e29263d81f71583e3c49cd6cc8d5d0a5cfb2bcbed36c40482b171d90c8c10188",
+    "cannbot/media/sandbox.py": "4b3e24fcbfe95da6cd0af4f12389eb1bd37b65a36bc0e4cfc0347975bbbf3bbd",
+    "logic/services/media_context_service.cpp": "82381848ae4d2c55a01a4f4e75c2c44c819449728f42abc792b2fabae6fd689a",
+    "logic/repositories/media_context_repository.cpp": "84d6ab7b894712a817e3c7484272ad88e7550306a37eb6abd1f6e3e00929ebba",
+    "logic/services/room_task_service.cpp": "80cd7400152e7f0c2d775cdc8f89e8ed9c0addb7386c23733b298b8e333603cd",
+    "logic/repositories/room_agent_repository.cpp": "85f0e5e2add37377e9e539ac99aaaa614d063f79674a17c089f0b9128c2ab198",
+    "logic/repositories/room_context_source_sql.h": "d2f7ef34841669ba6f5e38329c6d5d250bfbf462fd170f13b2901a807b210d6f",
+    "web_demo/static/room_media.js": "bfefec4c5463213257d403939a766a4fda4267d2e763b20a53074edd3c9bd2b0",
+    "web_demo/static/room_agents.js": "fc829ce3987303bad7b2cf8d2a03df618ac10e5c2986cc274d0a3f8338990142",
+    "web_demo/static/index.html": "905e2e49a588c6b7e747450673f97ed7795d9dee561a5c377e1c2c24b2da249e"
+  },
+  "media": {
+    "scope": "Real user uploads -> production media worker -> native room tools -> IM.\n\nInvoked by public_room_runtime_e2e; no SQL writes or simulated runtimes. Inputs\nare synthetic fixtures. Image hashes are observed in actual Native tool and\nprovider requests; HTTP/WS clients are not browser acceptance.\n",
+    "configuration": {
+      "pipeline_sha256": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+      "parser_sha256": "e29263d81f71583e3c49cd6cc8d5d0a5cfb2bcbed36c40482b171d90c8c10188",
+      "image_id": "sha256:4c2e26418ad4ec59d0d57bdf2a15af30826c14de5d253d39bf96be2de2b38120",
+      "model_sha256": "b2f73aed0684edce51988a894b0a40f3ef581f63d4e50bea7e2daa414dda9a8e"
+    },
+    "assets": [
+      {
+        "case": "video",
+        "id": "att_9e8cfc18d36d30db5b885ad6",
+        "name": "incident.mp4",
+        "uploader": 900000000405,
+        "sha256": "c457eb458d3e51755a46b3a53fbe084c49cd061ccb4e59b0300c60a5863a4380",
+        "bytes": 49643,
+        "revision": "20f8a8e35fa7676f512abf0f5091c8ea953d3792d7bf3843583c30fb793bbd13",
+        "processing": {
+          "attempt": 1,
+          "error_code": "",
+          "id": "att_9e8cfc18d36d30db5b885ad6",
+          "job_state": "completed",
+          "result": {
+            "artifact_bytes": 77132,
+            "artifact_count": 2,
+            "coverage": {
+              "audio": {
+                "decoded_samples": 69846,
+                "duration_ms": 4365,
+                "language": "en",
+                "offset_ms": 1953,
+                "sample_rate": 16000,
+                "segments": 1,
+                "speaker_labels": false,
+                "track_end_ms": 6318
+              },
+              "container_duration_ms": 10000,
+              "duration_ms": 10000,
+              "kind": "video",
+              "source_origin_ms": 0,
+              "video": {
+                "first_frame_ms": 0,
+                "frames": 2,
+                "last_frame_ms": 5000,
+                "sample_interval_ms": 5000,
+                "track_end_ms": 10000
+              }
+            },
+            "fragment_count": 1,
+            "id": "att_9e8cfc18d36d30db5b885ad6",
+            "line_count": 0,
+            "manifest_sha256": "9cfe9b7fbf51c0e8589943e8d36da81d2dafc5489cb5fa8271925f362fec0d86",
+            "pipeline_kind": "media-parser-v1",
+            "pipeline_sha": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+            "revision": "20f8a8e35fa7676f512abf0f5091c8ea953d3792d7bf3843583c30fb793bbd13",
+            "state": "ready",
+            "text_bytes": 73
+          },
+          "revision": "20f8a8e35fa7676f512abf0f5091c8ea953d3792d7bf3843583c30fb793bbd13",
+          "state": "ready",
+          "text_pipeline_supported": false
+        },
+        "first_fragment_sha256": "1567a6b7b466f80b8ef0f4581791e580c9d95dfaf3fad87b75823f5ba1349f29",
+        "expects_image": true,
+        "first_image_sha256": "649c3b23747c64a093d64c68bdacbc62bc228ab2a150a32e44f1964881b21106"
+      }
+    ],
+    "requests": [
+      {
+        "request_id": "ra_7eb9f355a7455b603402afb628bc988b83ac26b239cc67934e60d9553f15d15f",
+        "agent_id": "public-hermes",
+        "actor_user_id": 900000000405,
+        "room_id": 1,
+        "payload": {
+          "type": "chatroom",
+          "group_id": 1,
+          "client_msg_id": "d6543054557535b5925b181e6d851f45",
+          "content": {
+            "text": "Analyze incident.mp4 using its transcript AND actual images from room_read_media. Read image_metadata and two frames from opposite ends. Return ONLY JSON: frames:[{timestamp_ms,panel_color,marker_color,marker_shape,source_id}] in time order, transition_window_ms:[before_frame_ms,after_frame_ms], audio_summary:string. Describe the geometric marker visible on each panel; its shape/color is not stated by the audio. Bound the transition by observed frames instead of guessing exact timing. Metadata alone is insufficient; do not claim vision if image content is unavailable."
+          },
+          "agent_mentions": [
+            "public-hermes"
+          ]
+        },
+        "final_statuses": [
+          {
+            "user_id": 900000000403,
+            "status": "completed"
+          },
+          {
+            "user_id": 900000000404,
+            "status": "completed"
+          },
+          {
+            "user_id": 900000000405,
+            "status": "completed"
+          }
+        ],
+        "answer": "【Hermes】\n\n{\"frames\":[{\"timestamp_ms\":0,\"panel_color\":\"red\",\"marker_color\":\"white\",\"marker_shape\":\"circle\",\"source_id\":\"src_57e9e35b3fe63a079a7ce9738436c95be083c746dc74ca2f76775af4bc6be790\"},{\"timestamp_ms\":5000,\"panel_color\":\"green\",\"marker_color\":\"yellow\",\"marker_shape\":\"triangle\",\"source_id\":\"src_ac98967ae27fc1902697eb481921357a73b3de0a6cf81fd054c17dd8e07779ab\"}],\"transition_window_ms\":[0,5000],\"audio_summary\":\"Audio says the red panel shows a connection failure and the green panel means recovery (transcript 1953–5793 ms; source_id: src_f90f1d556ee340f23fa7ed793d7379766cb9652096539edeaaf6a327a51e58ff).\"}",
+        "msg_seq": 10,
+        "source_receipts": [
+          {
+            "kind": "image_metadata",
+            "index": 1,
+            "anchor": {
+              "timestamp_ms": 5000
+            },
+            "sha256": "d60d7ed0f108a9c97fb96bb2cafecfdacace9351b233784e9ed413ca1a684852",
+            "room_id": 1,
+            "asset_id": "att_9e8cfc18d36d30db5b885ad6",
+            "revision": "20f8a8e35fa7676f512abf0f5091c8ea953d3792d7bf3843583c30fb793bbd13"
+          },
+          {
+            "kind": "media",
+            "sha256": "9cfe9b7fbf51c0e8589943e8d36da81d2dafc5489cb5fa8271925f362fec0d86",
+            "room_id": 1,
+            "asset_id": "att_9e8cfc18d36d30db5b885ad6",
+            "revision": "20f8a8e35fa7676f512abf0f5091c8ea953d3792d7bf3843583c30fb793bbd13"
+          },
+          {
+            "kind": "image",
+            "index": 0,
+            "anchor": {
+              "timestamp_ms": 0
+            },
+            "sha256": "649c3b23747c64a093d64c68bdacbc62bc228ab2a150a32e44f1964881b21106",
+            "room_id": 1,
+            "asset_id": "att_9e8cfc18d36d30db5b885ad6",
+            "revision": "20f8a8e35fa7676f512abf0f5091c8ea953d3792d7bf3843583c30fb793bbd13"
+          },
+          {
+            "kind": "image_metadata",
+            "index": 0,
+            "anchor": {
+              "timestamp_ms": 0
+            },
+            "sha256": "649c3b23747c64a093d64c68bdacbc62bc228ab2a150a32e44f1964881b21106",
+            "room_id": 1,
+            "asset_id": "att_9e8cfc18d36d30db5b885ad6",
+            "revision": "20f8a8e35fa7676f512abf0f5091c8ea953d3792d7bf3843583c30fb793bbd13"
+          },
+          {
+            "kind": "image",
+            "index": 1,
+            "anchor": {
+              "timestamp_ms": 5000
+            },
+            "sha256": "d60d7ed0f108a9c97fb96bb2cafecfdacace9351b233784e9ed413ca1a684852",
+            "room_id": 1,
+            "asset_id": "att_9e8cfc18d36d30db5b885ad6",
+            "revision": "20f8a8e35fa7676f512abf0f5091c8ea953d3792d7bf3843583c30fb793bbd13"
+          },
+          {
+            "kind": "fragment",
+            "index": 0,
+            "anchor": {
+              "part": 0,
+              "end_ms": 5793,
+              "start_ms": 1953
+            },
+            "sha256": "dd53ca6d2864664c0f697f0141e1ddc821791fcfb1f07b3103b1df3b1035ea5e",
+            "room_id": 1,
+            "asset_id": "att_9e8cfc18d36d30db5b885ad6",
+            "revision": "20f8a8e35fa7676f512abf0f5091c8ea953d3792d7bf3843583c30fb793bbd13"
+          }
+        ],
+        "native_image_audit": [
+          {
+            "phase": "provider",
+            "hashes": [],
+            "status": 200,
+            "markers": [],
+            "request_id": "ra_7eb9f355a7455b603402afb628bc988b83ac26b239cc67934e60d9553f15d15f"
+          },
+          {
+            "phase": "provider",
+            "hashes": [],
+            "status": 200,
+            "markers": [],
+            "request_id": "ra_7eb9f355a7455b603402afb628bc988b83ac26b239cc67934e60d9553f15d15f"
+          },
+          {
+            "phase": "tool",
+            "hashes": [
+              "649c3b23747c64a093d64c68bdacbc62bc228ab2a150a32e44f1964881b21106"
+            ],
+            "status": null,
+            "markers": [],
+            "request_id": "ra_7eb9f355a7455b603402afb628bc988b83ac26b239cc67934e60d9553f15d15f"
+          },
+          {
+            "phase": "tool",
+            "hashes": [
+              "d60d7ed0f108a9c97fb96bb2cafecfdacace9351b233784e9ed413ca1a684852"
+            ],
+            "status": null,
+            "markers": [],
+            "request_id": "ra_7eb9f355a7455b603402afb628bc988b83ac26b239cc67934e60d9553f15d15f"
+          },
+          {
+            "phase": "provider",
+            "hashes": [
+              "649c3b23747c64a093d64c68bdacbc62bc228ab2a150a32e44f1964881b21106",
+              "d60d7ed0f108a9c97fb96bb2cafecfdacace9351b233784e9ed413ca1a684852"
+            ],
+            "status": 200,
+            "markers": [],
+            "request_id": "ra_7eb9f355a7455b603402afb628bc988b83ac26b239cc67934e60d9553f15d15f"
+          },
+          {
+            "phase": "todo",
+            "hashes": [],
+            "status": null,
+            "markers": [],
+            "request_id": "ra_7eb9f355a7455b603402afb628bc988b83ac26b239cc67934e60d9553f15d15f"
+          }
+        ],
+        "native_image_sha256": [
+          "649c3b23747c64a093d64c68bdacbc62bc228ab2a150a32e44f1964881b21106",
+          "d60d7ed0f108a9c97fb96bb2cafecfdacace9351b233784e9ed413ca1a684852"
+        ]
+      }
+    ],
+    "checks": [
+      "selected cases independently checked: video",
+      "selected media and attributed finals survive full restart; removed member denied source and derived reads"
+    ],
+    "selected_cases": [
+      "video"
+    ],
+    "cases_passed": [
+      "video"
+    ],
+    "not_selected": [
+      "pdf",
+      "audio"
+    ],
+    "routing": [
+      {
+        "listener": "public",
+        "path": "/internal/room-agent/context/search",
+        "method": "POST",
+        "http_status": 404,
+        "code": null
+      },
+      {
+        "listener": "public",
+        "path": "/internal/media/claim_media",
+        "method": "POST",
+        "http_status": 404,
+        "code": null
+      },
+      {
+        "listener": "internal",
+        "path": "/internal/room-agent/context/search",
+        "method": "GET",
+        "http_status": 404,
+        "code": null
+      },
+      {
+        "listener": "internal",
+        "path": "/internal/media/unknown",
+        "method": "POST",
+        "http_status": 404,
+        "code": null
+      },
+      {
+        "listener": "internal",
+        "path": "/internal/room-agent/context/search",
+        "method": "POST",
+        "http_status": 401,
+        "code": 401
+      },
+      {
+        "listener": "internal",
+        "path": "/internal/media/claim_media",
+        "method": "POST",
+        "http_status": 401,
+        "code": 401
+      }
+    ],
+    "processing_seconds": 2.657431887986604
+  },
+  "release_services": null,
+  "running_application_images": {
+    "/spark-public-3aec3dca4f72-agent-bridge-1": "sha256:875afac308df1c78205a6189905fe23621dd3970337bb4e9cbb558da6a945620",
+    "/spark-public-3aec3dca4f72-comet-1": "sha256:875afac308df1c78205a6189905fe23621dd3970337bb4e9cbb558da6a945620",
+    "/spark-public-3aec3dca4f72-job-1": "sha256:875afac308df1c78205a6189905fe23621dd3970337bb4e9cbb558da6a945620",
+    "/spark-public-3aec3dca4f72-logic-1": "sha256:875afac308df1c78205a6189905fe23621dd3970337bb4e9cbb558da6a945620",
+    "/spark-public-3aec3dca4f72-web-1": "sha256:875afac308df1c78205a6189905fe23621dd3970337bb4e9cbb558da6a945620"
+  },
+  "authorization_denials": [
+    {
+      "path": "/api/chatroom/join",
+      "http_status": 403,
+      "wire_code": 403,
+      "actor_user_id": 900000000406,
+      "room_id": 1,
+      "session_id": null
+    },
+    {
+      "path": "/api/chatroom/workspace/set",
+      "http_status": 403,
+      "wire_code": 403,
+      "actor_user_id": 900000000404,
+      "room_id": 1,
+      "session_id": null
+    },
+    {
+      "path": "/api/room/media/processing",
+      "http_status": 403,
+      "wire_code": 403,
+      "actor_user_id": 900000000406,
+      "room_id": null,
+      "session_id": null
+    },
+    {
+      "path": "/api/session/history",
+      "http_status": 403,
+      "wire_code": 403,
+      "actor_user_id": 900000000404,
+      "room_id": null,
+      "session_id": "r_1"
+    },
+    {
+      "path": "/api/chatroom/agents/list",
+      "http_status": 403,
+      "wire_code": 403,
+      "actor_user_id": 900000000404,
+      "room_id": 1,
+      "session_id": null
+    },
+    {
+      "path": "/api/session/history",
+      "http_status": 403,
+      "wire_code": 403,
+      "actor_user_id": 900000000404,
+      "room_id": null,
+      "session_id": "r_1"
+    },
+    {
+      "path": "/api/room/media/processing",
+      "http_status": 403,
+      "wire_code": 403,
+      "actor_user_id": 900000000404,
+      "room_id": null,
+      "session_id": null
+    },
+    {
+      "path": "/api/room/media/read",
+      "http_status": 403,
+      "wire_code": 403,
+      "actor_user_id": 900000000404,
+      "room_id": null,
+      "session_id": null
+    },
+    {
+      "path": "/api/room/media/fragments",
+      "http_status": 403,
+      "wire_code": 403,
+      "actor_user_id": 900000000404,
+      "room_id": null,
+      "session_id": null
+    },
+    {
+      "path": "/api/room/media/artifact",
+      "http_status": 403,
+      "wire_code": 403,
+      "actor_user_id": 900000000404,
+      "room_id": null,
+      "session_id": null
+    }
+  ],
+  "tool_receipts": {
+    "pi_results": 7,
+    "hermes_results": 9,
+    "source_sha256": "8783b7776fab7d408cef8312727cc56cbbe6e5af9944f4ee37fcf923b4a60cb8"
+  },
+  "native_offline_before_replay": true,
+  "kafka_replay": {
+    "request_before": {
+      "0": 1,
+      "1": 0,
+      "2": 2
+    },
+    "request_after": {
+      "0": 1,
+      "1": 0,
+      "2": 5
+    },
+    "committed": {
+      "0": 1,
+      "1": -1,
+      "2": 5
+    },
+    "reply_before": {
+      "0": 1,
+      "1": 0,
+      "2": 2
+    },
+    "reply_after": {
+      "0": 2,
+      "1": 0,
+      "2": 4
+    },
+    "exact_results_replayed": 3,
+    "reply_committed": {
+      "0": 2,
+      "1": -1,
+      "2": 4
+    },
+    "independent_reply_redelivery": {
+      "0": 3,
+      "1": 1,
+      "2": 5
+    },
+    "redelivery_committed": {
+      "0": 3,
+      "1": 1,
+      "2": 5
+    }
+  },
+  "transcripts_unchanged": {
+    "pi_sessions": 1,
+    "hermes_messages": 18,
+    "hermes_sessions": 1
+  },
+  "cleanup": {
+    "owned_compose_resources_removed": true,
+    "private_pi_model_files_unchanged": true,
+    "original_windows_profile_unchanged": true,
+    "owned_native_profile_removed": true
+  },
+  "limitations": [
+    "not browser acceptance",
+    "Windows shared storage does not prove OS read-only mounts",
+    "CANN/private Agent regression is separate; no arbitrary side-effecting tool execution",
+    "unknown-run failure injection is separate"
+  ]
+}

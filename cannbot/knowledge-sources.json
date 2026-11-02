@@ -2,6 +2,75 @@
   "schema_version": 1,
   "description": "Curated truth sources packaged for the Kernel Agent knowledge skill.",
   "sources": [
+    {"id":"media-json-validation","path":"logic/services/media_json.h","authority":"code","topics":["media","validation"]},
+    {"id":"room-task-service","path":"logic/services/room_task_service.cpp","authority":"code","topics":["tasks","sources","authorization"]},
+    {"id":"room-context-source-sql","path":"logic/repositories/room_context_source_sql.h","authority":"code","topics":["media","tasks","sources","authorization"]},
+    {"id":"member-source-links-validation","path":"docs/benchmarks/2026-11-01-source-links.json","authority":"snapshot","topics":["media","tasks","sources","validation","limitations"]},
+    {"id":"multimodal-service-validation","path":"docs/benchmarks/2026-11-01-multimodal-service.json","authority":"snapshot","topics":["media","web","validation","limitations"]},
+    {"id":"room-media-web","path":"web_demo/static/room_media.js","authority":"code","topics":["media","web","upload","authorization"]},
+    {"id":"multimodal-service-e2e","path":"docs/multimodal-service-e2e.md","authority":"canonical","topics":["media","native-tools","deployment","validation","limitations"]},
+    {"id":"public-media-scenario","path":"tests/public_media_scenario.py","authority":"code","topics":["media","native-tools","deployment","validation","limitations"]},
+    {"id":"media-fixture-generator","path":"tests/media_parser_fixtures.py","authority":"code","topics":["media","native-tools","deployment","validation","limitations"]},
+    {"id":"room-context-native-tools","path":"docs/room-context-native-tools.md","authority":"canonical","topics":["media","context","native-tools","testing","limitations"]},
+    {"id":"room-context-native-validation","path":"docs/benchmarks/2026-11-01-room-context-native.json","authority":"snapshot","topics":["media","context","native-tools","testing","limitations"]},
+    {"id":"room-context-native-schema","path":"cannbot/room-context-tools.json","authority":"code","topics":["media","context","native-tools","testing","limitations"]},
+    {"id":"room-context-native-client","path":"cannbot/scripts/room_context.py","authority":"code","topics":["media","context","native-tools","testing","limitations"]},
+    {"id":"room-context-pi-extension","path":"cannbot/pi/extensions/room-context.ts","authority":"code","topics":["media","context","native-tools","testing","limitations"]},
+    {"id":"room-context-native-contract","path":"cannbot/scripts/test_room_context.py","authority":"code","topics":["media","context","native-tools","testing","limitations"]},
+    {"id":"room-context-pi-contract","path":"tests/room_context_test.cjs","authority":"code","topics":["media","context","native-tools","testing","limitations"]},
+    {"id":"room-context-native-model-probe","path":"tests/room_context_runtime_probe.py","authority":"code","topics":["media","context","native-tools","testing","limitations"]},
+    {"id":"room-context-native-installed-contract","path":"tests/room_context_native_policy_test.py","authority":"code","topics":["media","context","native-tools","testing","limitations"]},
+    {"id":"room-context-pi-http-driver","path":"tests/room_context_http_client.cjs","authority":"code","topics":["media","context","native-tools","testing","limitations"]},
+    {"id":"room-context-tools-api","path":"docs/room-context-tools.md","authority":"canonical","topics":["media","context","authorization","sources","limitations"]},
+    {"id":"room-context-tools-validation","path":"docs/benchmarks/2026-11-01-room-context-tools.json","authority":"snapshot","topics":["media","context","authorization","testing","limitations"]},
+    {"id":"room-context-service","path":"logic/services/media_context_service.cpp","authority":"code","topics":["media","context","authorization","sources"]},
+    {"id":"room-context-service-interface","path":"logic/services/media_context_service.h","authority":"code","topics":["media","context","authorization","sources"]},
+    {"id":"room-context-repository","path":"logic/repositories/media_context_repository.cpp","authority":"code","topics":["media","context","mysql","sources"]},
+    {"id":"room-context-repository-interface","path":"logic/repositories/media_context_repository.h","authority":"code","topics":["media","context","mysql","sources"]},
+    {"id":"room-context-source-migration","path":"sql/migrations/20261101_media_context_sources.sql","authority":"code","topics":["media","context","migration","sources"]},
+    {"id":"room-context-service-test","path":"tests/media_context_service_test.cpp","authority":"code","topics":["media","context","contract","testing"]},
+    {"id":"room-context-http-test","path":"tests/media_context_http_test.py","authority":"code","topics":["media","context","http","mysql","testing"]},
+    {"id":"room-media-context-migration","path":"sql/migrations/20261101_media_context.sql","authority":"code","topics":["media","context","authorization","migration"]},
+    {"id":"room-media-context-validation","path":"docs/benchmarks/2026-11-01-media-context.json","authority":"snapshot","topics":["media","context","authorization","testing","limitations"]},
+    {"id":"room-media-agent-context-design","path":"docs/media-agent-context.md","authority":"canonical","topics":["media","context","authorization","native-tools","design","limitations"]},
+    {"id":"room-media-worker","path":"cannbot/scripts/media_worker.py","authority":"code","topics":["media","worker","leases","recovery","publication"]},
+    {"id":"room-media-worker-runtime","path":"docs/media-worker.md","authority":"canonical","topics":["media","worker","deployment","recovery","limitations"]},
+    {"id":"room-media-worker-operations","path":"docs/media-worker-operations.md","authority":"canonical","topics":["media","worker","deployment","systemd","recovery"]},
+    {"id":"room-media-worker-operations-code","path":"scripts/ops/media.sh","authority":"code","topics":["media","worker","deployment","systemd"]},
+    {"id":"room-media-worker-config-example","path":"deploy/media-worker.json.example","authority":"code","topics":["media","worker","configuration","fingerprints"]},
+    {"id":"room-media-worker-contract-test","path":"tests/media_worker_test.py","authority":"code","topics":["media","worker","contract","testing"]},
+    {"id":"room-media-worker-http-test","path":"tests/media_worker_http_test.py","authority":"code","topics":["media","worker","recovery","http","testing"]},
+    {"id":"room-media-worker-validation","path":"docs/benchmarks/2026-11-01-media-worker.json","authority":"snapshot","topics":["media","worker","validation","limitations"]},
+    {"id":"room-media-publication","path":"docs/media-publication.md","authority":"canonical","topics":["media","publication","http","validation","limitations"]},
+    {"id":"room-media-manifest","path":"logic/services/media_manifest.cpp","authority":"code","topics":["media","publication","http","validation","limitations"]},
+    {"id":"room-media-publication-migration","path":"sql/migrations/20261101_media_publication.sql","authority":"code","topics":["media","publication","http","validation","limitations"]},
+    {"id":"room-media-manifest-test","path":"tests/media_manifest_test.cpp","authority":"code","topics":["media","publication","http","validation","limitations"]},
+    {"id":"room-media-pipeline-http-test","path":"tests/media_pipeline_http_test.py","authority":"code","topics":["media","publication","http","validation","limitations"]},
+    {"id":"room-media-large-http-test","path":"tests/media_large_payload_test.py","authority":"code","topics":["media","publication","http","validation","limitations"]},
+    {"id":"room-media-publication-validation","path":"docs/benchmarks/2026-11-01-media-publication.json","authority":"snapshot","topics":["media","publication","http","validation","limitations"]},
+    {"id":"room-media-artifact-validation","path":"docs/benchmarks/2026-11-01-media-artifact-storage.json","authority":"snapshot","topics":["media","mysql","quota","recovery","validation","limitations"]},
+    {"id":"room-media-artifact-storage","path":"logic/repositories/media_artifact_repository.cpp","authority":"code","topics":["media","storage","quota","leases","recovery"]},
+    {"id":"room-media-artifact-migration","path":"sql/migrations/20261101_media_artifacts.sql","authority":"code","topics":["media","mysql","migration","quota"]},
+    {"id":"room-media-artifact-sql-test","path":"tests/media_artifact_mysql_test.cpp","authority":"code","topics":["media","mysql","recovery","quota","validation"]},
+    {"id":"room-media-parser-validation","path":"docs/benchmarks/2026-11-01-media-parser.json","authority":"snapshot","topics":["media","asr","video","validation","limitations"]},
+    {"id":"room-media-parser-runtime","path":"docs/media-parser-runtime.md","authority":"canonical","topics":["media","asr","video","isolation","deployment","limitations"]},
+    {"id":"room-media-parser","path":"cannbot/media/parser.py","authority":"code","topics":["media","pdf","docx","ocr","asr","video"]},
+    {"id":"room-media-sandbox","path":"cannbot/media/sandbox.py","authority":"code","topics":["media","isolation","limits","integrity","recovery"]},
+    {"id":"room-media-asr-provision","path":"cannbot/media/provision_asr.py","authority":"code","topics":["media","asr","deployment","integrity"]},
+    {"id":"room-media-parser-test","path":"tests/media_parser_test.py","authority":"code","topics":["media","security","contract","testing"]},
+    {"id":"room-media-parser-e2e","path":"tests/media_parser_e2e.py","authority":"code","topics":["media","asr","video","testing","limitations"]},
+    {"id":"room-media-processing-service","path":"logic/services/media_processing_service.cpp","authority":"code","topics":["room","media","authorization","leases","search"]},
+    {"id":"room-media-processing-repository","path":"logic/repositories/media_processing_repository.cpp","authority":"code","topics":["room","media","mysql","leases","publication"]},
+    {"id":"room-media-text-worker","path":"cannbot/scripts/media_text_worker.py","authority":"code","topics":["media","worker","recovery","text","limitations"]},
+    {"id":"room-media-processing-http-test","path":"tests/media_processing_http_test.py","authority":"code","topics":["media","http","mysql","redis","validation"]},
+    {"id":"room-media-processing-migration","path":"sql/migrations/20261101_media_processing.sql","authority":"code","topics":["media","mysql","migration","revision"]},
+    {"id":"room-media-processing-validation","path":"docs/benchmarks/2026-11-01-media-processing.json","authority":"snapshot","topics":["media","worker","validation","limitations"]},
+    {"id":"pi-media-capability-probe","path":"tests/pi_media_capability_probe.py","authority":"code","topics":["pi","media","vision","validation"]},
+    {"id":"pi-media-capability-validation","path":"docs/benchmarks/2026-11-01-pi-media-capability.json","authority":"snapshot","topics":["pi","media","vision","validation","limitations"]},
+    {"id":"room-multimodal-collaboration","path":"docs/multimodal-collaboration.md","authority":"canonical","topics":["room","media","uploads","multimodal","authorization","limitations"]},
+    {"id":"room-media-service","path":"logic/services/media_service.cpp","authority":"code","topics":["room","media","uploads","authorization"]},
+    {"id":"room-media-repository","path":"logic/repositories/media_repository.cpp","authority":"code","topics":["room","media","mysql","idempotency"]},
+    {"id":"room-media-blobs","path":"logic/repositories/media_blob_store.cpp","authority":"code","topics":["media","storage","integrity","recovery"]},
     {"id":"cann-document-backup-validation","path":"docs/benchmarks/2026-11-01-cann-document-backup.json","authority":"snapshot","topics":["cann","backup","restore","documents","validation","limitations"]},
     {"id":"backup-restore-e2e","path":"tests/backup_restore_e2e.py","authority":"code","topics":["backup","restore","cann","kafka","validation"]},
     {"id":"legacy-cann-private-validation","path":"docs/benchmarks/2026-11-01-legacy-cann-private.json","authority":"snapshot","topics":["cann","private","replay","publication","validation","limitations"]},
@@ -46,562 +115,100 @@
     {"id":"customer-agent-connections","path":"docs/customer-agent-connections.md","authority":"canonical","topics":["agent","self-service","connector","codex","claude","dsh","openclaw","authorization"]},
     {"id":"customer-agent-connection-code","path":"cannbot/scripts/user_agent_connections.py","authority":"code","topics":["agent","connector","authorization","credentials","recovery"]},
     {"id":"customer-agent-cli-code","path":"cannbot/scripts/agent_cli_adapter.py","authority":"code","topics":["agent","codex","claude","dsh","sessions"]},
-    {"id": "downstream-message-payload", "path": "common/message_payload.h", "authority": "code", "topics": ["websocket", "recovery", "history", "protocol"]},
-    {"id": "review-remediation", "path": "docs/review-remediation.md", "authority": "canonical", "topics": ["review", "reliability", "migration", "authentication", "startup", "tests"]},
-    {"id": "message-reservation", "path": "logic/message_reservation.cpp", "authority": "code", "topics": ["sequence", "idempotency", "outbox", "mysql", "recovery"]},
-    {"id": "internal-rpc-auth", "path": "common/internal_rpc.h", "authority": "code", "topics": ["grpc", "authentication", "authorization", "tls"]},
-    {"id": "review-logging-measurement", "path": "docs/benchmarks/2026-10-11-review/logging.json", "authority": "snapshot", "topics": ["logging", "performance", "review"]},
-    {
-      "id": "room-agent-collaboration",
-      "path": "docs/room-agent-collaboration.md",
-      "authority": "canonical",
-      "topics": ["agent", "room", "cann", "collaboration", "handoff", "workspace", "authorization"]
-    },
-    {
-      "id": "room-agent-business-service",
-      "path": "logic/services/room_agent_service.cpp",
-      "authority": "code",
-      "topics": ["room", "agent", "services", "authorization", "checkpoint", "idempotency"]
-    },
-    {
-      "id": "room-agent-repository",
-      "path": "logic/repositories/room_agent_repository.cpp",
-      "authority": "code",
-      "topics": ["room", "mysql", "checkpoint", "transaction", "revision"]
-    },
-    {
-      "id": "room-agent-workspace",
-      "path": "cannbot/scripts/room_agent.py",
-      "authority": "code",
-      "topics": ["room", "pi", "workspace", "sandbox", "tests", "checkpoint"]
-    },
-    {
-      "id": "room-agent-tool-guard",
-      "path": "cannbot/pi/extensions/room-workspace.ts",
-      "authority": "code",
-      "topics": ["room", "pi", "authorization", "tools", "concurrency"]
-    },
-    {
-      "id": "project-guide-and-resume",
-      "path": "docs/project-guide-and-resume.md",
-      "authority": "canonical",
-      "topics": ["architecture", "guide", "resume", "review", "services", "cuda", "release"]
-    },
-    {
-      "id": "project-overview",
-      "path": "README.md",
-      "authority": "canonical",
-      "topics": ["architecture", "startup", "reliability", "ai-integration"]
-    },
-    {
-      "id": "reliability-design",
-      "path": "docs/reliability-optimization.md",
-      "authority": "canonical",
-      "topics": ["ack", "cursor", "deduplication", "reconnect", "metrics"]
-    },
-    {
-      "id": "inference-serving-phase-one",
-      "path": "docs/inference-serving.md",
-      "authority": "canonical",
-      "topics": ["inference", "gateway", "worker", "streaming", "scheduler", "metrics", "rocm", "cuda", "batching"]
-    },
-    {
-      "id": "inference-rx9070xt-performance",
-      "path": "docs/performance-report-2026-09-30-rx9070xt.md",
-      "authority": "snapshot",
-      "topics": ["inference", "rocm", "benchmark", "throughput", "latency", "resume"]
-    },
-    {
-      "id": "inference-rtx3060-performance",
-      "path": "docs/performance-report-2026-10-07-rtx3060.md",
-      "authority": "snapshot",
-      "topics": ["inference", "cuda", "benchmark", "throughput", "latency", "resume", "gpu-memory"]
-    },
-    {
-      "id": "inference-gpu-memory-probe",
-      "path": "inference/worker/gpu_memory_probe.cpp",
-      "authority": "code",
-      "topics": ["inference", "cuda", "rocm", "gpu-memory", "context", "telemetry"]
-    },
-    {
-      "id": "inference-worker-registry",
-      "path": "inference/gateway/worker_registry.cpp",
-      "authority": "code",
-      "topics": ["inference", "admission", "heartbeat", "capacity", "gateway-managed-only"]
-    },
-    {
-      "id": "inference-wire-contract",
-      "path": "inference/proto/inference.proto",
-      "authority": "code",
-      "topics": ["inference", "grpc", "worker", "cancellation"]
-    },
-    {
-      "id": "agent-integration",
-      "path": "docs/hermes-integration.md",
-      "authority": "canonical",
-      "topics": ["hermes", "openai-compatible", "streaming", "conversation"]
-    },
-    {
-      "id": "hermes-native-runtime",
-      "path": "docs/hermes-native-runtime-integration.md",
-      "authority": "canonical",
-      "topics": ["hermes", "runs-api", "runtime", "approval", "idempotency"]
-    },
-    {
-      "id": "pi-agent-integration",
-      "path": "docs/pi-agent-integration.md",
-      "authority": "canonical",
-      "topics": ["pi", "agent", "gateway", "rag", "skills", "vision", "attachments"]
-    },
-    {
-      "id": "architecture-framework",
-      "path": "docs/spark-push-architecture.md",
-      "authority": "canonical",
-      "topics": ["architecture", "modules", "message-flow", "comet", "logic", "job", "attachments"]
-    },
-    {
-      "id": "implementation-internals",
-      "path": "docs/spark-push-internals.md",
-      "authority": "canonical",
-      "topics": ["algorithms", "redis-lua", "push-stream", "websocket", "queues", "android-streaming", "attachments", "vision"]
-    },
-    {
-      "id": "android-client",
-      "path": "docs/spark-push-implementation.md",
-      "authority": "canonical",
-      "topics": ["android", "compose", "streaming", "history", "output-length", "deployment", "docs-index"]
-    },
-    {
-      "id": "agent-scheduler",
-      "path": "cannbot/scripts/agent_scheduler.py",
-      "authority": "code",
-      "topics": ["agent", "queue", "concurrency", "session-serial"]
-    },
-    {
-      "id": "android-reliability-contract",
-      "path": "android-app/app/src/main/java/com/peco/sparkim/SparkReliability.kt",
-      "authority": "code",
-      "topics": ["android", "login-restore", "bounded-stream", "envelope", "latency"]
-    },
-    {
-      "id": "multi-agent-integration",
-      "path": "docs/multi-agent-integration.md",
-      "authority": "canonical",
-      "topics": ["agent", "registry", "isolation", "hermes", "windows", "routing"]
-    },
-    {
-      "id": "multi-agent-router",
-      "path": "cannbot/scripts/agent_router.py",
-      "authority": "code",
-      "topics": ["agent", "ownership", "session", "routing"]
-    },
-    {
-      "id": "pi-rpc-gateway",
-      "path": "cannbot/scripts/pi_gateway.py",
-      "authority": "code",
-      "topics": ["pi", "rpc", "session", "lifecycle", "streaming", "vision"]
-    },
-    {
-      "id": "image-attachment-codec",
-      "path": "common/image_attachment.cpp",
-      "authority": "code",
-      "topics": ["attachments", "vision", "mime"]
-    },
-    {
-      "id": "image-attachment-store",
-      "path": "logic/attachment_dao.cpp",
-      "authority": "code",
-      "topics": ["attachments", "mysql", "filesystem"]
-    },
-    {
-      "id": "agent-sse-parser",
-      "path": "hermes_bridge/sse_parser.cpp",
-      "authority": "code",
-      "topics": ["pi", "hermes", "sse", "terminal-state", "errors"]
-    },
-    {
-      "id": "agent-final-reply-persistence",
-      "path": "logic/hermes_reply.cpp",
-      "authority": "code",
-      "topics": ["pi", "reply", "persistence", "idempotency", "routing"]
-    },
-    {
-      "id": "kafka-consumer-failure-handling",
-      "path": "common/kafka_consumer.cpp",
-      "authority": "code",
-      "topics": ["kafka", "dead-letter", "retry", "commit", "recovery"]
-    },
-    {
-      "id": "agent-event-and-adapter-port",
-      "path": "cannbot/scripts/agent_events.py",
-      "authority": "code",
-      "topics": ["agent-adapter", "agent-events", "model-catalog"]
-    },
-    {
-      "id": "agent-event-validation",
-      "path": "common/agent_event.h",
-      "authority": "code",
-      "topics": ["agent-events", "validation", "model-picker"]
-    },
-    {
-      "id": "im-agent-channel-presentation",
-      "path": "web_demo/static/agent_channel.js",
-      "authority": "code",
-      "topics": ["channel-adapter", "model-picker", "actions"]
-    },
-    {
-      "id": "pi-im-architecture-review-2026-09-06",
-      "path": "docs/pi-im-architecture-review.md",
-      "authority": "snapshot",
-      "topics": ["pi", "architecture-review", "agent-events", "session-routing", "queue", "security", "attachments"]
-    },
-    {
-      "id": "cannbot-integration",
-      "path": "docs/cannbot-integration.md",
-      "authority": "canonical",
-      "topics": ["cannbot", "hermes", "skills", "knowledge-maintenance"]
-    },
-    {
-      "id": "wsl-hermes-development",
-      "path": "docs/wsl-hermes-development.md",
-      "authority": "canonical",
-      "topics": ["hermes", "wsl", "development", "provider", "skills"]
-    },
-    {
-      "id": "user-center",
-      "path": "docs/user-center.md",
-      "authority": "canonical",
-      "topics": ["authentication", "authorization", "admin", "audit"]
-    },
-    {
-      "id": "project-evolution",
-      "path": "docs/interview-project-evolution.md",
-      "authority": "historical",
-      "topics": ["evolution", "tradeoff", "interview"]
-    },
-    {
-      "id": "performance-baseline",
-      "path": "docs/performance-report-2026-08-09.md",
-      "authority": "snapshot",
-      "topics": ["performance", "benchmark", "capacity"]
-    },
-    {
-      "id": "operations",
-      "path": "scripts/00_prepare_and_run.md",
-      "authority": "canonical",
-      "topics": ["build", "run", "verification", "troubleshooting"]
-    },
-    {
-      "id": "wire-contract",
-      "path": "proto/spark_push.proto",
-      "authority": "code",
-      "topics": ["grpc", "message", "ack", "sync", "push-stream"]
-    },
-    {
-      "id": "project-agent-contract",
-      "path": "AGENTS.md",
-      "authority": "canonical",
-      "topics": ["agent", "constraints", "workflow", "hermes"]
-    },
-    {
-      "id": "logic-message-orchestration",
-      "path": "logic/services/message_service.cpp",
-      "authority": "code",
-      "topics": ["logic", "message", "ack", "hermes", "persistence"]
-    },
-    {
-      "id": "logic-business-layer",
-      "path": "docs/logic-business-layer.md",
-      "authority": "canonical",
-      "topics": ["logic", "architecture", "service", "repository", "maintenance", "testing"]
-    },
-    {
-      "id": "logic-grpc-adapter",
-      "path": "logic/grpc_service.cpp",
-      "authority": "code",
-      "topics": ["logic", "grpc", "adapter", "streaming", "sync"]
-    },
-    {
-      "id": "logic-http-adapter",
-      "path": "logic/http_server.cpp",
-      "authority": "code",
-      "topics": ["logic", "http", "adapter", "api", "authentication"]
-    },
-    {
-      "id": "logic-user-rules",
-      "path": "logic/services/user_service.cpp",
-      "authority": "code",
-      "topics": ["logic", "user", "authentication", "token", "password", "cache"]
-    },
-    {
-      "id": "logic-conversation-rules",
-      "path": "logic/services/conversation_service.cpp",
-      "authority": "code",
-      "topics": ["logic", "authorization", "membership", "history", "cursor", "offline"]
-    },
-    {
-      "id": "logic-attachment-rules",
-      "path": "logic/services/attachment_service.cpp",
-      "authority": "code",
-      "topics": ["logic", "attachments", "authorization", "ownership", "images"]
-    },
-    {
-      "id": "logic-repository-ports",
-      "path": "logic/services/repositories.h",
-      "authority": "code",
-      "topics": ["logic", "repository", "interfaces", "testing"]
-    },
-    {
-      "id": "logic-room-rules",
-      "path": "logic/services/room_service.cpp",
-      "authority": "code",
-      "topics": ["logic", "room", "membership", "subscription", "presence"]
-    },
-    {
-      "id": "logic-admin-rules",
-      "path": "logic/services/admin_service.cpp",
-      "authority": "code",
-      "topics": ["logic", "admin", "token", "audit", "user-status"]
-    },
-    {
-      "id": "logic-danmaku-rules",
-      "path": "logic/services/danmaku_service.cpp",
-      "authority": "code",
-      "topics": ["logic", "danmaku", "legacy", "persistence"]
-    },
-    {
-      "id": "logic-knowledge-rules",
-      "path": "logic/services/knowledge_service.cpp",
-      "authority": "code",
-      "topics": ["logic", "knowledge", "catalog", "document"]
-    },
-    {
-      "id": "logic-repository-adapters",
-      "path": "logic/repositories/dao_repositories.cpp",
-      "authority": "code",
-      "topics": ["logic", "repository", "dao", "storage"]
-    },
-    {
-      "id": "logic-composition-root",
-      "path": "logic/main.cpp",
-      "authority": "code",
-      "topics": ["logic", "composition", "lifetime", "startup", "services"]
-    },
-    {
-      "id": "logic-domain-model",
-      "path": "logic/model.h",
-      "authority": "code",
-      "topics": ["logic", "model", "dto", "user", "message", "attachment"]
-    },
-    {
-      "id": "logic-shared-business-rules",
-      "path": "logic/services/business_rules.h",
-      "authority": "code",
-      "topics": ["logic", "authorization", "admin", "reuse"]
-    },
-    {
-      "id": "hermes-command-semantics",
-      "path": "logic/hermes_command.cpp",
-      "authority": "code",
-      "topics": ["hermes", "command", "conversation", "prompt-budget"]
-    },
-    {
-      "id": "comet-delivery",
-      "path": "comet/comet_server.cpp",
-      "authority": "code",
-      "topics": ["comet", "websocket", "delivery", "reconnect"]
-    },
-    {
-      "id": "job-persistence-delivery",
-      "path": "job/service.cpp",
-      "authority": "code",
-      "topics": ["job", "kafka", "persistence", "delivery"]
-    },
-    {
-      "id": "hermes-http-transport",
-      "path": "hermes_bridge/hermes_client.cpp",
-      "authority": "code",
-      "topics": ["hermes", "http", "sse", "openai-compatible"]
-    },
-    {
-      "id": "hermes-bridge-runtime",
-      "path": "hermes_bridge/main.cpp",
-      "authority": "code",
-      "topics": ["hermes", "kafka", "streaming", "runtime"]
-    },
-    {
-      "id": "hermes-wsl-migration",
-      "path": "docs/hermes-wsl-migration.md",
-      "authority": "snapshot",
-      "topics": [
-        "hermes",
-        "wsl",
-        "migration",
-        "performance"
-      ]
-    },
-    {
-      "id": "hermes-agent-adapter",
-      "path": "cannbot/scripts/hermes_adapter.py",
-      "authority": "code",
-      "topics": [
-        "hermes",
-        "model",
-        "session",
-        "streaming"
-      ]
-    },
-    {
-      "id": "windows-agent-transport",
-      "path": "cannbot/scripts/windows_agent_transport.py",
-      "authority": "code",
-      "topics": [
-        "hermes",
-        "windows",
-        "performance",
-        "isolation"
-      ]
-    },
-    {
-      "id": "current-message-benchmarks-2026-10-11",
-      "path": "docs/benchmarks/2026-10-11-current/README.md",
-      "authority": "snapshot",
-      "topics": ["testing", "performance", "e2e", "sql", "kafka", "timeout"]
-    },
-    {
-      "id": "generic-room-agents-acceptance-2026-10-31",
-      "path": "docs/benchmarks/2026-10-31-generic-room-agents.md",
-      "authority": "snapshot",
-      "topics": ["room-agent", "testing", "e2e", "hermes", "permissions", "recovery"]
-    },
-    {
-      "id": "docker-installation",
-      "path": "docs/install.md",
-      "authority": "canonical",
-      "topics": ["docker", "installation", "migration", "development"]
-    },
-    {
-      "id": "v010-delivery",
-      "path": "docs/v0.1.0-delivery.md",
-      "authority": "canonical",
-      "topics": ["release", "docker", "installation", "room-agent", "testing"]
-    },
-    {
-      "id": "third-party-notices",
-      "path": "THIRD_PARTY_NOTICES.md",
-      "authority": "canonical",
-      "topics": ["distribution", "third-party", "license"]
-    },
-    {
-      "id": "release-smoke-2026-10-12",
-      "path": "docs/benchmarks/2026-10-12-release-smoke.json",
-      "authority": "snapshot",
-      "topics": ["release", "distribution", "startup", "testing", "e2e"]
-    },
-    {
-      "id": "agent-deployment-modes-2026-11-01",
-      "path": "docs/benchmarks/2026-11-01-agent-deployment-modes.json",
-      "authority": "snapshot",
-      "topics": [
-        "room-agent",
-        "cann",
-        "docker",
-        "testing",
-        "recovery"
-      ]
-    },
-    {
-      "id": "verify-public-agent-mode",
-      "path": "scripts/verify_public_agent_mode.py",
-      "authority": "code",
-      "topics": [
-        "room-agent",
-        "docker",
-        "recovery",
-        "permissions"
-      ]
-    },
-    {
-      "id": "release-process",
-      "path": "docs/releasing.md",
-      "authority": "canonical",
-      "topics": [
-        "release",
-        "docker",
-        "distribution",
-        "testing"
-      ]
-    },
-    {
-      "id": "release-package",
-      "path": "scripts/package_release.py",
-      "authority": "code",
-      "topics": [
-        "release",
-        "docker",
-        "distribution",
-        "testing"
-      ]
-    },
-    {
-      "id": "release-verification",
-      "path": "scripts/verify_release.py",
-      "authority": "code",
-      "topics": [
-        "release",
-        "docker",
-        "distribution",
-        "testing"
-      ]
-    },
-    {
-      "id": "clean-linux-release",
-      "path": "tests/clean_linux_release_e2e.py",
-      "authority": "code",
-      "topics": [
-        "release",
-        "docker",
-        "distribution",
-        "testing"
-      ]
-    },
-    {
-      "id": "release-tooling-2026-11-01",
-      "path": "docs/benchmarks/2026-11-01-release-tooling.json",
-      "authority": "snapshot",
-      "topics": [
-        "release",
-        "docker",
-        "testing"
-      ]
-    },
-    {
-      "id": "release-image-store-test",
-      "path": "tests/release_image_store_e2e.py",
-      "authority": "code",
-      "topics": [
-        "release",
-        "docker",
-        "testing"
-      ]
-    },
-    {
-      "id": "kafka-compose-volume-test",
-      "path": "tests/kafka_compose_volume_e2e.py",
-      "authority": "code",
-      "topics": ["release", "docker", "kafka", "persistence", "testing"]
-    },
-    {
-      "id": "release-candidate-fixes-2026-11-01",
-      "path": "docs/benchmarks/2026-11-01-release-candidate-fixes.json",
-      "authority": "snapshot",
-      "topics": ["release", "docker", "backup", "testing"]
-    },
-    {
-      "id": "v010-release-2026-11-01",
-      "path": "docs/benchmarks/2026-11-01-v0.1.0-release.json",
-      "authority": "snapshot",
-      "topics": ["release", "docker", "backup", "testing", "agents"]
-    }
+    {"id":"downstream-message-payload","path":"common/message_payload.h","authority":"code","topics":["websocket","recovery","history","protocol"]},
+    {"id":"review-remediation","path":"docs/review-remediation.md","authority":"canonical","topics":["review","reliability","migration","authentication","startup","tests"]},
+    {"id":"message-reservation","path":"logic/message_reservation.cpp","authority":"code","topics":["sequence","idempotency","outbox","mysql","recovery"]},
+    {"id":"internal-rpc-auth","path":"common/internal_rpc.h","authority":"code","topics":["grpc","authentication","authorization","tls"]},
+    {"id":"review-logging-measurement","path":"docs/benchmarks/2026-10-11-review/logging.json","authority":"snapshot","topics":["logging","performance","review"]},
+    {"id":"room-agent-collaboration","path":"docs/room-agent-collaboration.md","authority":"canonical","topics":["agent","room","cann","collaboration","handoff","workspace","authorization"]},
+    {"id":"room-agent-business-service","path":"logic/services/room_agent_service.cpp","authority":"code","topics":["room","agent","services","authorization","checkpoint","idempotency"]},
+    {"id":"room-agent-repository","path":"logic/repositories/room_agent_repository.cpp","authority":"code","topics":["room","mysql","checkpoint","transaction","revision"]},
+    {"id":"room-agent-workspace","path":"cannbot/scripts/room_agent.py","authority":"code","topics":["room","pi","workspace","sandbox","tests","checkpoint"]},
+    {"id":"room-agent-tool-guard","path":"cannbot/pi/extensions/room-workspace.ts","authority":"code","topics":["room","pi","authorization","tools","concurrency"]},
+    {"id":"project-guide-and-resume","path":"docs/project-guide-and-resume.md","authority":"canonical","topics":["architecture","guide","resume","review","services","cuda","release"]},
+    {"id":"project-overview","path":"README.md","authority":"canonical","topics":["architecture","startup","reliability","ai-integration"]},
+    {"id":"reliability-design","path":"docs/reliability-optimization.md","authority":"canonical","topics":["ack","cursor","deduplication","reconnect","metrics"]},
+    {"id":"inference-serving-phase-one","path":"docs/inference-serving.md","authority":"canonical","topics":["inference","gateway","worker","streaming","scheduler","metrics","rocm","cuda","batching"]},
+    {"id":"inference-rx9070xt-performance","path":"docs/performance-report-2026-09-30-rx9070xt.md","authority":"snapshot","topics":["inference","rocm","benchmark","throughput","latency","resume"]},
+    {"id":"inference-rtx3060-performance","path":"docs/performance-report-2026-10-07-rtx3060.md","authority":"snapshot","topics":["inference","cuda","benchmark","throughput","latency","resume","gpu-memory"]},
+    {"id":"inference-gpu-memory-probe","path":"inference/worker/gpu_memory_probe.cpp","authority":"code","topics":["inference","cuda","rocm","gpu-memory","context","telemetry"]},
+    {"id":"inference-worker-registry","path":"inference/gateway/worker_registry.cpp","authority":"code","topics":["inference","admission","heartbeat","capacity","gateway-managed-only"]},
+    {"id":"inference-wire-contract","path":"inference/proto/inference.proto","authority":"code","topics":["inference","grpc","worker","cancellation"]},
+    {"id":"agent-integration","path":"docs/hermes-integration.md","authority":"canonical","topics":["hermes","openai-compatible","streaming","conversation"]},
+    {"id":"hermes-native-runtime","path":"docs/hermes-native-runtime-integration.md","authority":"canonical","topics":["hermes","runs-api","runtime","approval","idempotency"]},
+    {"id":"pi-agent-integration","path":"docs/pi-agent-integration.md","authority":"canonical","topics":["pi","agent","gateway","rag","skills","vision","attachments"]},
+    {"id":"architecture-framework","path":"docs/spark-push-architecture.md","authority":"canonical","topics":["architecture","modules","message-flow","comet","logic","job","attachments"]},
+    {"id":"implementation-internals","path":"docs/spark-push-internals.md","authority":"canonical","topics":["algorithms","redis-lua","push-stream","websocket","queues","android-streaming","attachments","vision"]},
+    {"id":"android-client","path":"docs/spark-push-implementation.md","authority":"canonical","topics":["android","compose","streaming","history","output-length","deployment","docs-index"]},
+    {"id":"agent-scheduler","path":"cannbot/scripts/agent_scheduler.py","authority":"code","topics":["agent","queue","concurrency","session-serial"]},
+    {"id":"android-reliability-contract","path":"android-app/app/src/main/java/com/peco/sparkim/SparkReliability.kt","authority":"code","topics":["android","login-restore","bounded-stream","envelope","latency"]},
+    {"id":"multi-agent-integration","path":"docs/multi-agent-integration.md","authority":"canonical","topics":["agent","registry","isolation","hermes","windows","routing"]},
+    {"id":"multi-agent-router","path":"cannbot/scripts/agent_router.py","authority":"code","topics":["agent","ownership","session","routing"]},
+    {"id":"pi-rpc-gateway","path":"cannbot/scripts/pi_gateway.py","authority":"code","topics":["pi","rpc","session","lifecycle","streaming","vision"]},
+    {"id":"image-attachment-codec","path":"common/image_attachment.cpp","authority":"code","topics":["attachments","vision","mime"]},
+    {"id":"image-attachment-store","path":"logic/attachment_dao.cpp","authority":"code","topics":["attachments","mysql","filesystem"]},
+    {"id":"agent-sse-parser","path":"hermes_bridge/sse_parser.cpp","authority":"code","topics":["pi","hermes","sse","terminal-state","errors"]},
+    {"id":"agent-final-reply-persistence","path":"logic/hermes_reply.cpp","authority":"code","topics":["pi","reply","persistence","idempotency","routing"]},
+    {"id":"kafka-consumer-failure-handling","path":"common/kafka_consumer.cpp","authority":"code","topics":["kafka","dead-letter","retry","commit","recovery"]},
+    {"id":"agent-event-and-adapter-port","path":"cannbot/scripts/agent_events.py","authority":"code","topics":["agent-adapter","agent-events","model-catalog"]},
+    {"id":"agent-event-validation","path":"common/agent_event.h","authority":"code","topics":["agent-events","validation","model-picker"]},
+    {"id":"im-agent-channel-presentation","path":"web_demo/static/agent_channel.js","authority":"code","topics":["channel-adapter","model-picker","actions"]},
+    {"id":"pi-im-architecture-review-2026-09-06","path":"docs/pi-im-architecture-review.md","authority":"snapshot","topics":["pi","architecture-review","agent-events","session-routing","queue","security","attachments"]},
+    {"id":"cannbot-integration","path":"docs/cannbot-integration.md","authority":"canonical","topics":["cannbot","hermes","skills","knowledge-maintenance"]},
+    {"id":"wsl-hermes-development","path":"docs/wsl-hermes-development.md","authority":"canonical","topics":["hermes","wsl","development","provider","skills"]},
+    {"id":"user-center","path":"docs/user-center.md","authority":"canonical","topics":["authentication","authorization","admin","audit"]},
+    {"id":"project-evolution","path":"docs/interview-project-evolution.md","authority":"historical","topics":["evolution","tradeoff","interview"]},
+    {"id":"performance-baseline","path":"docs/performance-report-2026-08-09.md","authority":"snapshot","topics":["performance","benchmark","capacity"]},
+    {"id":"operations","path":"scripts/00_prepare_and_run.md","authority":"canonical","topics":["build","run","verification","troubleshooting"]},
+    {"id":"wire-contract","path":"proto/spark_push.proto","authority":"code","topics":["grpc","message","ack","sync","push-stream"]},
+    {"id":"project-agent-contract","path":"AGENTS.md","authority":"canonical","topics":["agent","constraints","workflow","hermes"]},
+    {"id":"logic-message-orchestration","path":"logic/services/message_service.cpp","authority":"code","topics":["logic","message","ack","hermes","persistence"]},
+    {"id":"logic-business-layer","path":"docs/logic-business-layer.md","authority":"canonical","topics":["logic","architecture","service","repository","maintenance","testing"]},
+    {"id":"logic-grpc-adapter","path":"logic/grpc_service.cpp","authority":"code","topics":["logic","grpc","adapter","streaming","sync"]},
+    {"id":"logic-http-adapter","path":"logic/http_server.cpp","authority":"code","topics":["logic","http","adapter","api","authentication"]},
+    {"id":"logic-user-rules","path":"logic/services/user_service.cpp","authority":"code","topics":["logic","user","authentication","token","password","cache"]},
+    {"id":"logic-conversation-rules","path":"logic/services/conversation_service.cpp","authority":"code","topics":["logic","authorization","membership","history","cursor","offline"]},
+    {"id":"logic-attachment-rules","path":"logic/services/attachment_service.cpp","authority":"code","topics":["logic","attachments","authorization","ownership","images"]},
+    {"id":"logic-repository-ports","path":"logic/services/repositories.h","authority":"code","topics":["logic","repository","interfaces","testing"]},
+    {"id":"logic-room-rules","path":"logic/services/room_service.cpp","authority":"code","topics":["logic","room","membership","subscription","presence"]},
+    {"id":"logic-admin-rules","path":"logic/services/admin_service.cpp","authority":"code","topics":["logic","admin","token","audit","user-status"]},
+    {"id":"logic-danmaku-rules","path":"logic/services/danmaku_service.cpp","authority":"code","topics":["logic","danmaku","legacy","persistence"]},
+    {"id":"logic-knowledge-rules","path":"logic/services/knowledge_service.cpp","authority":"code","topics":["logic","knowledge","catalog","document"]},
+    {"id":"logic-repository-adapters","path":"logic/repositories/dao_repositories.cpp","authority":"code","topics":["logic","repository","dao","storage"]},
+    {"id":"logic-composition-root","path":"logic/main.cpp","authority":"code","topics":["logic","composition","lifetime","startup","services"]},
+    {"id":"logic-domain-model","path":"logic/model.h","authority":"code","topics":["logic","model","dto","user","message","attachment"]},
+    {"id":"logic-shared-business-rules","path":"logic/services/business_rules.h","authority":"code","topics":["logic","authorization","admin","reuse"]},
+    {"id":"hermes-command-semantics","path":"logic/hermes_command.cpp","authority":"code","topics":["hermes","command","conversation","prompt-budget"]},
+    {"id":"comet-delivery","path":"comet/comet_server.cpp","authority":"code","topics":["comet","websocket","delivery","reconnect"]},
+    {"id":"job-persistence-delivery","path":"job/service.cpp","authority":"code","topics":["job","kafka","persistence","delivery"]},
+    {"id":"hermes-http-transport","path":"hermes_bridge/hermes_client.cpp","authority":"code","topics":["hermes","http","sse","openai-compatible"]},
+    {"id":"hermes-bridge-runtime","path":"hermes_bridge/main.cpp","authority":"code","topics":["hermes","kafka","streaming","runtime"]},
+    {"id":"hermes-wsl-migration","path":"docs/hermes-wsl-migration.md","authority":"snapshot","topics":["hermes","wsl","migration","performance"]},
+    {"id":"hermes-agent-adapter","path":"cannbot/scripts/hermes_adapter.py","authority":"code","topics":["hermes","model","session","streaming"]},
+    {"id":"windows-agent-transport","path":"cannbot/scripts/windows_agent_transport.py","authority":"code","topics":["hermes","windows","performance","isolation"]},
+    {"id":"current-message-benchmarks-2026-10-11","path":"docs/benchmarks/2026-10-11-current/README.md","authority":"snapshot","topics":["testing","performance","e2e","sql","kafka","timeout"]},
+    {"id":"generic-room-agents-acceptance-2026-10-31","path":"docs/benchmarks/2026-10-31-generic-room-agents.md","authority":"snapshot","topics":["room-agent","testing","e2e","hermes","permissions","recovery"]},
+    {"id":"docker-installation","path":"docs/install.md","authority":"canonical","topics":["docker","installation","migration","development"]},
+    {"id":"v010-delivery","path":"docs/v0.1.0-delivery.md","authority":"canonical","topics":["release","docker","installation","room-agent","testing"]},
+    {"id":"third-party-notices","path":"THIRD_PARTY_NOTICES.md","authority":"canonical","topics":["distribution","third-party","license"]},
+    {"id":"release-smoke-2026-10-12","path":"docs/benchmarks/2026-10-12-release-smoke.json","authority":"snapshot","topics":["release","distribution","startup","testing","e2e"]},
+    {"id":"agent-deployment-modes-2026-11-01","path":"docs/benchmarks/2026-11-01-agent-deployment-modes.json","authority":"snapshot","topics":["room-agent","cann","docker","testing","recovery"]},
+    {"id":"verify-public-agent-mode","path":"scripts/verify_public_agent_mode.py","authority":"code","topics":["room-agent","docker","recovery","permissions"]},
+    {"id":"release-process","path":"docs/releasing.md","authority":"canonical","topics":["release","docker","distribution","testing"]},
+    {"id":"release-package","path":"scripts/package_release.py","authority":"code","topics":["release","docker","distribution","testing"]},
+    {"id":"release-verification","path":"scripts/verify_release.py","authority":"code","topics":["release","docker","distribution","testing"]},
+    {"id":"clean-linux-release","path":"tests/clean_linux_release_e2e.py","authority":"code","topics":["release","docker","distribution","testing"]},
+    {"id":"release-tooling-2026-11-01","path":"docs/benchmarks/2026-11-01-release-tooling.json","authority":"snapshot","topics":["release","docker","testing"]},
+    {"id":"release-image-store-test","path":"tests/release_image_store_e2e.py","authority":"code","topics":["release","docker","testing"]},
+    {"id":"kafka-compose-volume-test","path":"tests/kafka_compose_volume_e2e.py","authority":"code","topics":["release","docker","kafka","persistence","testing"]},
+    {"id":"release-candidate-fixes-2026-11-01","path":"docs/benchmarks/2026-11-01-release-candidate-fixes.json","authority":"snapshot","topics":["release","docker","backup","testing"]},
+    {"id":"v010-release-2026-11-01","path":"docs/benchmarks/2026-11-01-v0.1.0-release.json","authority":"snapshot","topics":["release","docker","backup","testing","agents"]},
+    {"id":"audio-task-recovery-2026-11-02","path":"docs/benchmarks/2026-11-02-audio-task-recovery.json","authority":"snapshot","topics":["media","agents","tasks","persistence","testing"]},
+    {"id":"web-media-analysis-2026-11-02","path":"docs/benchmarks/2026-11-02-web-media-analysis.json","authority":"snapshot","topics":["media","web","agents","tasks","testing"]},
+    {"id":"web-media-analysis-test","path":"tests/collaboration_web_media_analysis.cjs","authority":"code","topics":["media","web","agents","tasks","testing"]},
+    {"id":"web-video-analysis-2026-11-02","path":"docs/benchmarks/2026-11-02-web-video-analysis.json","authority":"snapshot","topics":["media","web","agents","testing"]},
+    {"id":"web-video-analysis-test","path":"tests/collaboration_web_video_analysis.cjs","authority":"code","topics":["media","web","agents","testing"]},
+    {"id":"asr-domain-context-2026-11-02","path":"docs/benchmarks/2026-11-02-asr-domain-context.json","authority":"snapshot","topics":["media","asr","testing"]},
+    {"id":"document-scope-2026-11-02","path":"docs/benchmarks/2026-11-02-document-scope.json","authority":"snapshot","topics":["media","web","agents","testing"]}
   ]
 }

@@ -1,0 +1,9 @@
+[  5%] Built target spark_push_proto
+[ 21%] Built target muduo_base
+[ 54%] Built target muduo_net
+[ 48%] Built target spark_push_common
+[ 56%] Built target muduo_http
+[ 97%] Built target spark_push_logic
+[100%] Building CXX object tests/CMakeFiles/media_processing_http_probe.dir/media_processing_http_probe.cpp.o
+[100%] Linking CXX executable media_processing_http_probe
+[100%] Built target media_processing_http_probe

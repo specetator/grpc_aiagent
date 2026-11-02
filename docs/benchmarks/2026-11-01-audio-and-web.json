@@ -1,0 +1,101 @@
+{
+  "date": "2026-11-01",
+  "overall_goal_complete": false,
+  "source_commit": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "audio": {
+    "kind": "real isolated ASR and actual Pi through HTTP/WS; synthetic 20-minute speech",
+    "passed": false,
+    "exit_code": 1,
+    "model_sha256": "02e8ad144c5a1e9441bbd2aab66e62a1b2627c4b0f1936a7cdc68878c9767227",
+    "processing_seconds": 574.9640487860015,
+    "fragment_count": 381,
+    "three_users_received_completed_reply": true,
+    "failure": [
+      "ASR still transcribes queue backpressure as QBAC Pressure",
+      "Pi includes nearby generic discussion and null/role owners in the checkpoint actions; strict owner/action gate is not met",
+      "Original evaluator stops with AttributeError on null owner; follow-up validation now reports AssertionError without accepting it"
+    ],
+    "not_reached": [
+      "audio-derived task creation and claim",
+      "audio request replay/revocation/restart assertions"
+    ]
+  },
+  "web": {
+    "kind": "real Compose and three independent Chromium processes; no route/WS stubs",
+    "passed": true,
+    "exit_code": 0,
+    "checks": 6,
+    "image_id": "sha256:ded6f8c1d35cfb49b660ffc72d4e8cad17420e1c46f481e11edeb7478aed1ed5",
+    "scope": "Real browser uploads/playback/download/relogin/revocation only; parser and Agent execution are not configured or tested",
+    "assets": [
+      {
+        "name": "design.pdf",
+        "id": "att_e2bc90c4ac4d77bbeb3f1676",
+        "bytes": 13522,
+        "sha256": "6fcbc309d8b5fe53c283053f24db6f196c4fe38b2357bb70ae81275606b1fa97"
+      },
+      {
+        "name": "meeting-20min.wav",
+        "id": "att_a93ea072b5bbbbd85eedab74",
+        "bytes": 38399392,
+        "sha256": "121b03712aa51ffa453e7fa1b3b2f54c358cc6ad07eb1e5a4cfee9dc5f2fd041"
+      },
+      {
+        "name": "incident.mp4",
+        "id": "att_24c64273725636a3a7e9b5c7",
+        "bytes": 49643,
+        "sha256": "c457eb458d3e51755a46b3a53fbe084c49cd061ccb4e59b0300c60a5863a4380"
+      }
+    ],
+    "removed_member_read_codes": {
+      "design.pdf": 403,
+      "meeting-20min.wav": 403,
+      "incident.mp4": 403
+    },
+    "screenshots_have_cjk_font_limitation": true,
+    "first_run_observation_limit": "First run waited for media metadata and did not start playback; retained as the narrower original observation.",
+    "latest_report": "spark-media-real-browser-playback.json",
+    "playback_validation": "Second focused run uses the native media controls via Space, observes currentTime > 0.2 with no media error, then pauses; repeated for WAV after full restart."
+  },
+  "follow_up": {
+    "kind": "synthetic assertion contracts, not model E2E",
+    "checks": 10,
+    "passed": true,
+    "change": "null owner is rejected explicitly; no gate relaxed",
+    "prompt_change": "The next audio request explicitly separates named checkpoint assignments from generic nearby discussion; no expected names or action terms were supplied. This prompt has not been exercised in a new real model run."
+  },
+  "not_executed": [
+    "Full CTest, unrelated SQL and private/CANN regressions were not repeated",
+    "Parsed-source/model-analysis workflow through three browsers",
+    "Full integrated media task acceptance"
+  ],
+  "cleanup": "Both owned service stacks and ASR container ended; unrelated existing containers remain untouched",
+  "source_sha256": {
+    "tests/public_room_runtime_e2e.py": "c94e87fcc5fbbf4fda61920217dec6096a2ceb4a6f95165dfca237bc14424078",
+    "tests/public_media_scenario.py": "bd66457c1f671e70c1baf108140cf93c0d399f5e25403e3b26adf2a16697107b",
+    "tests/public_media_scenario_test.py": "9a093dc6c7dd60362f5c780119848c2578ec25c063a89446acf3f0eb6c65a7d1",
+    "tests/collaboration_web_e2e.py": "f3c581c51301eee7947c04a5f59e3a3e72672235c620a380c87b1a7baa8d15b4",
+    "tests/collaboration_web_live_browser_test.cjs": "05c830e10f7e7ae3e132f0b177cb0f9267acfb0794d9ebfaedd97926ef5307d9",
+    "web_demo/static/room_media.js": "072c650c827eb8f7dc6c4db0c889546b1ec16ee4c0f37ec4d36c2f293ef60382",
+    "docs/multimodal-service-e2e.md": "9d67ff0847a6932d4eec87752877d1c42623bea4911c51fa582dce66648c6b66",
+    "docs/multimodal-collaboration.md": "4fd54c85b77c686bbf5f7dd4607d9401da5be98bdd7e6a1e12b3fce7e2c23bd9",
+    "docs/web-collaboration-client.md": "a34a14cc40860913650163e6b668056b525cbe0ab12892212ce45ca7d09d3b01"
+  },
+  "artifact_directory": "2026-11-01-audio-and-web",
+  "artifact_sha256": {
+    "spark-audio-turbo-e2e.audio-transcript.json": "835fc838b7bd01bf82d03cfb4ad1f0e428afa06de40b04144d0650d31cfcd7ae",
+    "playback-media-video.png": "97cbe08583efaa9791b84b106136058bc05b4cfc94edd50ebdda1f86cf0c9ec7",
+    "spark-media-real-browser.log": "ab9f4b244397c4ca67d18c89418427d1ae86420ebe5a23a7a6c7c012103b32b1",
+    "spark-audio-turbo-e2e.log": "a725cc9dc891c6cbc4ba5c234a0607fdeee0d9f2f24e38d05580f6ef66e9c718",
+    "spark-audio-turbo-assertions.log": "cf8d3a2572a7898fcf32a4c2dd1445509b3d59e66061853243c4627f80695068",
+    "spark-media-real-browser-playback.json": "10bb416bda6ce629a2fd9e8dfc17ef1a8a49725ce25ee736936414fca9fe7b6b",
+    "spark-media-real-browser-playback.log": "ab9f4b244397c4ca67d18c89418427d1ae86420ebe5a23a7a6c7c012103b32b1",
+    "media-video.png": "585d9905fdd69cd24586a964f5cfada78a4dc15be3b2f7920589232da6458bfe",
+    "spark-audio-turbo-e2e.json": "cfb501521ccb3ac2c3c54a58bc8a9e0e40404477cc821283e9214e0bee0237ed",
+    "spark-media-real-browser.json": "ceca60a05490df7c87cf66e91f261aa0a77e0a722a9c25402c823fc70d8c1685",
+    "playback-media-audio.png": "9ad3921b76a5267bb4edc6ec41118369975d74c2c5537a9db7048a2f71546764",
+    "media-audio.png": "e5f7652cd415201c383a4654a11c0c51a3afd357107587885d29bbab28c650ca",
+    "spark-audio-turbo-e2e.media-worker.log": "759215d6f46560ae33fda67f0ffc171b8cf6e0547aa529e408f70cf22ddb646e"
+  },
+  "continued_on": "2026-11-02"
+}

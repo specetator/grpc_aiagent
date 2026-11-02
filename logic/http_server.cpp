@@ -309,7 +309,10 @@ void WriteAdminServiceError(HttpResponse* resp, const ServiceStatus& status) {
 // cfg.logic_http_threads（config.h 里为 4）。
 HttpApiServer::HttpApiServer(EventLoop* loop, const InetAddress& listenAddr,
                              LogicHttpServices services, int io_threads)
-    : agent_connection_service_(services.agent_connections),
+    : media_service_(services.media),
+      media_processing_service_(services.media_processing),
+      media_context_service_(services.media_context),
+      agent_connection_service_(services.agent_connections),
       user_service_(&services.users),
       conversation_service_(&services.conversations),
       attachment_service_(&services.attachments),
@@ -406,6 +409,31 @@ void HttpApiServer::onRequest(const HttpRequest& req, HttpResponse* resp) {
         {"/api/message/send", &HttpApiServer::handleSendMessage},
         {"/api/attachment/upload", &HttpApiServer::handleAttachmentUpload},
         {"/api/attachment/get", &HttpApiServer::handleAttachmentGet},
+        {"/api/room/media/init", &HttpApiServer::handleMedia},
+        {"/api/room/media/chunk", &HttpApiServer::handleMedia},
+        {"/api/room/media/finish", &HttpApiServer::handleMedia},
+        {"/api/room/media/abort", &HttpApiServer::handleMedia},
+        {"/api/room/media/status", &HttpApiServer::handleMedia},
+        {"/api/room/media/list", &HttpApiServer::handleMedia},
+        {"/api/room/media/uploads", &HttpApiServer::handleMedia},
+        {"/api/room/media/read", &HttpApiServer::handleMedia},
+        {"/api/room/media/processing", &HttpApiServer::handleMediaProcessing},
+        {"/api/room/media/fragments", &HttpApiServer::handleMediaProcessing},
+        {"/api/room/media/search", &HttpApiServer::handleMediaProcessing},
+        {"/api/room/media/artifacts", &HttpApiServer::handleMediaProcessing},
+        {"/api/room/media/artifact", &HttpApiServer::handleMediaProcessing},
+        {"/internal/media/claim", &HttpApiServer::handleMediaWorker},
+        {"/internal/media/claim_media", &HttpApiServer::handleMediaWorker},
+        {"/internal/media/reserve", &HttpApiServer::handleMediaWorker},
+        {"/internal/media/stage_artifact", &HttpApiServer::handleMediaWorker},
+        {"/internal/media/reclaim", &HttpApiServer::handleMediaWorker},
+        {"/internal/media/reclaim_candidates", &HttpApiServer::handleMediaWorker},
+        {"/internal/media/check", &HttpApiServer::handleMediaWorker},
+        {"/internal/media/heartbeat", &HttpApiServer::handleMediaWorker},
+        {"/internal/media/source", &HttpApiServer::handleMediaWorker},
+        {"/internal/media/stage", &HttpApiServer::handleMediaWorker},
+        {"/internal/media/complete", &HttpApiServer::handleMediaWorker},
+        {"/internal/media/fail", &HttpApiServer::handleMediaWorker},
         {"/api/session/history", &HttpApiServer::handleHistory},
         {"/api/knowledge/document", &HttpApiServer::handleKnowledgeDocument},
         {"/api/session/mark_read", &HttpApiServer::handleMarkRead},
@@ -425,9 +453,13 @@ void HttpApiServer::onRequest(const HttpRequest& req, HttpResponse* resp) {
         {"/api/chatroom/tasks/update", &HttpApiServer::handleRoomAgent},
         {"/api/chatroom/agents/control", &HttpApiServer::handleRoomAgent},
         {"/api/chatroom/agents/list", &HttpApiServer::handleRoomAgent},
+        {"/api/chatroom/agents/sources", &HttpApiServer::handleRoomAgent},
         {"/api/chatroom/workspace/list", &HttpApiServer::handleRoomAgent},
         {"/api/chatroom/workspace/set", &HttpApiServer::handleRoomAgent},
         {"/internal/room-agent/authorize", &HttpApiServer::handleWorkspaceAuthorization},
+        {"/internal/room-agent/context/search", &HttpApiServer::handleMediaContext},
+        {"/internal/room-agent/context/read", &HttpApiServer::handleMediaContext},
+        {"/internal/room-agent/context/media", &HttpApiServer::handleMediaContext},
         {"/api/chatroom/agents/install", &HttpApiServer::handleRoomAgent},
         {"/api/chatroom/agents/uninstall", &HttpApiServer::handleRoomAgent},
 
@@ -772,6 +804,56 @@ void HttpApiServer::handleSendMessage(const HttpRequest& req, HttpResponse* resp
     data << "{\"session_id\":\"" << msg.session_id << "\",\"msg_id\":\"" << msg.msg_id
          << "\",\"msg_seq\":" << msg.msg_seq << "}";
     WriteJson(resp, 0, "ok", data.str());
+}
+
+void HttpApiServer::handleMedia(const HttpRequest& req, HttpResponse* resp) {
+    if(req.method()!=HttpRequest::kPost) {
+        WriteJson(resp,400,"POST required","{}",HttpResponse::k400BadRequest); return;
+    }
+    int64_t actor=0;
+    if(!requireUser(req,resp,&actor)) return;
+    if(!media_service_) { WriteJson(resp,503,"room media unavailable"); return; }
+    if(req.body().size()>2*1024*1024) {
+        WriteJson(resp,413,"media request exceeds 2 MiB"); return;
+    }
+    nlohmann::json input,output;
+    if(!ParseJsonBody(req.body(),&input)) {
+        WriteJson(resp,400,"invalid JSON body","{}",HttpResponse::k400BadRequest); return;
+    }
+    const auto operation=req.path().substr(req.path().find_last_of('/')+1);
+    const auto status=media_service_->Execute(actor,operation,input,&output);
+    resp->addHeader("Cache-Control","no-store");
+    if(!status.ok()) { WriteServiceError(resp,status); return; }
+    WriteJson(resp,0,"ok",output.dump());
+}
+
+void HttpApiServer::handleMediaProcessing(const HttpRequest& req,HttpResponse* resp) {
+    if(req.method()!=HttpRequest::kPost) { WriteJson(resp,405,"POST required"); return; }
+    int64_t actor=0; if(!requireUser(req,resp,&actor)) return;
+    if(!media_processing_service_) { WriteJson(resp,503,"media processing unavailable"); return; }
+    if(req.body().size()>8192) { WriteJson(resp,413,"content query too large"); return; }
+    nlohmann::json input,output;
+    if(!ParseJsonBody(req.body(),&input)) { WriteJson(resp,400,"invalid JSON"); return; }
+    const auto op=req.path().substr(req.path().find_last_of('/')+1);
+    const auto status=media_processing_service_->Member(actor,op,input,&output);
+    resp->addHeader("Cache-Control","no-store");
+    if(!status.ok()) { WriteServiceError(resp,status); return; }
+    WriteJson(resp,0,"ok",output.dump());
+}
+void HttpApiServer::handleMediaWorker(const HttpRequest& req,HttpResponse* resp) {
+    if(req.method()!=HttpRequest::kPost) { WriteJson(resp,405,"POST required"); return; }
+    if(!media_processing_service_) { WriteJson(resp,503,"media processing unavailable"); return; }
+    const size_t cap=req.path()=="/internal/media/stage_artifact"?2*1024*1024:128*1024;
+    if(req.body().size()>cap) { WriteJson(resp,413,"worker request too large"); return; }
+    const auto auth=req.getHeader("Authorization");
+    const auto key=auth.rfind("Bearer ",0)==0?auth.substr(7):std::string();
+    nlohmann::json input,output;
+    if(!ParseJsonBody(req.body(),&input)) { WriteJson(resp,400,"invalid JSON"); return; }
+    const auto op=req.path().substr(req.path().find_last_of('/')+1);
+    const auto status=media_processing_service_->Worker(key,op,input,&output);
+    resp->addHeader("Cache-Control","no-store");
+    if(!status.ok()) { WriteServiceError(resp,status); return; }
+    WriteJson(resp,0,"ok",output.dump());
 }
 
 void HttpApiServer::handleAttachmentUpload(const HttpRequest& req, HttpResponse* resp) {
@@ -1314,6 +1396,20 @@ void HttpApiServer::handleChatroomList(const HttpRequest& req, HttpResponse* res
 //      也收进了同一个 catch，避开了重复的错误分支。
 // 权限判定全在 service 里：Configure 只让房间拥有者过，Checkpoint 让
 // 拥有者或 developer_user_ids 里的人过，View 只要求成员。本层不重复。
+void HttpApiServer::handleMediaContext(const HttpRequest& req,HttpResponse* resp) {
+    if(req.method()!=HttpRequest::kPost){WriteJson(resp,405,"only POST allowed");return;}
+    if(!media_context_service_){WriteJson(resp,503,"room context unavailable");return;}
+    if(req.body().size()>4096){WriteJson(resp,413,"context request too large");return;}
+    const auto authorization=req.getHeader("Authorization");
+    const auto key=authorization.rfind("Bearer ",0)==0?authorization.substr(7):std::string();
+    nlohmann::json input,output;
+    if(!ParseJsonBody(req.body(),&input)){WriteJson(resp,400,"invalid JSON");return;}
+    const auto operation=req.path().substr(req.path().find_last_of('/')+1);
+    const auto status=media_context_service_->Execute(key,operation,input,&output);
+    if(!status.ok()){WriteServiceError(resp,status);return;}
+    WriteJson(resp,0,"ok",output.dump());
+}
+
 void HttpApiServer::handleWorkspaceAuthorization(const HttpRequest& req,HttpResponse* resp) {
     if(req.method()!=HttpRequest::kPost){WriteJson(resp,405,"only POST allowed");return;}
     if(!room_agent_service_){WriteJson(resp,503,"room Agent unavailable");return;}
@@ -1360,6 +1456,7 @@ void HttpApiServer::handleRoomAgent(const HttpRequest& req, HttpResponse* resp) 
         else if(req.path()=="/api/chatroom/workspace/set")status=room_agent_service_->SetWorkspace(actor,room,input,&output);
         else if(req.path()=="/api/chatroom/agents/control")status=room_agent_service_->Control(actor,room,input,&output);
         else if(req.path()=="/api/chatroom/agents/list") status=room_agent_service_->Agents(actor,room,&output);
+        else if(req.path()=="/api/chatroom/agents/sources")status=room_agent_service_->Sources(actor,room,input,&output);
         else if(req.path()=="/api/chatroom/agents/install" || req.path()=="/api/chatroom/agents/uninstall") {
             status=room_agent_service_->Install(actor,room,input,req.path()=="/api/chatroom/agents/install");
             output=nlohmann::json::object();

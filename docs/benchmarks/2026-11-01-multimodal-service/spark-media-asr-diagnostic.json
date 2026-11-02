@@ -1,0 +1,88 @@
+{
+  "input_sha256": "121b03712aa51ffa453e7fa1b3b2f54c358cc6ad07eb1e5a4cfee9dc5f2fd041",
+  "image_id": "sha256:4c2e26418ad4ec59d0d57bdf2a15af30826c14de5d253d39bf96be2de2b38120",
+  "elapsed_seconds": 248.4544710110058,
+  "fragment_count": 413,
+  "end_fragments": [
+    {
+      "anchor": {
+        "end_ms": 1182760,
+        "part": 0,
+        "start_ms": 1179860
+      },
+      "index": 405,
+      "kind": "transcript",
+      "text": "The release owner will collect the test evidence before making a decision."
+    },
+    {
+      "anchor": {
+        "end_ms": 1185680,
+        "part": 0,
+        "start_ms": 1183140
+      },
+      "index": 406,
+      "kind": "transcript",
+      "text": "We must keep the private room isolated from other rooms."
+    },
+    {
+      "anchor": {
+        "end_ms": 1187200,
+        "part": 0,
+        "start_ms": 1186020
+      },
+      "index": 407,
+      "kind": "transcript",
+      "text": "Decision check point three."
+    },
+    {
+      "anchor": {
+        "end_ms": 1189940,
+        "part": 0,
+        "start_ms": 1187500
+      },
+      "index": 408,
+      "kind": "transcript",
+      "text": "The final decision uses the code name Magenta Harbour."
+    },
+    {
+      "anchor": {
+        "end_ms": 1191340,
+        "part": 0,
+        "start_ms": 1190220
+      },
+      "index": 409,
+      "kind": "transcript",
+      "text": "Keep the rollout paused."
+    },
+    {
+      "anchor": {
+        "end_ms": 1193700,
+        "part": 0,
+        "start_ms": 1191660
+      },
+      "index": 410,
+      "kind": "transcript",
+      "text": "Alice will investigate the duplicate delivery."
+    },
+    {
+      "anchor": {
+        "end_ms": 1195860,
+        "part": 0,
+        "start_ms": 1194000
+      },
+      "index": 411,
+      "kind": "transcript",
+      "text": "Bob will verify the recovery test tomorrow."
+    },
+    {
+      "anchor": {
+        "end_ms": 1199620,
+        "part": 0,
+        "start_ms": 1196140
+      },
+      "index": 412,
+      "kind": "transcript",
+      "text": "Do not enable automatic tool retries when the execution result is unknown."
+    }
+  ]
+}

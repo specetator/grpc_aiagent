@@ -1,0 +1,71 @@
+Real MySQL: repeated context migration preserved the existing epoch
+Real MySQL: pre-media upgrade and repeated migration preserved the old attachment row
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+Test project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+    Start 36: media_processing_http_test
+1/1 Test #36: media_processing_http_test .......   Passed    4.67 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   4.67 sec
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+UpdateCTestConfiguration  from :/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/DartConfiguration.tcl
+Parse Config file:/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/DartConfiguration.tcl
+UpdateCTestConfiguration  from :/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/DartConfiguration.tcl
+Parse Config file:/home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/DartConfiguration.tcl
+Test project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 13
+    Start 13: media_mysql_integration_test
+
+13: Test command: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests/media_mysql_integration_test
+13: Working Directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests
+13: Test timeout computed to be: 60
+13: 20261101 10:22:32.905717Z 981589 ERROR mysql_ping failed, dropping connection - mysql_pool.cpp:296
+13: real MySQL room media: resume, hashes, concurrent finalize, permissions, restart and SQL binding passed
+1/4 Test #13: media_mysql_integration_test ...........   Passed    2.74 sec
+test 14
+    Start 14: media_artifact_mysql_test
+
+14: Test command: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests/media_artifact_mysql_test
+14: Working Directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests
+14: Test timeout computed to be: 60
+14: 20261101 10:22:33.457102Z 981635 ERROR mysql_ping failed, dropping connection - mysql_pool.cpp:296
+14: 20261101 10:22:33.727221Z 981635 ERROR mysql_ping failed, dropping connection - mysql_pool.cpp:296
+14: real JPEG validation, immutable replay, connection kill and restarted install passed
+14: GC failure retained quota, retry removed bytes, old worker fenced, lock inode retained
+14: concurrent reservations, simultaneous original/derived writes and actual room-lock wait snapshot test passed
+14: bounded GC cursor, live/ready exclusion and concurrent actual-file reclamation passed
+2/4 Test #14: media_artifact_mysql_test ..............   Passed    0.91 sec
+test 21
+    Start 21: message_reservation_integration_test
+
+21: Test command: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests/message_reservation_integration_test
+21: Working Directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests
+21: Test timeout computed to be: 45
+21: canonical retries, parallel allocation, legacy coexistence, outbox and safe delivery passed
+3/4 Test #21: message_reservation_integration_test ...   Passed    0.18 sec
+test 65
+    Start 65: space_mysql_integration_test
+
+65: Test command: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests/space_mysql_integration_test
+65: Working Directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl/tests
+65: Test timeout computed to be: 45
+65: Real MySQL context: both room-lock publication/revocation orders observed and verified
+65: real MySQL space transactions, concurrency, SQL binding and Agent persistence passed
+4/4 Test #65: space_mysql_integration_test ...........   Passed    0.46 sec
+
+The following tests passed:
+	media_mysql_integration_test
+	media_artifact_mysql_test
+	message_reservation_integration_test
+	space_mysql_integration_test
+
+100% tests passed, 0 tests failed out of 4
+
+Total Test time (real) =   4.29 sec

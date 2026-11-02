@@ -1,0 +1,86 @@
+{
+  "date": "2026-11-01",
+  "phase": "media-worker-operations",
+  "overall_goal_complete": false,
+  "source_commit": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "implementation": [
+    "Existing media worker accepts private exact-schema operator JSON with absolute paths and approved parser/pipeline fingerprints; direct CLI remains compatible",
+    "sparkctl media describe/run/start/stop/status/logs uses the existing worker and systemd user services, without a new processing loop or pidfile-based kills",
+    "Transient service restarts on failure with rate limits; stop checks project ownership and preserves state; no implicit private environment loading",
+    "Focused MySQL helper can run only the worker integration suite; default full helper behavior remains available",
+    "Operations example, deployment guide, README and repository knowledge catalog updated"
+  ],
+  "validation": {
+    "worker_contracts": {
+      "passed": 9,
+      "kind": "controlled transport/time and configuration contracts",
+      "log": "spark-media-ops-unit.log"
+    },
+    "real_integration": {
+      "passed": 15,
+      "exit_code": 0,
+      "seconds": 87.27,
+      "report": "spark-media-ops-http-final.json",
+      "log": "spark-media-ops-http-final.log",
+      "scope": "Owned real MySQL/Redis, HTTP authorization, Docker parser and CPU ASR on synthetic short media; explicit transport/SQL fault injection. Includes actual systemd launch, publication, SIGKILL, changed MainPID after auto-restart, second publication and stop.",
+      "command": "SPARK_TEST_MYSQL_WORKER_ONLY=1 SPARK_TEST_MEDIA_WORKER_TEST=1 SPARK_TEST_MEDIA_SYSTEMD=1 SPARK_TEST_MEDIA_IMAGE=spark-media:development SPARK_TEST_MEDIA_MODEL=/tmp/spark-media-asr-small SPARK_TEST_MEDIA_FIXTURES=/tmp/spark-collaboration-fixtures-v2-DQVG8Q SPARK_TEST_MEDIA_WORKER_REPORT=/tmp/spark-media-ops-http-final.json python3 tests/run_mysql_review_tests.py build-wsl"
+    },
+    "stop_ownership": {
+      "passed": true,
+      "kind": "actual systemd service with foreign description created only for this test; sparkctl stop refused and process remained active; fixture then explicitly stopped",
+      "report": "spark-media-ops-guard.json",
+      "code": "spark-media-ops-guard.py"
+    },
+    "earlier_failure": {
+      "report": "spark-media-ops-http.json",
+      "log": "spark-media-ops-http.log",
+      "reason": "Test used --kill-whom; installed systemd 249 supports --kill-who. Startup and first managed publication had succeeded; corrected test injection then passed."
+    },
+    "syntax_and_diff": "passed",
+    "knowledge_sources": 200,
+    "knowledge_log": "spark-media-ops-knowledge.log"
+  },
+  "migration": "No new migration; existing media migration preservation checks ran on an owned pre-media database.",
+  "runtime_configuration": {
+    "pipeline_sha256": "63cc34f8ac9f8e1efdddb28a1c70cd50793303c443a91012c63accf28af5cc12",
+    "parser_sha256": "e29263d81f71583e3c49cd6cc8d5d0a5cfb2bcbed36c40482b171d90c8c10188",
+    "image_id": "sha256:4c2e26418ad4ec59d0d57bdf2a15af30826c14de5d253d39bf96be2de2b38120",
+    "model_sha256": "b2f73aed0684edce51988a894b0a40f3ef581f63d4e50bea7e2daa414dda9a8e"
+  },
+  "cleanup": {
+    "owned_systemd_test_units_removed": true,
+    "owned_mysql_redis_containers_removed": true,
+    "owned_parser_containers_removed": true,
+    "production_service_started": false
+  },
+  "limits": [
+    "No full CTest, long-recording retry, native model call or new three-browser E2E in this phase; audio task accuracy and Pi visual failure remain unresolved",
+    "Temporary systemd user units do not provide automatic startup after a host/user-manager reboot",
+    "systemd active is process state, not proof of backend authorization or successful processing; normal worker SIGTERM retains its existing exit-code-1 contract",
+    "Code changed the pipeline fingerprint. Existing operators must finish/verify old pending work and explicitly approve the new configuration, not clear old state",
+    "Host scripts and docs are worktree changes; no release build, production deployment, private profile update or GitHub push was performed",
+    "Shared media deletion, final-message structured citations and complete multimedia acceptance remain open"
+  ],
+  "source_sha256": {
+    "cannbot/scripts/media_worker.py": "2b0ebae9525cc50676e36da686edf28c8ebbe6ab85e9467027b407f100bfe32d",
+    "scripts/sparkctl.sh": "921d19ddcd0042c8d49f6f48db88a2203b2b0e5cf2d78b57de5ff6fd4e41f31f",
+    "scripts/ops/media.sh": "7ad28f67eb23fe727122023653a79f3948368d8dca87cc6846ce33f4c54e43f1",
+    "deploy/media-worker.json.example": "9758b4c2de133e14df7adfe252e8d5be25bcc1e9f07ff4a1f522d440d576a338",
+    "tests/media_worker_test.py": "60e2b1bbc74ee2e1f63513c62382bf47b7656561210c080b366e915f56a621ae",
+    "tests/media_worker_http_test.py": "7b3bc5889d2fe44266b2c4d214cdc31a10723ebde2840de006190afb7e1cba6d",
+    "tests/run_mysql_review_tests.py": "3c2dbd803bbb48f119ca56286ff7ce25831c7064e6ad1526d85f5fdd50016c8f",
+    "docs/media-worker-operations.md": "734fe3f03986d9417be28f43a39eef954fd8294c46ac8a66bb667d03f14f6407",
+    "README.md": "2d40ba74b06ccca53f90d38ee2d59f13e788b0c3bfb02e6046fe109c47eeacf1"
+  },
+  "artifact_directory": "2026-11-01-media-operations",
+  "artifact_sha256": {
+    "spark-media-ops-guard.json": "5e0bb052a3d15ce5f44b61ccf6521bbaea8eabdadb8f194533de2dfcfe14ca11",
+    "spark-media-ops-guard.py": "791384f91d00c9d5d40b8ed4bae286cdb49276b960d1763672a37760b365852d",
+    "spark-media-ops-http-final.json": "1b9ca1de97982323efb2cc4882c8e714ac027918e4ec16007b1807722fd53b3a",
+    "spark-media-ops-http-final.log": "6bd2b6cad505612465409e4bf76c2d4db5e0da56487103c7beba7590f24aca5e",
+    "spark-media-ops-http.json": "d0e7313e5a6a2c358ed7a5863668ccb39e92179f212d262f9f923de88fafbd1c",
+    "spark-media-ops-http.log": "3f651b2f9aa6558df77ef8a62b421745fb8d35add2349e5a8c64badd279d7ee2",
+    "spark-media-ops-knowledge.log": "92ab88e7f815b03932841070ddc708679abb2f288683aaa83add4323ca2d12a6",
+    "spark-media-ops-unit.log": "9478c4001c4a1187856282e59475d072f99eeac42b74d648d406c440c2d63ba4"
+  }
+}

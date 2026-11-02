@@ -1,0 +1,229 @@
+{
+  "kind": "real-native-tools-and-models-with-fixture-authority",
+  "passed": false,
+  "scope": "Opt-in real native room tools/models with an HTTP authority fixture.\n\nThis is a native integration probe, NOT Logic/MySQL/Kafka/Web acceptance.\nOnly explicitly authorized default-profile MODEL access is provisioned into\nowned homes; private sessions/configuration/workspaces are never copied.\n",
+  "checks": [
+    "pi reads bounded room text without a code project",
+    "pi native tool result contains all three actual images",
+    "pi provider-bound request contains all three image payloads"
+  ],
+  "runtimes": {
+    "pi": {
+      "answer": {
+        "nonce": "1893c2782e68839a6b1ac2e2",
+        "images": [
+          {
+            "left": {
+              "shape": "circle",
+              "color": "red"
+            },
+            "right": {
+              "shape": "triangle",
+              "color": "green"
+            },
+            "lower": {
+              "shape": "square",
+              "color": "blue"
+            }
+          },
+          {
+            "left": {
+              "shape": "square",
+              "color": "red"
+            },
+            "right": {
+              "shape": "square",
+              "color": "red"
+            },
+            "lower": {
+              "shape": "circle",
+              "color": "blue"
+            }
+          },
+          {
+            "left": {
+              "shape": "circle",
+              "color": "red"
+            },
+            "right": {
+              "shape": "square",
+              "color": "blue"
+            },
+            "lower": {
+              "shape": "triangle",
+              "color": "green"
+            }
+          }
+        ]
+      },
+      "expected": [
+        {
+          "left": {
+            "shape": "circle",
+            "color": "red"
+          },
+          "right": {
+            "shape": "triangle",
+            "color": "green"
+          },
+          "lower": {
+            "shape": "square",
+            "color": "blue"
+          }
+        },
+        {
+          "left": {
+            "shape": "square",
+            "color": "red"
+          },
+          "right": {
+            "shape": "triangle",
+            "color": "green"
+          },
+          "lower": {
+            "shape": "circle",
+            "color": "blue"
+          }
+        },
+        {
+          "left": {
+            "shape": "circle",
+            "color": "red"
+          },
+          "right": {
+            "shape": "square",
+            "color": "blue"
+          },
+          "lower": {
+            "shape": "triangle",
+            "color": "green"
+          }
+        }
+      ],
+      "image_sha256": [
+        "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9",
+        "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7",
+        "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+      ],
+      "audit": [
+        {
+          "phase": "provider",
+          "hashes": [],
+          "markers": [
+            "probe-memory-a27a4981b3abb915e38b55f2"
+          ],
+          "request_id": "ra_8db604c5bac869accf0dbd3f63ac74bad74a29051fea422e0388a79bc3eb56e3"
+        },
+        {
+          "phase": "provider",
+          "hashes": [],
+          "markers": [
+            "probe-memory-a27a4981b3abb915e38b55f2"
+          ],
+          "request_id": "ra_8db604c5bac869accf0dbd3f63ac74bad74a29051fea422e0388a79bc3eb56e3"
+        },
+        {
+          "phase": "tool",
+          "hashes": [
+            "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7"
+          ],
+          "markers": [],
+          "request_id": "ra_8db604c5bac869accf0dbd3f63ac74bad74a29051fea422e0388a79bc3eb56e3"
+        },
+        {
+          "phase": "tool",
+          "hashes": [
+            "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+          ],
+          "markers": [],
+          "request_id": "ra_8db604c5bac869accf0dbd3f63ac74bad74a29051fea422e0388a79bc3eb56e3"
+        },
+        {
+          "phase": "tool",
+          "hashes": [
+            "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9"
+          ],
+          "markers": [],
+          "request_id": "ra_8db604c5bac869accf0dbd3f63ac74bad74a29051fea422e0388a79bc3eb56e3"
+        },
+        {
+          "phase": "provider",
+          "hashes": [
+            "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7",
+            "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9",
+            "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+          ],
+          "markers": [
+            "probe-memory-a27a4981b3abb915e38b55f2"
+          ],
+          "request_id": "ra_8db604c5bac869accf0dbd3f63ac74bad74a29051fea422e0388a79bc3eb56e3"
+        }
+      ]
+    }
+  },
+  "image_files": [
+    "spark-room-context-native-final-images/5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7.jpg",
+    "spark-room-context-native-final-images/04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9.jpg",
+    "spark-room-context-native-final-images/8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b.jpg"
+  ],
+  "error_type": "AssertionError",
+  "failed_check": "pi answers three randomized no-text images correctly",
+  "failure_audits": {
+    "pi": [
+      {
+        "phase": "provider",
+        "hashes": [],
+        "markers": [
+          "probe-memory-a27a4981b3abb915e38b55f2"
+        ],
+        "request_id": "ra_8db604c5bac869accf0dbd3f63ac74bad74a29051fea422e0388a79bc3eb56e3"
+      },
+      {
+        "phase": "provider",
+        "hashes": [],
+        "markers": [
+          "probe-memory-a27a4981b3abb915e38b55f2"
+        ],
+        "request_id": "ra_8db604c5bac869accf0dbd3f63ac74bad74a29051fea422e0388a79bc3eb56e3"
+      },
+      {
+        "phase": "tool",
+        "hashes": [
+          "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7"
+        ],
+        "markers": [],
+        "request_id": "ra_8db604c5bac869accf0dbd3f63ac74bad74a29051fea422e0388a79bc3eb56e3"
+      },
+      {
+        "phase": "tool",
+        "hashes": [
+          "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+        ],
+        "markers": [],
+        "request_id": "ra_8db604c5bac869accf0dbd3f63ac74bad74a29051fea422e0388a79bc3eb56e3"
+      },
+      {
+        "phase": "tool",
+        "hashes": [
+          "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9"
+        ],
+        "markers": [],
+        "request_id": "ra_8db604c5bac869accf0dbd3f63ac74bad74a29051fea422e0388a79bc3eb56e3"
+      },
+      {
+        "phase": "provider",
+        "hashes": [
+          "5fcf9051e171778223374d3624dc8aee8735ec762d4af9bf6795ee4d5573b9c7",
+          "04c1d1a176a3376c93a982abed5875feb51a7e15bd895d6b4241350fea03f8d9",
+          "8e59e478566cd529231ce912535c32a79cbc72db484289e38709c029c708196b"
+        ],
+        "markers": [
+          "probe-memory-a27a4981b3abb915e38b55f2"
+        ],
+        "request_id": "ra_8db604c5bac869accf0dbd3f63ac74bad74a29051fea422e0388a79bc3eb56e3"
+      }
+    ]
+  },
+  "private_profile_hashes_unchanged": true,
+  "tool_call_count": 5
+}

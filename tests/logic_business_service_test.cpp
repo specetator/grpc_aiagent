@@ -194,6 +194,7 @@ class MemoryAttachments final : public AttachmentRepository {
         out->owner_user_id = user;
         out->session_id = session;
         out->display_name = name;
+        out->mime = "image/png";
         out->bytes = data.size();
         out->status = "ready";
         attachments[out->id] = *out;
@@ -528,6 +529,12 @@ void TestConversationsAndImages() {
                     .code == 400,
             "unready image denied");
     images.attachments[image_id].status = "ready";
+    images.attachments[image_id].mime = "text/markdown";
+    Require(attachments.Read(1,image_id,&contents).code==409 && images.reads==image_reads,
+            "ready text cannot use legacy image reader");
+    Require(attachments.AuthorizeMessageImages(1,single.id,image_content(image_id)).code==400,
+            "ready text cannot masquerade as a message image");
+    images.attachments[image_id].mime = "image/png";
     images.attachments[image_id].session_id.clear();
     Require(attachments.AuthorizeMessageImages(1, single.id, image_content(image_id))
                     .ok() &&

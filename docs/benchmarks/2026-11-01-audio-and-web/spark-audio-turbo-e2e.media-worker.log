@@ -1,0 +1,72 @@
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "assigned", "id": "att_664f0b8a45e6d2491c305edc", "execution_id": "40fbe8f97dd89615a68b0a9ce7e53d87", "state": "running"}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 1}
+{"event": "source_ready", "id": "att_664f0b8a45e6d2491c305edc"}
+{"event": "parser_start", "id": "att_664f0b8a45e6d2491c305edc", "execution_id": "40fbe8f97dd89615a68b0a9ce7e53d87"}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 2}
+{"event": "parser_stage", "id": "att_664f0b8a45e6d2491c305edc", "stage": "asr_running"}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 3}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 4}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 5}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 6}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 7}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 8}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 9}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 10}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 11}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 12}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 13}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 14}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 15}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 16}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 17}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 18}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 19}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 20}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 21}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 22}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 23}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 24}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 25}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 26}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 27}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 28}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 29}
+{"event": "bundle_ready", "id": "att_664f0b8a45e6d2491c305edc"}
+{"event": "heartbeat", "id": "att_664f0b8a45e6d2491c305edc", "count": 30}
+{"event": "published", "id": "att_664f0b8a45e6d2491c305edc", "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e", "heartbeats": 30}
+{"event": "result", "artifact_bytes": 0, "artifact_count": 0, "coverage": {"audio": {"decoded_samples": 19199657, "duration_ms": 1199979, "language": "en", "offset_ms": 0, "sample_rate": 16000, "segments": 381, "speaker_labels": false, "track_end_ms": 1199979}, "container_duration_ms": 1199979, "duration_ms": 1199979, "kind": "audio", "source_origin_ms": 0}, "fragment_count": 381, "id": "att_664f0b8a45e6d2491c305edc", "manifest_sha256": "a114826fd7025272135ddb995676d96fc45002882e88c910646e97fe07cc990d", "pipeline_kind": "media-parser-v1", "pipeline_sha": "c47258ccba18973552c62580fc8a54511ac4f2266b409ea01341817a95935886", "revision": "5444ad5020753079c63c6956abf3553c09481d2300cb41cf6cef6913fb5d853e", "state": "ready", "text_bytes": 24239}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}
+{"event": "result", "state": "idle"}

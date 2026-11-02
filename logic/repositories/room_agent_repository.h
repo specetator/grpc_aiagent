@@ -35,12 +35,15 @@ class MySqlRoomAgentRepository : public RoomAgentRepository {
     bool Tasks(int64_t,nlohmann::json*,std::string*) override;
     bool Task(int64_t,const std::string&,nlohmann::json*,std::string*) override;
     bool SaveTask(int64_t,int64_t,const nlohmann::json&,std::string*) override;
+    ServiceStatus Sources(int64_t,const std::string&,const nlohmann::json&,
+        const std::string&,uint64_t,nlohmann::json*) override;
     bool CheckCatalogSchema(std::string* error);
     bool CheckPublicationSchema(std::string* error);
     bool Bindings(int64_t, nlohmann::json*, std::string*) override;
     bool SetBinding(int64_t, int64_t, const std::string&, bool, std::string*) override;
     bool Workspace(int64_t,nlohmann::json*,std::string*) override;
     bool SetWorkspace(int64_t,int64_t,int64_t,const std::string&,std::string*) override;
+    bool ContextGeneration(int64_t,int64_t*,std::string*) override;
     bool Publication(const nlohmann::json&,const std::string&,
                      const PublicationMatch&,const PublicationDecision&,nlohmann::json*,std::string*,bool* = nullptr) override;
     bool Pending(nlohmann::json*, std::string*) override;

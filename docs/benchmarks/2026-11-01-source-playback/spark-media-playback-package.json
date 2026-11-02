@@ -1,0 +1,15 @@
+{
+  "kind": "local_image_contents",
+  "image_id": "sha256:ded6f8c1d35cfb49b660ffc72d4e8cad17420e1c46f481e11edeb7478aed1ed5",
+  "image_tag": "spark-push:media-playback",
+  "static_sha256": {
+    "index.html": "905e2e49a588c6b7e747450673f97ed7795d9dee561a5c377e1c2c24b2da249e",
+    "chatroom.html": "2aa5f719bca485b255b900d0d71e78761059644f78c3c4e3b03eedc72d982f19",
+    "room_media.js": "072c650c827eb8f7dc6c4db0c889546b1ec16ee4c0f37ec4d36c2f293ef60382",
+    "room_agents.js": "fc829ce3987303bad7b2cf8d2a03df618ac10e5c2986cc274d0a3f8338990142",
+    "collaboration_ui.js": "ae566a32bc8b2a28a12d7a2fabcf67df3d82aeee49428aa9946bceb50b601808",
+    "collaboration_ui.css": "a48ed3f2752c9682b72b33ffe7f21593ffdb8a0dd093ed31fad9c0fda6cb166a"
+  },
+  "matches_worktree": true,
+  "deployed": false
+}

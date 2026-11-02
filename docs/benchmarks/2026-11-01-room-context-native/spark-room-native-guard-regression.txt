@@ -1,0 +1,18 @@
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+Test project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+    Start 33: hermes_native_config_test
+1/6 Test #33: hermes_native_config_test ...............   Passed    0.03 sec
+    Start 59: hermes_native_test
+2/6 Test #59: hermes_native_test ......................   Passed    3.06 sec
+    Start 60: hermes_native_gateway_test
+3/6 Test #60: hermes_native_gateway_test ..............   Passed    3.95 sec
+    Start 68: generic_room_agent_test
+4/6 Test #68: generic_room_agent_test .................   Passed    1.88 sec
+    Start 70: hermes_public_workspace_contract_test
+5/6 Test #70: hermes_public_workspace_contract_test ...   Passed    0.11 sec
+    Start 71: room_context_runtime_contract_test
+6/6 Test #71: room_context_runtime_contract_test ......   Passed    0.31 sec
+
+100% tests passed, 0 tests failed out of 6
+
+Total Test time (real) =   9.33 sec

@@ -1,0 +1,14 @@
+{
+  "kind": "packaged_static_assets",
+  "passed": true,
+  "image": "sha256:3e114fba43f91de3a40281a6ac3ac510457c988eb9fa25c34c7f87836a06ca4c",
+  "sha256": {
+    "index.html": "b8e6b6e2589896e2bda8ae94c72fa4e9dc22b9354ce8757e5594e36d94b5f007",
+    "chatroom.html": "2bdd6be3131fdb2812e0b0afd69eecb143eacb7dcdeb098a4ee485c46fc0a1a3",
+    "room_media.js": "187d2c2920ca403a18e6105c797c3ce8e1f4213bd3a831d13b1087fa2ab08be2",
+    "room_agents.js": "daf29fe85784ca165c9a7c3587f731a9ce8de7c513ffa1c626d59b48ad598adf",
+    "collaboration_ui.js": "36cb9b4f48f8c1e0db5aeefed52430ef4093a6f3fe553456ef60eeba7ec8b782",
+    "collaboration_ui.css": "f9e21bb2bc3cffae142135af6056d32c52c9f7b657e148b1219a477f3770dc6c"
+  },
+  "scope": "Exact packaged asset hashes, not a service launch or deployment"
+}

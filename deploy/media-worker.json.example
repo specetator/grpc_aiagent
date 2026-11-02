@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "image_id": "sha256:REPLACE_WITH_APPROVED_IMAGE_DIGEST",
+  "model_dir": "/srv/spark-media/models/approved-small",
+  "origin": "http://127.0.0.1:9011",
+  "key_file": "/srv/spark-media/worker.key",
+  "state_dir": "/srv/spark-media/state",
+  "pipeline_sha256": "REPLACE_WITH_WORKER_DESCRIBE_PIPELINE_SHA256",
+  "parser_sha256": "REPLACE_WITH_WORKER_DESCRIBE_PARSER_SHA256"
+}

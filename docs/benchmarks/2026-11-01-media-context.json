@@ -1,0 +1,148 @@
+{
+  "date": "2026-11-01",
+  "base_commit": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "worktree": "uncommitted additive multimodal development; existing work, private profiles and interview handbook preserved",
+  "scope": "Room context generation foundation: durable scope, authorization, canonical publication, background filtering and execution namespace; no media tools or deletion enabled",
+  "status": "context_generation_foundation_passed",
+  "full_multimodal_goal_complete": false,
+  "source_sha256": {
+    "logic/services/room_agent_service.h": "61628a47662b87e7ecdd3dfea4f7ce1b40aee66cc623401fba28b5000cb998f2",
+    "logic/services/room_agent_catalog.cpp": "2746ea58fa4fb6646121fcd5b0caa53d98898aa704d442be9f0c8bc237e86b00",
+    "logic/services/room_workspace_service.cpp": "6f07462744cf6b102162d573ef79decd134599e2389de8d2febc67242365be2a",
+    "logic/services/message_service.cpp": "9dc0bd2738bfdd137d32ef7111ac88fd473849852637b4f7a8745b198ae4f67a",
+    "logic/repositories/room_agent_repository.h": "a043f03b487cab7b6a66d15a1d752f797c13d635014fb212622105ba9292fac0",
+    "logic/repositories/room_agent_repository.cpp": "786b6fad9f12b3b200c44d9863a4a41c0dabce12b8565b4eb8fee4de092b4283",
+    "cannbot/scripts/room_workspace.py": "5e6de53e951f0a7ae911e19825fb7908d754142d191751820d69111f998666c9",
+    "cannbot/scripts/agent_router.py": "41b9788ae54f84cc9bcc100b8beb57a975a48f738da1746022a4c59b9ee37a58",
+    "cannbot/scripts/test_room_workspace.py": "bdb40663973d3575cc3320fdd3c92d4398f834bd55ee029a280f082be6acc74d",
+    "cannbot/scripts/test_generic_room_agent.py": "a3f8ecf7d76e68f01314e8757842e4c8998d656d83463da3ed980bbf1a36335d",
+    "tests/room_agent_service_test.cpp": "c186793ec24b696be80f53c769a7c74b50cc22e58ac4ef8fa6a32c6fca89dc60",
+    "tests/space_mysql_integration_test.cpp": "4ac5ecb84d7f57208fa9993e680694f555ca51246d85fd38f3acf2ebe3031dbe",
+    "tests/run_mysql_review_tests.py": "9f09b2097a2ffa2acf7c8467df0ccafff83ad3cac66401d53cc3297483315243",
+    "sql/schema.sql": "dc98913bbbae31a10dfaad1b861e33ea000d1d259260b6ceb8c4d66a8b4d235f",
+    "sql/migrations/20261101_media_context.sql": "69e22e797fc4f8df2a58c6ee8dab6e7af8fed0c0edab4cf87ac5d15a240aa4b5",
+    "docs/media-agent-context.md": "325d1fb97ef0017f18b07b921f66cf04b33143e6119d1e262b692d84a76c8c74",
+    "docs/multimodal-collaboration.md": "10b39c4249a6b4d81da63332cab3359f17db09352fd7ea801bf7c80a891c79cc",
+    "cannbot/knowledge-sources.json": "deaf591cf01fc91e6fc5dd154524d8b044de3f207367440a4a093df529357944",
+    "cannbot/skills/spark-push-knowledge/references/architecture-map.md": "dc4c81bed0bcf8c77de493d4c4e7ef03c7bba6d8ab5e757987d3209bae15d986"
+  },
+  "validation": [
+    {
+      "command": "cmake --build build-wsl -j2",
+      "exit_code": 0,
+      "evidence": "build.txt"
+    },
+    {
+      "command": "ctest --test-dir build-wsl --output-on-failure --output-junit /tmp/spark-media-context-ctest-final.xml",
+      "exit_code": 0,
+      "registered": 75,
+      "passed": 65,
+      "skipped": 10,
+      "failed": 0,
+      "evidence": [
+        "ctest.txt",
+        "ctest.xml"
+      ]
+    },
+    {
+      "command": "env -u SPARK_TEST_MEDIA_IMAGE -u SPARK_TEST_MEDIA_WORKER_TEST python3 tests/run_mysql_review_tests.py build-wsl",
+      "exit_code": 0,
+      "passed": 5,
+      "kind": "owned MySQL/Redis, real production HTTP text pipeline and SQL repositories; no model or Kafka execution",
+      "evidence": "mysql.txt"
+    },
+    {
+      "command": "python3 cannbot/scripts/validate_knowledge.py --strict",
+      "exit_code": 0,
+      "evidence": "knowledge.txt"
+    },
+    {
+      "command": "python3 cannbot/scripts/test_pi_citations.py",
+      "exit_code": 0,
+      "evidence": "citations.txt"
+    },
+    {
+      "command": "python3 cannbot/scripts/sync_pi_agent.py --check",
+      "exit_code": 1,
+      "evidence": "sync-check.txt",
+      "meaning": "read-only comparison reports existing installed-skill differences; no installation or personal-profile writes performed"
+    }
+  ],
+  "targeted_results": {
+    "room_agent_service_test": {
+      "passed_checks": 214,
+      "kind": "C++ service contract with memory repository"
+    },
+    "generic_room_agent_test": {
+      "passed_cases": 20,
+      "kind": "real AgentStore and controlled adapter, not Native E2E"
+    },
+    "room_project_snapshot_test": {
+      "passed_cases": 13,
+      "kind": "filesystem and controlled HTTP authority contracts"
+    }
+  },
+  "real_sql_checks": [
+    "Upgrade retains existing attachment; repeated migration retains existing generation 17",
+    "Explicit and missing legacy epoch; current membership and canonical authorization",
+    "Missing context table returns unavailable; no false cancellation committed; stored publication can replay",
+    "Pre-workspace generic first publication fenced; proven old message/result adopted without changing message sequence",
+    "Old generic result/history mismatch rejects adoption without fabricating a publication",
+    "Reservation garbage collection does not erase original history authority",
+    "Revocation holds im_group; real publication wait observed in performance_schema before epoch 2 commit; stale first publication cancelled",
+    "Publication holds im_group while original Service policy is gated by test promise; real epoch writer wait observed; original decision commits then epoch 3; canonical replay unchanged",
+    "Existing CANN original-result, conflict, reservation-GC and message persistence regression retained"
+  ],
+  "supplemented_skips": [
+    "media_processing_http_test",
+    "media_mysql_integration_test",
+    "media_artifact_mysql_test",
+    "message_reservation_integration_test",
+    "space_mysql_integration_test"
+  ],
+  "not_rerun_skips": [
+    "route_generation_integration_test",
+    "media_pipeline_http_test",
+    "media_worker_http_test",
+    "collaboration_browser_test",
+    "redis_sequence_integration_test"
+  ],
+  "independent_review": {
+    "reviewer": "PASS WITH NOTES",
+    "tester": "PASS for context-generation foundation evidence",
+    "execution": "parent executed all builds/tests; reviewers did not run commands",
+    "resolved": [
+      "Removed legacy generic pre-workspace publication bypass; reused verified old-result adoption",
+      "Strict integer context comparison including partial request cohorts and background selection",
+      "Observed actual room-row lock waits for both revocation/publication orders",
+      "Verified transactional PutRequest canonical comparison prevents conflicting scope insertion"
+    ]
+  },
+  "development_failures": [
+    {
+      "kind": "new contract test expectation mismatch",
+      "evidence": "initial-python-failure.txt",
+      "cause": "test expected raw text but Router retained the existing Kernel Agent display prefix",
+      "resolution": "assert actual controlled adapter session contents and absence of old data, preserving product presentation; final suite passed"
+    }
+  ],
+  "limitations": [
+    "No public context mutation/delete endpoint; tests advance epoch only in their owned SQL database",
+    "room_search, room_read and room_read_media and durable per-request source receipts not implemented",
+    "Real Pi/Hermes media, native history/todo isolation and context-change E2E not executed",
+    "No new barrier retracts frames already authorized and enqueued in Kafka/Comet, or bytes already delivered",
+    "Task-source validity and Web multimodal library/timeline still require implementation and three-user E2E",
+    "Actual parser/worker HTTP, browser fixture and independent Redis skip tests were not rerun in this foundation phase; prior stage results are not relabeled as current results"
+  ],
+  "artifacts": {
+    "build.txt": "c5c9f09be57e0f416dc52cb7f068cf93c917555f1f50047341c049d4f85f85ef",
+    "ctest.txt": "977737567fbc7453d22e8b2f258c744a0ef78bfc5c871eed9dc2868690df0b5e",
+    "ctest.xml": "105c8a0e56786186158081b8ad6f32700ee88ef1b0d94097e0b978269fed776a",
+    "mysql.txt": "8a5ff795530f5f8b8a5159cc50198811502a98dba90dd3fa16a8f5dd4c338a9f",
+    "initial-python-failure.txt": "68c999777787d2c30d280cef01c8a638d64392552c6a0887169142adf2f2529b",
+    "knowledge.txt": "34082076ee495d3f7178fe0df4ce7043c0252dddec678565bb4e4307a54045cc",
+    "citations.txt": "01a43506d267a7a8c1fa33c62440e0f358f234ab91c15370875742cf02a9f8d4",
+    "sync-check.txt": "6bce1a61aea5c376aa689eb08e2cd56882849e14966824610c6a729a63dcc11c"
+  },
+  "preserved_interview_handbook_sha256": "f7256ea1975f02925e4c44e74c391418134c2c8eb2a63868a442f7ea4177b984"
+}

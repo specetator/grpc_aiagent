@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "/tmp/spark-asr-domain-context-probe.py", line 18, in <module>
+    with Path('/tmp/spark-media-asr-turbo/model.bin').open('rb') as stream:model_hash=hashlib.file_digest(stream,'sha256').hexdigest()
+AttributeError: module 'hashlib' has no attribute 'file_digest'

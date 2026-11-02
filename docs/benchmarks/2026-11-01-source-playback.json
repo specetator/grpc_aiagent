@@ -1,0 +1,74 @@
+{
+  "date": "2026-11-01",
+  "phase": "source-timestamp-playback",
+  "overall_goal_complete": false,
+  "source_commit": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "implementation": [
+    "Audio/video transcript fragments and fixed source references open the original file at its timestamp without autoplay",
+    "Original content is authenticated and hash-checked; cited source is rechecked before and after download; stale views and invalidated sources cannot open a player",
+    "Focused media E2E has an explicit bounded 1..3600-second processing wait, default 900; worker lease policy is unchanged"
+  ],
+  "validation": {
+    "browser": {
+      "kind": "controlled HTTP/WS browser contract; actual PCM WAV browser decoding",
+      "passed": true,
+      "checks": 28,
+      "includes": [
+        "seek to one second without autoplay",
+        "source invalidated during download does not open a player"
+      ]
+    },
+    "knowledge": {
+      "passed": true,
+      "registered_sources": 200
+    },
+    "syntax_and_diff_check": true
+  },
+  "package": {
+    "kind": "local_image_contents",
+    "image_id": "sha256:ded6f8c1d35cfb49b660ffc72d4e8cad17420e1c46f481e11edeb7478aed1ed5",
+    "image_tag": "spark-push:media-playback",
+    "static_sha256": {
+      "index.html": "905e2e49a588c6b7e747450673f97ed7795d9dee561a5c377e1c2c24b2da249e",
+      "chatroom.html": "2aa5f719bca485b255b900d0d71e78761059644f78c3c4e3b03eedc72d982f19",
+      "room_media.js": "072c650c827eb8f7dc6c4db0c889546b1ec16ee4c0f37ec4d36c2f293ef60382",
+      "room_agents.js": "fc829ce3987303bad7b2cf8d2a03df618ac10e5c2986cc274d0a3f8338990142",
+      "collaboration_ui.js": "ae566a32bc8b2a28a12d7a2fabcf67df3d82aeee49428aa9946bceb50b601808",
+      "collaboration_ui.css": "a48ed3f2752c9682b72b33ffe7f21593ffdb8a0dd093ed31fad9c0fda6cb166a"
+    },
+    "matches_worktree": true,
+    "deployed": false
+  },
+  "not_executed": [
+    "Full CTest and unrelated SQL/runtime suites were not repeated",
+    "Real three-browser multimedia workflow was not exercised",
+    "Current application services were not replaced and no image was pushed"
+  ],
+  "independent_audio_run": {
+    "status_at_this_snapshot": "running",
+    "selected_case": "audio",
+    "model": "large-v3-turbo",
+    "input": "original 20-minute synthetic meeting fixture",
+    "processing_timeout_seconds": 3600,
+    "report_path": "/tmp/spark-audio-turbo-e2e.json",
+    "log_path": "/tmp/spark-audio-turbo-e2e.log",
+    "image_tag": "spark-push:media-sources",
+    "not_counted_as_passed": true,
+    "note": "Uses previous application image, not the new playback image. No transcript or owner/action accuracy conclusion is available yet."
+  },
+  "source_sha256": {
+    "web_demo/static/room_media.js": "072c650c827eb8f7dc6c4db0c889546b1ec16ee4c0f37ec4d36c2f293ef60382",
+    "tests/collaboration_browser_test.cjs": "7ddc5bb0ea6f1b23625a2d7f348b16f51be83d8f0788b391f46dbaf1b6fe05b7",
+    "tests/public_room_runtime_e2e.py": "c94e87fcc5fbbf4fda61920217dec6096a2ceb4a6f95165dfca237bc14424078",
+    "tests/public_media_scenario.py": "cf880c28d8d10913f1cd97d10d523b3808530bfc00e3c4cf16c67e62a492ae3b",
+    "docs/web-collaboration-client.md": "bfbc727cfd825543cd76ae61ffb64f061a47ab96f6616a938342d15b025e04ac",
+    "docs/multimodal-service-e2e.md": "b0e08443a722022e80efe13ceb8275d2dc981a813104f17d80d1a4727952f705"
+  },
+  "artifact_directory": "2026-11-01-source-playback",
+  "artifact_sha256": {
+    "spark-media-source-playback-browser.log": "04241e32dd9ac0a0ab0914ebeba72575dd484be604952a74a7f5d4edc6314800",
+    "spark-media-source-playback-knowledge.log": "92ab88e7f815b03932841070ddc708679abb2f288683aaa83add4323ca2d12a6",
+    "spark-media-playback-package.json": "651bfcd7f350c82f22a0110ecdc6efd7b02722e36dad96e8f5228f00dd6cb18f",
+    "spark-media-playback-image-build.log": "e74a8ad0ef63c55b8a6f435e42ca5e34342ed1e032654bcb551295b969f5347a"
+  }
+}

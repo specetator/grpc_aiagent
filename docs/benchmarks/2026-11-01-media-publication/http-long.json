@@ -1,0 +1,172 @@
+{
+  "scope": "Real parser -> authenticated HTTP -> MySQL/files -> authorized room content.\n\nSynthetic media; real CPU ASR. This harness is not the production worker and\ndoes not validate native Agent understanding, Web/Kafka or worker crash adoption.\n",
+  "status": "passed",
+  "image_id": "sha256:4c2e26418ad4ec59d0d57bdf2a15af30826c14de5d253d39bf96be2de2b38120",
+  "pipeline_sha256": "7b03be3bca25984c22e9485bb82b17e854cc1b00a59d30f3f32daeff7191a57a",
+  "parser_sha256": "e29263d81f71583e3c49cd6cc8d5d0a5cfb2bcbed36c40482b171d90c8c10188",
+  "model_sha256": "b2f73aed0684edce51988a894b0a40f3ef581f63d4e50bea7e2daa414dda9a8e",
+  "cases": [
+    {
+      "file": "blank.png",
+      "source_sha256": "c00cf2cc0bdba6ec502e7330a2c4b54e792d4d0135adf2e965d4573b57ddf234",
+      "coverage": {
+        "images": 1,
+        "kind": "image"
+      },
+      "fragment_count": 0,
+      "artifact_count": 1,
+      "manifest_sha256": "ee79880b7a1419cc035bc6afe962520db977523e87f4151ea966440a2fcdbb74",
+      "charged_bytes": 643,
+      "heartbeats": 0,
+      "seconds": 3.614,
+      "passed": true
+    },
+    {
+      "file": "diagram.png",
+      "source_sha256": "0c4218806d52644fe6e82eede8d7bcc285fc42536700165deeadf6238056e12d",
+      "coverage": {
+        "images": 1,
+        "kind": "image"
+      },
+      "fragment_count": 1,
+      "artifact_count": 1,
+      "manifest_sha256": "06a8ef864ab6e155c7e97022ab35251138ddd046087766557538de572174701d",
+      "charged_bytes": 13630,
+      "heartbeats": 0,
+      "seconds": 2.698,
+      "passed": true
+    },
+    {
+      "file": "design.pdf",
+      "source_sha256": "b561ddbef04f6f8d94e226a6bd3cb70bce92c0a475d159a722d59ff3a4211586",
+      "coverage": {
+        "kind": "pdf",
+        "page_count": 3,
+        "rendered_pages": 3
+      },
+      "fragment_count": 3,
+      "artifact_count": 3,
+      "manifest_sha256": "16ad7de7a74d2ee1eb48ac634777e388c2ce563f5cd7bf6f435a60af338d8d79",
+      "charged_bytes": 131397,
+      "heartbeats": 0,
+      "seconds": 3.423,
+      "passed": true
+    },
+    {
+      "file": "notes.docx",
+      "source_sha256": "d4ee3375989f5dfa4ffd548abd3056726b336c68af4b9479f4914798558c729d",
+      "coverage": {
+        "kind": "docx",
+        "paragraphs": 2,
+        "sections": [
+          "document"
+        ]
+      },
+      "fragment_count": 3,
+      "artifact_count": 1,
+      "manifest_sha256": "9b16b80ff8c76555effeb9ed6129daed933768e921f21d5fd5b621396fed8bd3",
+      "charged_bytes": 13709,
+      "heartbeats": 0,
+      "seconds": 1.937,
+      "passed": true
+    },
+    {
+      "file": "incident.mp4",
+      "source_sha256": "44c6d6589fa7cd687f635ca1cc2b434755911a75bc0011c0b286552127409c65",
+      "coverage": {
+        "audio": {
+          "decoded_samples": 69846,
+          "duration_ms": 4365,
+          "language": "en",
+          "offset_ms": 1953,
+          "sample_rate": 16000,
+          "segments": 1,
+          "speaker_labels": false,
+          "track_end_ms": 6318
+        },
+        "container_duration_ms": 10000,
+        "duration_ms": 10000,
+        "kind": "video",
+        "source_origin_ms": 0,
+        "video": {
+          "first_frame_ms": 0,
+          "frames": 2,
+          "last_frame_ms": 5000,
+          "sample_interval_ms": 5000,
+          "track_end_ms": 10000
+        }
+      },
+      "fragment_count": 1,
+      "artifact_count": 2,
+      "manifest_sha256": "5ed5899fdd024dcbe1073796fe48fdb79976272665eae32fd11e353b56aa0e0e",
+      "charged_bytes": 61333,
+      "heartbeats": 0,
+      "seconds": 9.125,
+      "passed": true
+    },
+    {
+      "file": "speech.wav",
+      "source_sha256": "16edca834e404bef717245c2592005db70a7a12562ba39e8ec5c720c5efec43e",
+      "coverage": {
+        "audio": {
+          "decoded_samples": 68491,
+          "duration_ms": 4281,
+          "language": "en",
+          "offset_ms": 0,
+          "sample_rate": 16000,
+          "segments": 2,
+          "speaker_labels": false,
+          "track_end_ms": 4281
+        },
+        "container_duration_ms": 4281,
+        "duration_ms": 4281,
+        "kind": "audio",
+        "source_origin_ms": 0
+      },
+      "fragment_count": 2,
+      "artifact_count": 0,
+      "manifest_sha256": "120fcfe41d74e001c6cbeaf9fd6577c001c458de786c4a677d1e40972c5d3cce",
+      "charged_bytes": 72,
+      "heartbeats": 0,
+      "seconds": 8.04,
+      "passed": true
+    },
+    {
+      "file": "meeting-20min.wav",
+      "source_sha256": "f56404ce5134c2a9b872ddaf0deede03f245a9a5af5185c116d886a1a2d56f3f",
+      "coverage": {
+        "audio": {
+          "decoded_samples": 19199651,
+          "duration_ms": 1199978,
+          "language": "en",
+          "offset_ms": 0,
+          "sample_rate": 16000,
+          "segments": 395,
+          "speaker_labels": false,
+          "track_end_ms": 1199978
+        },
+        "container_duration_ms": 1199978,
+        "duration_ms": 1199978,
+        "kind": "audio",
+        "source_origin_ms": 0
+      },
+      "fragment_count": 395,
+      "artifact_count": 0,
+      "manifest_sha256": "c5bfcea62b4b096021a3308b3f3e39f7d83e0b1322d4cce09e8abcf97d72dd70",
+      "charged_bytes": 24004,
+      "heartbeats": 21,
+      "seconds": 217.375,
+      "passed": true
+    }
+  ],
+  "oversized_artifact_rejected_without_write": true,
+  "normal_internal_body_limit_preserved": true,
+  "largest_successful_artifact_request_bytes": 67370,
+  "withdrawn_publication_rejected_between_requests": true,
+  "actual_http_restart": true,
+  "revoked_member_rejected": true,
+  "publication_sql_failure_rolled_back": true,
+  "canonical_python_cpp_digests_matched": true,
+  "staged_content_not_readable": true,
+  "changed_ready_summary_conflicted": true
+}

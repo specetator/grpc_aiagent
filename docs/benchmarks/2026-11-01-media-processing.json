@@ -1,0 +1,167 @@
+{
+  "date": "2026-11-01",
+  "scope": "room media upload and durable UTF-8 text ingestion foundation",
+  "full_multimodal_goal_complete": false,
+  "base_commit": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "worktree": "uncommitted additive implementation; original private profiles/configuration untouched",
+  "source_sha256": {
+    "cannbot/knowledge-sources.json": "5eef31d9f50227739511cfa387f73e77e697832b4a095dd5e26e6dca8bb9f91d",
+    "cannbot/scripts/media_text_worker.py": "2a0666e491e70aaf92945e47549bc817129b3e73e07a1fd9241523a16c392c6e",
+    "cannbot/skills/spark-push-knowledge/references/architecture-map.md": "a39d291e9aeaa98e76d85b8acd165b91d39c2ef54d63fcb1a41ffab5bfa0339e",
+    "docs/benchmarks/2026-11-01-pi-media-capability-images/0aa1370966eb14c9033994eb1f843dceb97a84077a2a587c27cb7e926a152377.png": "0aa1370966eb14c9033994eb1f843dceb97a84077a2a587c27cb7e926a152377",
+    "docs/benchmarks/2026-11-01-pi-media-capability-images/9563e396d46e2eb87a4bcd19e347e06cc660c265aec084adb70d6805f23d80c5.png": "9563e396d46e2eb87a4bcd19e347e06cc660c265aec084adb70d6805f23d80c5",
+    "docs/benchmarks/2026-11-01-pi-media-capability-images/c406b7747326b0f3200b268ab9efbeac944ece0b05917ae333a0960166b5bdd8.png": "c406b7747326b0f3200b268ab9efbeac944ece0b05917ae333a0960166b5bdd8",
+    "docs/benchmarks/2026-11-01-pi-media-capability.json": "3d94b6bbe28f3ef80e7b529d4f75585febb63e02b99c78c21e03249e4f7a1411",
+    "docs/multimodal-collaboration.md": "df241d7c0190a3907fcc3448cdd2ed6354a42b8efac4f0148fff0eeabbd157c8",
+    "logic/CMakeLists.txt": "3d2752738d13de5d1804b93987878c1d73d8cb9fb375632c955e37be074b33e7",
+    "logic/http_server.cpp": "3239491c47d0e874d24e56f7f6a44e86d629df6a34ea8b6460b4fa6a57f5caf4",
+    "logic/http_server.h": "1c8130b4758b68fe67f45510e3fea6edd9ec736460523659bb98d276bf794645",
+    "logic/main.cpp": "05ab88631a305544475e03f3abe90a39bd817e22cac9cdeed7470f4fa301d806",
+    "logic/repositories/media_blob_store.cpp": "2c3ac2bf999443c45a652f3e8b66dad2df3721b58c74e26c75732a327b97bfd8",
+    "logic/repositories/media_blob_store.h": "7838c8adaa604406d2570907b789e4d543c4bd8ae5936b58363672f298f53950",
+    "logic/repositories/media_processing_repository.cpp": "59b370e65b45bf5eef474d55d64d7ef22bd6ad0c9a1e11820c7553fbbb1c59d8",
+    "logic/repositories/media_processing_repository.h": "b9e82d3a3cc902baee379d40f3ca21c4c17b198a6207dedf2b8db3a2df923a06",
+    "logic/repositories/media_repository.cpp": "60f7980239b669174e2e1b229fee6db8f5e517a21c6780a7bf768d9a8d526dba",
+    "logic/repositories/media_repository.h": "41c44db670c7231be7781eedc7363a57a321a1f93f9bf1176940d4ae85bd601a",
+    "logic/services/attachment_service.cpp": "69d1cf8fd6993f806b9f63c33a63bbb485c66165db79e1cf172b550efb1e3a53",
+    "logic/services/media_processing_service.cpp": "60702e02aec1b66be857c6757d09d183f4c37f516f311f0b1093332e7f074d68",
+    "logic/services/media_processing_service.h": "1b2533b8e19ee76bd40f5f4d2c310681f10cce1bdd0bff4cf18e21a3397b9087",
+    "logic/services/media_repository.h": "425a85c71b307896e153f2b394df667e55ad3b7d493234e580e57727ec7643bf",
+    "logic/services/media_service.cpp": "25cdd55bd282aa4ec2856f996fd07eac358cc6e6b8aa53acdfe6c09273673923",
+    "logic/services/media_service.h": "55fdf6bdb1175d7ac5bfaad3ec8bf205e9968e6085bdd6c0adae83519f3cef42",
+    "sql/migrations/20261101_media_processing.sql": "5eeaf8498e31bd69969dd9596373f0aa54544ca1ecba32a43e19817d8a76393a",
+    "sql/migrations/20261101_room_media.sql": "141d3d9b2ce7fa0fe7d429ef2672208895c16b3d8b5fb4b9a21390c65ded4813",
+    "sql/schema.sql": "f4d4c283a50165ce35c7afe4506c270301588bdeb49d6ff1b6530c0a50ab5d78",
+    "tests/CMakeLists.txt": "79fc2bf34cd634f7bcc033c451ff6b81e491d162d85cfbae6bd58103c18a1cf2",
+    "tests/logic_business_service_test.cpp": "afa4887977f215c6ed18706c7a190576c1df039f9e15326f45feeaedcd4be49c",
+    "tests/media_blob_store_test.cpp": "02f603ac6fc97d2c8fcd9ab150e8dc5703334a674bfdc7dc174d20bae6f54839",
+    "tests/media_mysql_integration_test.cpp": "edb1c4bc57938c804cc6394977db74a1bdbfb2faed8ee6ebaa0378bdfcad4ea9",
+    "tests/media_processing_http_probe.cpp": "cdeb05daa0c31cc6439eb8cd9c8ffb35c59de7733b3f69de58eab62e15847958",
+    "tests/media_processing_http_test.py": "1d948ec0b59d6ee0b0e3e17b3cd2472817e32799f6ef759e4a345d8cdc325772",
+    "tests/pi_media_capability_probe.py": "471693eaa1b6ea703cf50ecd4c30c17114239ffae007bdc09b5055b5c906537d",
+    "tests/run_mysql_review_tests.py": "b791d48b1468c9b0bac4ac56b05f708aeaaedc8406d3e6fcd5ad1d24a61cf46f"
+  },
+  "infrastructure_images": {
+    "mysql:8.0": "sha256:7dcddc01f13bab2f15cde676d44d01f61fc9f99fe7785e86196dfc07d358ae2b",
+    "redis:7.2-alpine": "sha256:ccd6aa8d45ff3f033d6fa15b8cc1a50579f65c89f38cf9bb607a954c4f2128ed"
+  },
+  "commands": [
+    {
+      "command": "cmake --build build-wsl -j2",
+      "exit_code": 0,
+      "warnings": 0
+    },
+    {
+      "command": "ctest --test-dir build-wsl --output-on-failure -R ^(logic_business_service_test|image_attachment_test|media_blob_store_test|http_api_integration_test)$",
+      "exit_code": 0,
+      "passed": 4
+    },
+    {
+      "command": "SPARK_PLAYWRIGHT_MODULE=/tmp/spark-spaces-browser/node_modules/playwright ctest --test-dir build-wsl --output-on-failure -j2 --output-junit /tmp/spark-processing-ctest.xml",
+      "exit_code": 0,
+      "registered": 69,
+      "passed": 63,
+      "skipped": 6,
+      "failed": 0,
+      "seconds": 56.73,
+      "evidence": "docs/benchmarks/2026-11-01-media-processing/ctest.txt"
+    },
+    {
+      "command": "python3 tests/run_mysql_review_tests.py build-wsl",
+      "exit_code": 0,
+      "real_http_mysql_redis": {
+        "passed": 1,
+        "seconds": 4.32
+      },
+      "real_mysql": {
+        "passed": 3,
+        "seconds": 3.17
+      },
+      "migration": "pre-media legacy metadata preserved after both incremental migrations applied twice",
+      "evidence": "docs/benchmarks/2026-11-01-media-processing/mysql-http.txt"
+    },
+    {
+      "command": "python3 tests/run_redis_review_tests.py build-wsl",
+      "exit_code": 0,
+      "passed": 2,
+      "seconds": 0.15,
+      "evidence": "docs/benchmarks/2026-11-01-media-processing/redis.txt"
+    },
+    {
+      "command": "python3 cannbot/scripts/validate_knowledge.py --strict",
+      "exit_code": 0,
+      "sources": 144
+    },
+    {
+      "command": "python3 cannbot/scripts/test_pi_citations.py",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    },
+    {
+      "command": "python3 cannbot/scripts/sync_pi_agent.py --check",
+      "exit_code": 1,
+      "result": "private skill/settings drift detected; read-only check, no personal configuration overwrite"
+    }
+  ],
+  "coverage": [
+    "production HTTP adapter, real MySQL repositories, production registration/Redis bearer and room invitations/membership",
+    "three real accounts see the same published text; foreign-room and removed-member queries denied",
+    ">1 MiB actual upload, HTTP fixture SIGKILL and same-identity chunk resume",
+    "actual text worker child SIGKILL after first durable fragment; formal CLI recovers same attempt and publishes once",
+    "concurrent identical claims and competing independent claims; stage replay/conflict; concurrent cumulative budget",
+    "controlled SQL lease expiry/hard deadline; every stale source/heartbeat/stage/complete/fail rejected; bounded automatic attempts",
+    "controlled committed completion-response loss; same-claim terminal recovery and completion receipt replay",
+    "full byte/hash reconstruction; unpublished staging hidden; wrong manifest/line/index rejected",
+    "literal Chinese/quote/SQL-metacharacter search; bounded fragment pages with current revision",
+    "real worker invalid UTF-8 and excessive line-length failures persisted; authorized original retained",
+    "past-window unknown claim returns 410 without allocation; constructed old known claim read-only recovery",
+    "local pending fingerprint mismatch fails before network and retains recovery state",
+    "ready non-image objects cannot use legacy image read or message-image reference paths"
+  ],
+  "reviews": {
+    "architect": "design reviewed before implementation",
+    "reviewer": "PASS WITH NOTES after single-snapshot lease check and expired-claim recovery fixes",
+    "tester": "PASS WITH NOTES after final real infrastructure run; no child executed commands"
+  },
+  "fixed_review_findings": [
+    "single Assignment snapshot for lease Check",
+    "old claim read-only resolution and explicit unresolvable-identity 410"
+  ],
+  "initial_failures_resolved": [
+    "HTTP fixture lacked group_dao include; fixed before current build",
+    "legacy image mock lacked MIME; corrected fixture metadata and added ready-text denial regression"
+  ],
+  "prior_real_pi_image_probe": {
+    "report": "docs/benchmarks/2026-11-01-pi-media-capability.json",
+    "source_and_image_hashes_rechecked": true,
+    "runtime": "isolated Pi",
+    "provider": "openai-codex",
+    "model": "gpt-6-luna",
+    "image_blocks": 3,
+    "strict_visual_answer_passed": true,
+    "not_rerun_this_processing_phase": true,
+    "initial_personal_pi_relay_attempt": "upstream 502 unknown provider; not counted as success"
+  },
+  "not_covered": [
+    "PDF/DOCX parsing, OCR/image renditions, actual 20-minute ASR, video audio/frame timeline",
+    "room-scoped native Pi/Hermes media tools, document+code or audiovisual reasoning",
+    "ordinary chat search, semantic ranking, cross-fragment retrieval, search pagination",
+    "media Web UI and three-browser multimodal collaboration",
+    "media deletion/context generation, authorized explicit reprocessing, unattended draft garbage collection",
+    "read-return-time revocation race barrier",
+    "real MySQL/Redis/Kafka restart, full-stack restart, power loss and naturally occurring network failures in new media flow",
+    "automatic Compose deployment of the new worker and sandboxed binary parsers",
+    "1 GiB original and 16 MiB text limit stress tests; tested upload is >1 MiB",
+    "all previous native model/release E2Es rerun on this dirty worktree"
+  ],
+  "evidence_types": {
+    "browser": "existing Playwright contract with controlled HTTP/WS; not media UI E2E",
+    "native_image": "separate prior real Pi native capability probe only",
+    "lease_and_reply_faults": "controlled injection around real durable state",
+    "process_kills": "actual HTTP fixture and worker child processes; infrastructure remains running"
+  },
+  "source_fingerprints_rechecked_after_validation": true
+}

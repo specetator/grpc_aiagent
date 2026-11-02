@@ -1,0 +1,8 @@
+Internal ctest changing into directory: /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+Test project /home/peco/cppcode/fenbushi/sparkpush_project/build-wsl
+    Start 50: collaboration_browser_test
+1/1 Test #50: collaboration_browser_test .......   Passed    9.28 sec
+
+100% tests passed, 0 tests failed out of 1
+
+Total Test time (real) =   9.29 sec

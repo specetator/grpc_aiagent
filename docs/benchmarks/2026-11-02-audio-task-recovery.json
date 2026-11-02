@@ -1,0 +1,175 @@
+{
+  "date": "2026-11-02",
+  "phase": "Audio-derived task persistence and recovery with independent semantic gate",
+  "overall_goal_complete": false,
+  "source_commit": "295fa3a2d44a24cb3ea1e4fc502146b0c7b3574d",
+  "source_worktree": "dirty; preserve cumulative work, source fingerprints retained in raw receipt",
+  "implementation": [
+    "Existing editable task description preserves quote, interpretation and confirmation notes through the shared RoomAgents.taskDraft formatter",
+    "No new task schema, state, permission rule or automatic task write",
+    "Audio test separates whole-answer semantic quality from independently valid task persistence; failed quality remains a failing exit after recovery observations"
+  ],
+  "real_integration": {
+    "kind": "real three-user HTTP/WS, MySQL/Redis/Kafka/Compose, production parser and Pi/Hermes native runtimes; synthetic audio, no browser interaction",
+    "ok": false,
+    "exit_code": 1,
+    "selected_cases": [
+      "audio"
+    ],
+    "cases_passed": [],
+    "case_failures": {
+      "audio": "AssertionError: ('silver lantern', 'Alice', 'action differs from checkpoint')"
+    },
+    "processing_seconds": 567.1465333200176,
+    "audio_seconds": 1199.9785625,
+    "fragment_count": 381,
+    "global_log_records": 14,
+    "log_record_caveat": "14 records include one explicit semantic failure; this is not 14 passing tests",
+    "task_evaluations": [
+      {
+        "index": 0,
+        "passed": false,
+        "error": "AssertionError: task still requires confirmation"
+      },
+      {
+        "index": 1,
+        "passed": true
+      },
+      {
+        "index": 2,
+        "passed": true
+      },
+      {
+        "index": 3,
+        "passed": true
+      },
+      {
+        "index": 4,
+        "passed": false,
+        "error": "AssertionError: task still requires confirmation"
+      },
+      {
+        "index": 5,
+        "passed": false,
+        "error": "AssertionError: task still requires confirmation"
+      }
+    ],
+    "selected_task_index": 1,
+    "selected_task_title": "Complete database recovery verification",
+    "task_before_restart": {
+      "created_by": 900000000403,
+      "assignee_user_id": 900000000404,
+      "status": "running",
+      "revision": 2
+    },
+    "audio_task_fields_compared_after_restart": [
+      "title",
+      "description",
+      "steps",
+      "source_ids",
+      "summary"
+    ],
+    "audio_task_fields_not_compared_after_restart": [
+      "assignee_user_id",
+      "status",
+      "revision"
+    ],
+    "other_observations": [
+      "Completed native executions and attributed final messages survive duplicate client submission and Kafka replay",
+      "Media sources and final messages survive full Compose restart and fresh login",
+      "Removed member is denied original and derived audio access"
+    ],
+    "semantic_failure": "First checkpoint still transcribes queue backpressure as QBAC Pressure; downstream task success does not resolve this failure",
+    "expected_names_or_terms_supplied_to_model": false,
+    "command": "PATH=/home/peco/.local/node/bin:$PATH /tmp/spark-spaces-py311/bin/python tests/public_room_runtime_e2e.py --image spark-push:media-review --media --media-case audio --media-processing-timeout 3600 --media-image spark-media:development --media-model /tmp/spark-media-asr-turbo --media-fixtures /tmp/spark-collaboration-fixtures-v2-DQVG8Q --out /tmp/spark-audio-task-recovery-e2e.json"
+  },
+  "focused_checks": {
+    "validator_unit_contracts": {
+      "passed": true,
+      "count": 12,
+      "kind": "synthetic assertion unit tests, not model quality"
+    },
+    "browser_contracts": {
+      "passed": true,
+      "count": 28,
+      "kind": "controlled HTTP/WS, not real service E2E"
+    }
+  },
+  "package": {
+    "image_id": "sha256:b9e09b890197cede40a2411c718a1f25b577a79c1a20d5e9de7fdaca34dafb17",
+    "image_tag": "spark-push:media-review",
+    "static_sha256": {
+      "index.html": "905e2e49a588c6b7e747450673f97ed7795d9dee561a5c377e1c2c24b2da249e",
+      "chatroom.html": "2aa5f719bca485b255b900d0d71e78761059644f78c3c4e3b03eedc72d982f19",
+      "room_media.js": "1b2a98361458addb613d2b4c97e6eaf9d9fa41bc586276b70f29f82e3085e918",
+      "room_agents.js": "1abc56df1cf054c13f97d4744746d3b55ee104e1296bdf9da259d68cd4abae3c",
+      "collaboration_ui.js": "ae566a32bc8b2a28a12d7a2fabcf67df3d82aeee49428aa9946bceb50b601808",
+      "collaboration_ui.css": "a48ed3f2752c9682b72b33ffe7f21593ffdb8a0dd093ed31fad9c0fda6cb166a"
+    },
+    "matches_worktree": true,
+    "deployed": false
+  },
+  "not_executed": [
+    "No repeated PDF/video cases, full CTest or standalone SQL suite in this increment",
+    "No real-browser media-to-native-analysis-to-task interaction",
+    "No real human technical meeting accuracy acceptance",
+    "No production deployment or GitHub publication"
+  ],
+  "cleanup": {
+    "owned_compose_resources_removed": true,
+    "private_pi_model_files_unchanged": true,
+    "original_windows_profile_unchanged": true,
+    "owned_native_profile_removed": true
+  },
+  "source_sha256": {
+    "Dockerfile": "fdf93ceb6d3751d1a665f1f283a27d6aafc33cd171741a465cf548bf7f65440a",
+    "tools/dlq_replay.cpp": "23770989c65a2efe74517d0c8f1ae6ed5080a6464b455fa02824e45d544106f1",
+    "cannbot/scripts/public_runtime.py": "61354793e71a93e2a4880e48dedd44790a873c3eb35eab7ace50678f097fc925",
+    "cannbot/scripts/public_runtime_archive.py": "f5a3ed240e45973b6db3a59df96631b5f1ee07a9b122823d5525c9261774a045",
+    "cannbot/scripts/public_runtime_maintenance.py": "50c7e13306235d08d992e123080c92f0bce0aa9d6097073558ef6af1b71ee275",
+    "cannbot/scripts/public_agent_gateway.py": "002681db0d7b614a03c76e9f3fe151b286cc4ff16c13083482262b21cc1425f5",
+    "cannbot/scripts/hermes_public_gateway.py": "e82fae9bf9ea643dd0a9e52ca1f29e1e622ac52e9ab4607b0021a3cb74c58ecc",
+    "cannbot/scripts/agent_router.py": "577a1a132b31905b3059a90f10c11ceb503e2a3ce0c80a92f5a1f6e8789cbe1f",
+    "cannbot/scripts/hermes_native_adapter.py": "8f932e375f4e7b04e9e0498a545584c89a000afc9994fffb434935918c252c86",
+    "scripts/spark_backup.py": "2ff538952ff7aa518562316938c9da1324ced340c18f63718b0bbe1a54039b04",
+    "scripts/spark_team_backup.py": "391a9ac97d62c0d779767f21b738bc22fe67a89b12a5462756ccec699d2d9fcc",
+    "scripts/verify_public_agent_mode.py": "fa66253998b709104fb937e4f0194b0eea90beafc1a5686ea9ba7219258ee3e7",
+    "docker-compose.agents.yml": "b34077208006c9981879db2fcdf039bc6269909573d6577505e18b785caab6dd",
+    "common/config.cpp": "fedb5544afd6a922010c8368dde09b112c8d0205337fa47749a1ff0e7dff7ca9",
+    "logic/services/room_agent_service.cpp": "b774c678e5c189d5cc151cc936ca2802f2bf887c08cdfbbc4077263f1a3d1dd2",
+    "tests/public_runtime_fixture.py": "779738b57194a08cad69c685587b5ec209259d410df37334ee4a8fcbab0dd476",
+    "tests/hermes_room_runtime_fixture.py": "8c82f644ff83cb38ff07413d19fe5457dc09073d383f0c091307761c9eba8ed3",
+    "tests/team_backup_scenario.py": "c8e03d063a0bd0f8a1ca5e338005d849b0babcaa330be0569694b3189d3d14f1",
+    "tests/public_cross_room_scenario.py": "649867a6aacb6eabd6733dd7db1a16b4195551700ce05eb5bea9c41ddf113443",
+    "tests/public_room_runtime_e2e.py": "b5440632d9222e23ab4b7c140ab94f19420440870f697c3771dfe8c495921a50",
+    "tests/public_media_scenario.py": "08f31befb94cb7ba54e3d4083064802ad8968a1016e0c19f6ab6a29481d7f8fc",
+    "tests/room_context_runtime_probe.py": "d7c597046ce60a194b376c6512ddbb18e6972d2d08783c74086f99823d308f3e",
+    "tests/media_parser_fixtures.py": "3a22c34c1b68078751960fa23959533870210a79ef2264b2fea5c5610c13003b",
+    "deploy/Caddyfile.agents": "fa77d20c0a766dbec137e29edb31e6831109618c455d183cfbed7942a75ce9fa",
+    "deploy/Caddyfile": "273565ee564c9c45aec515c6e7706ca3ac4d8afb134808f244c726a16109c7fe",
+    "cannbot/room-context-tools.json": "538dbf2cee52ce64ae02b063b469622cceb5ed1e7964a38dde978abc49e04a64",
+    "cannbot/scripts/room_context.py": "f2deeb4ca967b463abb4b610fe06dc41e6f957922f4b0f5f9a7706c9095a6b4b",
+    "cannbot/pi/extensions/room-context.ts": "13c45132923f294f2c301b101924c460995cb59f16e5e985df87cfd6acd8a148",
+    "cannbot/scripts/media_worker.py": "2b0ebae9525cc50676e36da686edf28c8ebbe6ab85e9467027b407f100bfe32d",
+    "cannbot/scripts/media_text_worker.py": "2a0666e491e70aaf92945e47549bc817129b3e73e07a1fd9241523a16c392c6e",
+    "cannbot/media/parser.py": "e29263d81f71583e3c49cd6cc8d5d0a5cfb2bcbed36c40482b171d90c8c10188",
+    "cannbot/media/sandbox.py": "4b3e24fcbfe95da6cd0af4f12389eb1bd37b65a36bc0e4cfc0347975bbbf3bbd",
+    "logic/services/media_context_service.cpp": "82381848ae4d2c55a01a4f4e75c2c44c819449728f42abc792b2fabae6fd689a",
+    "logic/repositories/media_context_repository.cpp": "84d6ab7b894712a817e3c7484272ad88e7550306a37eb6abd1f6e3e00929ebba",
+    "logic/services/room_task_service.cpp": "80cd7400152e7f0c2d775cdc8f89e8ed9c0addb7386c23733b298b8e333603cd",
+    "logic/repositories/room_agent_repository.cpp": "85f0e5e2add37377e9e539ac99aaaa614d063f79674a17c089f0b9128c2ab198",
+    "logic/repositories/room_context_source_sql.h": "d2f7ef34841669ba6f5e38329c6d5d250bfbf462fd170f13b2901a807b210d6f",
+    "web_demo/static/room_media.js": "1b2a98361458addb613d2b4c97e6eaf9d9fa41bc586276b70f29f82e3085e918",
+    "web_demo/static/room_agents.js": "1abc56df1cf054c13f97d4744746d3b55ee104e1296bdf9da259d68cd4abae3c",
+    "web_demo/static/index.html": "905e2e49a588c6b7e747450673f97ed7795d9dee561a5c377e1c2c24b2da249e"
+  },
+  "artifact_directory": "2026-11-02-audio-task-recovery",
+  "artifact_sha256": {
+    "spark-audio-task-recovery-e2e.json": "56b5456e4b242287ab9295bfe0aa59fe0c7b98e80d9ec8d8b4cb2b0be6b3b138",
+    "spark-audio-task-recovery-e2e.log": "31947f719c6fe273ae0fcc6234af1fba4e58b4a9dfd24dc246914fbb431a9f44",
+    "spark-audio-task-recovery-e2e.audio-transcript.json": "835fc838b7bd01bf82d03cfb4ad1f0e428afa06de40b04144d0650d31cfcd7ae",
+    "spark-audio-independent-gates.log": "72f09eca554e87a45b7156c6109520cf15e8b6ec157dc5c033610649b49b8698",
+    "spark-audio-task-draft-browser.log": "04241e32dd9ac0a0ab0914ebeba72575dd484be604952a74a7f5d4edc6314800",
+    "spark-media-review-package.json": "736a20cd48431708856d2023bc8992ef9885edd6f8d68f4e9411615f50f76c61"
+  }
+}

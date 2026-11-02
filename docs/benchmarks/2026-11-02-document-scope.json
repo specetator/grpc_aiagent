@@ -1,0 +1,77 @@
+{
+  "date": "2026-11-02",
+  "phase": "User-requested document/image delivery scope",
+  "scope_decision": {
+    "source": "explicit user instruction",
+    "current": [
+      "text/Markdown",
+      "PDF/DOCX",
+      "images",
+      "authorized Agent context and source-linked tasks"
+    ],
+    "deferred": [
+      "audio",
+      "video"
+    ],
+    "reason": "User does not require audio/video in the current phase"
+  },
+  "original_full_audio_video_goal_passed": false,
+  "current_scope_implemented": true,
+  "changes": [
+    "Current Web upload selection accepts documents/images and rejects audio/video before upload initialization",
+    "Audio/video playback and analysis entry points are hidden; existing originals remain downloadable and old citations readable",
+    "Server APIs, authorization, stored data, runtime sessions and parser implementation are preserved",
+    "Audio/video test modes and failure receipts remain historical; no further ASR input or tuning required for this phase"
+  ],
+  "validation": {
+    "browser": {
+      "kind": "mock_browser_contract",
+      "checks": 27,
+      "passed": true
+    },
+    "scope": "controlled HTTP/WS browser contracts; no new real model or service run",
+    "syntax": "passed for changed JavaScript"
+  },
+  "requirement_evidence": [
+    {
+      "requirement": "Three-user document sharing, authorized native analysis, common timeline",
+      "evidence": "2026-11-02-web-media-analysis.json",
+      "scope": "actual PDF upload and Hermes reading of PDF page images plus approved code; seven real browser groups"
+    },
+    {
+      "requirement": "Document/image parsing and durable publication",
+      "evidence": "2026-11-01-media-parser.json",
+      "scope": "actual parser fixtures, not a general semantic accuracy guarantee"
+    },
+    {
+      "requirement": "Source lookup, bounded search, current membership and persisted task sources",
+      "evidence": "2026-11-01-source-links.json",
+      "scope": "13 real HTTP/MySQL/Redis groups; model messages seeded in that fixture; real native source UI covered separately"
+    },
+    {
+      "requirement": "Task ownership/handoff and history across service restart; removed-member access denied",
+      "evidence": "2026-11-02-web-media-analysis.json",
+      "scope": "new browser profiles compare title, description, steps, source IDs, summary, assignee, status and revision"
+    },
+    {
+      "requirement": "Current entry points respect deferred scope while keeping document collaboration",
+      "evidence": "2026-11-02-document-scope/spark-document-scope-browser.log",
+      "scope": "27 controlled browser groups on current sources"
+    }
+  ],
+  "limits": [
+    "Prior audio semantic failures remain failures; audio/video are deferred by user scope change, not newly passed",
+    "Prior Pi visual semantic failure remains recorded; successful image-understanding evidence is the Hermes path",
+    "Existing media-review image predates this UI scope change; no new image, deployment or GitHub push in this increment",
+    "No new full CTest, standalone SQL or external-model regression for this UI/docs-only change"
+  ],
+  "source_sha256": {
+    "AGENTS.md": "b311b4ad8b611a56b70016d53243528c2180c63dc6e1085058d142f42f301f07",
+    "web_demo/static/room_media.js": "b31cf37d89e9dd7ab07520fc1709ad0a4099a7328b843731879decbd9c12927b",
+    "tests/collaboration_browser_test.cjs": "3a5ae7a91c4f8fc06d5e244e21babf2fd9a32523d031e709cbf69bcd3dc56443"
+  },
+  "artifact_directory": "2026-11-02-document-scope",
+  "artifact_sha256": {
+    "spark-document-scope-browser.log": "31277a20221aae8064bf9b3a22f2a981c5d08320208b93aed199b8be00e12133"
+  }
+}

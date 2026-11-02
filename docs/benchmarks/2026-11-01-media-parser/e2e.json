@@ -1,0 +1,572 @@
+{
+  "scope": "real isolated local decoders and CPU ASR; synthetic fixtures; no Logic/native Agent/Web integration",
+  "image_id": "sha256:4c2e26418ad4ec59d0d57bdf2a15af30826c14de5d253d39bf96be2de2b38120",
+  "parser_sha256": "e29263d81f71583e3c49cd6cc8d5d0a5cfb2bcbed36c40482b171d90c8c10188",
+  "model_sha256": "b2f73aed0684edce51988a894b0a40f3ef581f63d4e50bea7e2daa414dda9a8e",
+  "source_sha256": {
+    "cannbot/media/parser.py": "e29263d81f71583e3c49cd6cc8d5d0a5cfb2bcbed36c40482b171d90c8c10188",
+    "cannbot/media/sandbox.py": "64c8ba7519a7bcb5be4fc5ef25c05c4dfa0b54772f5c89a88b6659a466fb1d53",
+    "cannbot/media/provision_asr.py": "78f03e39cfe2711f98d088de8f94fc3199bbac7a9e32a8fe295fb852b1f78da8",
+    "cannbot/media/requirements.txt": "dedfc435594e8a62613e49b38c3e2936cdb4a3c8a3e5dbdd73d6ba511f97fc57",
+    "cannbot/media/Dockerfile": "db1e93b9aa405dd983001cb3b7c68f192db247742d23d7e2d45f136e349bfba2",
+    "tests/media_parser_e2e.py": "39228af9880f82e6769b3830a4ac5cdf9eacc1271d6f6b996138498622377cc5",
+    "tests/media_parser_fixtures.py": "a2bed331fe52ef4faec5b0c9421bd85ffb59cb152b926b90f50ffaca263eb434",
+    "tests/media_parser_test.py": "4be19eb78c7681ace036c54b2e70e987ea5019e36725040d258bf580a021bf8a"
+  },
+  "cases": [
+    {
+      "file": "diagram.png",
+      "source_sha256": "0c4218806d52644fe6e82eede8d7bcc285fc42536700165deeadf6238056e12d",
+      "bytes": 5940,
+      "coverage": {
+        "images": 1,
+        "kind": "image"
+      },
+      "fragments": 1,
+      "artifacts": 1,
+      "manifest_sha256": "5ba02253788780de466ada3eb12064bda848df34a5fa8b5f1d172562bd270035",
+      "seconds": 1.346,
+      "passed": true
+    },
+    {
+      "file": "diagram.png",
+      "source_sha256": "0c4218806d52644fe6e82eede8d7bcc285fc42536700165deeadf6238056e12d",
+      "bytes": 5940,
+      "expected_rejection": "mime_mismatch",
+      "passed": true,
+      "seconds": 1.012
+    },
+    {
+      "file": "design.pdf",
+      "source_sha256": "b561ddbef04f6f8d94e226a6bd3cb70bce92c0a475d159a722d59ff3a4211586",
+      "bytes": 13507,
+      "coverage": {
+        "kind": "pdf",
+        "page_count": 3,
+        "rendered_pages": 3
+      },
+      "fragments": 3,
+      "artifacts": 3,
+      "manifest_sha256": "07b179521e041c49d4d130da7351ca4ccdafb1b624101e179a1c695b486e546e",
+      "seconds": 1.947,
+      "passed": true
+    },
+    {
+      "file": "notes.docx",
+      "source_sha256": "d4ee3375989f5dfa4ffd548abd3056726b336c68af4b9479f4914798558c729d",
+      "bytes": 5599,
+      "coverage": {
+        "kind": "docx",
+        "paragraphs": 2,
+        "sections": [
+          "document"
+        ]
+      },
+      "fragments": 3,
+      "artifacts": 1,
+      "manifest_sha256": "1bd17aaa2fabfece85f8ded089dab94e0198e0a8226b2ddb2c54e919b27f2c8d",
+      "seconds": 1.255,
+      "passed": true
+    },
+    {
+      "file": "encrypted.pdf",
+      "source_sha256": "0d923e897282ce620a21cbeac8f75f1a3bb57c28e4016876dc2b0fd197dfb6ce",
+      "bytes": 13906,
+      "expected_rejection": "encrypted_document",
+      "passed": true,
+      "seconds": 1.175
+    },
+    {
+      "file": "broken.pdf",
+      "source_sha256": "b9e295f0c86730ee956a72a38716ba58f3ab765ee596bbd92d70ad7b7218ed97",
+      "bytes": 16,
+      "expected_rejection": "malformed_media",
+      "passed": true,
+      "seconds": 1.131
+    },
+    {
+      "file": "unsafe.docx",
+      "source_sha256": "81cba0719e60407f3b2203f88b82a341dd418728f4e6963125ade229a77f0031",
+      "bytes": 735,
+      "expected_rejection": "unsafe_document_entry",
+      "passed": true,
+      "seconds": 0.978
+    },
+    {
+      "file": "external.docx",
+      "source_sha256": "a4fdd9c8b07ef468638bbd7f39546488d6d66832ea2655cdc65f0b08d08c97fc",
+      "bytes": 1039,
+      "expected_rejection": "external_document_reference",
+      "passed": true,
+      "seconds": 0.993
+    },
+    {
+      "file": "entity.docx",
+      "source_sha256": "aa1a5cdd03bf632e3d18658914df9adbe5224d3eec8929ed0198505116c520aa",
+      "bytes": 206,
+      "expected_rejection": "malformed_media",
+      "passed": true,
+      "seconds": 0.983
+    },
+    {
+      "file": "animated.gif",
+      "source_sha256": "51f66297d5bc69eb8e9c3d78254d74b75e3baff89d28254e4f42aac09bdcead6",
+      "bytes": 5709,
+      "expected_rejection": "animated_image_unsupported",
+      "passed": true,
+      "seconds": 1.021
+    },
+    {
+      "file": "speech.wav",
+      "source_sha256": "16edca834e404bef717245c2592005db70a7a12562ba39e8ec5c720c5efec43e",
+      "bytes": 188820,
+      "expected_rejection": "parser_cancelled",
+      "passed": true,
+      "seconds": 0.541
+    },
+    {
+      "file": "speech.wav",
+      "source_sha256": "16edca834e404bef717245c2592005db70a7a12562ba39e8ec5c720c5efec43e",
+      "bytes": 188820,
+      "coverage": {
+        "audio": {
+          "decoded_samples": 68491,
+          "duration_ms": 4281,
+          "language": "en",
+          "offset_ms": 0,
+          "sample_rate": 16000,
+          "segments": 2,
+          "speaker_labels": false,
+          "track_end_ms": 4281
+        },
+        "container_duration_ms": 4281,
+        "duration_ms": 4281,
+        "kind": "audio",
+        "source_origin_ms": 0
+      },
+      "fragments": 2,
+      "artifacts": 0,
+      "manifest_sha256": "eb4198554ec0f04163caa414731bd75717cc419dcb8c270c9d57199f37755d85",
+      "seconds": 7.217,
+      "transcript": "the red panel shows a connection failure. the green panel means recovery.",
+      "passed": true
+    },
+    {
+      "file": "incident.mp4",
+      "source_sha256": "44c6d6589fa7cd687f635ca1cc2b434755911a75bc0011c0b286552127409c65",
+      "bytes": 47705,
+      "coverage": {
+        "audio": {
+          "decoded_samples": 69846,
+          "duration_ms": 4365,
+          "language": "en",
+          "offset_ms": 1953,
+          "sample_rate": 16000,
+          "segments": 1,
+          "speaker_labels": false,
+          "track_end_ms": 6318
+        },
+        "container_duration_ms": 10000,
+        "duration_ms": 10000,
+        "kind": "video",
+        "source_origin_ms": 0,
+        "video": {
+          "first_frame_ms": 0,
+          "frames": 2,
+          "last_frame_ms": 5000,
+          "sample_interval_ms": 5000,
+          "track_end_ms": 10000
+        }
+      },
+      "fragments": 1,
+      "artifacts": 2,
+      "manifest_sha256": "b235cff30e9345e11519a81093f027bac12f9bbb28ce4b1de793e1e04c102e5e",
+      "seconds": 7.496,
+      "frame_center_rgb": [
+        [
+          254,
+          0,
+          0
+        ],
+        [
+          0,
+          129,
+          2
+        ]
+      ],
+      "passed": true
+    },
+    {
+      "file": "audio-longer.mp4",
+      "source_sha256": "25d4ab57f0c2fd0250c5667f9e50013abb785502461a23256d457bdcb336c43f",
+      "bytes": 43096,
+      "coverage": {
+        "audio": {
+          "decoded_samples": 69846,
+          "duration_ms": 4365,
+          "language": "en",
+          "offset_ms": 1953,
+          "sample_rate": 16000,
+          "segments": 1,
+          "speaker_labels": false,
+          "track_end_ms": 6318
+        },
+        "container_duration_ms": 6281,
+        "duration_ms": 6318,
+        "kind": "video",
+        "source_origin_ms": 0,
+        "video": {
+          "first_frame_ms": 0,
+          "frames": 1,
+          "last_frame_ms": 0,
+          "sample_interval_ms": 5000,
+          "track_end_ms": 2000
+        }
+      },
+      "fragments": 1,
+      "artifacts": 1,
+      "manifest_sha256": "dd1afeac0fc2f68ef5152774478d78b39cd31e869c85f25a76b1f80972a24e0a",
+      "seconds": 7.236,
+      "passed": true
+    },
+    {
+      "file": "audio-shorter.webm",
+      "source_sha256": "0652cd00060fc5a54135536e244683548c794b4472391a1dbb1c6cd8560f15b8",
+      "bytes": 56684,
+      "coverage": {
+        "audio": {
+          "decoded_samples": 69846,
+          "duration_ms": 4365,
+          "language": "en",
+          "offset_ms": 1951,
+          "sample_rate": 16000,
+          "segments": 2,
+          "speaker_labels": false,
+          "track_end_ms": 6324
+        },
+        "container_duration_ms": 10000,
+        "duration_ms": 10000,
+        "kind": "video",
+        "source_origin_ms": 0,
+        "video": {
+          "first_frame_ms": 0,
+          "frames": 2,
+          "last_frame_ms": 5000,
+          "sample_interval_ms": 5000,
+          "track_end_ms": 10000
+        }
+      },
+      "fragments": 2,
+      "artifacts": 2,
+      "manifest_sha256": "bda1c9f1105846cb02afa56acf9447f8cf0b5718f282054c864a740e17017f64",
+      "seconds": 8.65,
+      "passed": true
+    },
+    {
+      "file": "audio-gap.m4a",
+      "source_sha256": "58c3da6a14026a2d5518f781f6c08b3ae89d8603670fbdf167ee0219fd92748c",
+      "bytes": 74834,
+      "coverage": {
+        "audio": {
+          "decoded_samples": 688546,
+          "duration_ms": 43034,
+          "language": "en",
+          "offset_ms": 0,
+          "sample_rate": 16000,
+          "segments": 3,
+          "speaker_labels": false,
+          "track_end_ms": 43023
+        },
+        "container_duration_ms": 43023,
+        "duration_ms": 43023,
+        "kind": "audio",
+        "source_origin_ms": 0
+      },
+      "fragments": 3,
+      "artifacts": 0,
+      "manifest_sha256": "bdc6620a8077323396b38bb501b1fd60f0016c2f2238b2073050db830dc4f584",
+      "seconds": 9.661,
+      "expected_timing": {
+        "prefix_seconds": 3.3848526077097505,
+        "gap_seconds": 35,
+        "suffix_seconds": 4.637732426303855,
+        "total_seconds": 43.02258503401361
+      },
+      "after_gap_transcript": [
+        {
+          "anchor": {
+            "end_ms": 40500,
+            "part": 0,
+            "start_ms": 37860
+          },
+          "index": 1,
+          "kind": "transcript",
+          "text": "The recovery code is Silver Lantern."
+        }
+      ],
+      "passed": true
+    },
+    {
+      "file": "large-pts.m4a",
+      "source_sha256": "9f081962f97f179d64b2fb2b6546c8a64696ac37fd8c8892a6b6ba713f57a6c2",
+      "bytes": 41153,
+      "coverage": {
+        "audio": {
+          "decoded_samples": 69846,
+          "duration_ms": 4365,
+          "language": "en",
+          "offset_ms": 0,
+          "sample_rate": 16000,
+          "segments": 1,
+          "speaker_labels": false,
+          "track_end_ms": 4365
+        },
+        "container_duration_ms": 90004281,
+        "duration_ms": 4365,
+        "kind": "audio",
+        "source_origin_ms": 89999953
+      },
+      "fragments": 1,
+      "artifacts": 0,
+      "manifest_sha256": "d56f97dd736923f0591f831fc8f925f6f403182fb4ac6e3a1831bd8e6a189f24",
+      "seconds": 7.222,
+      "passed": true
+    },
+    {
+      "file": "regressing-pts.webm",
+      "source_sha256": "4c73393879f727744f629a334aeab42f16074f0d815cf1b92a641a8c2b3862da",
+      "bytes": 52476,
+      "expected_rejection": "ambiguous_audio_timing",
+      "passed": true,
+      "seconds": 1.232
+    },
+    {
+      "file": "meeting-20min.wav",
+      "source_sha256": "f56404ce5134c2a9b872ddaf0deede03f245a9a5af5185c116d886a1a2d56f3f",
+      "bytes": 38399380,
+      "expected_rejection": "parser_cancelled",
+      "passed": true,
+      "seconds": 5.928,
+      "cancelled_during": "asr_running"
+    },
+    {
+      "file": "meeting-20min.wav",
+      "source_sha256": "f56404ce5134c2a9b872ddaf0deede03f245a9a5af5185c116d886a1a2d56f3f",
+      "bytes": 38399380,
+      "expected_rejection": "parser_setup_failed",
+      "passed": true,
+      "seconds": 0.53,
+      "existing_container_preserved": true
+    },
+    {
+      "case": "supervisor_SIGKILL",
+      "passed": true,
+      "container_exit_code": 142,
+      "internal_deadline_seconds": 8,
+      "container_started_at": "2026-11-01T07:56:20.507933312Z",
+      "container_finished_at": "2026-11-01T07:56:28.844209759Z",
+      "isolation_inspected": true,
+      "output_installed": false
+    },
+    {
+      "file": "meeting-20min.wav",
+      "source_sha256": "f56404ce5134c2a9b872ddaf0deede03f245a9a5af5185c116d886a1a2d56f3f",
+      "bytes": 38399380,
+      "coverage": {
+        "audio": {
+          "decoded_samples": 19199651,
+          "duration_ms": 1199978,
+          "language": "en",
+          "offset_ms": 0,
+          "sample_rate": 16000,
+          "segments": 395,
+          "speaker_labels": false,
+          "track_end_ms": 1199978
+        },
+        "container_duration_ms": 1199978,
+        "duration_ms": 1199978,
+        "kind": "audio",
+        "source_origin_ms": 0
+      },
+      "fragments": 395,
+      "artifacts": 0,
+      "manifest_sha256": "b70f917a4fdf019c838fac83c3357054bff8962073d336b1cd556d17ef1d50ee",
+      "seconds": 221.026,
+      "tail_transcript": [
+        {
+          "anchor": {
+            "end_ms": 1155840,
+            "part": 0,
+            "start_ms": 1152720
+          },
+          "index": 378,
+          "kind": "transcript",
+          "text": "A broker acknowledgement does not mean the browser has displayed the message."
+        },
+        {
+          "anchor": {
+            "end_ms": 1158460,
+            "part": 0,
+            "start_ms": 1156220
+          },
+          "index": 379,
+          "kind": "transcript",
+          "text": "Keep the original request identified when retrying."
+        },
+        {
+          "anchor": {
+            "end_ms": 1161060,
+            "part": 0,
+            "start_ms": 1158860
+          },
+          "index": 380,
+          "kind": "transcript",
+          "text": "Check the database history and the worker logs."
+        },
+        {
+          "anchor": {
+            "end_ms": 1164360,
+            "part": 0,
+            "start_ms": 1161420
+          },
+          "index": 381,
+          "kind": "transcript",
+          "text": "The release owner will collect the test evidence before making a decision."
+        },
+        {
+          "anchor": {
+            "end_ms": 1167300,
+            "part": 0,
+            "start_ms": 1164680
+          },
+          "index": 382,
+          "kind": "transcript",
+          "text": "We must keep the private room isolated from other rooms."
+        },
+        {
+          "anchor": {
+            "end_ms": 1169040,
+            "part": 0,
+            "start_ms": 1167580
+          },
+          "index": 383,
+          "kind": "transcript",
+          "text": "This is discussion item 60."
+        },
+        {
+          "anchor": {
+            "end_ms": 1172100,
+            "part": 0,
+            "start_ms": 1169040
+          },
+          "index": 384,
+          "kind": "transcript",
+          "text": "We are reviewing the messaging service and its failure recovery."
+        },
+        {
+          "anchor": {
+            "end_ms": 1175500,
+            "part": 0,
+            "start_ms": 1172380
+          },
+          "index": 385,
+          "kind": "transcript",
+          "text": "A broker acknowledgement does not mean the browser has displayed the message."
+        },
+        {
+          "anchor": {
+            "end_ms": 1178120,
+            "part": 0,
+            "start_ms": 1175860
+          },
+          "index": 386,
+          "kind": "transcript",
+          "text": "Keep the original request identified when retrying."
+        },
+        {
+          "anchor": {
+            "end_ms": 1180720,
+            "part": 0,
+            "start_ms": 1178560
+          },
+          "index": 387,
+          "kind": "transcript",
+          "text": "Check the database history and the worker logs."
+        },
+        {
+          "anchor": {
+            "end_ms": 1184000,
+            "part": 0,
+            "start_ms": 1181080
+          },
+          "index": 388,
+          "kind": "transcript",
+          "text": "The release owner will collect the test evidence before making a decision."
+        },
+        {
+          "anchor": {
+            "end_ms": 1186940,
+            "part": 0,
+            "start_ms": 1184360
+          },
+          "index": 389,
+          "kind": "transcript",
+          "text": "We must keep the private room isolated from other rooms."
+        },
+        {
+          "anchor": {
+            "end_ms": 1189740,
+            "part": 0,
+            "start_ms": 1187300
+          },
+          "index": 390,
+          "kind": "transcript",
+          "text": "The final decision uses the code name Magenta Harbor."
+        },
+        {
+          "anchor": {
+            "end_ms": 1191220,
+            "part": 0,
+            "start_ms": 1190100
+          },
+          "index": 391,
+          "kind": "transcript",
+          "text": "Keep the rollout paused."
+        },
+        {
+          "anchor": {
+            "end_ms": 1193600,
+            "part": 0,
+            "start_ms": 1191540
+          },
+          "index": 392,
+          "kind": "transcript",
+          "text": "Alice will investigate the duplicate delivery."
+        },
+        {
+          "anchor": {
+            "end_ms": 1195820,
+            "part": 0,
+            "start_ms": 1193940
+          },
+          "index": 393,
+          "kind": "transcript",
+          "text": "Bob will verify the recovery test tomorrow."
+        },
+        {
+          "anchor": {
+            "end_ms": 1199540,
+            "part": 0,
+            "start_ms": 1195820
+          },
+          "index": 394,
+          "kind": "transcript",
+          "text": "Do not enable automatic tool retries when the execution result is unknown."
+        }
+      ],
+      "fixture_type": "continuous synthetic technical speech, time-normalized to 1200s; not human/noisy meeting benchmark",
+      "passed": true
+    }
+  ],
+  "status": "passed"
+}

@@ -57,12 +57,19 @@ class RoomAgentRepository {
     virtual bool Tasks(int64_t,nlohmann::json*,std::string*) { return false; }
     virtual bool Task(int64_t,const std::string&,nlohmann::json*,std::string*) { return false; }
     virtual bool SaveTask(int64_t,int64_t,const nlohmann::json&,std::string*) { return false; }
+    virtual ServiceStatus Sources(int64_t,const std::string&,const nlohmann::json&,
+        const std::string&,uint64_t,nlohmann::json*) { return {503,"room sources unavailable"}; }
     virtual bool Bindings(int64_t, nlohmann::json*, std::string*) { return false; }
     virtual bool SetBinding(int64_t, int64_t, const std::string&, bool, std::string*) { return false; }
     virtual bool Workspace(int64_t, nlohmann::json* out, std::string*) {
         *out={{"project_id",""},{"generation",0}}; return true;
     }
     virtual bool SetWorkspace(int64_t,int64_t,int64_t,const std::string&,std::string*) { return false; }
+    // Missing row is generation zero; missing schema/query failure is unavailable.
+    // Keep this independent of project grants and the legacy CANN task state.
+    virtual bool ContextGeneration(int64_t,int64_t*,std::string* error) {
+        if(error)*error="room context storage unavailable"; return false;
+    }
     // Persist the first publication decision while holding the room, actor and
     // request locks. The callback owns policy and must not perform database I/O.
     using PublicationDecision=std::function<nlohmann::json(const nlohmann::json&)>;
@@ -128,8 +135,10 @@ class RoomAgentService {
     ServiceStatus Workspace(int64_t actor,int64_t room,nlohmann::json*);
     ServiceStatus SetWorkspace(int64_t actor,int64_t room,const nlohmann::json&,nlohmann::json*);
     ServiceStatus AuthorizeWorkspace(const std::string& key,const nlohmann::json&,nlohmann::json*);
+    ServiceStatus AuthorizeContext(const std::string& key,const std::string& request_id,nlohmann::json*);
     ServiceStatus Control(int64_t,int64_t,const nlohmann::json&,nlohmann::json*);
     ServiceStatus Tasks(int64_t,int64_t,nlohmann::json*);
+    ServiceStatus Sources(int64_t,int64_t,const nlohmann::json&,nlohmann::json*);
     ServiceStatus CreateTask(int64_t,int64_t,const nlohmann::json&,nlohmann::json*);
     ServiceStatus UpdateTask(int64_t,int64_t,const nlohmann::json&,nlohmann::json*);
     ServiceStatus Agents(int64_t actor, int64_t room, nlohmann::json* result);

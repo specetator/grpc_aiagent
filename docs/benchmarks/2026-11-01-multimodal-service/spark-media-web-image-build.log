@@ -1,0 +1,122 @@
+#0 building with "default" instance using docker driver
+
+#1 [internal] load build definition from Dockerfile
+#1 transferring dockerfile: 2.16kB done
+#1 DONE 0.0s
+
+#2 resolve image config for docker-image://docker.io/docker/dockerfile:1
+#2 DONE 3.8s
+
+#3 docker-image://docker.io/docker/dockerfile:1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e
+#3 resolve docker.io/docker/dockerfile:1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e 0.0s done
+#3 CACHED
+
+#4 [internal] load metadata for docker.io/library/ubuntu:22.04
+#4 DONE 2.5s
+
+#5 [internal] load .dockerignore
+#5 transferring context: 274B done
+#5 DONE 0.0s
+
+#6 [build  1/18] FROM docker.io/library/ubuntu:22.04@sha256:076e7bf82319619f28dd0aa9c02ab34b055ad37100395b4f49a2ffba04fb5e11
+#6 resolve docker.io/library/ubuntu:22.04@sha256:076e7bf82319619f28dd0aa9c02ab34b055ad37100395b4f49a2ffba04fb5e11 0.0s done
+#6 DONE 0.0s
+
+#7 [internal] load build context
+#7 transferring context: 240.05kB 0.0s done
+#7 DONE 0.0s
+
+#8 [build  2/18] RUN apt-get update && apt-get install -y --no-install-recommends     build-essential cmake pkg-config ca-certificates libssl-dev libcurl4-openssl-dev     default-libmysqlclient-dev libhiredis-dev librdkafka-dev libprotobuf-dev     protobuf-compiler protobuf-compiler-grpc libgrpc++-dev nlohmann-json3-dev     && rm -rf /var/lib/apt/lists/*
+#8 CACHED
+
+#9 [build 13/18] COPY hermes_bridge/ hermes_bridge/
+#9 CACHED
+
+#10 [runtime  3/12] WORKDIR /app
+#10 CACHED
+
+#11 [build  4/18] COPY CMakeLists.txt .
+#11 CACHED
+
+#12 [runtime  6/12] COPY conf /app/conf
+#12 CACHED
+
+#13 [build 15/18] COPY load_test/ load_test/
+#13 CACHED
+
+#14 [build 16/18] COPY tools/ tools/
+#14 CACHED
+
+#15 [runtime  4/12] COPY --from=build /build/logic/logic_server /build/comet/comet_server /build/job/job_server /build/web_demo/web_demo_server /build/hermes_bridge/hermes_bridge /build/tools/dlq_replay /usr/local/bin/
+#15 CACHED
+
+#16 [build 17/18] COPY web_demo/CMakeLists.txt web_demo/web_server.cpp web_demo/
+#16 CACHED
+
+#17 [build  6/18] COPY muduo/ muduo/
+#17 CACHED
+
+#18 [build  8/18] COPY common/ common/
+#18 CACHED
+
+#19 [runtime  2/12] RUN apt-get update && apt-get install -y --no-install-recommends     ca-certificates curl openssl python3 python3-pymysql python3-cryptography libssl3 libcurl4     libmysqlclient21 libhiredis0.14 librdkafka++1 libprotobuf23 libgrpc++1     && rm -rf /var/lib/apt/lists/*     && groupadd -g 10001 spark && useradd -u 10001 -g spark -m spark
+#19 CACHED
+
+#20 [build  7/18] COPY third_party/json.hpp third_party/json.hpp
+#20 CACHED
+
+#21 [build 18/18] RUN cmake -S . -B /build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF     && cmake --build /build --parallel 2 --target        logic_server comet_server job_server web_demo_server hermes_bridge dlq_replay
+#21 CACHED
+
+#22 [build  5/18] COPY cmake/ cmake/
+#22 CACHED
+
+#23 [build  9/18] COPY proto/ proto/
+#23 CACHED
+
+#24 [build 11/18] COPY comet/ comet/
+#24 CACHED
+
+#25 [build 14/18] COPY inference/ inference/
+#25 CACHED
+
+#26 [build  3/18] WORKDIR /src
+#26 CACHED
+
+#27 [build 12/18] COPY job/ job/
+#27 CACHED
+
+#28 [runtime  5/12] COPY deploy /app/deploy
+#28 CACHED
+
+#29 [build 10/18] COPY logic/ logic/
+#29 CACHED
+
+#30 [runtime  7/12] COPY sql /app/sql
+#30 CACHED
+
+#31 [runtime  8/12] COPY web_demo/static /app/static
+#31 DONE 0.0s
+
+#32 [runtime  9/12] COPY LICENSE THIRD_PARTY_NOTICES.md /app/
+#32 DONE 0.0s
+
+#33 [runtime 10/12] COPY licenses /app/licenses
+#33 DONE 0.0s
+
+#34 [runtime 11/12] COPY third_party/pi/LICENSE /app/licenses/PI-MIT.txt
+#34 DONE 0.0s
+
+#35 [runtime 12/12] RUN mkdir -p /app/logs /app/data/attachments && chown -R spark:spark /app/logs /app/data
+#35 DONE 0.2s
+
+#36 exporting to image
+#36 exporting layers
+#36 exporting layers 0.2s done
+#36 exporting manifest sha256:7d122157fe747c00a27fe717b22d11b8fbb5f6ba40b4e4a2a308f3d4c44c8621 0.0s done
+#36 exporting config sha256:fb34fe17b2e6207234c71d3632e7f5fd9276e569032aeb124a2b92c5c703efd3 0.0s done
+#36 exporting attestation manifest sha256:acbd0b2db60f6cf32ef071b0d9be2b8daca73db2425b1e7fa76d7b83435863da 0.0s done
+#36 exporting manifest list sha256:3e114fba43f91de3a40281a6ac3ac510457c988eb9fa25c34c7f87836a06ca4c 0.0s done
+#36 naming to docker.io/library/spark-push:media-web done
+#36 unpacking to docker.io/library/spark-push:media-web 0.1s done
+#36 DONE 0.3s

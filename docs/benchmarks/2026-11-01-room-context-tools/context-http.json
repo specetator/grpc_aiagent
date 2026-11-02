@@ -1,0 +1,23 @@
+{
+  "scope": "Real HTTP/MySQL/Redis context authority; seeded message/request fixtures.\n\nUploads and text parsing use real services. Optional image uses the production\nDocker parser worker. No Kafka, native model, browser or tool-execution claim.\n",
+  "checks": [
+    "literal SQL search; pre-LIMIT epoch filter; canonical room and message ceiling",
+    "Unicode bounded read; deterministic durable receipts; actual HTTP process restart",
+    "two observed SQL lock waiters compete for last receipt slot; no overrun; duplicate at capacity; request-bound IDs",
+    "literal fragment search locates long-text tail with real line anchor and stable read receipt",
+    "real text upload/worker/publication; fixed revision; cross-room read denied even for dual member",
+    "source withdrawal while HTTP read waits; fragment payload/hash mismatch rejected",
+    "real Docker image parsing and JPEG read; zero-text discovery; metadata versus image receipts",
+    "actual HTTP read blocked on room lock; epoch commit fences receipt and protected response",
+    "actual in-flight HTTP member revocation; final authorization withholds source data",
+    "member removal, never-member, uninstalled Agent and stale epoch denied",
+    "missing receipt migration fails closed; old receipts remain unchanged"
+  ],
+  "status": "passed",
+  "parser_configuration": {
+    "pipeline_sha256": "5dc18f1e2bea61d1995d021569ccf8b65d1f4a79cbe5dc32856e954ccde7b80d",
+    "parser_sha256": "e29263d81f71583e3c49cd6cc8d5d0a5cfb2bcbed36c40482b171d90c8c10188",
+    "image_id": "sha256:4c2e26418ad4ec59d0d57bdf2a15af30826c14de5d253d39bf96be2de2b38120",
+    "model_sha256": "b2f73aed0684edce51988a894b0a40f3ef581f63d4e50bea7e2daa414dda9a8e"
+  }
+}
